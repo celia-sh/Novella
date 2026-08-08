@@ -26,8 +26,11 @@ public final class NovellaReadiumModule: Module {
         view.setContentInsets(value)
       }
 
-      Events("onReady", "onLocatorChange", "onLink", "onImage", "onError")
+      Events("onReady", "onLocatorChange", "onLink", "onImage", "onError", "onStatus")
 
+      AsyncFunction("getCurrentLocator") { (view: NovellaReadiumView) async -> [String: Any]? in
+        await view.getCurrentLocator()
+      }
       AsyncFunction("goToLocator") { (view: NovellaReadiumView, locator: [String: Any]) async throws -> Bool in
         try await view.goToLocator(locator)
       }

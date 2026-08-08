@@ -15,14 +15,14 @@ const blocks = [
 test('server position restores through a deterministic block fragment', () => {
   const locator = readerPositionToReadiumLocator('//body/p[2]', 42, blocks);
 
-  assert.equal(locator.href, 'chapters/42.xhtml');
+  assert.equal(locator.href, 'EPUB/chapters/42.xhtml');
   assert.deepEqual(locator.locations.fragments, ['nv-block-1']);
   assert.ok((locator.locations.progression ?? 0) > 0);
 });
 
 test('Readium fragment maps directly to the canonical server locator', () => {
   const position = readiumLocatorToReaderPosition({
-    href: 'chapters/42.xhtml',
+    href: 'EPUB/chapters/42.xhtml',
     type: 'application/xhtml+xml',
     locations: { fragments: ['nv-block-2'], progression: 0 },
   }, 42, blocks);
@@ -30,9 +30,19 @@ test('Readium fragment maps directly to the canonical server locator', () => {
   assert.deepEqual(position, { chapterId: 42, position: '//body/p[3]' });
 });
 
+test('canonical chapter matching tolerates Readium URL decoration', () => {
+  const position = readiumLocatorToReaderPosition({
+    href: '/EPUB/chapters/42.xhtml?session=1#page',
+    type: 'application/xhtml+xml',
+    locations: { fragments: ['nv-block-1'], progression: 0 },
+  }, 42, blocks);
+
+  assert.deepEqual(position, { chapterId: 42, position: '//body/p[2]' });
+});
+
 test('text context is preferred when no stable fragment is available', () => {
   const position = readiumLocatorToReaderPosition({
-    href: 'chapters/42.xhtml',
+    href: 'EPUB/chapters/42.xhtml',
     type: 'application/xhtml+xml',
     locations: { progression: 0 },
     text: { highlight: 'Beta anchor text' },
@@ -41,9 +51,19 @@ test('text context is preferred when no stable fragment is available', () => {
   assert.deepEqual(position, { chapterId: 42, position: '//body/p[2]' });
 });
 
+test('progression fallback round-trips through the same weighted block', () => {
+  const restored = readerPositionToReadiumLocator('//body/p[2]', 42, blocks);
+  const position = readiumLocatorToReaderPosition({
+    ...restored,
+    locations: { progression: restored.locations.progression },
+  }, 42, blocks);
+
+  assert.deepEqual(position, { chapterId: 42, position: '//body/p[2]' });
+});
+
 test('a locator for another chapter is rejected', () => {
   const position = readiumLocatorToReaderPosition({
-    href: 'chapters/99.xhtml',
+    href: 'EPUB/chapters/99.xhtml',
     type: 'application/xhtml+xml',
     locations: { progression: 0.5 },
   }, 42, blocks);

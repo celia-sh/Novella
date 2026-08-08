@@ -20,6 +20,7 @@ export function ReaderNavigation(props: ReaderNavigationProps) {
         headerShown: true,
         headerStyle: { backgroundColor: props.backgroundColor },
         headerTintColor: props.foregroundColor,
+        headerTransparent: true,
         title: props.title,
       }}
     />

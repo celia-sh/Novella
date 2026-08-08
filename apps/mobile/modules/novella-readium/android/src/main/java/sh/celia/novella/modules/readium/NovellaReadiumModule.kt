@@ -1,5 +1,6 @@
 package sh.celia.novella.modules.readium
 
+import expo.modules.kotlin.functions.Coroutine
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
@@ -29,8 +30,11 @@ class NovellaReadiumModule : Module() {
         view.setContentInsets(value)
       }
 
-      Events("onReady", "onLocatorChange", "onLink", "onImage", "onError")
+      Events("onReady", "onLocatorChange", "onLink", "onImage", "onError", "onStatus")
 
+      AsyncFunction("getCurrentLocator") Coroutine { view: ComposeReadiumView ->
+        view.getCurrentLocator()
+      }
       AsyncFunction("goToLocator") { view: ComposeReadiumView, locator: Map<String, Any> ->
         view.goToLocator(locator)
       }

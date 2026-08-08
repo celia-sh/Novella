@@ -1,4 +1,7 @@
-@file:OptIn(org.readium.r2.shared.ExperimentalReadiumApi::class)
+@file:OptIn(
+  org.readium.r2.shared.ExperimentalReadiumApi::class,
+  org.readium.r2.shared.InternalReadiumApi::class
+)
 
 package sh.celia.novella.modules.readium
 
@@ -16,9 +19,11 @@ import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
 import java.io.File
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import org.json.JSONArray
 import org.json.JSONObject
 import org.readium.r2.navigator.HyperlinkNavigator
@@ -32,11 +37,13 @@ import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.toJSON
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.Url
+import org.readium.r2.shared.util.data.Container
 import org.readium.r2.shared.util.data.ReadError
 import org.readium.r2.shared.util.file.DirectoryContainer
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.http.DefaultHttpClient
 import org.readium.r2.shared.util.mediatype.MediaType
+import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.streamer.PublicationOpener
 import org.readium.r2.streamer.parser.DefaultPublicationParser
 
@@ -48,16 +55,20 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
   private val onLink by EventDispatcher()
   private val onImage by EventDispatcher()
   private val onError by EventDispatcher()
+  private val onStatus by EventDispatcher()
 
   private var publicationUri: String? = null
   private var publicationId: String? = null
   private var declaredHrefs: List<String> = emptyList()
   private var initialLocator: Map<String, Any>? = null
   private var preferences: Map<String, Any> = emptyMap()
+  private var contentInsets: Map<String, Double> = emptyMap()
   private var navigator: EpubNavigatorFragment? = null
   private var publication: Publication? = null
+  private var navigatorPublication: Publication? = null
   private var openJob: Job? = null
   private var locatorJob: Job? = null
+  private var isReady = false
   private val fragmentTag get() = "novella-readium-${id}"
 
   init {
@@ -93,12 +104,15 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
   }
 
   fun setContentInsets(value: Map<String, Double>) {
-    setPadding(
-      (value["left"] ?: 0.0).toInt(),
-      (value["top"] ?: 0.0).toInt(),
-      (value["right"] ?: 0.0).toInt(),
-      (value["bottom"] ?: 0.0).toInt()
-    )
+    contentInsets = value
+    setPadding(0, 0, 0, 0)
+    applyContentInsets()
+  }
+
+  suspend fun getCurrentLocator(): Map<String, Any>? {
+    val navigator = navigator ?: return null
+    val locator = navigator.firstVisibleElementLocator() ?: navigator.currentLocator.value
+    return jsonObjectToMap(locator.toJSON())
   }
 
   fun goToLocator(value: Map<String, Any>): Boolean {
@@ -116,6 +130,7 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
   }
 
   override fun onResourceLoadFailed(href: Url, error: ReadError) {
+    onStatus(mapOf("stage" to "resourceFailed", "href" to href.toString(), "detail" to error.toString()))
     onError(mapOf("code" to "resource_missing", "message" to error.toString(), "recoverable" to true, "href" to href.toString()))
   }
 
@@ -136,6 +151,11 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
     val uri = publicationUri ?: return
     if (publicationId.isNullOrEmpty() || declaredHrefs.isEmpty()) return
     val activity = appContext.currentActivity as? FragmentActivity ?: return
+    isReady = false
+    onStatus(buildMap {
+      put("stage", "opening")
+      (initialLocator?.get("href") as? String)?.let { put("href", it) }
+    })
     openJob = activity.lifecycleScope.launch {
       kotlinx.coroutines.yield()
       try {
@@ -147,7 +167,14 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
         val opener = PublicationOpener(DefaultPublicationParser(context, httpClient, retriever, pdfFactory = null))
         val asset = retriever.retrieve(container, MediaType.EPUB).getOrElse { throw IllegalStateException(it.message) }
         val opened = opener.open(asset, allowUserInteraction = false).getOrElse { throw IllegalStateException(it.message) }
+        onStatus(buildMap {
+          put("stage", "publicationOpened")
+          put("detail", "readingOrder=${opened.readingOrder.size}")
+          (initialLocator?.get("href") as? String)?.let { put("href", it) }
+        })
         install(activity, opened)
+      } catch (_: CancellationException) {
+        return@launch
       } catch (error: Throwable) {
         onError(mapOf("code" to "open_failed", "message" to (error.message ?: error.toString()), "recoverable" to true))
       }
@@ -158,12 +185,33 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
     cleanupInstalledNavigator(activity)
     publication = opened
     val initial = initialLocator?.let { Locator.fromJSON(JSONObject(it)) }
-    activity.supportFragmentManager.fragmentFactory = EpubNavigatorFactory(opened).createFragmentFactory(
+    val targetLink = initial?.let { locator ->
+      opened.readingOrder.firstOrNull { it.url().isEquivalent(locator.href) }
+    } ?: opened.readingOrder.firstOrNull()
+      ?: throw IllegalStateException("The publication has no readable chapter")
+    val navigatorPublication = Publication(
+      manifest = opened.manifest.copy(readingOrder = listOf(targetLink)),
+      container = BorrowedContainer(opened.container)
+    )
+    this.navigatorPublication = navigatorPublication
+    activity.supportFragmentManager.fragmentFactory = EpubNavigatorFactory(navigatorPublication).createFragmentFactory(
       initialLocator = initial,
+      readingOrder = navigatorPublication.readingOrder,
       initialPreferences = makePreferences(),
       listener = this,
+      paginationListener = object : EpubNavigatorFragment.PaginationListener {
+        override fun onPageLoaded() {
+          if (isReady) return
+          isReady = true
+          onStatus(buildMap {
+            put("stage", "resourceLoaded")
+            initial?.href?.toString()?.let { put("href", it) }
+          })
+          onReady(emptyMap())
+        }
+      },
       configuration = EpubNavigatorFragment.Configuration(
-        shouldApplyInsetsPadding = true,
+        shouldApplyInsetsPadding = false,
         disablePageTurnsWhileScrolling = false
       ).apply {
         registerJavascriptInterface("novellaReader") { ImageBridge() }
@@ -175,13 +223,29 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
     val fragment = activity.supportFragmentManager.findFragmentByTag(fragmentTag) as EpubNavigatorFragment
     navigator = fragment
     fragment.view?.layoutParams = LayoutParams(MATCH_PARENT, MATCH_PARENT)
+    applyContentInsets()
     locatorJob = activity.lifecycleScope.launch {
       fragment.currentLocator.collectLatest { locator ->
         onLocatorChange(jsonObjectToMap(locator.toJSON()))
       }
     }
-    onReady(emptyMap())
+    onStatus(buildMap {
+      put("stage", "navigatorInstalled")
+      initial?.href?.toString()?.let { put("href", it) }
+    })
   }
+
+  private fun applyContentInsets() {
+    navigator?.view?.setPadding(
+      contentInsetPixels("left"),
+      contentInsetPixels("top"),
+      contentInsetPixels("right"),
+      contentInsetPixels("bottom")
+    )
+  }
+
+  private fun contentInsetPixels(edge: String): Int =
+    ((contentInsets[edge] ?: 0.0) * resources.displayMetrics.density).roundToInt()
 
   private fun makePreferences(): EpubPreferences = EpubPreferences(
     backgroundColor = color(preferences["backgroundColor"] as? String),
@@ -242,6 +306,8 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
       }
     }
     navigator = null
+    navigatorPublication?.close()
+    navigatorPublication = null
     publication?.close()
     publication = null
   }
@@ -251,4 +317,14 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
     openJob = null
     cleanupInstalledNavigator(appContext.currentActivity as? FragmentActivity)
   }
+}
+
+private class BorrowedContainer(
+  private val source: Container<Resource>
+) : Container<Resource> {
+  override val entries: Set<Url> get() = source.entries
+
+  override fun get(url: Url): Resource? = source[url]
+
+  override fun close() = Unit
 }

@@ -11,6 +11,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   let onLink = EventDispatcher()
   let onImage = EventDispatcher()
   let onError = EventDispatcher()
+  let onStatus = EventDispatcher()
 
   private var publicationUri: String?
   private var publicationId: String?
@@ -20,6 +21,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   private var contentInsets: [String: Double] = [:]
   private var navigator: EPUBNavigatorViewController?
   private var openTask: Task<Void, Never>?
+  private var isReady = false
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -59,6 +61,14 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     navigator?.view.setNeedsLayout()
   }
 
+  func getCurrentLocator() async -> [String: Any]? {
+    guard let navigator else { return nil }
+    if let locator = await navigator.firstVisibleElementLocator() {
+      return bridgeLocator(locator)
+    }
+    return navigator.currentLocation.map(bridgeLocator)
+  }
+
   func goToLocator(_ value: [String: Any]) async throws -> Bool {
     guard let navigator, let json = JSONValue(value), let locator = try? Locator(json: json, warnings: nil) else { return false }
     return await navigator.go(to: locator, options: .none)
@@ -87,6 +97,10 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       let uri = publicationUri,
       let url = URL(string: uri)
     else { return }
+    isReady = false
+    var openingStatus: [String: Any] = ["stage": "opening"]
+    if let href = initialLocator?["href"] as? String { openingStatus["href"] = href }
+    onStatus(openingStatus)
     openTask = Task { [weak self] in
       await Task.yield()
       guard !Task.isCancelled else { return }
@@ -102,6 +116,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
         guard let self, !Task.isCancelled else { return }
         await MainActor.run { self.install(publication: publication) }
       } catch {
+        guard !Task.isCancelled else { return }
         await MainActor.run { [weak self] in
           self?.onError(["code": "open_failed", "message": String(describing: error), "recoverable": true])
         }
@@ -114,9 +129,27 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       let location = initialLocator.flatMap { value in
         JSONValue(value).flatMap { try? Locator(json: $0, warnings: nil) }
       }
+      let navigatorReadingOrder: [ReadiumShared.Link]
+      if
+        let href = location?.href,
+        let index = publication.readingOrder.firstIndexWithHREF(href)
+      {
+        navigatorReadingOrder = [publication.readingOrder[index]]
+      } else if let first = publication.readingOrder.first {
+        navigatorReadingOrder = [first]
+      } else {
+        throw PublicationViewError.missingReadingOrder
+      }
+      var openedStatus: [String: Any] = [
+        "stage": "publicationOpened",
+        "detail": "readingOrder=\(publication.readingOrder.count)"
+      ]
+      if let href = location?.href.description { openedStatus["href"] = href }
+      onStatus(openedStatus)
       let controller = try EPUBNavigatorViewController(
         publication: publication,
         initialLocation: location,
+        readingOrder: navigatorReadingOrder,
         config: EPUBNavigatorViewController.Configuration(
           preferences: makePreferences(),
           preloadPreviousPositionCount: 0,
@@ -131,7 +164,9 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       addSubview(controller.view)
       controller.didMove(toParent: parent)
       controller.view.frame = bounds
-      onReady([:])
+      var installedStatus: [String: Any] = ["stage": "navigatorInstalled"]
+      if let href = location?.href.description { installedStatus["href"] = href }
+      onStatus(installedStatus)
       applyPreferences()
     } catch {
       onError(["code": "navigator_failed", "message": String(describing: error), "recoverable": true])
@@ -156,13 +191,20 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   }
 
   func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
-    onLocatorChange(locator.jsonObject)
+    if !isReady {
+      isReady = true
+      onStatus(["stage": "resourceLoaded", "href": locator.href.description])
+      onReady([:])
+    }
+    onLocatorChange(bridgeLocator(locator))
   }
 
   func navigator(_ navigator: Navigator, didJumpTo locator: Locator) {}
 
   func navigator(_ navigator: Navigator, presentError error: NavigatorError) {
-    onError(["code": "navigator_error", "message": String(describing: error), "recoverable": true])
+    let message = String(describing: error)
+    onStatus(["stage": "resourceFailed", "detail": message])
+    onError(["code": "navigator_error", "message": message, "recoverable": true])
   }
 
   func navigator(_ navigator: VisualNavigator, presentationDidChange presentation: VisualNavigatorPresentation) {}
@@ -216,6 +258,10 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     )
   }
 
+  private func bridgeLocator(_ locator: Locator) -> [String: Any] {
+    locator.jsonObject.mapValues(\.any)
+  }
+
   private static let imagePreviewScript = """
   (function(){
     if(window.__novellaImagePreviewInstalled)return;
@@ -260,4 +306,5 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
 private enum PublicationViewError: Error {
   case invalidDirectory
   case missingParentController
+  case missingReadingOrder
 }

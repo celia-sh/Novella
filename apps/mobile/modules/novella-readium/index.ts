@@ -8,4 +8,5 @@ export type {
   ReadiumLocator,
   ReadiumReaderError,
   ReadiumReaderPreferences,
+  ReadiumStatusEvent,
 } from './src/novella-readium.types';

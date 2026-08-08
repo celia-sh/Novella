@@ -1,7 +1,6 @@
 import type { NovelReaderBlock } from '@novella/reader-engine';
 
-import { chapterHrefFor } from './reader-xhtml-builder.ts';
-import { readiumBlockFragment } from './readium-publication.ts';
+import { readiumBlockFragment, readiumChapterHref } from './readium-publication.ts';
 
 export interface ReadiumLocator {
   href: string;
@@ -90,7 +89,7 @@ export function readerPositionToBlock(
     : -1;
   const resolved = blockIndex >= 0
     ? blockIndex
-    : Math.floor(Math.max(0, Math.min(1, progression)) * blocks.length);
+    : findBlockForProgression(blocks, progression);
 
   const clamped = Math.max(0, Math.min(resolved, blocks.length - 1));
   const block = blocks[clamped];
@@ -103,6 +102,22 @@ export function readerPositionToBlock(
  * Progression is approximated by the block's text offset over the chapter's
  * total text length.
  */
+function findBlockForProgression(
+  blocks: readonly NovelReaderBlock[],
+  progression: number,
+): number {
+  const texts = blockTexts(blocks);
+  const lengths = texts.map((text) => Math.max(1, text.length));
+  const total = lengths.reduce((sum, length) => sum + length, 0);
+  const target = Math.max(0, Math.min(1, progression)) * total;
+  let offset = 0;
+  for (let index = 0; index < lengths.length; index += 1) {
+    offset += lengths[index] ?? 0;
+    if (target < offset) return index;
+  }
+  return Math.max(0, blocks.length - 1);
+}
+
 export function readerPositionToProgression(
   position: string | null | undefined,
   chapterId: number,
@@ -149,7 +164,7 @@ export function readerPositionToReadiumLocator(
   const locations: ReadiumLocator['locations'] = { progression };
   if (blockIndex >= 0) locations.fragments = [readiumBlockFragment(blockIndex)];
   return {
-    href: chapterHrefFor(chapterId),
+    href: readiumChapterHref(chapterId),
     type: 'application/xhtml+xml',
     locations,
   };
@@ -161,7 +176,7 @@ export function readiumLocatorToReaderPosition(
   chapterId: number,
   blocks: readonly NovelReaderBlock[],
 ): { chapterId: number; position: string } | null {
-  if (blocks.length === 0 || locator.href !== chapterHrefFor(chapterId)) return null;
+  if (blocks.length === 0 || normalizeReadiumHref(locator.href) !== readiumChapterHref(chapterId)) return null;
 
   const fragment = locator.locations.fragments?.find((value) => /^nv-block-\d+$/u.test(value));
   if (fragment) {
@@ -179,9 +194,14 @@ export function readiumLocatorToReaderPosition(
   );
 }
 
+function normalizeReadiumHref(href: unknown): string | null {
+  if (typeof href !== 'string' || href.length === 0) return null;
+  return href.replace(/^\/+/, '').split(/[?#]/u, 1)[0] ?? href;
+}
+
 /** Kept for callers that need the chapter href (used as a stable key). */
 export function chapterHrefForChapter(chapterId: number): string {
-  return chapterHrefFor(chapterId);
+  return readiumChapterHref(chapterId);
 }
 
 function findBlockIndexForPosition(

@@ -39,5 +39,12 @@ export function ReaderChapterNavigation({
 }
 
 const styles = StyleSheet.create({
-  host: { width: '100%' },
+  host: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    width: '100%',
+    zIndex: 1,
+  },
 });

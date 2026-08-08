@@ -3,7 +3,7 @@ import { useRoute } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { ReadiumLinkEvent, ReadiumLocator } from '../../modules/novella-readium';
+import type { NovellaReadiumViewHandle, ReadiumLinkEvent, ReadiumLocator, ReadiumStatusEvent } from '../../modules/novella-readium';
 import { NovellaReadiumView } from '../../modules/novella-readium';
 import {
   getAdjacentChapterSortNum,
@@ -18,6 +18,7 @@ import { ReaderErrorState } from '@/components/reader-chrome';
 import { ReaderImagePreview, type ReaderImagePreviewSource } from '@/components/reader-image-preview';
 import { ReaderNavigation } from '@/components/reader-navigation';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
+import { createReaderChromeInsets } from '@/services/reader-chrome-layout';
 import { useReaderChapter } from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
 import { useReaderFont } from '@/hooks/use-reader-font';
@@ -55,8 +56,7 @@ export interface ReaderScreenProps {
   openPosition?: ReaderOpenPosition;
 }
 
-const IOS_READER_TOP_TOOLBAR_HEIGHT = 44;
-const IOS_READER_BOTTOM_TOOLBAR_HEIGHT = 44;
+const NATIVE_READER_LOAD_TIMEOUT_MS = 15_000;
 
 export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: ReaderScreenProps) {
   const insets = useSafeAreaInsets();
@@ -68,6 +68,9 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const { colors } = useAppTheme();
   const [mode, setMode] = useState<ReaderMode>(settings.readerViewMode);
   const [previewSource, setPreviewSource] = useState<ReaderImagePreviewSource | null>(null);
+  const [nativeAttempt, setNativeAttempt] = useState(0);
+  const [nativeError, setNativeError] = useState<string | null>(null);
+  const [nativeReady, setNativeReady] = useState(false);
   const conversion = settings.convertType === 'none' ? undefined : settings.convertType;
   const { content, error, isLoading, reload } = useReaderChapter(
     bookId,
@@ -111,6 +114,24 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     fontReady: !requiresReaderFont || readerFont.status === 'loaded',
     ...(conversion === undefined ? {} : { conversion }),
   });
+  const preparedPublication = publication.publication?.chapter.id === content?.chapter.id
+    ? publication.publication
+    : null;
+  const publicationId = preparedPublication?.publicationId ?? null;
+  const requestedChapterId = content?.chapter.id ?? null;
+
+  useEffect(() => {
+    setNativeError(null);
+    setNativeReady(false);
+  }, [nativeAttempt, publicationId, requestedChapterId]);
+
+  useEffect(() => {
+    if (!preparedPublication || !content || nativeReady || nativeError) return;
+    const timeout = setTimeout(() => {
+      setNativeError('Readium did not finish loading the current chapter.');
+    }, NATIVE_READER_LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
+  }, [content, nativeError, nativeReady, preparedPublication]);
 
   const initialLocator = useMemo<ReadiumLocator | undefined>(() => {
     if (!content) return undefined;
@@ -141,6 +162,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     450,
     stagePosition,
   );
+  const nativeReaderRef = useRef<NovellaReadiumViewHandle | null>(null);
   const lastPositionRef = useRef<ReadiumLocator | null>(null);
   const activeChapterIdRef = useRef<number | null>(null);
   activeChapterIdRef.current = content?.chapter.id ?? null;
@@ -149,18 +171,40 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const savePosition = useCallback((locator: ReadiumLocator) => {
     if (!content || activeChapterIdRef.current !== content.chapter.id) return;
     lastPositionRef.current = locator;
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[Reader][Readium] raw locator', locator);
+    }
     const mapped = readiumLocatorToReaderPosition(locator, content.chapter.id, blocks);
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[Reader][Readium] mapped locator', {
+        href: locator.href,
+        progression: locator.locations.progression,
+        fragments: locator.locations.fragments,
+        position: mapped?.position,
+      });
+    }
     if (!mapped) return;
     schedulePosition(mapped);
   }, [blocks, content, schedulePosition]);
-  const saveCurrentPosition = useCallback(() => {
-    const locator = lastPositionRef.current;
-    if (!locator || !content || activeChapterIdRef.current !== content.chapter.id) {
-      return flushPosition();
+  const saveCurrentPosition = useCallback(async () => {
+    let locator = lastPositionRef.current;
+    try {
+      locator = await nativeReaderRef.current?.getCurrentLocator() ?? locator;
+    } catch {
+      // The view may already be detached during navigation cleanup; use the
+      // latest locator event in that case.
     }
+    if (!locator || !content || activeChapterIdRef.current !== content.chapter.id) {
+      await flushPosition();
+      return;
+    }
+    lastPositionRef.current = locator;
     const mapped = readiumLocatorToReaderPosition(locator, content.chapter.id, blocks);
-    if (!mapped) return flushPosition();
-    return commitPosition(mapped);
+    if (!mapped) {
+      await flushPosition();
+      return;
+    }
+    await commitPosition(mapped);
   }, [blocks, commitPosition, content, flushPosition]);
   useReaderLifecycleSave(saveCurrentPosition);
 
@@ -253,17 +297,13 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     readerBackground = resolvedReaderColors.backgroundColor;
     readerTextColor = resolvedReaderColors.textColor;
   }
-  // The native top/bottom bars float over the reader content (Liquid Glass
-  // overlay header on iOS, bottom toolbar), so the document area must be
-  // inset by their heights — same scheme as the previous renderer. The extra
-  // 16pt keeps the first line out of the header's glass blur zone in paged
-  // mode.
-  const readerTopInset = process.env.EXPO_OS === 'ios'
-    ? insets.top + IOS_READER_TOP_TOOLBAR_HEIGHT + 16
-    : 0;
-  const readerBottomInset = process.env.EXPO_OS === 'ios'
-    ? IOS_READER_BOTTOM_TOOLBAR_HEIGHT + insets.bottom + 16
-    : 0;
+  // The navigator fills the screen beneath the overlay chrome. These values
+  // are applied inside the native navigator, never as padding on its host view.
+  const readerChromeInsets = createReaderChromeInsets(
+    process.env.EXPO_OS,
+    insets.top,
+    insets.bottom,
+  );
 
   const openFootnote = useCallback(
     (id: string) => {
@@ -290,9 +330,26 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     textColor: readerTextColor,
   }), [readerBackground, readerTextColor, settings.fontSize, settings.readerFirstLineIndent, settings.readerImagePreviewOpenOnLongPress, settings.readerLineHeight, settings.readerPagedNoAnimation, settings.readerSidePadding, mode]);
   const readerInsets = useMemo(
-    () => createReadiumContentInsets(readerTopInset, readerBottomInset),
-    [readerBottomInset, readerTopInset],
+    () => createReadiumContentInsets(
+      readerChromeInsets.top,
+      readerChromeInsets.bottom,
+    ),
+    [readerChromeInsets.bottom, readerChromeInsets.top],
   );
+
+  const reportReadiumStatus = useCallback((status: ReadiumStatusEvent) => {
+    if (process.env.NODE_ENV === 'production') return;
+    console.info('[Reader][Readium]', status.stage, {
+      ...(status.href ? { href: status.href } : {}),
+      ...(status.detail ? { detail: status.detail } : {}),
+    });
+  }, []);
+
+  const retryNativeReader = useCallback(() => {
+    setNativeError(null);
+    setNativeReady(false);
+    setNativeAttempt((value) => value + 1);
+  }, []);
 
   const openReadiumLink = useCallback((link: ReadiumLinkEvent) => {
     if (openReadiumChapterHref(link.href)) return;
@@ -316,27 +373,35 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
           <ReaderErrorState message="The chapter font could not be loaded, so the encoded text is unavailable." onRetry={readerFont.retry} />
         ) : error || publication.error ? (
           <ReaderErrorState message={error ?? publication.error ?? 'The chapter could not be prepared.'} onRetry={error ? reload : publication.retry} />
-        ) : isLoading || fontLoading || publication.status === 'loading' ? (
+        ) : nativeError ? (
+          <ReaderErrorState message={nativeError} onRetry={retryNativeReader} />
+        ) : isLoading || fontLoading || publication.status === 'loading' || (content && !preparedPublication) ? (
           <View style={styles.centered}><ActivityIndicator color={colors.accent as string} /></View>
-        ) : content && publication.publication && initialLocator ? (
-          <NovellaReadiumView
-            key={`readium-${publication.publication.publicationId}-${content.chapter.id}`}
-            contentInsets={readerInsets}
-            declaredHrefs={publication.publication.declaredHrefs}
-            initialLocator={initialLocator}
-            onImage={(image) => setPreviewSource(image.alt ? { uri: image.uri, alt: image.alt } : { uri: image.uri })}
-            onLink={openReadiumLink}
-            onLocatorChange={savePosition}
-            onError={({ code, href, message }) => {
-              if (code === 'resource_missing' && href && openReadiumChapterHref(href)) return;
-              console.info('[Reader] native error', message);
-            }}
-            onReady={() => undefined}
-            preferences={readerPreferences}
-            publicationId={publication.publication.publicationId}
-            publicationUri={publication.publication.directoryUri}
-            style={styles.reader}
-          />
+        ) : content && preparedPublication && initialLocator ? (
+          <View style={styles.reader}>
+            <NovellaReadiumView
+              key={`readium-${preparedPublication.publicationId}-${content.chapter.id}-${nativeAttempt}`}
+              ref={nativeReaderRef}
+              contentInsets={readerInsets}
+              declaredHrefs={preparedPublication.declaredHrefs}
+              initialLocator={initialLocator}
+              onImage={(image) => setPreviewSource(image.alt ? { uri: image.uri, alt: image.alt } : { uri: image.uri })}
+              onLink={openReadiumLink}
+              onLocatorChange={savePosition}
+              onError={({ message }) => setNativeError(message)}
+              onReady={() => setNativeReady(true)}
+              onStatus={reportReadiumStatus}
+              preferences={readerPreferences}
+              publicationId={preparedPublication.publicationId}
+              publicationUri={preparedPublication.directoryUri}
+              style={styles.reader}
+            />
+            {!nativeReady ? (
+              <View pointerEvents="none" style={styles.loadingOverlay}>
+                <ActivityIndicator color={colors.accent as string} />
+              </View>
+            ) : null}
+          </View>
         ) : null}
       </View>
       {previewSource ? (
@@ -372,5 +437,14 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
 const styles = StyleSheet.create({
   root: { flex: 1 },
   centered: { alignItems: 'center', flex: 1, justifyContent: 'center' },
+  loadingOverlay: {
+    alignItems: 'center',
+    bottom: 0,
+    justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
   reader: { flex: 1 },
 });

@@ -15,6 +15,7 @@ export function ReaderNavigation({
       <Stack.Screen
         options={{
           headerTintColor: foregroundColor,
+          headerTransparent: true,
           title,
         }}
       />

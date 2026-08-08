@@ -12,7 +12,7 @@ import {
   buildReadiumPublicationResources,
   isReadiumPublicationReady,
   READIUM_BOOK_FONT_HREF,
-  readiumPublicationRevision,
+  readiumPublicationCacheKey,
   type ReadiumPublicationChapter,
 } from './readium-publication.ts';
 
@@ -51,15 +51,15 @@ export function prepareReadiumPublication({
   }
 
   const publicationChapters = toPublicationChapters(chapters);
-  const revision = readiumPublicationRevision(bookId, conversion);
-  const publicationDirectory = new Directory(publicationCacheRoot, revision);
+  const cacheKey = readiumPublicationCacheKey(bookId, conversion);
+  const publicationDirectory = new Directory(publicationCacheRoot, cacheKey);
   ensureDirectory(publicationDirectory);
 
   const fontRequired = Boolean(targetChapter.fontUrl?.trim());
   const resourceSet = buildReadiumPublicationResources(
     {
       bookId,
-      identifier: `novella:${bookId}:${revision}`,
+      identifier: `novella:${bookId}:${conversion ?? 'none'}`,
       title: bookTitle,
     },
     publicationChapters,
@@ -92,7 +92,7 @@ export function prepareReadiumPublication({
     declaredHrefs: resourceSet.declaredHrefs,
     directoryUri: publicationDirectory.uri,
     footnotes,
-    publicationId: revision,
+    publicationId: cacheKey,
     targetHref: resourceSet.targetChapterHref,
   };
 }
@@ -103,7 +103,9 @@ export function materializeReadiumChapter(
   chapter: NovelChapterContent,
   useBookFont = Boolean(chapter.fontUrl?.trim()),
 ): NovelFootnoteProcessingResult {
-  const footnotes = processNovelFootnotes(chapter.content);
+  const footnotes = processNovelFootnotes(chapter.content, {
+    markerContent: 'empty',
+  });
   const blocks = normalizeNovelBlocks(footnotes.html, undefined, { sanitize: false });
   const document = buildReadiumChapterDocument({
     blocks,
@@ -135,7 +137,7 @@ export function clearReadiumPublicationCache(bookId?: number): number {
   );
   const selected = bookId === undefined
     ? directories
-    : directories.filter((directory) => directory.name.startsWith(`${bookId}-v`));
+    : directories.filter((directory) => directory.name.startsWith(`${bookId}-`));
   for (const directory of selected) directory.delete();
   return selected.length;
 }

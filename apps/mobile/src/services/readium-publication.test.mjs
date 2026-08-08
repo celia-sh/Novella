@@ -6,7 +6,8 @@ import {
   buildReadiumPublicationResources,
   isReadiumPublicationReady,
   readiumBlockFragment,
-  readiumPublicationRevision,
+  readiumChapterHref,
+  readiumPublicationCacheKey,
 } from './readium-publication.ts';
 
 const chapters = [
@@ -52,6 +53,68 @@ test('chapter XHTML receives deterministic fragments and a relative font stylesh
   assert.match(html, /href="\.\.\/styles\/reader\.css"/);
 });
 
+test('image tables retain their authored rows and columns', () => {
+  const row = (start) => '<tr>' + Array.from(
+    { length: 4 },
+    (_, index) => `<td><img src="images/${start + index}.png"></td>`,
+  ).join('') + '</tr>';
+  const html = buildReadiumChapterDocument({
+    blocks: [{
+      id: 'screens',
+      locator: '//*/table[1]',
+      html: `<table><thead><tr><th></th><th></th><th></th><th></th></tr></thead><tbody>${row(1)}${row(5)}</tbody></table>`,
+      textLength: 0,
+      imageCount: 8,
+    }],
+    chapterId: 101,
+    imageBaseUrl: 'https://example.test',
+    title: 'Screens',
+    useBookFont: false,
+  });
+  const publication = buildReadiumPublicationResources(
+    { bookId: 9, identifier: 'novella:9', title: 'Book' },
+    chapters,
+    101,
+    false,
+  );
+
+  assert.match(html, /<table id="nv-block-0"><thead>/);
+  assert.equal((html.match(/<tr>/gu) ?? []).length, 3);
+  assert.equal((html.match(/<td>/gu) ?? []).length, 8);
+  assert.equal((html.match(/<img\b/gu) ?? []).length, 8);
+  assert.match(publication.resources['EPUB/styles/reader.css'], /table\{width:100%;max-width:100%;table-layout:fixed/);
+  assert.match(publication.resources['EPUB/styles/reader.css'], /body>:last-child\{margin-bottom:0!important;\}/);
+});
+
+test('chapter HTML is normalized with inline footnotes', () => {
+  const html = buildReadiumChapterDocument({
+    blocks: [
+      { id: 'image', locator: '//div[1]', html: '<div><img src="images/a.jpg?x=1&y=2"></div>', textLength: 0, imageCount: 1 },
+      { id: 'break', locator: '//p[1]', html: '<p><br></p>', textLength: 0, imageCount: 0 },
+      { id: 'note', locator: '//p[2]', html: '<p>：<a data-reader-footnote-id="n1" href="#old" epub:type="noteref"><sup><img class="footnote" src="marker.png" /></sup></a></p>', textLength: 1, imageCount: 1 },
+    ],
+    chapterId: 101,
+    footnotes: { n1: '<p>Note<br>body</p>' },
+    imageBaseUrl: 'https://example.test',
+    title: 'First',
+    useBookFont: false,
+  });
+
+  assert.match(html, /xmlns:epub="http:\/\/www\.idpf\.org\/2007\/ops"/);
+  assert.match(html, /<img src="https:\/\/example\.test\/images\/a\.jpg\?x=1&amp;y=2"\/>/);
+  assert.match(html, /<br\/>/);
+  assert.doesNotMatch(html, /epub:type="noteref"|marker\.png|data-reader-footnote-id|>\*<\/a>/);
+  assert.doesNotMatch(html, /nv-block-2|&#xFF1A;/);
+  assert.match(html, /<aside class="nv-inline-footnote" data-footnote-id="n1"><span class="nv-inline-footnote-label">\*<\/span>/);
+  assert.match(html, /<div class="nv-inline-footnote-content"><p>Note<br\/>body<\/p><\/div>/);
+  const scriptIndex = html.indexOf('<script type="text/javascript">');
+  const headEndIndex = html.indexOf('</head>');
+  const bodyStartIndex = html.indexOf('<body');
+  assert.ok(scriptIndex > 0 && scriptIndex < headEndIndex);
+  assert.ok(headEndIndex < bodyStartIndex);
+  assert.doesNotMatch(html.slice(bodyStartIndex), /<script\b/);
+});
+
 test('readiness gates target chapter and required font but not future chapters or images', () => {
   const available = new Set([
     'mimetype',
@@ -82,8 +145,9 @@ test('readiness gates target chapter and required font but not future chapters o
   }), true);
 });
 
-test('publication identity includes schema and conversion mode', () => {
-  assert.equal(readiumPublicationRevision(9, undefined), '9-v1-none');
-  assert.equal(readiumPublicationRevision(9, 't2s'), '9-v1-t2s');
+test('publication cache identity includes the conversion mode', () => {
+  assert.equal(readiumPublicationCacheKey(9, undefined), '9-none');
+  assert.equal(readiumPublicationCacheKey(9, 't2s'), '9-t2s');
   assert.equal(readiumBlockFragment(3), 'nv-block-3');
+  assert.equal(readiumChapterHref(205), 'EPUB/chapters/205.xhtml');
 });

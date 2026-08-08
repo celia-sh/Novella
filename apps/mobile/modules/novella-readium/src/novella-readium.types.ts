@@ -42,6 +42,12 @@ export interface ReadiumReaderError {
   recoverable: boolean;
 }
 
+export interface ReadiumStatusEvent {
+  detail?: string;
+  href?: string;
+  stage: 'opening' | 'publicationOpened' | 'navigatorInstalled' | 'resourceLoaded' | 'resourceFailed';
+}
+
 export interface ReadiumLinkEvent {
   content?: string;
   href: string;
@@ -55,6 +61,7 @@ export interface ReadiumImageEvent {
 }
 
 export interface NovellaReadiumViewHandle {
+  getCurrentLocator(): Promise<ReadiumLocator | null>;
   goBackward(): Promise<boolean>;
   goForward(): Promise<boolean>;
   goToLocator(locator: ReadiumLocator): Promise<boolean>;
@@ -69,6 +76,7 @@ export interface NovellaReadiumViewProps {
   onLink?: (link: ReadiumLinkEvent) => void;
   onLocatorChange?: (locator: ReadiumLocator) => void;
   onReady?: () => void;
+  onStatus?: (status: ReadiumStatusEvent) => void;
   preferences: ReadiumReaderPreferences;
   publicationId: string;
   publicationUri: string;

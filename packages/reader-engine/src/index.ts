@@ -253,7 +253,15 @@ export function sanitizeNovelHtml(
   });
 }
 
-export function processNovelFootnotes(html: string): NovelFootnoteProcessingResult {
+export interface ProcessNovelFootnotesOptions {
+  /** Content retained inside extracted footnote anchors. */
+  markerContent?: 'empty' | 'placeholder';
+}
+
+export function processNovelFootnotes(
+  html: string,
+  options: ProcessNovelFootnotesOptions = {},
+): NovelFootnoteProcessingResult {
   const notesById: Record<string, string> = {};
   const referencedIds = new Set<string>();
   const anchorPattern = /<a\b[^>]*>[\s\S]*?<\/a\s*>/giu;
@@ -274,11 +282,10 @@ export function processNovelFootnotes(html: string): NovelFootnoteProcessingResu
     const nextOpeningTag = existingId
       ? withoutHref
       : withoutHref.replace(/>$/u, ` data-reader-footnote-id="${escapeHtmlAttribute(id)}">`);
-    // The original marker contains <sup><img /></sup>. react-native-render-html
-    // models img as a block element, which promotes the marker out of the text
-    // flow. Flutter also empties this anchor before inserting its native marker.
-    // Keep one textual placeholder so the RN custom renderer remains TPhrasing.
-    return `${nextOpeningTag}*</a>`;
+    // DOM-based renderers can remove the marker entirely and place the note
+    // content in flow. The legacy RN renderer keeps one textual placeholder.
+    const markerContent = options.markerContent === 'empty' ? '' : '*';
+    return `${nextOpeningTag}${markerContent}</a>`;
   });
 
   referencedIds.forEach((id) => {
@@ -469,8 +476,8 @@ interface BlockNode {
 }
 
 const BLOCK_TAGS = new Set([
-  'blockquote', 'center', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'img', 'li',
-  'ol', 'p', 'pre', 'table', 'ul',
+  'article', 'blockquote', 'center', 'div', 'figure', 'h1', 'h2', 'h3', 'h4', 'h5',
+  'h6', 'hr', 'img', 'li', 'ol', 'p', 'pre', 'section', 'table', 'ul',
 ]);
 
 function parseHtmlBlockNodes(source: string): BlockNode[] {
@@ -528,7 +535,7 @@ function selectLeafBlockNodes(nodes: readonly BlockNode[], source: string): Bloc
 }
 
 function isStandaloneImageContainer(node: BlockNode, source: string): boolean {
-  if (node.tag === 'img' || node.tag === 'table') return false;
+  if (node.tag === 'img') return false;
   const html = source.slice(node.start, node.end);
   const imageCount = (html.match(/<img\b/gi) ?? []).length;
   if (imageCount === 0) return false;
@@ -537,6 +544,8 @@ function isStandaloneImageContainer(node: BlockNode, source: string): boolean {
     .replace(/<[^>]*>/g, ' ')
     .replace(/&nbsp;|&#160;|\s/gi, '');
   if (text.length > 0) return false;
-  const hasIllustrationClass = /\bclass\s*=\s*["'][^"']*\b(?:duokan-image-single|image-preview|illu|illus)\b/iu.test(html);
-  return hasIllustrationClass || imageCount === 1;
+  // An image-only parent is an authored media group even when its class is
+  // unknown. Keep the parent so its layout attributes and image ordering are
+  // not lost by leaf-block normalization.
+  return true;
 }

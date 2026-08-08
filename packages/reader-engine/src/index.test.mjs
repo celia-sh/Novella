@@ -49,6 +49,36 @@ test('keeps multi-image illustration groups as one styled reader block', () => {
   assert.match(blocks[0].html, /right\.jpg/);
 });
 
+test('preserves an unknown image-only layout container as one block', () => {
+  const images = Array.from(
+    { length: 8 },
+    (_, index) => `<img src="/${index + 1}.png">`,
+  ).join('');
+  const blocks = normalizeNovelBlocks(
+    `<section class="screens" style="display:grid;grid-template-columns:repeat(4,1fr)">${images}</section>`,
+  );
+
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].imageCount, 8);
+  assert.match(blocks[0].html, /^<section class="screens" style="display:grid/);
+  assert.match(blocks[0].html, /\/8\.png/);
+});
+
+test('keeps an image table as one authored layout block', () => {
+  const row = (start) => '<tr>' + Array.from(
+    { length: 4 },
+    (_, index) => `<td><img src="/${start + index}.png"></td>`,
+  ).join('') + '</tr>';
+  const blocks = normalizeNovelBlocks(
+    `<table><thead><tr><th></th><th></th><th></th><th></th></tr></thead><tbody>${row(1)}${row(5)}</tbody></table>`,
+  );
+
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].locator, '//*/table[1]');
+  assert.equal(blocks[0].imageCount, 8);
+  assert.match(blocks[0].html, /<table>[\s\S]*<tr>[\s\S]*\/8\.png[\s\S]*<\/table>/);
+});
+
 test('drops metadata and explicitly hidden reader nodes', () => {
   const blocks = normalizeNovelBlocks('<meta name="x"/><p hidden>secret</p><p>visible</p><div style="display:none"><p>also hidden</p></div>');
   assert.deepEqual(blocks.map((block) => block.html), ['<p>visible</p>']);
@@ -82,6 +112,18 @@ test('extracts Web-Master footnotes and removes hidden note bodies from reader f
   assert.doesNotMatch(result.html, /href=/);
   assert.doesNotMatch(result.html, /<sup|class="footnote"/);
   assert.doesNotMatch(result.html, /<ol/);
+});
+
+test('can remove source footnote marker content for inline notes', () => {
+  const result = processNovelFootnotes(
+    '<p>正文。<a class="duokan-footnote" href="#note-1"><sup><img class="footnote" src="marker.png" /></sup></a></p>' +
+      '<ol id="note-1"><li><b>注释</b>内容</li></ol>',
+    { markerContent: 'empty' },
+  );
+
+  assert.equal(result.notesById['note-1'], '<li><b>注释</b>内容</li>');
+  assert.match(result.html, /data-reader-footnote-id="note-1"[^>]*><\/a>/);
+  assert.doesNotMatch(result.html, /marker\.png|>\*<\/a>|<ol/);
 });
 
 test('restores an inline Web XPath to its nearest reader block ancestor', () => {
