@@ -25,6 +25,24 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           // SDK 57 默认值，显式固定防止漂移。
           usePrecompiledModules: true,
           buildReactNativeFromSource: false,
+          extraPods: [
+            { name: 'Minizip', modular_headers: true },
+            {
+              name: 'ReadiumShared',
+              version: '~> 3.11.0',
+              source: 'https://github.com/readium/podspecs',
+            },
+            {
+              name: 'ReadiumStreamer',
+              version: '~> 3.11.0',
+              source: 'https://github.com/readium/podspecs',
+            },
+            {
+              name: 'ReadiumNavigator',
+              version: '~> 3.11.0',
+              source: 'https://github.com/readium/podspecs',
+            },
+          ],
         },
       },
     ],

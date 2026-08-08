@@ -1,0 +1,26 @@
+apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
+
+group = 'sh.celia.novella.modules.readium'
+version = '0.1.0'
+
+android {
+  namespace 'sh.celia.novella.modules.readium'
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+def readiumVersion = '3.1.2'
+
+dependencies {
+  implementation "org.readium.kotlin-toolkit:readium-shared:$readiumVersion"
+  implementation "org.readium.kotlin-toolkit:readium-streamer:$readiumVersion"
+  implementation "org.readium.kotlin-toolkit:readium-navigator:$readiumVersion"
+  implementation 'androidx.appcompat:appcompat:1.7.1'
+  implementation 'androidx.fragment:fragment-ktx:1.8.9'
+}

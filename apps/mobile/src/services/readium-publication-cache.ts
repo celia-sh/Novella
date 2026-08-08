@@ -28,6 +28,7 @@ export interface PrepareReadiumPublicationInput {
 
 export interface PreparedReadiumPublication {
   chapter: NovelChapterContent;
+  declaredHrefs: readonly string[];
   directoryUri: string;
   footnotes: NovelFootnoteProcessingResult;
   publicationId: string;
@@ -88,6 +89,7 @@ export function prepareReadiumPublication({
 
   return {
     chapter: targetChapter,
+    declaredHrefs: resourceSet.declaredHrefs,
     directoryUri: publicationDirectory.uri,
     footnotes,
     publicationId: revision,

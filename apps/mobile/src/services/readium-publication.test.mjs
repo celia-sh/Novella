@@ -34,6 +34,8 @@ test('publication metadata declares a complete stable spine without chapter payl
   assert.match(opf, /href="fonts\/book\.woff2" media-type="font\/woff2"/);
   assert.equal(publication.targetChapterHref, 'chapters/205.xhtml');
   assert.equal(publication.resources['EPUB/chapters/101.xhtml'], undefined);
+  assert.ok(publication.declaredHrefs.includes('EPUB/chapters/101.xhtml'));
+  assert.ok(publication.declaredHrefs.includes('EPUB/chapters/205.xhtml'));
 });
 
 test('chapter XHTML receives deterministic fragments and a relative font stylesheet', () => {

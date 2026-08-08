@@ -23,6 +23,7 @@ export interface ReadiumPublicationMetadata {
 }
 
 export interface ReadiumPublicationResourceSet {
+  declaredHrefs: readonly string[];
   resources: Readonly<Record<string, string>>;
   targetChapterHref: string;
 }
@@ -119,7 +120,14 @@ export function buildReadiumPublicationResources(
     [`EPUB/${READIUM_STYLESHEET_HREF}`]: buildReadiumPublicationStylesheet(fontRequired),
   };
 
+  const declaredHrefs = [
+    ...Object.keys(resources),
+    ...ordered.map((chapter) => `EPUB/${chapterHrefFor(chapter.id)}`),
+    ...(fontRequired ? [`EPUB/${READIUM_BOOK_FONT_HREF}`] : []),
+  ];
+
   return {
+    declaredHrefs,
     resources,
     targetChapterHref: chapterHrefFor(targetChapterId),
   };
