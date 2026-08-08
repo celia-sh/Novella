@@ -3,11 +3,13 @@ import ReadiumNavigator
 import ReadiumShared
 import ReadiumStreamer
 import UIKit
+import WebKit
 
-final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate {
+final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessageHandler {
   let onReady = EventDispatcher()
   let onLocatorChange = EventDispatcher()
   let onLink = EventDispatcher()
+  let onImage = EventDispatcher()
   let onError = EventDispatcher()
 
   private var publicationUri: String?
@@ -130,6 +132,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate {
       controller.didMove(toParent: parent)
       controller.view.frame = bounds
       onReady([:])
+      applyPreferences()
     } catch {
       onError(["code": "navigator_failed", "message": String(describing: error), "recoverable": true])
     }
@@ -175,6 +178,30 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate {
     return false
   }
 
+  func navigator(_ navigator: EPUBNavigatorViewController, setupUserScripts userContentController: WKUserContentController) {
+    userContentController.add(self, name: "novellaReader")
+    userContentController.addUserScript(WKUserScript(
+      source: Self.imagePreviewScript,
+      injectionTime: .atDocumentEnd,
+      forMainFrameOnly: true
+    ))
+  }
+
+  func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+    guard
+      message.name == "novellaReader",
+      let payload = message.body as? [String: Any],
+      payload["type"] as? String == "image",
+      let uri = payload["uri"] as? String,
+      let gesture = payload["gesture"] as? String
+    else { return }
+    let expectsLongPress = (preferences["imagePreviewOpenOnLongPress"] as? Bool) == true
+    guard gesture == (expectsLongPress ? "longPress" : "tap") else { return }
+    var event: [String: Any] = ["uri": uri]
+    if let alt = payload["alt"] as? String, !alt.isEmpty { event["alt"] = alt }
+    onImage(event)
+  }
+
   func navigator(_ navigator: Navigator, shouldNavigateToNoteAt link: ReadiumShared.Link, content: String, referrer: String?) -> Bool {
     onLink(["href": link.href.description, "title": link.title, "content": content, "referrer": referrer])
     return false
@@ -188,6 +215,29 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate {
       right: contentInsets["right"] ?? 0
     )
   }
+
+  private static let imagePreviewScript = """
+  (function(){
+    if(window.__novellaImagePreviewInstalled)return;
+    window.__novellaImagePreviewInstalled=true;
+    var timer=null,startX=0,startY=0;
+    function image(target){return target&&target.closest?target.closest('img'):null;}
+    function send(img,gesture){if(!img)return;window.webkit.messageHandlers.novellaReader.postMessage({type:'image',uri:img.currentSrc||img.src,alt:img.alt||'',gesture:gesture});}
+    document.addEventListener('click',function(event){
+      var img=image(event.target);if(!img)return;send(img,'tap');
+    },true);
+    document.addEventListener('touchstart',function(event){
+      var img=image(event.target);if(!img)return;
+      var touch=event.touches[0];startX=touch.clientX;startY=touch.clientY;
+      timer=setTimeout(function(){timer=null;send(img,'longPress');},520);
+    },true);
+    document.addEventListener('touchmove',function(event){
+      if(!timer)return;var touch=event.touches[0];
+      if(Math.abs(touch.clientX-startX)>10||Math.abs(touch.clientY-startY)>10){clearTimeout(timer);timer=null;}
+    },true);
+    document.addEventListener('touchend',function(){if(timer){clearTimeout(timer);timer=null;}},true);
+  })();
+  """
 
   private func detachNavigator() {
     guard let controller = navigator else { return }

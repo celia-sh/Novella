@@ -6,6 +6,7 @@ import android.content.Context
 import android.graphics.Color as AndroidColor
 import android.net.Uri
 import android.view.View
+import android.webkit.JavascriptInterface
 import android.view.ViewGroup.LayoutParams
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import androidx.fragment.app.FragmentActivity
@@ -45,6 +46,7 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
   private val onReady by EventDispatcher()
   private val onLocatorChange by EventDispatcher()
   private val onLink by EventDispatcher()
+  private val onImage by EventDispatcher()
   private val onError by EventDispatcher()
 
   private var publicationUri: String? = null
@@ -163,7 +165,9 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
       configuration = EpubNavigatorFragment.Configuration(
         shouldApplyInsetsPadding = true,
         disablePageTurnsWhileScrolling = false
-      )
+      ).apply {
+        registerJavascriptInterface("novellaReader") { ImageBridge() }
+      }
     )
     activity.supportFragmentManager.commitNow {
       add(id, EpubNavigatorFragment::class.java, null, fragmentTag)
@@ -189,6 +193,17 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
     textColor = color(preferences["textColor"] as? String),
     publisherStyles = false
   )
+
+  private inner class ImageBridge {
+    @JavascriptInterface
+    fun open(uri: String, alt: String?, gesture: String) {
+      val expectsLongPress = (preferences["imagePreviewOpenOnLongPress"] as? Boolean) == true
+      if (gesture != if (expectsLongPress) "longPress" else "tap") return
+      val event = mutableMapOf<String, Any>("uri" to uri)
+      if (!alt.isNullOrEmpty()) event["alt"] = alt
+      onImage(event)
+    }
+  }
 
   private fun color(value: String?): Color? = value?.let {
     runCatching { Color(AndroidColor.parseColor(it)) }.getOrNull()

@@ -37,6 +37,8 @@ export interface ReadiumPublicationReadiness {
 export interface ReadiumChapterDocumentOptions {
   blocks: readonly NovelReaderBlock[];
   chapterId: number;
+  footnotes?: Readonly<Record<string, string>>;
+  imageBaseUrl?: string;
   language?: string;
   title: string;
   useBookFont: boolean;
@@ -136,11 +138,19 @@ export function buildReadiumPublicationResources(
 export function buildReadiumChapterDocument({
   blocks,
   chapterId,
+  footnotes = {},
+  imageBaseUrl,
   language,
   title,
   useBookFont,
 }: ReadiumChapterDocumentOptions): string {
-  const body = blocks.map((block, index) => addBlockFragment(block.html, readiumBlockFragment(index))).join('\n');
+  const body = blocks.map((block, index) => {
+    const withFragment = addBlockFragment(block.html, readiumBlockFragment(index));
+    return prepareChapterResourceHtml(withFragment, imageBaseUrl);
+  }).join('\n');
+  const noteResources = Object.entries(footnotes).map(([id, content]) => (
+    `<aside id="${escapeXml(id)}" epub:type="footnote">${content}</aside>`
+  )).join('\n');
   const fontClass = useBookFont ? ' class="nv-book-font"' : '';
   const locale = language?.trim() || 'zh';
 
@@ -152,7 +162,7 @@ export function buildReadiumChapterDocument({
     `<title>${escapeXml(title)}</title>`,
     `<link rel="stylesheet" type="text/css" href="../${READIUM_STYLESHEET_HREF}"/>`,
     '</head>',
-    `<body${fontClass} data-chapter-id="${chapterId}">${body}</body>`,
+    `<body${fontClass} data-chapter-id="${chapterId}">${body}${noteResources}${buildImagePreviewScript()}</body>`,
     '</html>',
   ].join('');
 }
@@ -197,6 +207,31 @@ function addBlockFragment(html: string, fragment: string): string {
     ? openingTag.replace(/\sid\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/iu, ` id="${fragment}"`)
     : openingTag.replace(/>$/u, ` id="${fragment}">`);
   return html.replace(openingTag, withId);
+}
+
+function buildImagePreviewScript(): string {
+  return `<script>(function(){if(window.__novellaImagePreviewInstalled)return;window.__novellaImagePreviewInstalled=true;var timer=null,sx=0,sy=0;function img(t){return t&&t.closest?t.closest('img'):null}function send(i,g){if(i&&window.novellaReader&&window.novellaReader.open)window.novellaReader.open(i.currentSrc||i.src,i.alt||'',g)}document.addEventListener('click',function(e){var i=img(e.target);if(!i)return;send(i,'tap')},true);document.addEventListener('touchstart',function(e){var i=img(e.target);if(!i)return;var t=e.touches[0];sx=t.clientX;sy=t.clientY;timer=setTimeout(function(){timer=null;send(i,'longPress')},520)},true);document.addEventListener('touchmove',function(e){if(!timer)return;var t=e.touches[0];if(Math.abs(t.clientX-sx)>10||Math.abs(t.clientY-sy)>10){clearTimeout(timer);timer=null}},true);document.addEventListener('touchend',function(){if(timer){clearTimeout(timer);timer=null}},true)})()</script>`;
+}
+
+function prepareChapterResourceHtml(html: string, imageBaseUrl?: string): string {
+  let output = html.replace(
+    /<a\b([^>]*\bdata-reader-footnote-id=(?:"([^"]+)"|'([^']+)')[^>]*)>/giu,
+    (_match, attributes: string, doubleId: string | undefined, singleId: string | undefined) => {
+      const id = doubleId ?? singleId ?? '';
+      const withoutHref = attributes.replace(/\s+href\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/iu, '');
+      return `<a${withoutHref} href="#${escapeXml(id)}" epub:type="noteref">`;
+    },
+  );
+  if (imageBaseUrl) {
+    output = output.replace(
+      /(<img\b[^>]*\bsrc=)("|')(?![a-z][a-z0-9+.-]*:|#|\/\/)([^"']*)\2/giu,
+      (_match, prefix: string, quote: string, source: string) => {
+        const uri = `${imageBaseUrl}${source.startsWith('/') ? '' : '/'}${source}`;
+        return `${prefix}${quote}${uri}${quote}`;
+      },
+    );
+  }
+  return output;
 }
 
 function escapeXml(value: string): string {

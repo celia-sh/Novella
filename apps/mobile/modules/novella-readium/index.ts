@@ -3,6 +3,7 @@ export type {
   NovellaReadiumViewHandle,
   NovellaReadiumViewProps,
   ReadiumContentInsets,
+  ReadiumImageEvent,
   ReadiumLinkEvent,
   ReadiumLocator,
   ReadiumReaderError,

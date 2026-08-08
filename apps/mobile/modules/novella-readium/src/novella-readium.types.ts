@@ -19,6 +19,7 @@ export interface ReadiumLocator {
 export interface ReadiumReaderPreferences {
   backgroundColor: string;
   fontSize: number;
+  imagePreviewOpenOnLongPress: boolean;
   lineHeight: number;
   mode: 'paged' | 'scroll';
   pageMargins: number;
@@ -36,6 +37,7 @@ export interface ReadiumContentInsets {
 
 export interface ReadiumReaderError {
   code: string;
+  href?: string;
   message: string;
   recoverable: boolean;
 }
@@ -45,6 +47,11 @@ export interface ReadiumLinkEvent {
   href: string;
   referrer?: string;
   title?: string;
+}
+
+export interface ReadiumImageEvent {
+  alt?: string;
+  uri: string;
 }
 
 export interface NovellaReadiumViewHandle {
@@ -58,6 +65,7 @@ export interface NovellaReadiumViewProps {
   declaredHrefs: readonly string[];
   initialLocator?: ReadiumLocator;
   onError?: (error: ReadiumReaderError) => void;
+  onImage?: (image: ReadiumImageEvent) => void;
   onLink?: (link: ReadiumLinkEvent) => void;
   onLocatorChange?: (locator: ReadiumLocator) => void;
   onReady?: () => void;

@@ -29,7 +29,7 @@ class NovellaReadiumModule : Module() {
         view.setContentInsets(value)
       }
 
-      Events("onReady", "onLocatorChange", "onLink", "onError")
+      Events("onReady", "onLocatorChange", "onLink", "onImage", "onError")
 
       AsyncFunction("goToLocator") { view: ComposeReadiumView, locator: Map<String, Any> ->
         view.goToLocator(locator)

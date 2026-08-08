@@ -11,6 +11,7 @@ import type { ViewProps } from 'react-native';
 import type {
   NovellaReadiumViewHandle,
   NovellaReadiumViewProps,
+  ReadiumImageEvent,
   ReadiumLinkEvent,
   ReadiumLocator,
   ReadiumReaderError,
@@ -25,9 +26,10 @@ type NativeViewHandle = {
 type NativeViewProps = ViewProps &
   Omit<
     NovellaReadiumViewProps,
-    'onError' | 'onLink' | 'onLocatorChange' | 'onReady'
+    'onError' | 'onImage' | 'onLink' | 'onLocatorChange' | 'onReady'
   > & {
     onError?: (event: { nativeEvent: ReadiumReaderError }) => void;
+    onImage?: (event: { nativeEvent: ReadiumImageEvent }) => void;
     onLink?: (event: { nativeEvent: ReadiumLinkEvent }) => void;
     onLocatorChange?: (event: { nativeEvent: ReadiumLocator }) => void;
     onReady?: (event: { nativeEvent: Record<string, never> }) => void;
@@ -42,7 +44,7 @@ export const NovellaReadiumView = forwardRef<
   NovellaReadiumViewHandle,
   NovellaReadiumViewProps
 >(function NovellaReadiumView(
-  { onError, onLink, onLocatorChange, onReady, ...props },
+  { onError, onImage, onLink, onLocatorChange, onReady, ...props },
   ref,
 ) {
   const nativeRef = useRef<NativeViewHandle | null>(null);
@@ -58,6 +60,7 @@ export const NovellaReadiumView = forwardRef<
       {...props}
       ref={nativeRef}
       {...(onError ? { onError: ({ nativeEvent }) => onError(nativeEvent) } : {})}
+      {...(onImage ? { onImage: ({ nativeEvent }) => onImage(nativeEvent) } : {})}
       {...(onLink ? { onLink: ({ nativeEvent }) => onLink(nativeEvent) } : {})}
       {...(onLocatorChange ? { onLocatorChange: ({ nativeEvent }) => onLocatorChange(nativeEvent) } : {})}
       {...(onReady ? { onReady: () => onReady() } : {})}

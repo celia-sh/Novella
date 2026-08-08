@@ -13,6 +13,10 @@ import {
 
 const MAX_PRELOADED_CHAPTERS = 6;
 const chapterCache = new Map<string, NovelContent>();
+const preloadListeners = new Set<(
+  request: NovelContentRequest,
+  content: NovelContent,
+) => void>();
 
 export interface ReaderChapterPreloadRequest {
   bookId: number;
@@ -95,6 +99,24 @@ export function clearPreloadedReaderChapters(bookId: number): void {
   }
 }
 
+export function getPreloadedReaderChapters(
+  bookId: number,
+  convert?: TextConversionMode,
+): readonly NovelContent[] {
+  const prefix = `${bookId}:`;
+  const suffix = `:${convert ?? 'none'}`;
+  return [...chapterCache.entries()]
+    .filter(([key]) => key.startsWith(prefix) && key.endsWith(suffix))
+    .map(([, content]) => content);
+}
+
+export function subscribeReaderChapterPreloaded(
+  listener: (request: NovelContentRequest, content: NovelContent) => void,
+): () => void {
+  preloadListeners.add(listener);
+  return () => preloadListeners.delete(listener);
+}
+
 function createPreloadRequests({
   bookId,
   convert,
@@ -138,6 +160,7 @@ function rememberPreloadedReaderChapter(
     if (oldest === undefined) break;
     chapterCache.delete(oldest);
   }
+  preloadListeners.forEach((listener) => listener(request, content));
 }
 
 function getChapterCacheKey(request: NovelContentRequest): string {

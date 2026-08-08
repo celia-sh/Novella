@@ -1,5 +1,5 @@
 import { Directory, File, Paths } from 'expo-file-system';
-import type { BookChapter, NovelChapterContent, TextConversionMode } from '@novella/api-client';
+import { SERVICE_ENDPOINTS, type BookChapter, type NovelChapterContent, type TextConversionMode } from '@novella/api-client';
 import {
   normalizeNovelBlocks,
   processNovelFootnotes,
@@ -108,6 +108,8 @@ export function materializeReadiumChapter(
   const document = buildReadiumChapterDocument({
     blocks,
     chapterId: chapter.id,
+    footnotes: footnotes.notesById,
+    imageBaseUrl: SERVICE_ENDPOINTS.apiOrigin,
     title: chapter.title,
     useBookFont,
   });
