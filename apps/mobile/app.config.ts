@@ -47,6 +47,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     './plugins/with-android-signing',
+    './plugins/with-android-desugaring',
     ['expo-media-library', {
       // Saving does not need read access. iOS uses the add-only permission;
       // Android requests no READ_MEDIA_* granular permission.
