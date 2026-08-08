@@ -61,19 +61,28 @@ export function invisibleCodepointsForReaderFont(family: string): ReadonlySet<nu
  * handle the missing font).
  */
 export function readerFontDataUrl(fontUrl: string | null | undefined): string | null {
-  const resolved = resolveReaderFontUrl(fontUrl);
-  if (!resolved) return null;
-  const cacheKey = hashFontUrl(resolved);
-  const woff2File = new FileSystem.File(readerFontCacheDirectory, `${cacheKey}.woff2`);
-  if (!woff2File.exists || (woff2File.size ?? 0) < 4) return null;
+  const file = readerFontFile(fontUrl);
+  if (!file) return null;
   try {
-    const bytes = woff2File.bytesSync();
-    if (!isWoff2Bytes(bytes)) return null;
+    const bytes = file.bytesSync();
     const buffer = bytes.buffer.slice(
       bytes.byteOffset,
       bytes.byteOffset + bytes.byteLength,
     ) as ArrayBuffer;
     return `data:font/woff2;base64,${arrayBufferToBase64(buffer)}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Returns the verified cached WOFF2 file for publication materialization. */
+export function readerFontFile(fontUrl: string | null | undefined): FileSystem.File | null {
+  const resolved = resolveReaderFontUrl(fontUrl);
+  if (!resolved) return null;
+  const cacheKey = hashFontUrl(resolved);
+  const file = new FileSystem.File(readerFontCacheDirectory, `${cacheKey}.woff2`);
+  try {
+    return isWoff2File(file) ? file : null;
   } catch {
     return null;
   }
