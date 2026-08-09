@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-
+import { useTranslation } from 'react-i18next';
 
 import { showAlert } from '@/components/native-alert-dialog';
 
@@ -14,12 +14,18 @@ import { ProfileAvatar } from '@/components/profile-avatar';
 import { DisclosureIcon, NativeListValue } from '@/components/settings-row-accessories';
 import { useAuthentication } from '@/hooks/use-authentication';
 import { useProfile } from '@/hooks/use-profile';
+import { formatDate } from '@/localization/formatters';
+import type { AppLocale } from '@/localization/locale';
+import { useAppLocale } from '@/localization/localization-provider';
 import { authentication, profile as profileUseCase } from '@/services/client';
 
 type CopyableProfileField = 'email' | 'inviteCode' | 'uid' | 'userName';
 
 export function ProfileScreen() {
   const auth = useAuthentication();
+  const locale = useAppLocale();
+  const { t } = useTranslation('settings');
+  const { t: tCommon } = useTranslation('common');
   const { error, profile, reload, status } = useProfile();
   const [copiedField, setCopiedField] = useState<CopyableProfileField | null>(null);
   const [checkingIn, setCheckingIn] = useState(false);
@@ -45,13 +51,16 @@ export function ProfileScreen() {
     try {
       const outcome = await profileUseCase.checkIn();
       showAlert(
-        'Checked in',
-        `Day ${outcome.result.streak} · +${outcome.result.reward} experience`,
+        t('profile.checkIn.successTitle'),
+        t('profile.checkIn.successMessage', {
+          reward: outcome.result.reward,
+          streak: outcome.result.streak,
+        }),
       );
     } catch (checkInError) {
       showAlert(
-        'Unable to check in',
-        checkInError instanceof Error ? checkInError.message : 'Please try again.',
+        t('profile.checkIn.failedTitle'),
+        checkInError instanceof Error ? checkInError.message : t('profile.tryAgain'),
       );
     } finally {
       setCheckingIn(false);
@@ -60,18 +69,18 @@ export function ProfileScreen() {
 
   function confirmSignOut() {
     if (signingOut || auth.status === 'signingOut') return;
-    showAlert('Sign out?', 'Your synchronized account data will remain on the server.', [
-      { style: 'cancel', text: 'Cancel' },
+    showAlert(t('profile.signOut.confirmTitle'), t('profile.signOut.confirmMessage'), [
+      { style: 'cancel', text: tCommon('actions.cancel') },
       {
         style: 'destructive',
-        text: 'Sign out',
+        text: t('profile.signOut.title'),
         onPress: () => {
           setSigningOut(true);
           void authentication.signOut().catch((signOutError) => {
             setSigningOut(false);
             showAlert(
-              'Unable to sign out',
-              signOutError instanceof Error ? signOutError.message : 'Please try again.',
+              t('profile.signOut.failedTitle'),
+              signOutError instanceof Error ? signOutError.message : t('profile.tryAgain'),
             );
           });
         },
@@ -84,27 +93,27 @@ export function ProfileScreen() {
       onBackPress={() => router.back()}
       showBackButton
       testID="profile-screen"
-      title="Profile"
+      title={t('profile.title')}
     >
       {!profile ? (
-        <NativeGroupedListSection title="Profile">
+        <NativeGroupedListSection title={t('profile.sections.profile')}>
           <NativeGroupedListRow
-            description={error ?? 'Retrieving your LightNovelShelf account information'}
+            description={error ? t('profile.tryAgain') : t('profile.retrieving')}
             disabled={status === 'loading'}
-            icon={error ? 'error' : 'account'}
+            icon={error ? 'profileError' : 'profileStatus'}
             {...(status === 'loading' ? {} : { onPress: () => void reload() })}
-            title={status === 'loading' ? 'Loading profile…' : 'Unable to load profile'}
+            title={status === 'loading' ? t('profile.loading') : t('profile.loadFailed')}
             trailing={status === 'loading' ? undefined : <DisclosureIcon />}
           />
         </NativeGroupedListSection>
       ) : (
         <>
-          <NativeGroupedListSection title="Personal information">
+          <NativeGroupedListSection title={t('profile.sections.personal')}>
             <NativeGroupedListRow
-              description="Change your profile picture"
+              description={t('profile.avatarDescription')}
               icon="avatar"
               onPress={() => router.push('/settings/avatar')}
-              title="Avatar"
+              title={t('profile.avatarTitle')}
               trailing={(
                 <ProfileAvatar
                   avatarUrl={profile.avatarUrl}
@@ -123,56 +132,56 @@ export function ProfileScreen() {
             <CopyableValueRow
               copied={copiedField === 'userName'}
               icon="userName"
-              label="Username"
+              label={t('profile.fields.username')}
               onCopy={() => void copy('userName', profile.userName)}
-              value={displayValue(profile.userName)}
+              value={displayValue(profile.userName, t('profile.unavailable'))}
             />
             <CopyableValueRow
               copied={copiedField === 'email'}
               icon="email"
-              label="Email"
+              label={t('profile.fields.email')}
               onCopy={() => void copy('email', profile.email)}
-              value={displayValue(profile.email)}
+              value={displayValue(profile.email, t('profile.unavailable'))}
             />
             <CopyableValueRow
               copied={copiedField === 'inviteCode'}
               disabled={!profile.inviteCode.trim()}
               icon="inviteCode"
-              label="Invite code"
+              label={t('profile.fields.inviteCode')}
               onCopy={() => void copy('inviteCode', profile.inviteCode)}
               value={profile.inviteCode.trim()
                 ? '•'.repeat(profile.inviteCode.trim().length)
-                : 'Not available'}
+                : t('profile.unavailable')}
             />
-            <StaticValueRow icon="userGroup" label="User group" value={displayValue(profile.groupName)} />
-            <StaticValueRow icon="registered" label="Registered" value={formatDate(profile.registeredAt)} />
+            <StaticValueRow icon="userGroup" label={t('profile.fields.userGroup')} value={displayValue(profile.groupName, t('profile.unavailable'))} />
+            <StaticValueRow icon="registered" label={t('profile.fields.registered')} value={formatProfileDate(profile.registeredAt, locale, t('profile.unavailable'))} />
           </NativeGroupedListSection>
 
-          <NativeGroupedListSection title="Growth">
-            <StaticValueRow icon="level" label="Level" value={`Lv${profile.growth.level}`} />
-            <StaticValueRow icon="experience" label="Experience" value={String(profile.growth.experience)} />
-            <StaticValueRow icon="points" label="Points" value={String(profile.point)} />
+          <NativeGroupedListSection title={t('profile.sections.growth')}>
+            <StaticValueRow icon="level" label={t('profile.fields.level')} value={t('profile.fields.levelValue', { level: profile.growth.level })} />
+            <StaticValueRow icon="experience" label={t('profile.fields.experience')} value={new Intl.NumberFormat(locale).format(profile.growth.experience)} />
+            <StaticValueRow icon="points" label={t('profile.fields.points')} value={new Intl.NumberFormat(locale).format(profile.point)} />
             <NativeGroupedListRow
               description={profile.growth.signedToday
-                ? `${profile.growth.signInStreak}-day streak · Signed today`
-                : `${profile.growth.signInStreak}-day streak · Check in for experience`}
+                ? t('profile.checkIn.signedDescription', { days: profile.growth.signInStreak })
+                : t('profile.checkIn.availableDescription', { days: profile.growth.signInStreak })}
               disabled={profile.growth.signedToday || checkingIn}
               icon="checkIn"
               {...(profile.growth.signedToday ? {} : { onPress: () => void checkIn() })}
-              title={checkingIn ? 'Checking in…' : 'Daily check-in'}
-              trailing={<NativeListValue>{profile.growth.signedToday ? 'Done' : 'Check in'}</NativeListValue>}
+              title={checkingIn ? t('profile.checkIn.checking') : t('profile.checkIn.title')}
+              trailing={<NativeListValue>{profile.growth.signedToday ? t('profile.checkIn.done') : t('profile.checkIn.action')}</NativeListValue>}
             />
           </NativeGroupedListSection>
         </>
       )}
 
-      <NativeGroupedListSection title="Account">
+      <NativeGroupedListSection title={t('profile.sections.account')}>
         <NativeGroupedListRow
-          description="Remove this account session from the device"
+          description={t('profile.signOut.description')}
           disabled={signingOut || auth.status === 'signingOut'}
           icon="signOut"
           onPress={confirmSignOut}
-          title={signingOut || auth.status === 'signingOut' ? 'Signing out…' : 'Sign out'}
+          title={signingOut || auth.status === 'signingOut' ? t('profile.signOut.signing') : t('profile.signOut.title')}
         />
       </NativeGroupedListSection>
     </NativeGroupedList>
@@ -194,14 +203,15 @@ function CopyableValueRow({
   onCopy: () => void;
   value: string;
 }) {
+  const { t } = useTranslation('settings');
   return (
     <NativeGroupedListRow
-      {...(disabled ? {} : { description: copied ? 'Copied' : 'Tap to copy' })}
+      {...(disabled ? {} : { description: copied ? t('profile.copied') : t('profile.tapToCopy') })}
       disabled={disabled}
       icon={icon}
       onPress={onCopy}
       title={label}
-      trailing={<NativeListValue>{copied ? 'Copied' : value}</NativeListValue>}
+      trailing={<NativeListValue>{copied ? t('profile.copied') : value}</NativeListValue>}
     />
   );
 }
@@ -224,16 +234,11 @@ function StaticValueRow({
   );
 }
 
-function displayValue(value: string): string {
-  return value.trim() || 'Not available';
+function displayValue(value: string, unavailable: string): string {
+  return value.trim() || unavailable;
 }
 
-function formatDate(value: string | null): string {
-  if (!value) return 'Not available';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Not available';
-  const year = String(date.getFullYear()).padStart(4, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+function formatProfileDate(value: string | null, locale: AppLocale, unavailable: string): string {
+  if (!value) return unavailable;
+  return formatDate(value, locale) || unavailable;
 }

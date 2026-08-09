@@ -14,11 +14,13 @@ import {
   IconRobot,
   type Icon,
 } from '@tabler/icons-react-native';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import type {
   BookBadgeDefinition,
   BookBadgeIconKey,
+  BookBadgeId,
 } from '@/services/book-badge-definitions';
 
 type BadgeIcon = Icon;
@@ -32,6 +34,32 @@ const badgeIcons: Record<BookBadgeIconKey, BadgeIcon> = {
   original: IconFeather,
   repost: IconArrowBackUp,
   translate: IconLanguage,
+};
+
+const badgeLabelKeys = {
+  ai: 'badges.ai.label',
+  interiorLevel: 'badges.interiorLevel.label',
+  japanese: 'badges.japanese.label',
+  level: 'badges.level.label',
+  original: 'badges.original.label',
+  recorded: 'badges.recorded.label',
+  recording: 'badges.recording.label',
+  repost: 'badges.repost.label',
+  translated: 'badges.translated.label',
+  translating: 'badges.translating.label',
+} as const;
+
+const badgeTranslationIds: Record<BookBadgeId, keyof typeof badgeLabelKeys> = {
+  ai: 'ai',
+  'interior-level': 'interiorLevel',
+  japanese: 'japanese',
+  level: 'level',
+  original: 'original',
+  recorded: 'recorded',
+  recording: 'recording',
+  repost: 'repost',
+  translated: 'translated',
+  translating: 'translating',
 };
 
 const levelIcons: Record<BookLevel, BadgeIcon> = {
@@ -54,19 +82,21 @@ export function BookTypeBadgeIcon({
   iconSize?: number;
   levelIconSize?: number;
 }) {
+  const { t } = useTranslation('book');
   const BadgeIcon = badgeIcons[badge.icon];
   const level =
     badge.level === undefined
       ? undefined
       : (Math.min(6, Math.max(1, Math.trunc(badge.level))) as BookLevel);
   const LevelIcon = level === undefined ? null : levelIcons[level];
+  const label = t(badgeLabelKeys[badgeTranslationIds[badge.id]]);
 
   return (
     <View
       accessible
-      accessibilityLabel={
-        level === undefined ? badge.label : `${badge.label} ${level}`
-      }
+      accessibilityLabel={level === undefined
+        ? label
+        : t('badges.withLevel', { label, level })}
       accessibilityRole="image"
       style={[
         level === undefined ? styles.categoryBadge : styles.levelBadge,

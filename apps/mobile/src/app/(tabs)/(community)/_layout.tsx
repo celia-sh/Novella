@@ -1,9 +1,11 @@
 import Stack from 'expo-router/stack';
+import { useTranslation } from 'react-i18next';
 
 import { useSystemScreenStackPreset } from '@/theme/stack-preset';
 
 export default function CommunityStackLayout() {
   const isAndroid = process.env.EXPO_OS === 'android';
+  const { t } = useTranslation('community');
   const systemScreenStackPreset = useSystemScreenStackPreset();
 
   return (
@@ -13,10 +15,10 @@ export default function CommunityStackLayout() {
         options={{
           headerLargeTitle: !isAndroid,
           headerShown: !isAndroid,
-          title: 'Community',
+          title: t('navigation.community'),
         }}
       />
-      <Stack.Screen name="thread/[id]" options={{ headerLargeTitle: false, headerShown: !isAndroid, title: 'Discussion' }} />
+      <Stack.Screen name="thread/[id]" options={{ headerLargeTitle: false, headerShown: !isAndroid, title: t('navigation.discussion') }} />
       <Stack.Screen
         name="thread/[id]/reply"
         options={{
@@ -28,15 +30,15 @@ export default function CommunityStackLayout() {
           title: '',
         }}
       />
-      <Stack.Screen name="compose" options={{ headerLargeTitle: false, headerShown: !isAndroid, title: 'New post' }} />
-      <Stack.Screen name="notifications" options={{ headerLargeTitle: false, headerShown: !isAndroid, title: 'Notifications' }} />
+      <Stack.Screen name="compose" options={{ headerLargeTitle: false, headerShown: !isAndroid, title: t('navigation.newPost') }} />
+      <Stack.Screen name="notifications" options={{ headerLargeTitle: false, headerShown: !isAndroid, title: t('navigation.notifications') }} />
       <Stack.Screen
         name="mine"
-        options={{ headerLargeTitle: false, headerShown: !isAndroid, title: 'My Community' }}
+        options={{ headerLargeTitle: false, headerShown: !isAndroid, title: t('navigation.myCommunity') }}
       />
       <Stack.Screen
         name="community-rankings"
-        options={{ headerLargeTitle: false, headerShown: !isAndroid, title: 'Rankings' }}
+        options={{ headerLargeTitle: false, headerShown: !isAndroid, title: t('navigation.rankings') }}
       />
     </Stack>
   );

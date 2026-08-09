@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import {
   AuthFormError,
@@ -12,6 +13,10 @@ import { AuthFooterLink, PasswordField } from '@/components/auth-fields';
 import { authFlowSession } from '@/services/auth-flow-session';
 import { authentication } from '@/services/client';
 
+type RegisterError =
+  | { kind: 'key'; key: 'register.validation.usernameRequired' | 'register.validation.passwordTooShort' | 'register.validation.passwordsMismatch' | 'register.errors.sendCodeFailed' }
+  | { kind: 'raw'; text: string };
+
 export default function RegisterRoute() {
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
@@ -19,20 +24,21 @@ export default function RegisterRoute() {
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<RegisterError | null>(null);
+  const { t } = useTranslation('auth');
 
   async function continueToVerification() {
     const normalizedEmail = email.trim();
     if (!userName.trim()) {
-      setError('Enter a username.');
+      setError({ kind: 'key', key: 'register.validation.usernameRequired' });
       return;
     }
     if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+      setError({ kind: 'key', key: 'register.validation.passwordTooShort' });
       return;
     }
     if (password !== passwordConfirmation) {
-      setError('Passwords do not match.');
+      setError({ kind: 'key', key: 'register.validation.passwordsMismatch' });
       return;
     }
     setError(null);
@@ -48,7 +54,7 @@ export default function RegisterRoute() {
       });
       router.push('/register/verify');
     } catch (submitError) {
-      setError(getErrorMessage(submitError));
+      setError(getRegisterError(submitError));
     } finally {
       setIsSubmitting(false);
     }
@@ -56,52 +62,52 @@ export default function RegisterRoute() {
 
   return (
     <AuthFormLayout
-      description="Set up your account details. We will send a 4-character verification code to your email."
-      title="Create your account"
+      description={t('register.description')}
+      title={t('register.title')}
     >
       <View style={styles.form}>
         <AuthTextField
-          accessibilityLabel="Username"
+          accessibilityLabel={t('fields.username')}
           autoCapitalize="words"
           autoCorrect={false}
           onChangeText={setUserName}
-          placeholder="Username"
+          placeholder={t('fields.username')}
           returnKeyType="next"
           textContentType="nickname"
           value={userName}
         />
         <AuthTextField
-          accessibilityLabel="Email"
+          accessibilityLabel={t('fields.email')}
           autoCapitalize="none"
           autoComplete="email"
           autoCorrect={false}
           keyboardType="email-address"
           onChangeText={setEmail}
-          placeholder="Email"
+          placeholder={t('fields.email')}
           returnKeyType="next"
           textContentType="emailAddress"
           value={email}
         />
-        <PasswordField accessibilityLabel="Password" label="Password" onChangeText={setPassword} value={password} />
-        <PasswordField accessibilityLabel="Confirm password" label="Confirm password" onChangeText={setPasswordConfirmation} value={passwordConfirmation} />
+        <PasswordField accessibilityLabel={t('fields.password')} label={t('fields.password')} onChangeText={setPassword} textContentType="newPassword" value={password} />
+        <PasswordField accessibilityLabel={t('fields.confirmPassword')} label={t('fields.confirmPassword')} onChangeText={setPasswordConfirmation} textContentType="newPassword" value={passwordConfirmation} />
         <AuthTextField
-          accessibilityLabel="Invite code"
+          accessibilityLabel={t('fields.inviteCode')}
           autoCapitalize="none"
           autoCorrect={false}
           onChangeText={setInviteCode}
-          placeholder="Invite code (optional)"
+          placeholder={t('fields.inviteCode')}
           returnKeyType="done"
           value={inviteCode}
         />
-        <AuthFormError message={error} />
+        <AuthFormError message={error?.kind === 'raw' ? error.text : error ? t(error.key) : null} />
         <AuthSubmitButton
-          idleLabel="Continue"
+          idleLabel={t('register.continue')}
           isSubmitting={isSubmitting}
           onPress={() => void continueToVerification()}
-          submittingLabel="Sending code…"
+          submittingLabel={t('register.sendingCode')}
         />
         <AuthFooterLink
-          label="Already have an account? Sign in"
+          label={t('register.alreadyHaveAccount')}
           onPress={() => router.replace('/sign-in/credentials')}
         />
       </View>
@@ -109,8 +115,10 @@ export default function RegisterRoute() {
   );
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unable to send the verification code.';
+function getRegisterError(error: unknown): RegisterError {
+  return error instanceof Error
+    ? { kind: 'raw', text: error.message }
+    : { kind: 'key', key: 'register.errors.sendCodeFailed' };
 }
 
 const styles = StyleSheet.create({ form: { gap: 14 } });

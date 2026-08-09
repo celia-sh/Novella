@@ -1,7 +1,8 @@
 import { InputOTP, REGEXP_ONLY_DIGITS_AND_CHARS } from 'heroui-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { IconEye, IconEyeOff } from '@tabler/icons-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { useAuthPalette } from '@/theme/auth-theme';
 
@@ -10,16 +11,19 @@ export function PasswordField({
   label,
   onChangeText,
   onSubmitEditing,
+  textContentType = 'password',
   value,
 }: {
   accessibilityLabel: string;
   label: string;
   onChangeText: (value: string) => void;
   onSubmitEditing?: () => void;
+  textContentType?: TextInputProps['textContentType'];
   value: string;
 }) {
   const [visible, setVisible] = useState(false);
   const palette = useAuthPalette();
+  const { t } = useTranslation('auth');
 
   return (
     <View style={[styles.passwordRow, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -33,11 +37,13 @@ export function PasswordField({
         placeholderTextColor={palette.placeholder}
         secureTextEntry={!visible}
         style={[styles.passwordInput, { color: palette.foreground }]}
-        textContentType={label === 'Password' ? 'password' : 'newPassword'}
+        textContentType={textContentType}
         value={value}
       />
       <Pressable
-        accessibilityLabel={visible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+        accessibilityLabel={visible
+          ? t('accessibility.hidePassword', { field: label })
+          : t('accessibility.showPassword', { field: label })}
         accessibilityRole="button"
         onPress={() => setVisible((current) => !current)}
         style={({ pressed }) => [styles.passwordToggle, pressed && styles.pressed]}
@@ -68,20 +74,27 @@ export function VerificationCodeField({
   value: string;
 }) {
   const palette = useAuthPalette();
+  const { t } = useTranslation('auth');
   const canSend = !isSending && cooldown === 0;
   return (
     <View style={styles.otpField}>
       <View style={styles.otpHeading}>
-        <Text style={[styles.otpLabel, { color: palette.foreground }]}>Verification code</Text>
+        <Text style={[styles.otpLabel, { color: palette.foreground }]}>{t('fields.verificationCode')}</Text>
         <Pressable
-          accessibilityLabel={isSending ? 'Sending verification code' : 'Send verification code'}
+          accessibilityLabel={isSending
+            ? t('accessibility.sendingVerificationCode')
+            : t('accessibility.sendVerificationCode')}
           accessibilityRole="button"
           disabled={!canSend}
           onPress={onSend}
           style={({ pressed }) => [styles.sendButton, !canSend && styles.disabled, pressed && styles.pressed]}
         >
           <Text style={[styles.sendLabel, { color: canSend ? palette.accent : palette.secondary }]}>
-            {isSending ? 'Sending…' : cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
+            {isSending
+              ? t('verification.sending')
+              : cooldown > 0
+                ? t('verification.resendIn', { seconds: cooldown })
+                : t('verification.resend')}
           </Text>
         </Pressable>
       </View>

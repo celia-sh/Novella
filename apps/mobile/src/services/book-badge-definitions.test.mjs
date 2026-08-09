@@ -50,10 +50,7 @@ test('interior level takes precedence and clamps the preview level', () => {
     icon: 'hexagon',
     iconColor: '#E0A106',
     id: 'interior-level',
-    label: 'InteriorLevel',
     level: 6,
-    meaning:
-      'Group-only permission content\nThe second icon shows the actual InteriorLevel',
     names: [],
     shortNames: [],
   });

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import {
   AuthFormError,
@@ -11,12 +12,17 @@ import { VerificationCodeField } from '@/components/auth-fields';
 import { authFlowSession } from '@/services/auth-flow-session';
 import { authentication } from '@/services/client';
 
+type ResetVerifyError =
+  | { kind: 'key'; key: 'verification.invalidCode' | 'resetPassword.errors.sendCodeFailed' }
+  | { kind: 'raw'; text: string };
+
 export default function ResetPasswordVerifyRoute() {
   const [draft] = useState(() => authFlowSession.getPasswordReset());
   const [code, setCode] = useState('');
   const [cooldown, setCooldown] = useState(60);
   const [isSending, setIsSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ResetVerifyError | null>(null);
+  const { t } = useTranslation('auth');
 
   useEffect(() => {
     if (!draft) router.replace('/reset-password');
@@ -36,7 +42,7 @@ export default function ResetPasswordVerifyRoute() {
       await authentication.sendResetCode(draft.email);
       setCooldown(60);
     } catch (sendError) {
-      setError(getErrorMessage(sendError));
+      setError(getResetVerifyError(sendError));
     } finally {
       setIsSending(false);
     }
@@ -45,7 +51,7 @@ export default function ResetPasswordVerifyRoute() {
   function continueToPassword() {
     if (!draft) return;
     if (code.length !== 4) {
-      setError('Enter the 4-character verification code.');
+      setError({ kind: 'key', key: 'verification.invalidCode' });
       return;
     }
     authFlowSession.setPasswordReset({ ...draft, code });
@@ -55,8 +61,8 @@ export default function ResetPasswordVerifyRoute() {
   if (!draft) return null;
   return (
     <AuthFormLayout
-      description={`Enter the 4-character code sent to ${draft.email}.`}
-      title="Check your email"
+      description={t('resetPassword.verify.description', { email: draft.email })}
+      title={t('resetPassword.verify.title')}
     >
       <View style={styles.form}>
         <VerificationCodeField
@@ -67,20 +73,22 @@ export default function ResetPasswordVerifyRoute() {
           onSend={() => void resend()}
           value={code}
         />
-        <AuthFormError message={error} />
+        <AuthFormError message={error?.kind === 'raw' ? error.text : error ? t(error.key) : null} />
         <AuthSubmitButton
-          idleLabel="Continue"
+          idleLabel={t('resetPassword.verify.continue')}
           isSubmitting={false}
           onPress={continueToPassword}
-          submittingLabel="Continue"
+          submittingLabel={t('resetPassword.verify.continue')}
         />
       </View>
     </AuthFormLayout>
   );
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unable to send the verification code.';
+function getResetVerifyError(error: unknown): ResetVerifyError {
+  return error instanceof Error
+    ? { kind: 'raw', text: error.message }
+    : { kind: 'key', key: 'resetPassword.errors.sendCodeFailed' };
 }
 
 const styles = StyleSheet.create({ form: { gap: 18 } });

@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
-
+import { useTranslation } from 'react-i18next';
 
 import { showAlert } from '@/components/native-alert-dialog';
 import { router } from 'expo-router';
@@ -17,6 +17,7 @@ import { updateAppSettings, useAppSettings } from '@/services/settings';
 
 export function CacheSettingsScreen() {
   const settings = useAppSettings();
+  const { t } = useTranslation('settings');
   const [clearingFonts, setClearingFonts] = useState(false);
   const [clearingImages, setClearingImages] = useState(false);
 
@@ -30,16 +31,20 @@ export function CacheSettingsScreen() {
         Image.clearDiskCache(),
       ]);
       if (!memoryCleared || !diskCleared) {
-        throw new Error('One or more native image caches could not be cleared.');
+        showAlert(
+          t('cache.alerts.clearImagesFailedTitle'),
+          t('cache.alerts.clearImagesFailedMessage'),
+        );
+        return;
       }
       showAlert(
-        'Image cache cleared',
-        'Removed downloaded images and decoded BlurHash placeholders.',
+        t('cache.alerts.imagesClearedTitle'),
+        t('cache.alerts.imagesClearedMessage'),
       );
-    } catch (error) {
+    } catch {
       showAlert(
-        'Unable to clear images',
-        error instanceof Error ? error.message : 'The image cache could not be cleared.',
+        t('cache.alerts.clearImagesFailedTitle'),
+        t('cache.alerts.clearImagesFailedMessage'),
       );
     } finally {
       setClearingImages(false);
@@ -52,15 +57,15 @@ export function CacheSettingsScreen() {
     try {
       const entryCount = clearReaderFontCache();
       showAlert(
-        'Reader font cache cleared',
+        t('cache.alerts.fontsClearedTitle'),
         entryCount === 0
-          ? 'There were no cached reader fonts.'
-          : `Removed ${entryCount} cached font ${entryCount === 1 ? 'file' : 'files'}.`,
+          ? t('cache.alerts.noFonts')
+          : t('cache.alerts.fontsRemoved', { count: entryCount }),
       );
-    } catch (error) {
+    } catch {
       showAlert(
-        'Unable to clear reader fonts',
-        error instanceof Error ? error.message : 'The cache could not be cleared.',
+        t('cache.alerts.clearFontsFailedTitle'),
+        t('cache.alerts.clearFontsFailedMessage'),
       );
     } finally {
       setClearingFonts(false);
@@ -72,45 +77,45 @@ export function CacheSettingsScreen() {
       onBackPress={() => router.back()}
       showBackButton
       testID="cache-settings"
-      title="Cache"
+      title={t('cache.title')}
     >
-      <NativeGroupedListSection title="Local cache">
+      <NativeGroupedListSection title={t('cache.section')}>
         <NativeToggleRow
-          description="Keep recently opened book details on this device"
+          description={t('cache.bookDetailDescription')}
           icon="bookDetailCache"
           onValueChange={(value) => void updateAppSettings({ bookDetailCacheEnabled: value })}
-          title="Book detail cache"
+          title={t('cache.bookDetailTitle')}
           value={settings.bookDetailCacheEnabled}
         />
         <NativeToggleRow
-          description="Reuse downloaded font metadata and files"
+          description={t('cache.fontDescription')}
           icon="fontCache"
           onValueChange={(value) => void updateAppSettings({ fontCacheEnabled: value })}
-          title="Font cache"
+          title={t('cache.fontTitle')}
           value={settings.fontCacheEnabled}
         />
         <NativeSliderRow
-          description="Maximum number of cached font entries"
-          formatValue={(value) => `${Math.round(value)} books`}
+          description={t('cache.fontLimitDescription')}
+          formatValue={(value) => t('cache.bookCount', { count: Math.round(value) })}
           icon="fontCacheLimit"
           max={60}
           min={10}
           onValueChange={(value) => void updateAppSettings({ fontCacheLimit: value })}
           step={1}
-          title="Font cache limit"
+          title={t('cache.fontLimitTitle')}
           value={settings.fontCacheLimit}
         />
         <NativeGroupedListRow
-          description="Delete downloaded images and decoded BlurHash placeholders"
+          description={t('cache.clearImagesDescription')}
           icon="clearImageCache"
           onPress={() => void handleClearImages()}
-          title="Clear image cache"
+          title={t('cache.clearImagesTitle')}
         />
         <NativeGroupedListRow
-          description="Delete downloaded and converted chapter fonts"
+          description={t('cache.clearFontsDescription')}
           icon="clearFontCache"
           onPress={() => void handleClearReaderFonts()}
-          title="Clear reader font cache"
+          title={t('cache.clearFontsTitle')}
         />
       </NativeGroupedListSection>
     </NativeGroupedList>

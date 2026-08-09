@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconArrowRight } from '@tabler/icons-react-native';
+import { useTranslation } from 'react-i18next';
 
 import NovellaLogo from '../../assets/novella-logo.svg';
 import {
@@ -21,6 +22,7 @@ import { useAuthPalette } from '@/theme/auth-theme';
 
 export function AuthWelcomeScreen() {
   const covers = useAuthCoverMosaic();
+  const { t } = useTranslation('auth');
   const insets = useSafeAreaInsets();
   const { height, width } = useWindowDimensions();
   const palette = useAuthPalette();
@@ -44,13 +46,13 @@ export function AuthWelcomeScreen() {
       <View style={[styles.welcomeContent, { paddingBottom: Math.max(22, insets.bottom + 12) }]}>
         <NovellaLogo fill={palette.foreground} height={33} width={126} />
         <View style={styles.welcomeCopy}>
-          <Text style={[styles.welcomeTitle, { color: palette.foreground }]}>A world in every story.</Text>
+          <Text style={[styles.welcomeTitle, { color: palette.foreground }]}>{t('welcome.title')}</Text>
           <Text style={[styles.welcomeDescription, { color: palette.secondary }]}>
-            Find your next chapter, keep every journey close, and continue exactly where you stopped.
+            {t('welcome.description')}
           </Text>
         </View>
         <Pressable
-          accessibilityLabel="Start reading"
+          accessibilityLabel={t('welcome.startReading')}
           accessibilityRole="button"
           onPress={() => router.push('/sign-in/credentials')}
           style={({ pressed }) => [
@@ -59,7 +61,7 @@ export function AuthWelcomeScreen() {
             pressed && styles.buttonPressed,
           ]}
         >
-          <Text style={[styles.heroButtonLabel, { color: palette.onAccent }]}>Start reading</Text>
+          <Text style={[styles.heroButtonLabel, { color: palette.onAccent }]}>{t('welcome.startReading')}</Text>
           <IconArrowRight color={palette.onAccent} size={21} strokeWidth={2.1} />
         </Pressable>
       </View>
@@ -67,17 +69,22 @@ export function AuthWelcomeScreen() {
   );
 }
 
+type SignInError =
+  | { kind: 'key'; key: 'signIn.validation.credentialsRequired' | 'signIn.errors.failed' }
+  | { kind: 'raw'; text: string };
+
 export function SignInCredentialsScreen({ initialEmail = '' }: { initialEmail?: string }) {
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<SignInError | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const palette = useAuthPalette();
+  const { t } = useTranslation('auth');
 
   async function submit() {
     const normalizedEmail = email.trim();
     if (!normalizedEmail || !password) {
-      setError('Enter your email and password.');
+      setError({ kind: 'key', key: 'signIn.validation.credentialsRequired' });
       return;
     }
     setError(null);
@@ -86,7 +93,9 @@ export function SignInCredentialsScreen({ initialEmail = '' }: { initialEmail?: 
       await authentication.signIn(normalizedEmail, password);
       router.replace('/');
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Sign in failed. Try again.');
+      setError(submitError instanceof Error
+        ? { kind: 'raw', text: submitError.message }
+        : { kind: 'key', key: 'signIn.errors.failed' });
     } finally {
       setIsSubmitting(false);
     }
@@ -94,40 +103,40 @@ export function SignInCredentialsScreen({ initialEmail = '' }: { initialEmail?: 
 
   return (
     <AuthFormLayout
-      description="Sign in to sync your shelf, history, and reading progress."
-      title="Welcome back"
+      description={t('signIn.description')}
+      title={t('signIn.title')}
     >
       <View style={styles.formFields}>
         <AuthTextField
-          accessibilityLabel="Email"
+          accessibilityLabel={t('fields.email')}
           autoCapitalize="none"
           autoComplete="email"
           autoCorrect={false}
           keyboardType="email-address"
           onChangeText={setEmail}
-          placeholder="Email"
+          placeholder={t('fields.email')}
           returnKeyType="next"
           textContentType="emailAddress"
           value={email}
         />
         <PasswordField
-          accessibilityLabel="Password"
-          label="Password"
+          accessibilityLabel={t('fields.password')}
+          label={t('fields.password')}
           onChangeText={setPassword}
           onSubmitEditing={() => void submit()}
           value={password}
         />
         <Pressable onPress={() => router.push('/reset-password')} style={styles.trailingLink}>
-          <Text style={[styles.linkLabel, { color: palette.accent }]}>Forgot password?</Text>
+          <Text style={[styles.linkLabel, { color: palette.accent }]}>{t('signIn.forgotPassword')}</Text>
         </Pressable>
-        <AuthFormError message={error} />
+        <AuthFormError message={error?.kind === 'raw' ? error.text : error ? t(error.key) : null} />
         <AuthSubmitButton
-          idleLabel="Sign in"
+          idleLabel={t('signIn.submit')}
           isSubmitting={isSubmitting}
           onPress={() => void submit()}
-          submittingLabel="Signing in…"
+          submittingLabel={t('signIn.submitting')}
         />
-        <AuthFooterLink label="New to Novella? Create an account" onPress={() => router.push('/register')} />
+        <AuthFooterLink label={t('signIn.createAccount')} onPress={() => router.push('/register')} />
       </View>
     </AuthFormLayout>
   );

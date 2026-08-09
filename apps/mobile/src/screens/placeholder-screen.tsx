@@ -32,10 +32,6 @@ export function PlaceholderScreen({
             </Column>
             <Text textStyle={styles.title}>{title}</Text>
             <Text textStyle={styles.description}>{description}</Text>
-            <Text textStyle={styles.note}>
-              This route is part of the migration foundation. Its data contract will
-              follow the current Web-Master implementation.
-            </Text>
           </Column>
         </ScrollView>
       </Host>
@@ -62,12 +58,6 @@ const usePlaceholderScreenStyles = createThemedStyles((colors) => ({
     borderWidth: 0.5,
     height: 72,
     width: 72,
-  },
-  note: {
-    color: colors.secondaryLabel as string,
-    fontSize: 14,
-    lineHeight: 21,
-    textAlign: 'center',
   },
   title: {
     color: colors.label as string,

@@ -1,8 +1,10 @@
 import Stack from 'expo-router/stack';
+import { useTranslation } from 'react-i18next';
 
 import { useSystemScreenStackPreset } from '@/theme/stack-preset';
 
 export default function HistoryStackLayout() {
+  const { t } = useTranslation('navigation');
   const isAndroid = process.env.EXPO_OS === 'android';
   const systemScreenStackPreset = useSystemScreenStackPreset();
 
@@ -13,7 +15,7 @@ export default function HistoryStackLayout() {
         options={{
           headerLargeTitle: !isAndroid,
           headerShown: !isAndroid,
-          title: 'History',
+          title: t('tabs.history'),
         }}
       />
     </Stack>

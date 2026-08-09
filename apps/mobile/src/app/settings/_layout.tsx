@@ -1,8 +1,10 @@
 import Stack from 'expo-router/stack';
+import { useTranslation } from 'react-i18next';
 
 import { useSystemScreenStackPreset } from '@/theme/stack-preset';
 
 export default function SettingsStackLayout() {
+  const { t } = useTranslation('settings');
   const isAndroid = process.env.EXPO_OS === 'android';
   const systemScreenStackPreset = useSystemScreenStackPreset();
   const badgeSheetOptions = isAndroid
@@ -20,24 +22,24 @@ export default function SettingsStackLayout() {
     <Stack screenOptions={{ ...systemScreenStackPreset, headerShown: !isAndroid }}>
       <Stack.Screen
         name="index"
-        options={{ headerLargeTitle: !isAndroid, title: 'Settings' }}
+        options={{ headerLargeTitle: !isAndroid, title: t('panel.title') }}
       />
-      <Stack.Screen name="profile" options={{ title: 'Profile' }} />
-      <Stack.Screen name="avatar" options={{ title: 'Avatar' }} />
-      <Stack.Screen name="reader" options={{ title: 'Reading' }} />
-      <Stack.Screen name="content" options={{ title: 'Content' }} />
+      <Stack.Screen name="profile" options={{ title: t('profile.title') }} />
+      <Stack.Screen name="avatar" options={{ title: t('avatar.title') }} />
+      <Stack.Screen name="reader" options={{ title: t('reader.title') }} />
+      <Stack.Screen name="content" options={{ title: t('content.title') }} />
       <Stack.Screen
         name="badges"
         options={{
           ...badgeSheetOptions,
           headerShown: false,
           presentation: isAndroid ? 'transparentModal' : 'formSheet',
-          title: 'Badge meanings',
+          title: t('badges.title'),
         }}
       />
-      <Stack.Screen name="appearance" options={{ title: 'Appearance' }} />
-      <Stack.Screen name="cache" options={{ title: 'Cache' }} />
-      <Stack.Screen name="about" options={{ title: 'About Novella' }} />
+      <Stack.Screen name="appearance" options={{ title: t('appearance.title') }} />
+      <Stack.Screen name="cache" options={{ title: t('cache.title') }} />
+      <Stack.Screen name="about" options={{ title: t('about.title') }} />
     </Stack>
   );
 }

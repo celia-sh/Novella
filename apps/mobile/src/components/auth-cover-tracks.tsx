@@ -2,6 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { Skeleton } from 'heroui-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, StyleSheet, View, type AppStateStatus } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -97,6 +98,7 @@ function CoverTrack({
   const gap = Math.max(8, spec.cardWidth * 0.075);
   const cardHeight = spec.cardWidth * 1.5;
   const groupHeight = (cardHeight + gap) * 2;
+  const { t } = useTranslation('auth');
   const progress = useSharedValue(0);
   const entrance = useSharedValue(shouldAnimate ? 0 : 1);
   const hasEntered = useRef(false);
@@ -168,7 +170,7 @@ function CoverTrack({
           >
             {book ? (
               <BookCoverImage
-                accessibilityLabel={`${book.title} cover`}
+                accessibilityLabel={t('accessibility.bookCover', { title: book.title })}
                 animateCachedImage
                 blurHash={book.coverPlaceholder}
                 showLoading={false}

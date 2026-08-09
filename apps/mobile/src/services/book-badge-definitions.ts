@@ -3,15 +3,25 @@ import type { BookCategory } from '@novella/api-client';
 export type BookBadgeIconKey =
   'ai' | 'edit' | 'hexagon' | 'japanese' | 'original' | 'repost' | 'translate';
 
+export type BookBadgeId =
+  | 'ai'
+  | 'interior-level'
+  | 'japanese'
+  | 'level'
+  | 'original'
+  | 'recorded'
+  | 'recording'
+  | 'repost'
+  | 'translated'
+  | 'translating';
+
 export interface BookBadgeDefinition {
   backgroundColor: string;
   borderColor?: string;
   icon: BookBadgeIconKey;
   iconColor: string;
-  id: string;
-  label: string;
+  id: BookBadgeId;
   level?: number;
-  meaning: string;
   names: readonly string[];
   shortNames: readonly string[];
 }
@@ -21,8 +31,6 @@ const RECORDED_BADGE: BookBadgeDefinition = {
   icon: 'edit',
   iconColor: '#FFFFFF',
   id: 'recorded',
-  label: 'Recorded',
-  meaning: 'Human-entered content is complete',
   names: ['录入完成'],
   shortNames: ['录入', '录入完成'],
 };
@@ -32,8 +40,6 @@ const TRANSLATED_BADGE: BookBadgeDefinition = {
   icon: 'translate',
   iconColor: '#FFFFFF',
   id: 'translated',
-  label: 'Translated',
-  meaning: 'Human translation is complete',
   names: ['翻译完成'],
   shortNames: ['翻译', '翻译完成'],
 };
@@ -43,8 +49,6 @@ const REPOST_BADGE: BookBadgeDefinition = {
   icon: 'repost',
   iconColor: '#FFFFFF',
   id: 'repost',
-  label: 'Repost',
-  meaning: 'Reposted work',
   names: ['转载'],
   shortNames: ['转载'],
 };
@@ -54,8 +58,6 @@ const ORIGINAL_BADGE: BookBadgeDefinition = {
   icon: 'original',
   iconColor: '#FFFFFF',
   id: 'original',
-  label: 'Original',
-  meaning: 'Original work',
   names: ['原创'],
   shortNames: ['原创'],
 };
@@ -65,8 +67,6 @@ const JAPANESE_BADGE: BookBadgeDefinition = {
   icon: 'japanese',
   iconColor: '#FFFFFF',
   id: 'japanese',
-  label: 'Japanese',
-  meaning: 'Original Japanese content',
   names: ['日文原版'],
   shortNames: ['日文', '日原', '日文原版'],
 };
@@ -76,8 +76,6 @@ const AI_BADGE: BookBadgeDefinition = {
   icon: 'ai',
   iconColor: '#FFFFFF',
   id: 'ai',
-  label: 'AI',
-  meaning: 'Machine-assisted generation or translation',
   names: ['AI翻译'],
   shortNames: ['AI', 'AI翻译'],
 };
@@ -87,8 +85,6 @@ const RECORDING_BADGE: BookBadgeDefinition = {
   icon: 'edit',
   iconColor: '#FFFFFF',
   id: 'recording',
-  label: 'Recording',
-  meaning: 'Entry is still in progress',
   names: ['录入中'],
   shortNames: ['录入中'],
 };
@@ -98,8 +94,6 @@ const TRANSLATING_BADGE: BookBadgeDefinition = {
   icon: 'translate',
   iconColor: '#FFFFFF',
   id: 'translating',
-  label: 'Translating',
-  meaning: 'Translation is still in progress',
   names: ['翻译中'],
   shortNames: ['翻译中'],
 };
@@ -109,10 +103,7 @@ const LEVEL_BADGE: BookBadgeDefinition = {
   icon: 'hexagon',
   iconColor: '#FFFFFF',
   id: 'level',
-  label: 'Level',
   level: 6,
-  meaning:
-    'Permission-controlled content\nThe second icon shows the actual Level',
   names: [],
   shortNames: [],
 };
@@ -123,10 +114,7 @@ const INTERIOR_LEVEL_BADGE: BookBadgeDefinition = {
   icon: 'hexagon',
   iconColor: '#E0A106',
   id: 'interior-level',
-  label: 'InteriorLevel',
   level: 6,
-  meaning:
-    'Group-only permission content\nThe second icon shows the actual InteriorLevel',
   names: [],
   shortNames: [],
 };

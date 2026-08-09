@@ -22,7 +22,7 @@ export function useProfile() {
       setStatus('ready');
     } catch (loadError) {
       setStatus('error');
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load your profile.');
+      setError(loadError instanceof Error ? loadError.message : 'profile_load_failed');
     }
   }, []);
 

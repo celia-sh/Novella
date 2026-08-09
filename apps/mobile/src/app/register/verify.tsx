@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import {
   AuthFormError,
@@ -11,13 +12,18 @@ import { VerificationCodeField } from '@/components/auth-fields';
 import { authFlowSession } from '@/services/auth-flow-session';
 import { authentication } from '@/services/client';
 
+type RegisterVerifyError =
+  | { kind: 'key'; key: 'verification.invalidCode' | 'register.errors.sendCodeFailed' | 'register.errors.createAccountFailed' }
+  | { kind: 'raw'; text: string };
+
 export default function RegisterVerifyRoute() {
   const [draft] = useState(() => authFlowSession.getRegistration());
   const [code, setCode] = useState('');
   const [cooldown, setCooldown] = useState(60);
   const [isSending, setIsSending] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<RegisterVerifyError | null>(null);
+  const { t } = useTranslation('auth');
 
   useEffect(() => {
     if (!draft) router.replace('/register');
@@ -37,7 +43,7 @@ export default function RegisterVerifyRoute() {
       await authentication.sendRegisterCode(draft.email);
       setCooldown(60);
     } catch (sendError) {
-      setError(getErrorMessage(sendError));
+      setError(getRegisterVerifyError(sendError, 'register.errors.sendCodeFailed'));
     } finally {
       setIsSending(false);
     }
@@ -46,7 +52,7 @@ export default function RegisterVerifyRoute() {
   async function submit() {
     if (!draft) return;
     if (code.length !== 4) {
-      setError('Enter the 4-character verification code.');
+      setError({ kind: 'key', key: 'verification.invalidCode' });
       return;
     }
     setError(null);
@@ -56,7 +62,7 @@ export default function RegisterVerifyRoute() {
       authFlowSession.clearRegistration();
       router.replace('/');
     } catch (submitError) {
-      setError(getErrorMessage(submitError));
+      setError(getRegisterVerifyError(submitError, 'register.errors.createAccountFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -65,8 +71,8 @@ export default function RegisterVerifyRoute() {
   if (!draft) return null;
   return (
     <AuthFormLayout
-      description={`Enter the 4-character code sent to ${draft.email}.`}
-      title="Check your email"
+      description={t('register.verify.description', { email: draft.email })}
+      title={t('register.verify.title')}
     >
       <View style={styles.form}>
         <VerificationCodeField
@@ -77,20 +83,25 @@ export default function RegisterVerifyRoute() {
           onSend={() => void resend()}
           value={code}
         />
-        <AuthFormError message={error} />
+        <AuthFormError message={error?.kind === 'raw' ? error.text : error ? t(error.key) : null} />
         <AuthSubmitButton
-          idleLabel="Create account"
+          idleLabel={t('register.verify.submit')}
           isSubmitting={isSubmitting}
           onPress={() => void submit()}
-          submittingLabel="Creating account…"
+          submittingLabel={t('register.verify.submitting')}
         />
       </View>
     </AuthFormLayout>
   );
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unable to create your account.';
+function getRegisterVerifyError(
+  error: unknown,
+  fallback: Extract<RegisterVerifyError, { kind: 'key' }>['key'],
+): RegisterVerifyError {
+  return error instanceof Error
+    ? { kind: 'raw', text: error.message }
+    : { kind: 'key', key: fallback };
 }
 
 const styles = StyleSheet.create({ form: { gap: 18 } });

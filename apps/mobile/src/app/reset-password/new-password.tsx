@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import {
   AuthFormError,
@@ -11,12 +12,17 @@ import { PasswordField } from '@/components/auth-fields';
 import { authFlowSession } from '@/services/auth-flow-session';
 import { authentication } from '@/services/client';
 
+type NewPasswordError =
+  | { kind: 'key'; key: 'resetPassword.validation.passwordTooShort' | 'resetPassword.validation.passwordsMismatch' | 'resetPassword.errors.resetFailed' }
+  | { kind: 'raw'; text: string };
+
 export default function ResetPasswordNewPasswordRoute() {
   const [draft] = useState(() => authFlowSession.getPasswordReset());
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<NewPasswordError | null>(null);
+  const { t } = useTranslation('auth');
 
   useEffect(() => {
     if (!draft?.code) router.replace('/reset-password');
@@ -24,6 +30,14 @@ export default function ResetPasswordNewPasswordRoute() {
 
   async function submit() {
     if (!draft?.code) return;
+    if (password.length < 8) {
+      setError({ kind: 'key', key: 'resetPassword.validation.passwordTooShort' });
+      return;
+    }
+    if (password !== passwordConfirmation) {
+      setError({ kind: 'key', key: 'resetPassword.validation.passwordsMismatch' });
+      return;
+    }
     setError(null);
     setIsSubmitting(true);
     try {
@@ -36,7 +50,9 @@ export default function ResetPasswordNewPasswordRoute() {
       authFlowSession.clearPasswordReset();
       router.replace({ pathname: '/sign-in/credentials', params: { email: draft.email } });
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Unable to reset your password.');
+      setError(submitError instanceof Error
+        ? { kind: 'raw', text: submitError.message }
+        : { kind: 'key', key: 'resetPassword.errors.resetFailed' });
     } finally {
       setIsSubmitting(false);
     }
@@ -45,18 +61,18 @@ export default function ResetPasswordNewPasswordRoute() {
   if (!draft?.code) return null;
   return (
     <AuthFormLayout
-      description="Choose a new password with at least 8 characters."
-      title="Choose a new password"
+      description={t('resetPassword.newPassword.description')}
+      title={t('resetPassword.newPassword.title')}
     >
       <View style={styles.form}>
-        <PasswordField accessibilityLabel="New password" label="New password" onChangeText={setPassword} value={password} />
-        <PasswordField accessibilityLabel="Confirm new password" label="Confirm new password" onChangeText={setPasswordConfirmation} value={passwordConfirmation} />
-        <AuthFormError message={error} />
+        <PasswordField accessibilityLabel={t('fields.newPassword')} label={t('fields.newPassword')} onChangeText={setPassword} textContentType="newPassword" value={password} />
+        <PasswordField accessibilityLabel={t('fields.confirmNewPassword')} label={t('fields.confirmNewPassword')} onChangeText={setPasswordConfirmation} textContentType="newPassword" value={passwordConfirmation} />
+        <AuthFormError message={error?.kind === 'raw' ? error.text : error ? t(error.key) : null} />
         <AuthSubmitButton
-          idleLabel="Reset password"
+          idleLabel={t('resetPassword.newPassword.submit')}
           isSubmitting={isSubmitting}
           onPress={() => void submit()}
-          submittingLabel="Resetting password…"
+          submittingLabel={t('resetPassword.newPassword.submitting')}
         />
       </View>
     </AuthFormLayout>

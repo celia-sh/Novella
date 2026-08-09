@@ -1,4 +1,5 @@
 import { FieldError, Input, Label, TextField } from 'heroui-native';
+import type { TFunction } from 'i18next';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -12,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 import {
   parseAvatarSource,
@@ -26,23 +28,21 @@ import { useProfile } from '@/hooks/use-profile';
 import { profile as profileUseCase } from '@/services/client';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
-const SOURCE_OPTIONS = [
-  { label: 'Image URL', value: 'url' },
-  { label: 'QQ avatar', value: 'qq' },
-  { label: 'QQ group', value: 'qqGroup' },
-] as const;
-
 type AvatarDrafts = Record<AvatarSource, string>;
+type AvatarError =
+  | { kind: 'key'; key: 'avatar.errors.invalidSource' | 'avatar.errors.updateFailed' }
+  | { kind: 'raw'; text: string };
 
 export function AvatarSettingsScreen() {
   const insets = useSafeAreaInsets();
   const styles = useAvatarSettingsScreenStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation('settings');
   const { error: loadError, profile, reload, status } = useProfile();
   const hydratedProfileId = useRef<number | null>(null);
   const [source, setSource] = useState<AvatarSource>('url');
   const [drafts, setDrafts] = useState<AvatarDrafts>({ qq: '', qqGroup: '', url: '' });
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AvatarError | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -59,14 +59,16 @@ export function AvatarSettingsScreen() {
         largeTitle={false}
         onBackPress={() => router.back()}
         showBackButton
-        title="Avatar"
+        title={t('avatar.title')}
       >
         <View style={styles.loadingRoot}>
           {status === 'loading' ? <ActivityIndicator color={colors.accent as string} /> : null}
-          <Text style={styles.loadingTitle}>{loadError ?? 'Loading profile…'}</Text>
+          <Text style={styles.loadingTitle}>
+            {loadError ? t('avatar.loadFailed') : t('avatar.loadingProfile')}
+          </Text>
           {status !== 'loading' ? (
             <Pressable onPress={() => void reload()} style={styles.retryButton}>
-              <Text style={styles.retryLabel}>Try again</Text>
+              <Text style={styles.retryLabel}>{t('avatar.tryAgain')}</Text>
             </Pressable>
           ) : null}
         </View>
@@ -75,6 +77,7 @@ export function AvatarSettingsScreen() {
   }
 
   const value = drafts[source];
+  const fieldCopy = getAvatarFieldCopy(source, t);
   const previewUrl = getPreviewUrl(source, value, profile.avatarUrl);
 
   async function save() {
@@ -83,8 +86,8 @@ export function AvatarSettingsScreen() {
     let avatarUrl: string;
     try {
       avatarUrl = resolveAvatarUrl(source, value);
-    } catch (validationError) {
-      setError(validationError instanceof Error ? validationError.message : 'Enter a valid avatar source.');
+    } catch {
+      setError({ kind: 'key', key: 'avatar.errors.invalidSource' });
       return;
     }
     setSaving(true);
@@ -92,7 +95,9 @@ export function AvatarSettingsScreen() {
       await profileUseCase.setAvatar(avatarUrl);
       router.back();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Unable to update your avatar.');
+      setError(saveError instanceof Error
+        ? { kind: 'raw', text: saveError.message }
+        : { kind: 'key', key: 'avatar.errors.updateFailed' });
     } finally {
       setSaving(false);
     }
@@ -103,7 +108,7 @@ export function AvatarSettingsScreen() {
       largeTitle={false}
       onBackPress={() => router.back()}
       showBackButton
-      title="Avatar"
+      title={t('avatar.title')}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -115,15 +120,15 @@ export function AvatarSettingsScreen() {
           keyboardShouldPersistTaps="handled"
         >
         <View style={styles.introduction}>
-          <Text style={styles.title}>Change avatar</Text>
-          <Text style={styles.description}>Choose an image source and preview it before saving.</Text>
+          <Text style={styles.title}>{t('avatar.changeTitle')}</Text>
+          <Text style={styles.description}>{t('avatar.description')}</Text>
         </View>
 
         <View style={styles.previewCard}>
           <ProfileAvatar avatarUrl={previewUrl} size={64} userName={profile.userName} />
           <View style={styles.previewCopy}>
-            <Text numberOfLines={1} style={styles.previewName}>{profile.userName || 'Profile avatar'}</Text>
-            <Text style={styles.previewDescription}>Live preview</Text>
+            <Text numberOfLines={1} style={styles.previewName}>{profile.userName || t('avatar.profileAvatar')}</Text>
+            <Text style={styles.previewDescription}>{t('avatar.livePreview')}</Text>
           </View>
         </View>
 
@@ -133,15 +138,19 @@ export function AvatarSettingsScreen() {
             setSource(nextSource);
             setError(null);
           }}
-          options={SOURCE_OPTIONS}
+          options={[
+            { label: t('avatar.sources.imageUrl'), value: 'url' },
+            { label: t('avatar.sources.qqAvatar'), value: 'qq' },
+            { label: t('avatar.sources.qqGroup'), value: 'qqGroup' },
+          ] as const}
           selectedValue={source}
         />
 
         <View style={styles.fieldGroup}>
           <TextField isDisabled={saving} isInvalid={error !== null}>
-            <Label>{getFieldLabel(source)}</Label>
+            <Label>{fieldCopy.label}</Label>
             <Input
-              accessibilityLabel={getFieldLabel(source)}
+              accessibilityLabel={fieldCopy.label}
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType={source === 'url' ? 'url' : 'number-pad'}
@@ -150,26 +159,27 @@ export function AvatarSettingsScreen() {
                 setError(null);
               }}
               onSubmitEditing={() => void save()}
-              placeholder={getPlaceholder(source)}
+              placeholder={fieldCopy.placeholder}
               returnKeyType="done"
               value={value}
             />
             {error ? (
-              <FieldError>{error}</FieldError>
+              <FieldError>{error.kind === 'raw' ? error.text : t(error.key)}</FieldError>
             ) : (
-              <Text style={styles.fieldHint}>{getSourceHint(source)}</Text>
+              <Text style={styles.fieldHint}>{fieldCopy.hint}</Text>
             )}
           </TextField>
         </View>
 
         <Pressable
+          accessibilityLabel={saving ? t('avatar.saving') : t('avatar.save')}
           accessibilityRole="button"
           disabled={saving}
           onPress={() => void save()}
           style={({ pressed }) => [styles.saveButton, pressed && styles.pressed, saving && styles.disabled]}
         >
           {saving ? <ActivityIndicator color="#FFFFFF" /> : null}
-          <Text style={styles.saveLabel}>{saving ? 'Saving…' : 'Save avatar'}</Text>
+          <Text style={styles.saveLabel}>{saving ? t('avatar.saving') : t('avatar.save')}</Text>
         </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -186,27 +196,29 @@ function getPreviewUrl(source: AvatarSource, value: string, fallback: string): s
   }
 }
 
-function getFieldLabel(source: AvatarSource): string {
+function getAvatarFieldCopy(
+  source: AvatarSource,
+  t: TFunction<'settings'>,
+): { hint: string; label: string; placeholder: string } {
   switch (source) {
-    case 'url': return 'HTTPS image URL';
-    case 'qq': return 'QQ number';
-    case 'qqGroup': return 'QQ group number';
-  }
-}
-
-function getPlaceholder(source: AvatarSource): string {
-  switch (source) {
-    case 'url': return 'https://example.com/avatar.jpg';
-    case 'qq': return 'Enter QQ number';
-    case 'qqGroup': return 'Enter QQ group number';
-  }
-}
-
-function getSourceHint(source: AvatarSource): string {
-  switch (source) {
-    case 'url': return 'Image URLs must use HTTPS.';
-    case 'qq': return 'Your QQ number will be exposed in the public avatar URL.';
-    case 'qqGroup': return 'Your QQ group number will be exposed in the public avatar URL.';
+    case 'url':
+      return {
+        hint: t('avatar.hints.imageUrl'),
+        label: t('avatar.fields.imageUrl'),
+        placeholder: 'https://example.com/avatar.jpg',
+      };
+    case 'qq':
+      return {
+        hint: t('avatar.hints.qqNumber'),
+        label: t('avatar.fields.qqNumber'),
+        placeholder: t('avatar.placeholders.qqNumber'),
+      };
+    case 'qqGroup':
+      return {
+        hint: t('avatar.hints.qqGroupNumber'),
+        label: t('avatar.fields.qqGroupNumber'),
+        placeholder: t('avatar.placeholders.qqGroupNumber'),
+      };
   }
 }
 

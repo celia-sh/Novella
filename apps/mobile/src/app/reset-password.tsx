@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import {
   AuthFormError,
@@ -12,10 +13,15 @@ import { AuthFooterLink } from '@/components/auth-fields';
 import { authFlowSession } from '@/services/auth-flow-session';
 import { authentication } from '@/services/client';
 
+type ResetCodeError =
+  | { kind: 'key'; key: 'resetPassword.errors.sendCodeFailed' }
+  | { kind: 'raw'; text: string };
+
 export default function ResetPasswordRoute() {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ResetCodeError | null>(null);
+  const { t } = useTranslation('auth');
 
   async function continueToVerification() {
     const normalizedEmail = email.trim();
@@ -26,7 +32,7 @@ export default function ResetPasswordRoute() {
       authFlowSession.setPasswordReset({ code: '', email: normalizedEmail });
       router.push('/reset-password/verify');
     } catch (submitError) {
-      setError(getErrorMessage(submitError));
+      setError(getResetCodeError(submitError));
     } finally {
       setIsSubmitting(false);
     }
@@ -34,38 +40,40 @@ export default function ResetPasswordRoute() {
 
   return (
     <AuthFormLayout
-      description="Enter your account email and we will send a 4-character verification code."
-      title="Reset your password"
+      description={t('resetPassword.description')}
+      title={t('resetPassword.title')}
     >
       <View style={styles.form}>
         <AuthTextField
-          accessibilityLabel="Email"
+          accessibilityLabel={t('fields.email')}
           autoCapitalize="none"
           autoComplete="email"
           autoCorrect={false}
           keyboardType="email-address"
           onChangeText={setEmail}
           onSubmitEditing={() => void continueToVerification()}
-          placeholder="Email"
+          placeholder={t('fields.email')}
           returnKeyType="send"
           textContentType="emailAddress"
           value={email}
         />
-        <AuthFormError message={error} />
+        <AuthFormError message={error?.kind === 'raw' ? error.text : error ? t(error.key) : null} />
         <AuthSubmitButton
-          idleLabel="Send verification code"
+          idleLabel={t('resetPassword.sendCode')}
           isSubmitting={isSubmitting}
           onPress={() => void continueToVerification()}
-          submittingLabel="Sending code…"
+          submittingLabel={t('resetPassword.sendingCode')}
         />
-        <AuthFooterLink label="Back to sign in" onPress={() => router.replace('/sign-in/credentials')} />
+        <AuthFooterLink label={t('resetPassword.backToSignIn')} onPress={() => router.replace('/sign-in/credentials')} />
       </View>
     </AuthFormLayout>
   );
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unable to send the verification code.';
+function getResetCodeError(error: unknown): ResetCodeError {
+  return error instanceof Error
+    ? { kind: 'raw', text: error.message }
+    : { kind: 'key', key: 'resetPassword.errors.sendCodeFailed' };
 }
 
 const styles = StyleSheet.create({ form: { gap: 14 } });
