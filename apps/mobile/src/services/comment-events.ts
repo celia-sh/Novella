@@ -1,20 +1,21 @@
+import type { CommentTarget } from '@/services/comment-target';
+import { getCommentTargetKey } from '@/services/comment-target';
+
 /**
- * Cross-screen signal that a comment was posted or deleted while the comments
- * screen was not focused (e.g. from the comment-compose bottom sheet).
- *
- * The comments screen consumes this on focus: it only refreshes when a comment
- * actually changed, so opening the composer and dismissing it without posting
- * causes no refresh and no re-render churn.
+ * Cross-screen signals for comments changed in a compose sheet. Signals are
+ * keyed by target so posting on one book or announcement cannot refresh an
+ * unrelated comments surface.
  */
 
-let pendingCommentsChange = false;
+const pendingCommentsChanges = new Set<string>();
 
-export function markCommentsChanged(): void {
-  pendingCommentsChange = true;
+export function markCommentsChanged(target: CommentTarget): void {
+  pendingCommentsChanges.add(getCommentTargetKey(target));
 }
 
-export function consumeCommentsChanged(): boolean {
-  const pending = pendingCommentsChange;
-  pendingCommentsChange = false;
+export function consumeCommentsChanged(target: CommentTarget): boolean {
+  const key = getCommentTargetKey(target);
+  const pending = pendingCommentsChanges.has(key);
+  pendingCommentsChanges.delete(key);
   return pending;
 }

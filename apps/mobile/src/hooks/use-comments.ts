@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ApiError, type CommentPage, type PostCommentRequest } from '@novella/api-client';
 
 import { comments } from '@/services/client';
+import type { CommentTarget } from '@/services/comment-target';
 import { waitForMinimumDisplay } from '@/services/min-skeleton-display';
 
 interface CommentsState {
@@ -22,8 +23,9 @@ const initialState: CommentsState = {
   page: null,
 };
 
-export function useComments(bookId: number) {
+export function useComments(target: CommentTarget) {
   const { t } = useTranslation('community');
+  const { id, seriesTitle, type } = target;
   const localizeError = useCallback(
     (error: unknown) => getCommentErrorMessage(error, (key) => t(key)),
     [t],
@@ -46,7 +48,12 @@ export function useComments(bookId: number) {
       isLoadingMore: append,
     }));
     try {
-      const next = await comments.load({ type: 'Book', id: bookId, page: pageNumber });
+      const next = await comments.load({
+        type,
+        id,
+        page: pageNumber,
+        ...(seriesTitle === undefined ? {} : { seriesTitle }),
+      });
       if (showSkeleton) await waitForMinimumDisplay(startedAt);
       setState((current) => ({
         ...current,
@@ -69,7 +76,7 @@ export function useComments(bookId: number) {
       }));
       return null;
     }
-  }, [bookId, localizeError]);
+  }, [id, localizeError, seriesTitle, type]);
 
   useEffect(() => {
     void load();
@@ -150,7 +157,12 @@ export function useComments(bookId: number) {
       void load(state.page.page + 1, true);
     },
     postComment: (content: string) =>
-      mutate(() => comments.post({ type: 'Book', id: bookId, content })),
+      mutate(() => comments.post({
+        type,
+        id,
+        content,
+        ...(seriesTitle === undefined ? {} : { seriesTitle }),
+      })),
     refresh,
     replyToComment: (
       content: string,
@@ -158,9 +170,10 @@ export function useComments(bookId: number) {
       replyId?: number,
     ) => {
       const request: PostCommentRequest = {
-        type: 'Book',
-        id: bookId,
+        type,
+        id,
         content,
+        ...(seriesTitle === undefined ? {} : { seriesTitle }),
         parentId,
         ...(replyId === undefined ? {} : { replyId }),
       };
