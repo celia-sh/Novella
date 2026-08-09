@@ -992,10 +992,8 @@ const useCommunityHomeStyles = createThemedStyles((colors) => ({
   pill: {
     alignItems: 'center',
     backgroundColor: colors.card,
-    borderColor: colors.separator,
     borderCurve: 'continuous',
     borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: 6,
     justifyContent: 'center',
@@ -1012,10 +1010,7 @@ const useCommunityHomeStyles = createThemedStyles((colors) => ({
     top: 0,
   },
   pillPressed: { opacity: 0.9 },
-  pillSelected: {
-    backgroundColor: colors.primaryContainer,
-    borderColor: colors.onPrimaryContainer,
-  },
+  pillSelected: { backgroundColor: colors.primaryContainer },
   pillText: { color: colors.secondaryLabel, fontSize: 12, fontWeight: '700' },
   pillTextSelected: { color: colors.onPrimaryContainer, fontWeight: '700' },
   footerContent: { gap: 18, paddingHorizontal: 12, paddingTop: 16 },
