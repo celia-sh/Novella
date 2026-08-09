@@ -1,5 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { AppNotificationItem } from '@novella/api-client';
 
@@ -18,6 +19,7 @@ interface CommunityNotificationsState {
 }
 
 export function useCommunityNotifications() {
+  const { t } = useTranslation('community');
   const [state, setState] = useState<CommunityNotificationsState>({
     error: null,
     items: [],
@@ -63,13 +65,13 @@ export function useCommunityNotifications() {
       if (controller.signal.aborted || generation !== generationRef.current) return;
       setState((current) => ({
         ...current,
-        error: error instanceof Error ? error.message : 'Unable to load notifications.',
+        error: error instanceof Error ? error.message : t('notifications.loadError'),
         loading: false,
         loadingMore: false,
         refreshing: false,
       }));
     }
-  }, [state.page]);
+  }, [state.page, t]);
 
   const loadRef = useRef(load);
   loadRef.current = load;

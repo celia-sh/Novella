@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type {
   CommunityFeedItem,
@@ -40,6 +41,7 @@ const INITIAL_QUERY: CommunityHomeQuery = {
 };
 
 export function useCommunityHome() {
+  const { t } = useTranslation('community');
   const [state, setState] = useState<CommunityHomeState>({
     categoriesLoading: false,
     error: null,
@@ -89,12 +91,12 @@ export function useCommunityHome() {
       if (controller.signal.aborted || generation !== generationRef.current) return;
       setState((current) => ({
         ...current,
-        error: error instanceof Error ? error.message : 'Unable to load Community.',
+        error: error instanceof Error ? error.message : t('home.errors.unavailable'),
         loading: false,
         refreshing: false,
       }));
     }
-  }, []);
+  }, [t]);
 
   // Match the other native large-title list pages: load on mount and let
   // RefreshControl own subsequent refreshes. A focus effect would turn every
@@ -152,12 +154,12 @@ export function useCommunityHome() {
         setState((current) => ({
           ...current,
           categoriesLoading: false,
-          error: error instanceof Error ? error.message : 'Unable to filter Community.',
+          error: error instanceof Error ? error.message : t('home.errors.filter'),
           loading: false,
         }));
       });
     return () => controller.abort();
-  }, [queryKey, state.home, state.query]);
+  }, [queryKey, state.home, state.query, t]);
 
   const updateQuery = useCallback((patch: Partial<CommunityHomeQuery>) => {
     const boardChanged = patch.boardKey !== undefined;
@@ -214,10 +216,10 @@ export function useCommunityHome() {
       setState((current) => ({
         ...current,
         loadingMore: false,
-        loadMoreError: error instanceof Error ? error.message : 'Unable to load more posts.',
+        loadMoreError: error instanceof Error ? error.message : t('home.errors.loadMore'),
       }));
     }
-  }, [state]);
+  }, [state, t]);
 
   return {
     loadMore,

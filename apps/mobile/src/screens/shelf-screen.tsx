@@ -9,6 +9,7 @@ import {
 } from '@tabler/icons-react-native';
 import { router, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -27,7 +28,6 @@ import type { BookListItem, ShelfItem } from '@novella/api-client';
 import {
   getShelfFolderPaths,
   getShelfItemsAtPath,
-  getShelfSelectionBookCount,
   shelfItemKey,
   type ShelfDraft,
   type ShelfItemKey,
@@ -54,11 +54,14 @@ import {
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { SectionCard } from '@/components/section-card';
 import { useBookGridLayout, BOOK_GRID_COLUMN_GAP } from '@/hooks/use-book-grid-layout';
+import type { LibraryMessage } from '@/localization/locales/library';
 import { useShelf, type ShelfMode } from '@/hooks/use-shelf';
 import { closeShelfManagementSession, openShelfManagementSession } from '@/services/shelf-management-session';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
+  const { t } = useTranslation('library');
+  const { t: tCommon } = useTranslation('common');
   const styles = useShelfScreenStyles();
   const { colors } = useAppTheme();
   const navigation = useNavigation();
@@ -105,18 +108,14 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
     (item): item is Extract<ShelfItem, { type: 'FOLDER' }> => item.type === 'FOLDER',
   );
   const moveDestinations = useMemo(
-    () => snapshot ? getMoveDestinations(snapshot, parents) : [],
-    [parents, snapshot],
+    () => snapshot ? getMoveDestinations(snapshot, parents, t('shelf.shelfRoot')) : [],
+    [parents, snapshot, t],
   );
-  const selectedBookImpact = snapshot
-    ? getShelfSelectionBookCount(toDraft(snapshot), selectedKeys)
-    : 0;
   const title = getNavigationTitle(
     snapshot,
     parents,
-    mode,
-    selectedBookImpact,
-    selectedItems.length > 0,
+    t('shelf.title'),
+    t('shelf.unnamedFolder'),
   );
 
   useEffect(() => {
@@ -143,23 +142,23 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
       return;
     }
     showAlert(
-      'Discard shelf changes?',
-      'Your unsaved folder, move, delete, and ordering changes will be lost.',
+      t('shelf.discardTitle'),
+      t('shelf.discardDescription'),
       [
-        { text: 'Keep editing', style: 'cancel' },
-        { text: 'Discard', style: 'destructive', onPress: discardEdit },
+        { text: t('shelf.keepEditing'), style: 'cancel' },
+        { text: t('shelf.discard'), style: 'destructive', onPress: discardEdit },
       ],
     );
-  }, [discardEdit, isDirty]);
+  }, [discardEdit, isDirty, t]);
 
   usePreventRemove(isDirty, ({ data }) => {
     showAlert(
-      'Discard shelf changes?',
-      'Save or discard your shelf draft before leaving.',
+      t('shelf.discardTitle'),
+      t('shelf.discardBeforeLeaving'),
       [
-        { text: 'Keep editing', style: 'cancel' },
+        { text: t('shelf.keepEditing'), style: 'cancel' },
         {
-          text: 'Discard',
+          text: t('shelf.discard'),
           style: 'destructive',
           onPress: () => {
             discardEdit();
@@ -203,14 +202,14 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
     const keys = new Set(selectedKeys);
     const containsFolders = selectedFolders.length > 0;
     showAlert(
-      'Delete selected items?',
+      t('shelf.deleteSelectedTitle'),
       containsFolders
-        ? 'Selected books will be removed. Books inside deleted folders will be moved to the shelf root.'
-        : 'The selected books will be removed from your shelf.',
+        ? t('shelf.deleteSelectedWithFolders')
+        : t('shelf.deleteSelectedBooks'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tCommon('actions.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: tCommon('actions.delete'),
           style: 'destructive',
           onPress: () => {
             if (!ensureDraft()) return;
@@ -224,49 +223,49 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
         },
       ],
     );
-  }, [deleteFolder, ensureDraft, removeItems, selectedFolders, selectedKeys]);
+  }, [deleteFolder, ensureDraft, removeItems, selectedFolders, selectedKeys, t, tCommon]);
 
   const openManage = useCallback(() => {
     const commands = [
-      { icon: 'pointer' as const, id: 'browse', label: interactionMode === 'browse' ? 'Browsing' : 'Browse normally' },
-      { icon: 'pointer' as const, id: 'drag', label: interactionMode === 'drag' ? 'Long-press drag enabled' : 'Long-press to drag' },
-      { icon: 'select' as const, id: 'select', label: interactionMode === 'select' ? 'Selecting items' : 'Select items' },
-      { icon: 'folderPlus' as const, id: 'create', label: 'New folder' },
+      { icon: 'pointer' as const, id: 'browse', label: interactionMode === 'browse' ? t('shelf.browsing') : t('shelf.browseNormally') },
+      { icon: 'pointer' as const, id: 'drag', label: interactionMode === 'drag' ? t('shelf.dragEnabled') : t('shelf.longPressToDrag') },
+      { icon: 'select' as const, id: 'select', label: interactionMode === 'select' ? t('shelf.selectingItems') : t('shelf.selectItems') },
+      { icon: 'folderPlus' as const, id: 'create', label: t('shelf.newFolder') },
       ...(selectedFolders.length === 1 && selectedBooks.length === 0
-        ? [{ icon: 'select' as const, id: 'rename', label: 'Rename selected folder' }]
+        ? [{ icon: 'select' as const, id: 'rename', label: t('shelf.renameSelectedFolder') }]
         : []),
       ...(selectedBooks.length > 0 && selectedFolders.length === 0
         ? moveDestinations.map((destination, index) => ({
             icon: 'folderPlus' as const,
             id: `move:${index}`,
-            label: `Move to ${destination.label}`,
+            label: t('shelf.moveTo', { destination: destination.label }),
           }))
         : []),
       ...(selectedKeys.size > 0
-        ? [{ destructive: true, icon: 'trash' as const, id: 'delete', label: 'Delete selected items' }]
+        ? [{ destructive: true, icon: 'trash' as const, id: 'delete', label: t('shelf.deleteSelectedItems') }]
         : []),
       ...(isDirty
         ? [
-            { icon: 'check' as const, id: 'save', label: 'Save changes' },
-            { destructive: true, icon: 'x' as const, id: 'discard', label: 'Discard changes' },
+            { icon: 'check' as const, id: 'save', label: t('shelf.saveChanges') },
+            { destructive: true, icon: 'x' as const, id: 'discard', label: t('shelf.discardChanges') },
           ]
         : []),
     ];
 
     openShelfManagementSession({
       commands,
-      title: 'Manage shelf',
+      title: t('shelf.manage'),
       onCommand: (id) => {
         if (id === 'browse' || id === 'drag' || id === 'select') {
           setInteractionMode(id);
           if (id !== 'select') setSelectedKeys(new Set());
         } else if (id === 'create') {
-          Alert.prompt('New folder', 'Enter a folder name.', (title) => {
+          Alert.prompt(t('shelf.newFolder'), t('shelf.enterFolderName'), (title) => {
             if (title.trim() && ensureDraft()) createFolder(title);
           });
         } else if (id === 'rename') {
           const folder = selectedFolders[0];
-          if (folder) Alert.prompt('Rename folder', undefined, (title) => {
+          if (folder) Alert.prompt(t('shelf.renameFolder'), undefined, (title) => {
             if (title.trim() && ensureDraft()) renameFolder(folder.id, title);
           }, 'plain-text', folder.title);
         } else if (id.startsWith('move:')) {
@@ -285,11 +284,11 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
       },
     });
     router.push('/shelf/manage');
-  }, [createFolder, ensureDraft, handleDelete, handleSave, interactionMode, isDirty, moveBooks, moveDestinations, renameFolder, requestCancelEdit, selectedBooks, selectedFolders, selectedKeys.size]);
+  }, [createFolder, ensureDraft, handleDelete, handleSave, interactionMode, isDirty, moveBooks, moveDestinations, renameFolder, requestCancelEdit, selectedBooks, selectedFolders, selectedKeys.size, t]);
 
   const androidActions = useMemo<NativeTopAppBarAction[]>(() => [
-    { accessibilityLabel: 'Manage shelf', icon: 'dots', id: 'manage' },
-  ], []);
+    { accessibilityLabel: t('shelf.manage'), icon: 'dots', id: 'manage' },
+  ], [t]);
 
   const handleAndroidAction = useCallback((id: string) => {
     if (id === 'manage') openManage();
@@ -331,7 +330,12 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
         >
           {parents.length > 1 ? (
             <Text numberOfLines={2} style={styles.breadcrumb}>
-              {getFolderBreadcrumb(snapshot, parents)}
+              {getFolderBreadcrumb(
+                snapshot,
+                parents,
+                t('shelf.unnamedFolder'),
+                t('shelf.unavailableFolder'),
+              )}
             </Text>
           ) : null}
 
@@ -415,6 +419,7 @@ function ShelfContent({
   viewportHeightRef: React.MutableRefObject<number>;
   visibleItems: ShelfItem[];
 }) {
+  const { t } = useTranslation('library');
   const styles = useShelfScreenStyles();
   const { columns, contentWidth, tileWidth } = useBookGridLayout(20);
   const booksById = new Map(snapshot.books.map((book) => [book.id, book]));
@@ -463,7 +468,7 @@ function ShelfContent({
           }}
           previewBooks={previewBooks}
           tileWidth={tileWidth}
-          title={item.title.trim() || 'Unnamed folder'}
+          title={item.title.trim() || t('shelf.unnamedFolder')}
         />
       );
     }
@@ -540,6 +545,7 @@ function ShelfContent({
 }
 
 function ModeBanner({ isDirty, isSaving, mode }: { isDirty: boolean; isSaving: boolean; mode: ShelfMode }) {
+  const { t } = useTranslation('library');
   const styles = useShelfScreenStyles();
   const { colors } = useAppTheme();
   return (
@@ -551,10 +557,10 @@ function ModeBanner({ isDirty, isSaving, mode }: { isDirty: boolean; isSaving: b
       ) : null}
       <Text style={styles.modeLabel}>
         {isSaving
-          ? 'Saving your shelf…'
+          ? t('shelf.saving')
           : isDirty
-              ? 'Unsaved shelf changes'
-              : 'Select books or folders to manage them.'}
+              ? t('shelf.unsavedChanges')
+              : t('shelf.selectToManage')}
       </Text>
     </View>
   );
@@ -598,36 +604,43 @@ function ErrorState({
   onRetry,
 }: {
   compact: boolean;
-  error: string;
+  error: LibraryMessage;
   onRetry: () => void;
 }) {
+  const { t } = useTranslation('library');
+  const { t: tCommon } = useTranslation('common');
   const styles = useShelfScreenStyles();
   return (
     <View style={styles.errorBlock}>
       <Text selectable style={styles.errorTitle}>
-        {compact ? 'Shelf refresh failed' : 'Unable to load your shelf'}
+        {compact ? t('shelf.refreshFailed') : t('shelf.loadFailed')}
       </Text>
-      <Text selectable style={styles.errorText}>{error}</Text>
+      <Text selectable style={styles.errorText}>
+        {error.kind === 'raw' ? error.text : t(error.key)}
+      </Text>
       <Pressable
-        accessibilityLabel="Try again"
+        accessibilityLabel={tCommon('accessibility.retry')}
         accessibilityRole="button"
         onPress={onRetry}
         style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
       >
-        <Text style={styles.retryLabel}>Try again</Text>
+        <Text style={styles.retryLabel}>{tCommon('actions.retry')}</Text>
       </Pressable>
     </View>
   );
 }
 
-function InlineError({ error, onDismiss }: { error: string; onDismiss: () => void }) {
+function InlineError({ error, onDismiss }: { error: LibraryMessage; onDismiss: () => void }) {
+  const { t } = useTranslation('library');
   const styles = useShelfScreenStyles();
   const { colors } = useAppTheme();
   return (
     <View style={styles.inlineError}>
       <IconAlertTriangle color={colors.error as string} size={20} strokeWidth={2} />
-      <Text style={styles.inlineErrorLabel}>{error}</Text>
-      <Pressable accessibilityLabel="Dismiss shelf error" onPress={onDismiss}>
+      <Text style={styles.inlineErrorLabel}>
+        {error.kind === 'raw' ? error.text : t(error.key)}
+      </Text>
+      <Pressable accessibilityLabel={t('shelf.dismissError')} onPress={onDismiss}>
         <IconX color={colors.secondaryLabel as string} size={20} strokeWidth={2} />
       </Pressable>
     </View>
@@ -635,17 +648,18 @@ function InlineError({ error, onDismiss }: { error: string; onDismiss: () => voi
 }
 
 function EmptyShelfState({ nested }: { nested: boolean }) {
+  const { t } = useTranslation('library');
   const styles = useShelfScreenStyles();
   const { colors } = useAppTheme();
   return (
     <SectionCard>
       <View style={styles.emptyState}>
         <IconFolderOpen color={colors.accent as string} size={38} strokeWidth={1.8} />
-        <Text style={styles.cardTitle}>{nested ? 'This folder is empty' : 'Your shelf is empty'}</Text>
+        <Text style={styles.cardTitle}>
+          {nested ? t('shelf.folderEmpty') : t('shelf.shelfEmpty')}
+        </Text>
         <Text style={styles.cardDescription}>
-          {nested
-            ? 'Move books here while editing your shelf.'
-            : 'Add a novel from Discover to start building your shelf.'}
+          {nested ? t('shelf.folderEmptyDescription') : t('shelf.shelfEmptyDescription')}
         </Text>
       </View>
     </SectionCard>
@@ -661,11 +675,12 @@ function UnavailableBookGridItem({
   onPress: () => void;
   tileWidth: number;
 }) {
+  const { t } = useTranslation('library');
   const styles = useShelfScreenStyles();
   const { colors } = useAppTheme();
   return (
     <Pressable
-      accessibilityLabel="Unavailable book"
+      accessibilityLabel={t('shelf.unavailableBook')}
       accessibilityRole="button"
       accessibilityState={{ selected: interactionState === 'selected' }}
       delayLongPress={180}
@@ -690,7 +705,9 @@ function UnavailableBookGridItem({
           </View>
         ) : null}
       </View>
-      <Text numberOfLines={2} style={styles.unavailableTitle}>Unavailable book</Text>
+      <Text numberOfLines={2} style={styles.unavailableTitle}>
+        {t('shelf.unavailableBook')}
+      </Text>
     </Pressable>
   );
 }
@@ -698,31 +715,39 @@ function UnavailableBookGridItem({
 function getNavigationTitle(
   snapshot: ShelfSnapshot | null,
   parents: string[],
-  mode: ShelfMode,
-  selectedBookCount: number,
-  hasSelection: boolean,
+  shelfTitle: string,
+  unnamedFolder: string,
 ): string {
-  if (parents.length === 0 || !snapshot) return 'Shelf';
+  if (parents.length === 0 || !snapshot) return shelfTitle;
   const folder = snapshot.items.find(
     (item): item is Extract<ShelfItem, { type: 'FOLDER' }> =>
       item.type === 'FOLDER' && item.id === parents[parents.length - 1],
   );
-  return folder?.title.trim() || 'Unnamed folder';
+  return folder?.title.trim() || unnamedFolder;
 }
 
-function getFolderBreadcrumb(snapshot: ShelfSnapshot | null, parents: string[]): string {
+function getFolderBreadcrumb(
+  snapshot: ShelfSnapshot | null,
+  parents: string[],
+  unnamedFolder: string,
+  unavailableFolder: string,
+): string {
   if (!snapshot) return '';
   const folderTitles = new Map(snapshot.items.flatMap((item) =>
-    item.type === 'FOLDER' ? [[item.id, item.title.trim() || 'Unnamed folder'] as const] : [],
+    item.type === 'FOLDER' ? [[item.id, item.title.trim() || unnamedFolder] as const] : [],
   ));
-  return parents.map((id) => folderTitles.get(id) ?? 'Unavailable folder').join(' / ');
+  return parents.map((id) => folderTitles.get(id) ?? unavailableFolder).join(' / ');
 }
 
 interface ShelfMoveDestination { label: string; path: string[] }
 
-function getMoveDestinations(snapshot: ShelfSnapshot, parents: string[]): ShelfMoveDestination[] {
+function getMoveDestinations(
+  snapshot: ShelfSnapshot,
+  parents: string[],
+  shelfRoot: string,
+): ShelfMoveDestination[] {
   const destinations: ShelfMoveDestination[] = parents.length > 0
-    ? [{ label: 'Shelf root', path: [] }]
+    ? [{ label: shelfRoot, path: [] }]
     : [];
   for (const folder of getShelfFolderPaths(toDraft(snapshot))) {
     if (sameParents(folder.path, parents)) continue;

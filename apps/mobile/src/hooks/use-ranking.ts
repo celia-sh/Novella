@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, type BookListItem } from '@novella/api-client';
 import type { RankPeriod } from '@novella/client-core';
 
+import type { LibraryMessage } from '@/localization/locales/library';
 import { discovery } from '@/services/client';
 import { filterBooksByContentSettings } from '@/services/content-filter';
 import { useAppSettings, type AppSettings } from '@/services/settings';
@@ -11,7 +12,7 @@ export type RankingStatus = 'loading' | 'ready' | 'error' | 'refreshing';
 
 export interface RankingState {
   books: BookListItem[];
-  error: string | null;
+  error: LibraryMessage | null;
   status: RankingStatus;
 }
 
@@ -154,15 +155,11 @@ async function fetchRankedBooks(
   });
 }
 
-function rankingErrorMessage(error: unknown): string {
+function rankingErrorMessage(error: unknown): LibraryMessage {
   if (error instanceof ApiError) {
-    if (error.category === 'auth') {
-      return 'Your session has expired. Sign in again to continue.';
-    }
-    if (error.category === 'network') {
-      return 'LightNovelShelf is unreachable. Check your connection and try again.';
-    }
-    return error.message;
+    if (error.category === 'auth') return { kind: 'key', key: 'errors.auth' };
+    if (error.category === 'network') return { kind: 'key', key: 'errors.network' };
+    return { kind: 'raw', text: error.message };
   }
-  return 'LightNovelShelf returned an unexpected response.';
+  return { kind: 'key', key: 'errors.unexpected' };
 }

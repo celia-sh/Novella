@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Pressable,
@@ -16,6 +17,7 @@ import { NativeRouteBottomSheet } from '@/components/native-route-bottom-sheet';
 import { useCommentSubmission } from '@/hooks/use-comment-submission';
 
 export default function CommentComposeRoute() {
+  const { t } = useTranslation('community');
   const { id, parentId, replyId, userName } = useLocalSearchParams<{
     id: string;
     parentId?: string;
@@ -39,7 +41,7 @@ export default function CommentComposeRoute() {
     if (await submit(draft.trim())) router.back();
   }
 
-  const prompt = userName ? `Reply to ${userName}` : 'Write a comment';
+  const prompt = userName ? t('comments.replyTo', { name: userName }) : t('comments.write');
 
   return (
     <NativeRouteBottomSheet bookId={bookId}>
@@ -71,7 +73,7 @@ export default function CommentComposeRoute() {
         {error ? <Text style={[styles.errorText, { color: palette.error }]}>{error}</Text> : null}
         <View style={styles.actions}>
           <Pressable
-            accessibilityLabel={isSubmitting ? 'Posting comment' : 'Post comment'}
+            accessibilityLabel={isSubmitting ? t('comments.postingAccessibility') : t('comments.postAccessibility')}
             accessibilityRole="button"
             disabled={!canSubmit}
             onPress={() => void handleSubmit()}
@@ -88,7 +90,7 @@ export default function CommentComposeRoute() {
               <IconSend color={palette.onPrimary} size={18} strokeWidth={2} />
             )}
             <Text style={[styles.submitLabel, { color: palette.onPrimary }]}>
-              {isSubmitting ? 'Posting' : 'Post'}
+              {isSubmitting ? t('comments.posting') : t('comments.post')}
             </Text>
           </Pressable>
         </View>

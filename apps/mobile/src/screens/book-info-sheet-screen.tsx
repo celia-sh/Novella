@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Pressable,
@@ -38,6 +39,8 @@ export interface BookInfoSheetScreenProps {
 }
 
 export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScreenProps) {
+  const { t } = useTranslation('book');
+  const { t: tCommon } = useTranslation('common');
   const { book, error, isLoading, reload } = useBookInfo(bookId, kind);
   const { width } = useWindowDimensions();
   const { palette } = useBookDetailRouteTheme(
@@ -76,15 +79,19 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
       ) : null}
       {error ? (
         <View style={styles.state}>
-          <Text style={[styles.errorText, { color: palette.error }]}>{error}</Text>
+          <Text style={[styles.errorText, { color: palette.error }]}>
+            {error.kind === 'raw' ? error.text : t(error.key)}
+          </Text>
           <Pressable
-            accessibilityLabel="Try again"
+            accessibilityLabel={tCommon('accessibility.retry')}
             accessibilityRole="button"
             onPress={reload}
             style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
           >
             <IconRefresh color={palette.primary} size={18} strokeWidth={2} />
-            <Text style={[styles.retryLabel, { color: palette.primary }]}>Try again</Text>
+            <Text style={[styles.retryLabel, { color: palette.primary }]}>
+              {tCommon('actions.retry')}
+            </Text>
           </Pressable>
         </View>
       ) : null}
@@ -92,12 +99,14 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
         <View style={styles.sheetSection}>
           <View style={styles.sheetHeading}>
             <IconTag color={palette.primary} size={22} strokeWidth={2} />
-            <Text style={[styles.sheetTitle, { color: palette.onSurface }]}>Book tags</Text>
+            <Text style={[styles.sheetTitle, { color: palette.onSurface }]}>
+              {t('info.bookTags')}
+            </Text>
           </View>
           <View style={styles.tags}>
             {tags.map((tag) => (
               <Pressable
-                accessibilityLabel={`Search for tag ${tag}`}
+                accessibilityLabel={t('info.searchTag', { tag })}
                 accessibilityRole="button"
                 key={tag}
                 onPress={() => openTagSearch(tag)}
@@ -120,10 +129,12 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
         <View style={styles.sheetSection}>
           <View style={styles.sheetHeading}>
             <IconUserCircle color={palette.primary} size={22} strokeWidth={2} />
-            <Text style={[styles.sheetTitle, { color: palette.onSurface }]}>Uploader information</Text>
+            <Text style={[styles.sheetTitle, { color: palette.onSurface }]}>
+              {t('info.uploaderInformation')}
+            </Text>
           </View>
           <Text style={[styles.description, { color: palette.onSurfaceVariant }]}>
-            View the profile that uploaded this book.
+            {t('info.uploaderDescription')}
           </Text>
           <View style={[styles.uploaderCard, { backgroundColor: palette.surfaceContainerHighest }]}>
             <UploaderAvatar
@@ -133,10 +144,12 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
             />
             <View style={styles.uploaderText}>
               <Text numberOfLines={2} style={[styles.uploaderName, { color: palette.onSurface }]}>
-                {book.user?.userName.trim() || 'Unknown uploader'}
+                {book.user?.userName.trim() || t('info.unknownUploader')}
               </Text>
               <Text style={[styles.description, { color: palette.onSurfaceVariant }]}>
-                {book.user && book.user.id > 0 ? 'Book uploader' : 'No uploader profile'}
+                {book.user && book.user.id > 0
+                  ? t('info.uploader')
+                  : t('info.noUploaderProfile')}
               </Text>
             </View>
           </View>
@@ -144,7 +157,9 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
             <View style={[styles.infoItem, { backgroundColor: palette.surfaceContainerHighest }]}>
               <IconId color={palette.primary} size={20} strokeWidth={2} />
               <View style={styles.infoText}>
-                <Text style={[styles.infoLabel, { color: palette.onSurfaceVariant }]}>User ID</Text>
+                <Text style={[styles.infoLabel, { color: palette.onSurfaceVariant }]}>
+                  {t('info.uid')}
+                </Text>
                 <Text selectable style={[styles.infoValue, { color: palette.onSurface }]}>
                   {book.user.id}
                 </Text>
@@ -157,7 +172,9 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
         <View style={styles.sheetSection}>
           <View style={styles.sheetHeading}>
             <IconFileDescription color={palette.primary} size={22} strokeWidth={2} />
-            <Text style={[styles.sheetTitle, { color: palette.onSurface }]}>Introduction</Text>
+            <Text style={[styles.sheetTitle, { color: palette.onSurface }]}>
+              {t('info.introduction')}
+            </Text>
           </View>
           <BookHtmlContent
             contentWidth={Math.max(1, width - 48)}

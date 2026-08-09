@@ -14,6 +14,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type { AppNotificationItem } from '@novella/api-client';
 
@@ -28,6 +29,7 @@ import { showAlert } from '@/components/native-alert-dialog';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { ProfileAvatar } from '@/components/profile-avatar';
 import { useCommunityNotifications } from '@/hooks/use-community-notifications';
+import { useAppLocale } from '@/localization/localization-provider';
 import {
   formatCommunityTime,
   notificationTargetParams,
@@ -37,6 +39,8 @@ import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 export function CommunityNotificationsScreen() {
   const styles = useCommunityNotificationsStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation('community');
+  const { t: tCommon } = useTranslation('common');
   const { loadMore, mark, markAll, refresh, retry, state } = useCommunityNotifications();
   const hasUnread = state.items.some((item) => !item.isRead);
 
@@ -62,29 +66,29 @@ export function CommunityNotificationsScreen() {
       return;
     }
     showAlert(
-      item.extra.objectTitle || 'Notification',
-      'This notification target is not available in the mobile app yet.',
-      [{ text: 'OK' }],
+      item.extra.objectTitle || t('notifications.fallbackTitle'),
+      t('notifications.targetUnavailable'),
+      [{ text: tCommon('actions.confirm') }],
     );
   }
 
   return (
     <CommunityPaperProvider>
       <>
-        <Stack.Screen options={{ title: 'Notifications' }} />
+        <Stack.Screen options={{ title: t('notifications.title') }} />
       <NativeScreenScaffold
         largeTitle={false}
         onBackPress={() => router.back()}
         showBackButton
-        title="Notifications"
+        title={t('notifications.title')}
         {...(hasUnread
           ? {
               actions: [
                 {
-                  accessibilityLabel: 'Notification actions',
+                  accessibilityLabel: t('accessibility.notificationActions'),
                   icon: 'dots',
                   id: 'notifications-menu',
-                  menuItems: [{ id: 'markAll', label: 'Mark all read' }],
+                  menuItems: [{ id: 'markAll', label: t('actions.markAllRead') }],
                 },
               ],
             }
@@ -103,11 +107,11 @@ export function CommunityNotificationsScreen() {
                 <CommunityThreadSkeleton />
               </View>
             ) : state.error ? (
-              <CommunityErrorState description={state.error} onRetry={retry} title="Unable to load notifications" />
+              <CommunityErrorState description={state.error} onRetry={retry} title={t('notifications.loadErrorTitle')} />
             ) : (
               <CommunityEmptyState
-                description="Replies and comment activity will appear here."
-                title="No notifications"
+                description={t('notifications.emptyDescription')}
+                title={t('notifications.emptyTitle')}
               />
             )
           }
@@ -115,10 +119,10 @@ export function CommunityNotificationsScreen() {
             state.loadingMore ? (
               <View style={styles.loadingMore}><Spinner /></View>
             ) : state.error && state.items.length > 0 ? (
-              <CommunityErrorState description={state.error} onRetry={() => void loadMore()} title="Unable to load more" />
+              <CommunityErrorState description={state.error} onRetry={() => void loadMore()} title={t('notifications.loadMoreErrorTitle')} />
             ) : state.page < state.totalPages ? (
               <Button onPress={() => void loadMore()} variant="secondary">
-                <Button.Label>Load more</Button.Label>
+                <Button.Label>{t('actions.loadMore')}</Button.Label>
               </Button>
             ) : null
           }
@@ -151,8 +155,10 @@ export function CommunityNotificationsScreen() {
 function NotificationCard({ item, onPress }: { item: AppNotificationItem; onPress(): void }) {
   const styles = useCommunityNotificationsStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation('community');
+  const locale = useAppLocale();
   const actorName = item.actor?.userName || 'Novella';
-  const action = notificationAction(item);
+  const action = notificationAction(item, (key) => t(key));
   const Icon = item.objectType === 'Book'
     ? IconBook
     : item.objectType === 'Announcement'
@@ -160,7 +166,11 @@ function NotificationCard({ item, onPress }: { item: AppNotificationItem; onPres
       : IconMessageCircle;
   return (
     <Pressable
-      accessibilityLabel={`${item.isRead ? 'Read' : 'Unread'} notification from ${actorName}: ${action}`}
+      accessibilityLabel={t('accessibility.notification', {
+        action,
+        actor: actorName,
+        status: item.isRead ? t('accessibility.read') : t('accessibility.unread'),
+      })}
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => pressed && styles.pressed}
@@ -179,7 +189,7 @@ function NotificationCard({ item, onPress }: { item: AppNotificationItem; onPres
             <View style={styles.copy}>
               <View style={styles.actorRow}>
                 <Text numberOfLines={1} style={styles.actor}>{actorName}</Text>
-                {!item.isRead ? <View accessibilityLabel="Unread" style={styles.unreadDot} /> : null}
+                {!item.isRead ? <View accessibilityLabel={t('accessibility.unread')} style={styles.unreadDot} /> : null}
               </View>
               <Text style={styles.action}>{action}</Text>
             </View>
@@ -194,8 +204,8 @@ function NotificationCard({ item, onPress }: { item: AppNotificationItem; onPres
             </Text>
           ) : null}
           <View style={styles.metaRow}>
-            <Chip size="sm" variant="soft">{notificationObjectLabel(item)}</Chip>
-            <Text style={styles.time}>{formatCommunityTime(item.createdAt)}</Text>
+            <Chip size="sm" variant="soft">{notificationObjectLabel(item, (key) => t(key))}</Chip>
+            <Text style={styles.time}>{formatCommunityTime(item.createdAt, locale)}</Text>
             <IconChevronRight color={colors.secondaryLabel as string} size={17} />
           </View>
         </Card.Body>
@@ -204,28 +214,43 @@ function NotificationCard({ item, onPress }: { item: AppNotificationItem; onPres
   );
 }
 
-function notificationAction(item: AppNotificationItem): string {
+type NotificationActionKey =
+  | 'notifications.action.comment'
+  | 'notifications.action.commentReply'
+  | 'notifications.action.threadReply'
+  | 'notifications.action.childReply'
+  | 'notifications.action.unknown';
+
+type NotificationObjectKey =
+  | 'notifications.object.community'
+  | 'notifications.object.book'
+  | 'notifications.object.announcement'
+  | 'notifications.object.series'
+  | 'notifications.object.notification';
+
+function notificationAction(
+  item: AppNotificationItem,
+  translate: (key: NotificationActionKey) => string,
+): string {
   switch (item.type) {
-    case 'Comment':
-      return 'commented on your content';
-    case 'CommentReply':
-      return 'replied to your comment';
-    case 'CommunityThreadReply':
-      return 'replied to your discussion';
-    case 'CommunityThreadChildReply':
-      return 'replied to your Community reply';
-    case 'Unknown':
-      return 'sent you a notification';
+    case 'Comment': return translate('notifications.action.comment');
+    case 'CommentReply': return translate('notifications.action.commentReply');
+    case 'CommunityThreadReply': return translate('notifications.action.threadReply');
+    case 'CommunityThreadChildReply': return translate('notifications.action.childReply');
+    case 'Unknown': return translate('notifications.action.unknown');
   }
 }
 
-function notificationObjectLabel(item: AppNotificationItem): string {
+function notificationObjectLabel(
+  item: AppNotificationItem,
+  translate: (key: NotificationObjectKey) => string,
+): string {
   switch (item.objectType) {
-    case 'CommunityThread': return 'Community';
-    case 'Book': return 'Book';
-    case 'Announcement': return 'Announcement';
-    case 'Series': return 'Series';
-    case 'Unknown': return 'Notification';
+    case 'CommunityThread': return translate('notifications.object.community');
+    case 'Book': return translate('notifications.object.book');
+    case 'Announcement': return translate('notifications.object.announcement');
+    case 'Series': return translate('notifications.object.series');
+    case 'Unknown': return translate('notifications.object.notification');
   }
 }
 

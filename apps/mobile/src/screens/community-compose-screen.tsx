@@ -8,6 +8,7 @@ import {
   TextField,
 } from 'heroui-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -36,7 +37,7 @@ import {
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { showAlert } from '@/components/native-alert-dialog';
 import { community, communitySpeechGuard, storage } from '@/services/client';
-import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
+import { createThemedStyles } from '@/theme/app-theme';
 
 export function CommunityComposeScreen({
   initialBoardKey = '',
@@ -46,7 +47,8 @@ export function CommunityComposeScreen({
   initialSubCategoryKey?: string;
 }) {
   const styles = useCommunityComposeStyles();
-  const { colors } = useAppTheme();
+  const { t } = useTranslation('community');
+  const { t: tCommon } = useTranslation('common');
   const editorRef = useRef<CommunityRichEditorHandle>(null);
   const [boards, setBoards] = useState<CommunityCatalogBoard[]>([]);
   const [boardKey, setBoardKey] = useState(initialBoardKey);
@@ -85,14 +87,14 @@ export function CommunityComposeScreen({
       setLoading(false);
     }).catch((loadError: unknown) => {
       if (!active) return;
-      setError(loadError instanceof Error ? loadError.message : 'Unable to prepare the composer.');
+      setError(loadError instanceof Error ? loadError.message : t('compose.errors.prepare'));
       setLoading(false);
     });
     return () => {
       active = false;
       unsubscribe();
     };
-  }, [initialBoardKey, initialSubCategoryKey, loadToken]);
+  }, [initialBoardKey, initialSubCategoryKey, loadToken, t]);
 
   const selectedBoard = useMemo(
     () => boards.find((board) => board.key === boardKey) ?? null,
@@ -118,24 +120,21 @@ export function CommunityComposeScreen({
       setError(
         storageError instanceof Error
           ? storageError.message
-          : 'Unable to save Community notice acceptance.',
+          : t('compose.errors.saveNotice'),
       );
     }
   }
 
   const showFirstPostNotice = useCallback(() => {
     showAlert(
-      'Before you post',
-      'Community posts are public. Be respectful, avoid requesting or distributing restricted material, and never share private information.\n\n'
-        + '• Choose a relevant board and category.\n'
-        + '• Keep titles descriptive and content constructive.\n'
-        + '• Moderation rules are checked on this device before publishing.',
+      t('compose.beforePostTitle'),
+      t('compose.beforePostMessage'),
       [
-        { style: 'cancel', text: 'Cancel', onPress: () => router.back() },
-        { onPress: () => void acceptNotice(), text: 'I understand' },
+        { style: 'cancel', text: tCommon('actions.cancel'), onPress: () => router.back() },
+        { onPress: () => void acceptNotice(), text: t('actions.understand') },
       ],
     );
-  }, [acceptNotice]);
+  }, [acceptNotice, t, tCommon]);
 
   async function publish() {
     if (!canPublish) return;
@@ -160,12 +159,12 @@ export function CommunityComposeScreen({
         return;
       }
       showAlert(
-        'Unable to publish the discussion',
+        t('compose.errors.publishDiscussionTitle'),
         publishError instanceof CommunitySpeechRulesUnavailableError
-          ? 'Community rules are unavailable. Check your connection and try again.'
+          ? t('compose.errors.rulesUnavailable')
           : publishError instanceof Error
             ? publishError.message
-            : 'Unable to publish the discussion.',
+            : t('compose.errors.publishDiscussion'),
       );
     } finally {
       setPublishing(false);
@@ -175,11 +174,11 @@ export function CommunityComposeScreen({
   return (
     <CommunityPaperProvider>
       <>
-        <Stack.Screen options={{ title: 'New post' }} />
+        <Stack.Screen options={{ title: t('navigation.newPost') }} />
       <NativeScreenScaffold
         actions={[
           {
-            accessibilityLabel: 'Publish discussion',
+            accessibilityLabel: t('accessibility.publishDiscussion'),
             enabled: canPublish,
             icon: 'check',
             id: 'publish',
@@ -191,7 +190,7 @@ export function CommunityComposeScreen({
         }}
         onBackPress={() => router.back()}
         showBackButton
-        title="New post"
+        title={t('navigation.newPost')}
       >
         <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -217,12 +216,12 @@ export function CommunityComposeScreen({
                     setLoadToken((current) => current + 1);
                   }
                 }}
-                title={boards.length === 0 ? 'Unable to prepare the composer' : 'Unable to publish'}
+                title={boards.length === 0 ? t('compose.errors.prepareTitle') : t('compose.errors.publishTitle')}
               />
             ) : null}
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldHeading}>Board</Text>
+              <Text style={styles.fieldHeading}>{t('compose.board')}</Text>
               <View style={styles.chips}>
                 {boards.map((board) => (
                   <Chip
@@ -244,7 +243,7 @@ export function CommunityComposeScreen({
 
             {selectedBoard?.subCategories.length ? (
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldHeading}>Category</Text>
+                <Text style={styles.fieldHeading}>{t('compose.category')}</Text>
                 <View style={styles.chips}>
                   {selectedBoard.subCategories.map((category) => (
                     <Chip
@@ -258,40 +257,40 @@ export function CommunityComposeScreen({
                     </Chip>
                   ))}
                 </View>
-                {!subCategoryKey ? <Text style={styles.validation}>Select a category.</Text> : null}
+                {!subCategoryKey ? <Text style={styles.validation}>{t('compose.selectCategory')}</Text> : null}
               </View>
             ) : null}
 
             <TextField isInvalid={title.length > 0 && title.trim().length < 6}>
               <Label>
-                <Label.Text styles={{ text: styles.fieldHeading }}>Title</Label.Text>
+                <Label.Text styles={{ text: styles.fieldHeading }}>{t('compose.title')}</Label.Text>
               </Label>
               <Input
                 editable={!publishing}
                 maxLength={60}
                 onChangeText={setTitle}
-                placeholder="A clear discussion title"
+                placeholder={t('compose.titlePlaceholder')}
                 value={title}
               />
               <View style={styles.counterRow}>
-                <FieldError>Title must contain at least 6 characters.</FieldError>
+                <FieldError>{t('compose.titleMinimum')}</FieldError>
                 <Text style={styles.counter}>{title.length}/60</Text>
               </View>
             </TextField>
 
             <View style={styles.fieldGroup}>
               <View style={styles.counterRow}>
-                <Text style={styles.fieldHeading}>Post</Text>
-                <Text style={styles.counter}>{contentText.trim().length} characters</Text>
+                <Text style={styles.fieldHeading}>{t('compose.post')}</Text>
+                <Text style={styles.counter}>{t('compose.characterCount', { count: contentText.trim().length })}</Text>
               </View>
               <CommunityRichEditor
                 editable={!publishing}
                 onTextChange={setContentText}
-                placeholder="Share your thoughts with the Community…"
+                placeholder={t('compose.postPlaceholder')}
                 ref={editorRef}
               />
               {contentText.length > 0 && contentText.trim().length < 20 ? (
-                <Text style={styles.validation}>Post content must contain at least 20 characters.</Text>
+                <Text style={styles.validation}>{t('compose.contentMinimum')}</Text>
               ) : null}
             </View>
           </ScrollView>

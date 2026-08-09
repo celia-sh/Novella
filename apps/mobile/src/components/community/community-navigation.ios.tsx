@@ -1,30 +1,32 @@
 import { router, Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 export function CommunityHomeNavigation() {
+  const { t } = useTranslation('community');
   return (
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Button
-        accessibilityLabel="New Community post"
+        accessibilityLabel={t('accessibility.newPost')}
         icon="square.and.pencil"
         onPress={() => router.push('/compose')}
       />
       <Stack.Toolbar.Button
-        accessibilityLabel="Community notifications"
+        accessibilityLabel={t('accessibility.notifications')}
         icon="bell"
         onPress={() => router.push('/notifications')}
       />
-      <Stack.Toolbar.Menu accessibilityLabel="Community menu" icon="ellipsis">
+      <Stack.Toolbar.Menu accessibilityLabel={t('accessibility.menu')} icon="ellipsis">
         <Stack.Toolbar.MenuAction
           icon="person.crop.circle"
           onPress={() => router.push('/mine')}
         >
-          My Community
+          {t('navigation.myCommunity')}
         </Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction
           icon="trophy"
           onPress={() => router.push('/community-rankings')}
         >
-          Rankings
+          {t('navigation.rankings')}
         </Stack.Toolbar.MenuAction>
       </Stack.Toolbar.Menu>
     </Stack.Toolbar>
@@ -38,10 +40,11 @@ export function CommunityPublishNavigation({
   disabled: boolean;
   onPublish(): void;
 }) {
+  const { t } = useTranslation('community');
   return (
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Button
-        accessibilityLabel="Publish discussion"
+        accessibilityLabel={t('accessibility.publishDiscussion')}
         disabled={disabled}
         icon="checkmark"
         onPress={onPublish}
@@ -57,10 +60,11 @@ export function CommunityNotificationsNavigation({
   hidden: boolean;
   onMarkAll(): void;
 }) {
+  const { t } = useTranslation('community');
   return (
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Button hidden={hidden} onPress={onMarkAll}>
-        Mark all read
+        {t('actions.markAllRead')}
       </Stack.Toolbar.Button>
     </Stack.Toolbar>
   );

@@ -24,7 +24,7 @@ export function useMyCommunity() {
       setOverview(await community.loadMyOverview());
       hasLoadedRef.current = true;
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load My Community.');
+      setError(loadError instanceof Error ? loadError.message : 'my_community_load_failed');
     } finally {
       setLoading(false);
       setRefreshing(false);

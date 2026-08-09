@@ -8,6 +8,7 @@ import {
   type ComicSeriesListItem,
 } from '@novella/api-client';
 
+import type { LibraryMessage } from '@/localization/locales/library';
 import { bookSearch } from '@/services/client';
 import { filterBooksByContentSettings } from '@/services/content-filter';
 import {
@@ -24,7 +25,7 @@ export type BookSearchStatus = 'idle' | 'loading' | 'loadingMore' | 'ready' | 'e
 export interface BookSearchState {
   committedQuery: string;
   comics: ComicSeriesListItem[];
-  error: string | null;
+  error: LibraryMessage | null;
   format: BookSearchFormat;
   history: string[];
   mode: BookSearchMode;
@@ -270,11 +271,11 @@ function dedupeByTitle(items: ComicSeriesListItem[]): ComicSeriesListItem[] {
   });
 }
 
-function searchErrorMessage(error: unknown): string {
+function searchErrorMessage(error: unknown): LibraryMessage {
   if (error instanceof ApiError) {
-    if (error.category === 'auth') return 'Sign in again to continue searching.';
-    if (error.category === 'network') return 'Search is unavailable while offline.';
-    return error.message;
+    if (error.category === 'auth') return { kind: 'key', key: 'errors.searchAuth' };
+    if (error.category === 'network') return { kind: 'key', key: 'errors.searchNetwork' };
+    return { kind: 'raw', text: error.message };
   }
-  return 'The search could not be completed.';
+  return { kind: 'key', key: 'errors.searchUnexpected' };
 }

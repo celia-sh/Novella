@@ -1,8 +1,7 @@
 import { IconFlame } from '@tabler/icons-react-native';
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { CommunityHotRankItem } from '@novella/api-client';
-
+import { useTranslation } from 'react-i18next';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import {
   CommunityActiveMembers,
@@ -14,6 +13,7 @@ import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 export function CommunityRankingsScreen() {
   const styles = useCommunityRankingsStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation('community');
   const home = useCachedCommunityHome();
 
   const openThread = (item: { id: number; title: string }) => {
@@ -28,7 +28,7 @@ export function CommunityRankingsScreen() {
       largeTitle={false}
       onBackPress={() => router.back()}
       showBackButton
-      title="Rankings"
+      title={t('rankings.title')}
     >
       <ScrollView
         alwaysBounceVertical
@@ -49,10 +49,8 @@ export function CommunityRankingsScreen() {
         ) : (
           <View style={styles.empty}>
             <IconFlame color={colors.accent as string} size={26} strokeWidth={2} />
-            <Text style={styles.emptyTitle}>Nothing here yet</Text>
-            <Text style={styles.emptyDescription}>
-              Open the Community tab to load hot discussions and active members.
-            </Text>
+            <Text style={styles.emptyTitle}>{t('rankings.emptyTitle')}</Text>
+            <Text style={styles.emptyDescription}>{t('rankings.emptyDescription')}</Text>
           </View>
         )}
       </ScrollView>

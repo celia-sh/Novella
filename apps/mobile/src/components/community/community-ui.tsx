@@ -20,14 +20,15 @@ import {
 } from "react-native-paper";
 import type { PropsWithChildren, ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import type { CommunityFeedItem } from "@novella/api-client";
 
 import { ProfileAvatar } from "@/components/profile-avatar";
+import { useAppLocale } from "@/localization/localization-provider";
 import {
   formatCommunityCount,
   formatCommunityTime,
-  threadAccessibilityLabel,
 } from "@/services/community-utils";
 import {
   createThemedStyles,
@@ -64,11 +65,25 @@ export function CommunityThreadCard({
 }) {
   const styles = useCommunityUiStyles();
   const { colors } = useAppTheme();
-  const authorName =
-    item.authorName || (item.authorIsDeleted ? "Deleted user" : "Unknown user");
+  const { t } = useTranslation("community");
+  const locale = useAppLocale();
+  const authorName = item.authorName
+    || (item.authorIsDeleted ? t("labels.deletedUser") : t("labels.unknownUser"));
+  const status = [
+    item.pinned ? t("labels.pinned") : "",
+    item.featured ? t("labels.featured") : "",
+    item.locked ? t("labels.locked") : "",
+  ].filter(Boolean).join("，");
   return (
     <Pressable
-      accessibilityLabel={threadAccessibilityLabel(item)}
+      accessibilityLabel={t("accessibility.thread", {
+        author: item.authorIsDeleted ? t("labels.deletedUser") : item.authorName || t("labels.unknownAuthor"),
+        board: item.boardName,
+        replies: item.replies,
+        status: status ? `，${status}` : "",
+        title: item.title,
+        views: item.views,
+      })}
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => pressed && styles.pressed}
@@ -109,7 +124,7 @@ export function CommunityThreadCard({
                 </Text>
                 {item.replies > 0 ? (
                   <View
-                    accessibilityLabel={`${item.replies} replies`}
+                    accessibilityLabel={t("accessibility.replies", { count: item.replies })}
                     style={styles.replyBadge}
                   >
                     <IconMessageCircle
@@ -117,7 +132,7 @@ export function CommunityThreadCard({
                       size={13}
                     />
                     <Text style={styles.replyBadgeText}>
-                      {formatCommunityCount(item.replies)}
+                      {formatCommunityCount(item.replies, locale)}
                     </Text>
                   </View>
                 ) : null}
@@ -151,11 +166,11 @@ export function CommunityThreadCard({
                 <Text numberOfLines={1} style={styles.authorLine}>
                   <Text style={styles.authorName}>{authorName}</Text>
                   {item.authorIsDeleted && item.authorName ? (
-                    <Text style={styles.deletedSuffix}> (deleted)</Text>
+                    <Text style={styles.deletedSuffix}>{t("labels.deletedSuffix")}</Text>
                   ) : null}
                   <Text style={styles.timeSeparator}>
                     {" · "}
-                    {formatCommunityTime(item.publishedAt)}
+                    {formatCommunityTime(item.publishedAt, locale)}
                   </Text>
                 </Text>
                 <View style={styles.tinyStats}>
@@ -166,7 +181,7 @@ export function CommunityThreadCard({
                         size={14}
                       />
                     }
-                    value={formatCommunityCount(item.views)}
+                    value={formatCommunityCount(item.views, locale)}
                   />
                   <TinyStat
                     icon={
@@ -175,7 +190,7 @@ export function CommunityThreadCard({
                         size={14}
                       />
                     }
-                    value={formatCommunityCount(item.likes)}
+                    value={formatCommunityCount(item.likes, locale)}
                   />
                   {item.favorites > 0 ? (
                     <TinyStat
@@ -185,7 +200,7 @@ export function CommunityThreadCard({
                           size={14}
                         />
                       }
-                      value={formatCommunityCount(item.favorites)}
+                      value={formatCommunityCount(item.favorites, locale)}
                     />
                   ) : null}
                 </View>
@@ -217,7 +232,7 @@ export function CommunitySectionTitle({
 export function CommunityErrorState({
   description,
   onRetry,
-  title = "Unable to load Community",
+  title,
 }: {
   description: string;
   onRetry(): void;
@@ -225,6 +240,8 @@ export function CommunityErrorState({
 }) {
   const styles = useCommunityUiStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation("community");
+  const { t: tCommon } = useTranslation("common");
   return (
     <Card mode="outlined" style={styles.stateCard}>
       <Card.Content style={styles.stateBody}>
@@ -232,7 +249,7 @@ export function CommunityErrorState({
           <IconAlertCircle color={colors.error as string} size={22} />
         </View>
         <View style={styles.stateCopy}>
-          <Text style={styles.stateTitle}>{title}</Text>
+          <Text style={styles.stateTitle}>{title ?? t("home.errors.loadTitle")}</Text>
           <Text style={styles.stateDescription}>{description}</Text>
         </View>
         <Button
@@ -241,7 +258,7 @@ export function CommunityErrorState({
           mode="outlined"
           onPress={onRetry}
         >
-          Try again
+          {tCommon("actions.retry")}
         </Button>
       </Card.Content>
     </Card>

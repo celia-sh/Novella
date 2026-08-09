@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { ApiError, type PostCommentRequest } from '@novella/api-client';
 
@@ -11,6 +12,7 @@ interface CommentReplyTarget {
 }
 
 export function useCommentSubmission(bookId: number, replyTarget?: CommentReplyTarget) {
+  const { t } = useTranslation('community');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -35,21 +37,29 @@ export function useCommentSubmission(bookId: number, replyTarget?: CommentReplyT
       markCommentsChanged();
       return true;
     } catch (nextError) {
-      setError(getCommentSubmissionError(nextError));
+      setError(getCommentSubmissionError(nextError, (key) => t(key)));
       return false;
     } finally {
       setIsSubmitting(false);
     }
-  }, [bookId, isSubmitting, replyTarget]);
+  }, [bookId, isSubmitting, replyTarget, t]);
 
   return { error, isSubmitting, submit };
 }
 
-function getCommentSubmissionError(error: unknown): string {
+type CommentSubmissionErrorKey =
+  | 'comments.errors.authPost'
+  | 'comments.errors.offlinePost'
+  | 'comments.errors.post';
+
+function getCommentSubmissionError(
+  error: unknown,
+  translate: (key: CommentSubmissionErrorKey) => string,
+): string {
   if (error instanceof ApiError) {
-    if (error.category === 'auth') return 'Sign in again to post comments.';
-    if (error.category === 'network') return 'Comments cannot be posted while offline.';
+    if (error.category === 'auth') return translate('comments.errors.authPost');
+    if (error.category === 'network') return translate('comments.errors.offlinePost');
     return error.message;
   }
-  return 'The comment could not be posted.';
+  return translate('comments.errors.post');
 }

@@ -3,12 +3,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiError, type BookDetail } from '@novella/api-client';
 
 import { bookDetails, comicDetails } from '@/services/client';
-import type { BookDetailKind } from '@/hooks/use-book-detail';
+import type {
+  BookDetailKind,
+  BookUserMessage,
+} from '@/hooks/use-book-detail';
 
 type BookInfoState =
   | { status: 'loading'; book: null; error: null }
   | { status: 'ready'; book: BookDetail; error: null }
-  | { status: 'error'; book: null; error: string };
+  | { status: 'error'; book: null; error: BookUserMessage };
 
 export function useBookInfo(bookId: number, type: BookDetailKind = 'Novel') {
   const [state, setState] = useState<BookInfoState>({
@@ -39,11 +42,15 @@ export function useBookInfo(bookId: number, type: BookDetailKind = 'Novel') {
   };
 }
 
-function getBookInfoErrorMessage(error: unknown): string {
+function getBookInfoErrorMessage(error: unknown): BookUserMessage {
   if (error instanceof ApiError) {
-    if (error.category === 'auth') return 'Sign in again to open this book.';
-    if (error.category === 'network') return 'The book could not be loaded while offline.';
-    return error.message;
+    if (error.category === 'auth') {
+      return { kind: 'key', key: 'errors.info.auth' };
+    }
+    if (error.category === 'network') {
+      return { kind: 'key', key: 'errors.info.network' };
+    }
+    return { kind: 'raw', text: error.message };
   }
-  return 'The book details could not be loaded.';
+  return { kind: 'key', key: 'errors.info.fallback' };
 }

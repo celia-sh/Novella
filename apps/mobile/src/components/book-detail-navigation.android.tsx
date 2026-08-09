@@ -1,5 +1,6 @@
 import { Stack, router } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { IconMessage, IconTag, IconUserScreen } from '@tabler/icons-react-native';
 import { Host } from '@expo/ui';
@@ -10,11 +11,6 @@ import { NativeSelectionMenu } from '../../modules/novella-ui';
 import type { BookDetailNavigationProps } from '@/components/book-detail-navigation.types';
 import { hasSearchableQuickSearchTags } from '@/services/book-quick-search';
 import { useAppColorScheme } from '@/theme/app-theme';
-
-const COMIC_MENU_ITEMS = [
-  { icon: 'user', label: 'Uploader' },
-  { icon: 'books', label: 'Switch version' },
-] as const;
 
 export function BookDetailNavigation({ book, palette, seriesTitle }: BookDetailNavigationProps) {
   return (
@@ -54,10 +50,15 @@ function AndroidHeaderActions({
   seriesTitle?: string;
   showTags: boolean;
 }) {
+  const { t } = useTranslation('book');
   const [menuOpen, setMenuOpen] = useState(false);
   const colorScheme = useAppColorScheme();
   const isComic = book.type === 'Comic';
   const typeParam = book.type ? { type: book.type } : {};
+  const comicMenuItems = [
+    { icon: 'user' as const, label: t('navigation.uploader') },
+    { icon: 'books' as const, label: t('navigation.switchVersion') },
+  ];
   const openUploader = () =>
     router.push({ pathname: '/book/[id]/uploader', params: { id: String(book.id), ...typeParam } });
   const openVersions = () =>
@@ -69,7 +70,7 @@ function AndroidHeaderActions({
     <View style={styles.actions}>
       {showTags ? (
         <HeaderAction
-          accessibilityLabel="Book tags"
+          accessibilityLabel={t('navigation.bookTags')}
           color={palette.onSurface}
           icon={IconTag}
           onPress={() =>
@@ -78,7 +79,7 @@ function AndroidHeaderActions({
         />
       ) : null}
       <HeaderAction
-        accessibilityLabel="Comments"
+        accessibilityLabel={t('navigation.comments')}
         color={palette.onSurface}
         icon={IconMessage}
         onPress={() =>
@@ -89,7 +90,7 @@ function AndroidHeaderActions({
         <Host colorScheme={colorScheme} style={styles.menuHost}>
           <NativeSelectionMenu
             expanded={menuOpen}
-            items={COMIC_MENU_ITEMS}
+            items={comicMenuItems}
             onExpandedChange={setMenuOpen}
             onItemSelected={(index: number) => {
               if (index === 0) openUploader();
@@ -101,7 +102,7 @@ function AndroidHeaderActions({
         </Host>
       ) : (
         <HeaderAction
-          accessibilityLabel="Uploader information"
+          accessibilityLabel={t('navigation.uploaderInformation')}
           color={palette.onSurface}
           icon={IconUserScreen}
           onPress={openUploader}

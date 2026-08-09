@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { SkeletonGroup } from 'heroui-native';
+import { useTranslation } from 'react-i18next';
 import {
   useCallback,
   useRef,
@@ -52,7 +53,12 @@ import { BookCoverImage } from '@/components/book-cover-image';
 import { BookDetailNavigation } from '@/components/book-detail-navigation';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { BookHtmlContent } from '@/components/book-html-content';
-import { useBookDetail } from '@/hooks/use-book-detail';
+import {
+  useBookDetail,
+  type BookUserMessage,
+} from '@/hooks/use-book-detail';
+import { formatCompactNumber, formatRelativeTime } from '@/localization/formatters';
+import { useAppLocale } from '@/localization/localization-provider';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
 import {
   BOOK_SEARCH_ROUTE,
@@ -171,8 +177,10 @@ function BookDetailContent({
   onToggleShelf: () => Promise<void>;
   onScrollEdgeChange: (usesSoftScrollEdge: boolean) => void;
   palette: BookDetailPalette;
-  shelfError: string | null;
+  shelfError: BookUserMessage | null;
 }) {
+  const { t } = useTranslation('book');
+  const locale = useAppLocale();
   const { bottom: bottomInset, top: topInset } = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
@@ -185,8 +193,8 @@ function BookDetailContent({
   const searchFormat = book.type === 'Comic' || bookType === 'Comic' ? 'Comic' : 'Novel';
   const titleSearchTarget = resolveBookQuickSearch(book, 'title', settings.seriesSearchMode);
   const titleSearchAccessibilityLabel = titleSearchTarget?.mode === 'name'
-    ? `Search for series ${titleSearchTarget.query}`
-    : `Search for ${book.title.trim()}`;
+    ? t('detail.searchSeries', { query: titleSearchTarget.query })
+    : t('detail.searchTitle', { title: book.title.trim() });
   const handleQuickSearch = useCallback((target: BookQuickSearchTarget) => {
     const searchTarget = resolveBookQuickSearch(book, target, settings.seriesSearchMode);
     if (searchTarget === null) return;
@@ -253,15 +261,15 @@ function BookDetailContent({
 
       <View style={[styles.body, { paddingHorizontal: horizontalPadding }]}>
         <View style={styles.chips}>
-          <MetaChip icon={IconHeart} palette={palette} value={formatCount(book.favoriteCount)} />
-          <MetaChip icon={IconEye} palette={palette} value={formatCount(book.viewCount)} />
-          <MetaChip icon={IconBooks} palette={palette} value={`${book.chapters.length} chapters`} />
+          <MetaChip icon={IconHeart} palette={palette} value={formatCompactNumber(book.favoriteCount, locale)} />
+          <MetaChip icon={IconEye} palette={palette} value={formatCompactNumber(book.viewCount, locale)} />
+          <MetaChip icon={IconBooks} palette={palette} value={t('detail.chapterCount', { count: book.chapters.length })} />
         </View>
 
         <View style={styles.actions}>
           {book.type === 'Comic' ? null : (
           <IconButton
-            accessibilityLabel={isInShelf ? 'Remove from shelf' : 'Add to shelf'}
+            accessibilityLabel={isInShelf ? t('detail.removeFromShelf') : t('detail.addToShelf')}
             containerColor={isInShelf ? palette.primaryContainer : palette.surfaceContainerHighest}
             disabled={isShelfLoading}
             icon={() =>
@@ -279,7 +287,9 @@ function BookDetailContent({
           )}
 
           <Button
-            accessibilityLabel={resumeChapter ? `Continue reading ${resumeChapter.title}` : 'Start reading'}
+            accessibilityLabel={resumeChapter
+              ? t('detail.continueReading', { title: resumeChapter.title })
+              : t('detail.startReading')}
             buttonColor={palette.primary}
             contentStyle={styles.readButtonContent}
             disabled={book.chapters.length === 0}
@@ -291,20 +301,22 @@ function BookDetailContent({
             textColor={palette.onPrimary}
           >
             {cleanResumeTitle
-              ? `Continue · ${shortenChapterTitle(cleanResumeTitle)}`
-              : 'Start reading'}
+              ? t('detail.continueReadingButton', { title: shortenChapterTitle(cleanResumeTitle) })
+              : t('detail.startReading')}
           </Button>
         </View>
 
         {shelfError ? (
-          <Text style={[styles.actionError, { color: palette.error }]}>{shelfError}</Text>
+          <Text style={[styles.actionError, { color: palette.error }]}>
+            {shelfError.kind === 'raw' ? shelfError.text : t(shelfError.key)}
+          </Text>
         ) : null}
 
         {book.introduction.trim() ? (
           <View style={styles.introductionSection}>
-            <SectionTitle palette={palette}>Introduction</SectionTitle>
+            <SectionTitle palette={palette}>{t('detail.introduction')}</SectionTitle>
             <TouchableRipple
-              accessibilityLabel="Open full introduction"
+              accessibilityLabel={t('detail.openIntroduction')}
               accessibilityRole="button"
               borderless
               onPress={() =>
@@ -344,12 +356,17 @@ function BookDetailContent({
           <IconProgressBolt color={palette.onSurfaceVariant} size={18} strokeWidth={2} />
           <Text numberOfLines={1} style={[styles.updateText, { color: palette.onSurfaceVariant }]}>
             {latestChapter
-              ? `Latest: ${formatRelativeTime(book.lastUpdatedAt)} - ${latestChapter}`
-              : `Latest: ${formatRelativeTime(book.lastUpdatedAt)}`}
+              ? t('detail.latestWithChapter', {
+                  chapter: latestChapter,
+                  time: formatRelativeTime(book.lastUpdatedAt, locale) || t('detail.unknownTime'),
+                })
+              : t('detail.latest', {
+                  time: formatRelativeTime(book.lastUpdatedAt, locale) || t('detail.unknownTime'),
+                })}
           </Text>
         </Surface>
 
-        <SectionTitle palette={palette}>Chapters</SectionTitle>
+        <SectionTitle palette={palette}>{t('detail.chapters')}</SectionTitle>
       </View>
 
       <View style={[styles.chapterList, { paddingHorizontal: horizontalPadding - 12 }]}>
@@ -358,7 +375,7 @@ function BookDetailContent({
           const isCurrent = sortNum === currentSortNum;
           return (
             <TouchableRipple
-              accessibilityLabel={`Read chapter ${sortNum}, ${chapter.title}`}
+              accessibilityLabel={t('detail.readChapter', { number: sortNum, title: chapter.title })}
               accessibilityRole="button"
               key={chapter.id}
               onPress={() => openReader(book.id, book.type ?? bookType ?? 'Novel', sortNum)}
@@ -391,7 +408,9 @@ function BookDetailContent({
                     elevation={0}
                     style={[styles.currentBadge, { backgroundColor: palette.primaryContainer }]}
                   >
-                    <Text style={[styles.currentBadgeLabel, { color: palette.onPrimaryContainer }]}>Current</Text>
+                    <Text style={[styles.currentBadgeLabel, { color: palette.onPrimaryContainer }]}>
+                      {t('detail.current')}
+                    </Text>
                   </Surface>
                 ) : null}
               </View>
@@ -589,6 +608,7 @@ function BookHeroContent({
   palette: BookDetailPalette;
   titleSearchAccessibilityLabel: string;
 }) {
+  const { t } = useTranslation('book');
   const title = book.title.trim();
 
   return (
@@ -620,7 +640,7 @@ function BookHeroContent({
           <View style={styles.coverFrame}>
             {coverUrl ? (
               <BookCoverImage
-                accessibilityLabel={`${book.title} cover`}
+                accessibilityLabel={t('cover.accessibility', { title: book.title })}
                 blurHash={coverPlaceholder}
                 source={coverUrl}
               />
@@ -658,7 +678,7 @@ function BookHeroContent({
           )}
           {author ? (
             <Pressable
-              accessibilityLabel={`Search for author ${author}`}
+              accessibilityLabel={t('detail.searchAuthor', { author })}
               accessibilityRole="button"
               onPress={() => onQuickSearch('author')}
               style={({ pressed }) => [styles.quickSearchTarget, pressed && styles.quickSearchPressed]}
@@ -708,6 +728,7 @@ function BookDetailLoading({
   initialTitle: string | null;
   palette: BookDetailPalette;
 }) {
+  const { t } = useTranslation('book');
   const { top: topInset } = useSafeAreaInsets();
   const block = { backgroundColor: palette.surfaceContainerHighest };
   return (
@@ -735,7 +756,9 @@ function BookDetailLoading({
           <View style={[styles.loadingBlock, styles.loadingCover, block]}>
             {coverUrl ? (
               <BookCoverImage
-                accessibilityLabel={`${initialTitle ?? 'Book'} cover`}
+                accessibilityLabel={initialTitle
+                  ? t('cover.accessibility', { title: initialTitle })
+                  : t('cover.bookAccessibility')}
                 blurHash={coverPlaceholder}
                 source={coverUrl}
               />
@@ -805,11 +828,13 @@ function BookDetailError({
   palette,
   requiresAuth,
 }: {
-  error: string;
+  error: BookUserMessage;
   onRetry: () => void;
   palette: BookDetailPalette;
   requiresAuth: boolean;
 }) {
+  const { t } = useTranslation('book');
+  const { t: tCommon } = useTranslation('common');
   return (
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
@@ -817,14 +842,18 @@ function BookDetailError({
       style={{ backgroundColor: palette.surface }}
     >
       <IconBooks color={palette.onSurfaceVariant} size={42} strokeWidth={1.7} />
-      <Text style={[styles.errorTitle, { color: palette.onSurface }]}>Unable to load this book</Text>
-      <Text style={[styles.errorText, { color: palette.onSurfaceVariant }]}>{error}</Text>
+      <Text style={[styles.errorTitle, { color: palette.onSurface }]}>
+        {t('errors.detail.title')}
+      </Text>
+      <Text style={[styles.errorText, { color: palette.onSurfaceVariant }]}>
+        {error.kind === 'raw' ? error.text : t(error.key)}
+      </Text>
       <Button icon="refresh" mode="text" onPress={onRetry} textColor={palette.primary}>
-        Try again
+        {tCommon('actions.retry')}
       </Button>
       {requiresAuth ? (
         <Button mode="text" onPress={() => router.push('/sign-in')} textColor={palette.primary}>
-          Sign in
+          {t('actions.signIn')}
         </Button>
       ) : null}
     </ScrollView>
@@ -846,30 +875,6 @@ function openReader(bookId: number, type: 'Novel' | 'Comic', sortNum: number) {
 
 function shortenChapterTitle(title: string): string {
   return title.length > 15 ? `${title.slice(0, 15)}...` : title;
-}
-
-function formatCount(value: number): string {
-  return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
-}
-
-function formatRelativeTime(value: string): string {
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return 'unknown';
-
-  const elapsed = Math.max(0, Date.now() - timestamp);
-  const minutes = Math.floor(elapsed / 60_000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-
-  const days = Math.floor(hours / 24);
-  if (days < 26) return `${days}d ago`;
-  if (days < 46) return '1mo ago';
-  if (days < 320) return `${Math.round(days / 30.4)}mo ago`;
-  if (days < 548) return '1y ago';
-  return `${Math.round(days / 365.25)}y ago`;
 }
 
 function heroGradientStyle(colors: readonly [string, string, string]): ViewStyle {

@@ -14,6 +14,22 @@ import {
 
 export type BookDetailKind = 'Novel' | 'Comic';
 
+export type BookMessageKey =
+  | 'errors.detail.auth'
+  | 'errors.detail.fallback'
+  | 'errors.detail.network'
+  | 'errors.info.auth'
+  | 'errors.info.fallback'
+  | 'errors.info.network'
+  | 'errors.shelf.auth'
+  | 'errors.shelf.fallback'
+  | 'errors.shelf.network'
+  | 'errors.versions.fallback';
+
+export type BookUserMessage =
+  | { kind: 'key'; key: BookMessageKey }
+  | { kind: 'raw'; text: string };
+
 type BookDetailState =
   | { status: 'loading'; book: null; error: null }
   | {
@@ -22,9 +38,9 @@ type BookDetailState =
       error: null;
       isInShelf: boolean;
       isShelfLoading: boolean;
-      shelfError: string | null;
+      shelfError: BookUserMessage | null;
     }
-  | { status: 'error'; book: null; error: string; requiresAuth: boolean };
+  | { status: 'error'; book: null; error: BookUserMessage; requiresAuth: boolean };
 
 export function useBookDetail(bookId: number, type: BookDetailKind = 'Novel') {
   const [state, setState] = useState<BookDetailState>({
@@ -139,24 +155,28 @@ export function useBookDetail(bookId: number, type: BookDetailKind = 'Novel') {
   };
 }
 
-function getBookDetailErrorMessage(error: unknown): string {
+function getBookDetailErrorMessage(error: unknown): BookUserMessage {
   if (error instanceof ApiError) {
     if (error.category === 'auth') {
-      return 'Sign in is required to open this book.';
+      return { kind: 'key', key: 'errors.detail.auth' };
     }
     if (error.category === 'network') {
-      return 'LightNovelShelf is unreachable. Check your connection and try again.';
+      return { kind: 'key', key: 'errors.detail.network' };
     }
-    return error.message;
+    return { kind: 'raw', text: error.message };
   }
-  return 'The book details could not be loaded.';
+  return { kind: 'key', key: 'errors.detail.fallback' };
 }
 
-function getShelfActionErrorMessage(error: unknown): string {
+function getShelfActionErrorMessage(error: unknown): BookUserMessage {
   if (error instanceof ApiError) {
-    if (error.category === 'auth') return 'Sign in again to update your shelf.';
-    if (error.category === 'network') return 'Your shelf could not be updated while offline.';
-    return error.message;
+    if (error.category === 'auth') {
+      return { kind: 'key', key: 'errors.shelf.auth' };
+    }
+    if (error.category === 'network') {
+      return { kind: 'key', key: 'errors.shelf.network' };
+    }
+    return { kind: 'raw', text: error.message };
   }
-  return 'Your shelf could not be updated.';
+  return { kind: 'key', key: 'errors.shelf.fallback' };
 }

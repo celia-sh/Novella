@@ -1,42 +1,21 @@
 import type {
   AppNotificationItem,
-  CommunityFeedItem,
   CommunityThreadReply,
 } from '@novella/api-client';
 
-export function formatCommunityCount(value: number): string {
-  if (value >= 1_000_000) {
-    const compact = (value / 1_000_000).toFixed(1).replace(/\.0$/, '');
-    return `${compact}M`;
-  }
-  if (value >= 10_000) {
-    const compact = (value / 10_000).toFixed(1).replace(/\.0$/, '');
-    return `${compact}万`;
-  }
-  if (value >= 1_000) {
-    const compact = (value / 1_000).toFixed(1).replace(/\.0$/, '');
-    return `${compact}k`;
-  }
-  return String(value);
+import { formatCompactNumber, formatRelativeTime } from '../localization/formatters.ts';
+import type { AppLocale } from '../localization/locale.ts';
+
+export function formatCommunityCount(value: number, locale: AppLocale): string {
+  return formatCompactNumber(value, locale);
 }
 
-export function formatCommunityTime(value: string | null): string {
-  if (!value) return '';
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return '';
-  const delta = Date.now() - timestamp;
-  const future = delta < 0;
-  const absolute = Math.abs(delta);
-  const minute = 60_000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
-  const format = (count: number, unit: string) =>
-    future ? `in ${count} ${unit}${count === 1 ? '' : 's'}` : `${count} ${unit}${count === 1 ? '' : 's'} ago`;
-  if (absolute < minute) return 'just now';
-  if (absolute < hour) return format(Math.floor(absolute / minute), 'minute');
-  if (absolute < day) return format(Math.floor(absolute / hour), 'hour');
-  if (absolute < 7 * day) return format(Math.floor(absolute / day), 'day');
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(timestamp);
+export function formatCommunityTime(
+  value: string | null,
+  locale: AppLocale,
+  now = Date.now(),
+): string {
+  return value ? formatRelativeTime(value, locale, now) : '';
 }
 
 export function mergeCommunityItems<T extends { id: number }>(
@@ -81,15 +60,4 @@ export function notificationTargetParams(notification: AppNotificationItem): {
     parentReplyId: notification.extra.parentReplyId,
     replyId: notification.extra.replyId,
   };
-}
-
-export function threadAccessibilityLabel(item: CommunityFeedItem): string {
-  const author = item.authorIsDeleted ? 'Deleted user' : item.authorName || 'Unknown author';
-  const status = [
-    item.pinned ? 'Pinned' : '',
-    item.featured ? 'Featured' : '',
-    item.locked ? 'Locked' : '',
-  ].filter(Boolean).join(', ');
-  const statusPart = status ? `, ${status}` : '';
-  return `${item.title}, ${item.boardName}, by ${author}, ${item.replies} replies, ${item.views} views${statusPart}`;
 }

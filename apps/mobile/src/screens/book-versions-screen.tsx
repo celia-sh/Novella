@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Pressable,
@@ -18,6 +19,7 @@ import {
 import type { ComicSeriesDetail } from '@novella/api-client';
 
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
+import type { BookUserMessage } from '@/hooks/use-book-detail';
 import { reader } from '@/services/client';
 import type { BookDetailPalette } from '@/theme/book-detail-theme';
 
@@ -28,9 +30,11 @@ export interface BookVersionsScreenProps {
 }
 
 export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenProps) {
+  const { t } = useTranslation('book');
+  const { t: tCommon } = useTranslation('common');
   const { palette } = useBookDetailRouteTheme(bookId, null, null, true);
   const [detail, setDetail] = useState<ComicSeriesDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<BookUserMessage | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -39,7 +43,9 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
     try {
       setDetail(await reader.loadComicSeriesInfo(seriesTitle));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'The versions could not be loaded.');
+      setError(cause instanceof Error
+        ? { kind: 'raw', text: cause.message }
+        : { kind: 'key', key: 'errors.versions.fallback' });
     } finally {
       setIsLoading(false);
     }
@@ -75,15 +81,19 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
       ) : null}
       {error ? (
         <View style={styles.state}>
-          <Text style={[styles.errorText, { color: palette.error }]}>{error}</Text>
+          <Text style={[styles.errorText, { color: palette.error }]}>
+            {error.kind === 'raw' ? error.text : t(error.key)}
+          </Text>
           <Pressable
-            accessibilityLabel="Try again"
+            accessibilityLabel={tCommon('accessibility.retry')}
             accessibilityRole="button"
             onPress={load}
             style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
           >
             <IconRefresh color={palette.primary} size={18} strokeWidth={2} />
-            <Text style={[styles.retryLabel, { color: palette.primary }]}>Try again</Text>
+            <Text style={[styles.retryLabel, { color: palette.primary }]}>
+              {tCommon('actions.retry')}
+            </Text>
           </Pressable>
         </View>
       ) : null}
@@ -91,18 +101,22 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
         <View style={styles.sheetSection}>
           <View style={styles.sheetHeading}>
             <IconBooks color={palette.primary} size={22} strokeWidth={2} />
-            <Text style={[styles.sheetTitle, { color: palette.onSurface }]}>Versions</Text>
+            <Text style={[styles.sheetTitle, { color: palette.onSurface }]}>
+              {t('versions.title')}
+            </Text>
           </View>
           <Text style={[styles.description, { color: palette.onSurfaceVariant }]}>
-            {detail.title} · {detail.volumes.length}{' '}
-            {detail.volumes.length === 1 ? 'version' : 'versions'}
+            {t('versions.summary', { count: detail.volumes.length, title: detail.title })}
           </Text>
           <View style={styles.versionList}>
             {detail.volumes.map((version) => {
               const isCurrent = version.id === bookId;
               return (
                 <Pressable
-                  accessibilityLabel={`${version.title}${isCurrent ? ', current version' : ''}`}
+                  accessibilityLabel={t('versions.accessibility', {
+                    current: isCurrent ? t('versions.currentAccessibilitySuffix') : '',
+                    title: version.title,
+                  })}
                   accessibilityRole="button"
                   key={version.id}
                   onPress={() => openVersion(version.id, version.coverUrl, version.coverPlaceholder)}
@@ -120,8 +134,8 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
                       {version.title}
                     </Text>
                     <Text style={[styles.versionMeta, { color: palette.onSurfaceVariant }]}>
-                      {version.uploader.userName.trim() || 'Unknown uploader'} ·{' '}
-                      {version.chapters.length} chapters
+                      {version.uploader.userName.trim() || t('versions.unknownUploader')} ·{' '}
+                      {t('versions.chapterCount', { count: version.chapters.length })}
                     </Text>
                   </View>
                   {isCurrent ? (
@@ -133,7 +147,7 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
                     >
                       <IconCheck color={palette.onPrimaryContainer} size={16} strokeWidth={2.4} />
                       <Text style={[styles.currentLabel, { color: palette.onPrimaryContainer }]}>
-                        Current
+                        {t('versions.current')}
                       </Text>
                     </View>
                   ) : null}

@@ -2,6 +2,7 @@ import { IconHeart, IconMessageCircle } from "@tabler/icons-react-native";
 import { router } from "expo-router";
 import { Card, Chip } from "react-native-paper";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Pressable,
   RefreshControl,
@@ -28,21 +29,17 @@ import {
   type NativeSegmentedControlOption,
 } from "@/components/native-segmented-control";
 import { useMyCommunity } from "@/hooks/use-my-community";
+import { useAppLocale } from "@/localization/localization-provider";
 import { formatCommunityTime } from "@/services/community-utils";
 import { createThemedStyles, useAppTheme } from "@/theme/app-theme";
 
 type MyCommunityTab = "published" | "participated" | "favorites";
 
-const MY_COMMUNITY_TAB_OPTIONS: readonly NativeSegmentedControlOption<MyCommunityTab>[] =
-  [
-    { label: "Published", value: "published" },
-    { label: "Participated", value: "participated" },
-    { label: "Favorites", value: "favorites" },
-  ];
-
 export function MyCommunityScreen() {
   const styles = useMyCommunityStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation("community");
+  const locale = useAppLocale();
   const [tab, setTab] = useState<MyCommunityTab>("published");
   const { error, load, loading, overview, refresh, refreshing } =
     useMyCommunity();
@@ -52,6 +49,13 @@ export function MyCommunityScreen() {
       ? (overview?.publishedThreads ?? [])
       : (overview?.favoriteThreads ?? []);
   const replies = overview?.participatedReplies ?? [];
+  const numberFormatter = new Intl.NumberFormat(locale);
+  const tabOptions: readonly NativeSegmentedControlOption<MyCommunityTab>[] = [
+    { label: t("myCommunity.tabs.published"), value: "published" },
+    { label: t("myCommunity.tabs.participated"), value: "participated" },
+    { label: t("myCommunity.tabs.favorites"), value: "favorites" },
+  ];
+  const localizedError = error ? t("myCommunity.loadError") : null;
 
   return (
     <CommunityPaperProvider>
@@ -59,7 +63,7 @@ export function MyCommunityScreen() {
         largeTitle={false}
         onBackPress={() => router.back()}
         showBackButton
-        title="My Community"
+        title={t("myCommunity.title")}
       >
         <ScrollView
           alwaysBounceVertical
@@ -81,12 +85,14 @@ export function MyCommunityScreen() {
             <Card mode="outlined" style={styles.profileCard}>
               <Card.Content style={styles.profileBody}>
                 <Text style={styles.title}>
-                  {overview.authorName || "My Community"}
+                  {overview.authorName || t("myCommunity.title")}
                 </Text>
                 <Text style={styles.summary}>
-                  {overview.publishedThreads.length} published ·{" "}
-                  {overview.participatedReplies.length} replies ·{" "}
-                  {overview.favoriteThreads.length} favorites
+                  {t("myCommunity.summary", {
+                    favorites: numberFormatter.format(overview.favoriteThreads.length),
+                    published: numberFormatter.format(overview.publishedThreads.length),
+                    replies: numberFormatter.format(overview.participatedReplies.length),
+                  })}
                 </Text>
               </Card.Content>
             </Card>
@@ -96,7 +102,7 @@ export function MyCommunityScreen() {
             <NativeSegmentedControl<MyCommunityTab>
               enabled={!loading}
               onValueChange={setTab}
-              options={MY_COMMUNITY_TAB_OPTIONS}
+              options={tabOptions}
               selectedValue={tab}
             />
           </View>
@@ -107,17 +113,17 @@ export function MyCommunityScreen() {
               <CommunityThreadSkeleton />
               <CommunityThreadSkeleton />
             </View>
-          ) : error && !overview ? (
+          ) : localizedError && !overview ? (
             <CommunityErrorState
-              description={error}
+              description={localizedError}
               onRetry={() => void load()}
-              title="Unable to load My Community"
+              title={t("myCommunity.loadErrorTitle")}
             />
           ) : tab === "participated" ? (
             replies.length === 0 ? (
               <CommunityEmptyState
-                description="Replies you publish in Community discussions will appear here."
-                title="No participated discussions"
+                description={t("myCommunity.participatedEmptyDescription")}
+                title={t("myCommunity.participatedEmptyTitle")}
               />
             ) : (
               <View style={styles.list}>
@@ -130,13 +136,13 @@ export function MyCommunityScreen() {
             <CommunityEmptyState
               description={
                 tab === "published"
-                  ? "Discussions you publish will appear here."
-                  : "Discussions you favorite will appear here."
+                  ? t("myCommunity.publishedEmptyDescription")
+                  : t("myCommunity.favoritesEmptyDescription")
               }
               title={
                 tab === "published"
-                  ? "No published discussions"
-                  : "No favorites"
+                  ? t("myCommunity.publishedEmptyTitle")
+                  : t("myCommunity.favoritesEmptyTitle")
               }
             />
           ) : (
@@ -168,9 +174,14 @@ function MyThreadCard({ thread }: { thread: CommunityFeedItem }) {
 
 function MyReplyCard({ reply }: { reply: CommunityMyReplyItem }) {
   const styles = useMyCommunityStyles();
+  const { t } = useTranslation("community");
+  const locale = useAppLocale();
   return (
     <Pressable
-      accessibilityLabel={`Open ${reply.threadTitle}, reply: ${reply.content}`}
+      accessibilityLabel={t("accessibility.openReply", {
+        content: reply.content,
+        title: reply.threadTitle,
+      })}
       accessibilityRole="button"
       onPress={() =>
         router.push({
@@ -196,21 +207,21 @@ function MyReplyCard({ reply }: { reply: CommunityMyReplyItem }) {
               {reply.boardName}
             </Chip>
             <Text style={styles.time}>
-              {formatCommunityTime(reply.publishedAt)}
+              {formatCommunityTime(reply.publishedAt, locale)}
             </Text>
           </View>
           <Text numberOfLines={2} style={styles.replyTitle}>
             {reply.threadTitle}
           </Text>
           {reply.replyToName ? (
-            <Text style={styles.replyTo}>Replying to {reply.replyToName}</Text>
+            <Text style={styles.replyTo}>{t("labels.replyingTo", { name: reply.replyToName })}</Text>
           ) : null}
           <Text numberOfLines={4} style={styles.replyContent}>
             {reply.content}
           </Text>
           <View style={styles.replyMetrics}>
             <IconMessageCircle color={styles.metricIcon.color} size={15} />
-            <Text style={styles.metricLabel}>Open discussion</Text>
+            <Text style={styles.metricLabel}>{t("actions.openDiscussion")}</Text>
             <IconHeart color={styles.metricIcon.color} size={15} />
             <Text style={styles.metricLabel}>{reply.likes}</Text>
           </View>

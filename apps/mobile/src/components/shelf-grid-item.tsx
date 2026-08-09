@@ -4,6 +4,7 @@ import {
   IconFolderOpen,
   IconGripVertical,
 } from '@tabler/icons-react-native';
+import { useTranslation } from 'react-i18next';
 import {
   Pressable,
   StyleSheet,
@@ -45,6 +46,7 @@ export function ShelfFolderGridItem({
   tileWidth,
   title,
 }: ShelfFolderGridItemProps) {
+  const { t } = useTranslation('library');
   const styles = useShelfFolderGridItemStyles();
   const { colors } = useAppTheme();
   const previewWidth = Math.max(1, Math.floor((tileWidth - 28) / 2));
@@ -55,7 +57,7 @@ export function ShelfFolderGridItem({
   return (
     <Pressable
       {...(accessibilityActions ? { accessibilityActions: [...accessibilityActions] } : {})}
-      accessibilityLabel={`${title}, folder, ${itemCount} items`}
+      accessibilityLabel={t('shelf.folderAccessibility', { count: itemCount, title })}
       accessibilityRole="button"
       accessibilityState={{ selected: interactionState === 'selected' }}
       delayLongPress={180}
@@ -77,7 +79,7 @@ export function ShelfFolderGridItem({
           </View>
         ) : previewBooks.length === 1 && firstBook ? (
           <BookCoverImage
-            accessibilityLabel={`${firstBook.title} cover`}
+            accessibilityLabel={t('shelf.coverAccessibility', { title: firstBook.title })}
             animateCachedImage
             blurHash={firstBook.coverPlaceholder}
             source={firstBook.coverUrl}
@@ -91,7 +93,7 @@ export function ShelfFolderGridItem({
               >
                 {book ? (
                   <BookCoverImage
-                    accessibilityLabel={`${book.title} cover`}
+                    accessibilityLabel={t('shelf.coverAccessibility', { title: book.title })}
                     animateCachedImage
                     blurHash={book.coverPlaceholder}
                     source={book.coverUrl}

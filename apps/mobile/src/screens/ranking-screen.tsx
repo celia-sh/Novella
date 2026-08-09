@@ -1,5 +1,6 @@
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { IconTrophy } from '@tabler/icons-react-native';
+import { useTranslation } from 'react-i18next';
 import {
   FlatList,
   Pressable,
@@ -23,17 +24,13 @@ import {
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
+import type { LibraryMessage } from '@/localization/locales/library';
 import { useRankingPage } from '@/hooks/use-ranking';
 import { useAppSettings } from '@/services/settings';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
-const PERIOD_OPTIONS: readonly { label: string; value: RankPeriod }[] = [
-  { label: 'Daily', value: 'daily' },
-  { label: 'Weekly', value: 'weekly' },
-  { label: 'Monthly', value: 'monthly' },
-];
-
 export function RankingScreen() {
+  const { t } = useTranslation('library');
   const settings = useAppSettings();
   const styles = useRankingScreenStyles();
   const { colors } = useAppTheme();
@@ -53,13 +50,20 @@ export function RankingScreen() {
       : 0;
   const data: (number | BookListItem)[] =
     skeletonCount > 0 ? skeletonKeys(skeletonCount) : books;
+  const periodOptions: readonly { label: string; value: RankPeriod }[] = [
+    { label: t('ranking.periods.daily'), value: 'daily' },
+    { label: t('ranking.periods.weekly'), value: 'weekly' },
+    { label: t('ranking.periods.monthly'), value: 'monthly' },
+  ];
 
   return (
-    <NativeScreenScaffold
+    <>
+      <Stack.Screen options={{ title: t('ranking.title') }} />
+      <NativeScreenScaffold
       largeTitle={false}
       onBackPress={() => router.back()}
       showBackButton
-      title="Rankings"
+      title={t('ranking.title')}
     >
       <View style={styles.root}>
         <FlatList
@@ -74,7 +78,7 @@ export function RankingScreen() {
             <View style={styles.periodBar}>
               <NativeSegmentedControl
                 onValueChange={changePeriod}
-                options={PERIOD_OPTIONS}
+                options={periodOptions}
                 selectedValue={period}
               />
             </View>
@@ -123,37 +127,43 @@ export function RankingScreen() {
           showsVerticalScrollIndicator={false}
         />
       </View>
-    </NativeScreenScaffold>
+      </NativeScreenScaffold>
+    </>
   );
 }
 
 function EmptyState() {
+  const { t } = useTranslation('library');
   const styles = useRankingScreenStyles();
   const { colors } = useAppTheme();
   return (
     <View style={styles.emptyState}>
       <IconTrophy color={colors.secondaryLabel as string} size={44} strokeWidth={1.5} />
-      <Text style={styles.emptyTitle}>No rankings</Text>
+      <Text style={styles.emptyTitle}>{t('ranking.noRankings')}</Text>
       <Text style={styles.emptyDescription}>
-        There is no ranking data for this period right now.
+        {t('ranking.noRankingsDescription')}
       </Text>
     </View>
   );
 }
 
-function ErrorState({ error, onRetry }: { error: string; onRetry(): void }) {
+function ErrorState({ error, onRetry }: { error: LibraryMessage; onRetry(): void }) {
+  const { t } = useTranslation('library');
+  const { t: tCommon } = useTranslation('common');
   const styles = useRankingScreenStyles();
   const { colors } = useAppTheme();
   return (
     <View style={styles.errorBlock}>
-      <Text selectable style={styles.errorText}>{error}</Text>
+      <Text selectable style={styles.errorText}>
+        {error.kind === 'raw' ? error.text : t(error.key)}
+      </Text>
       <Pressable
-        accessibilityLabel="Try again"
+        accessibilityLabel={tCommon('accessibility.retry')}
         accessibilityRole="button"
         onPress={onRetry}
         style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
       >
-        <Text style={styles.retryLabel}>Try again</Text>
+        <Text style={styles.retryLabel}>{tCommon('actions.retry')}</Text>
       </Pressable>
     </View>
   );

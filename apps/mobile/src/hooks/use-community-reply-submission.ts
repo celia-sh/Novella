@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { ApiError } from '@novella/api-client';
 
@@ -11,6 +12,7 @@ import { markCommunityThreadChanged } from '@/services/community-reply-events';
  * thread screen to refresh, and returns whether the post landed.
  */
 export function useCommunityReplySubmission(threadId: number, replyToId?: number) {
+  const { t } = useTranslation('community');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -27,21 +29,29 @@ export function useCommunityReplySubmission(threadId: number, replyToId?: number
       markCommunityThreadChanged();
       return true;
     } catch (nextError) {
-      setError(getCommunityReplySubmissionError(nextError));
+      setError(getCommunityReplySubmissionError(nextError, (key) => t(key)));
       return false;
     } finally {
       setIsSubmitting(false);
     }
-  }, [isSubmitting, replyToId, threadId]);
+  }, [isSubmitting, replyToId, t, threadId]);
 
   return { error, isSubmitting, submit };
 }
 
-function getCommunityReplySubmissionError(error: unknown): string {
+type CommunityReplySubmissionErrorKey =
+  | 'thread.errors.authReply'
+  | 'thread.errors.offlineReply'
+  | 'thread.errors.publishReply';
+
+function getCommunityReplySubmissionError(
+  error: unknown,
+  translate: (key: CommunityReplySubmissionErrorKey) => string,
+): string {
   if (error instanceof ApiError) {
-    if (error.category === 'auth') return 'Sign in again to post replies.';
-    if (error.category === 'network') return 'Replies cannot be posted while offline.';
+    if (error.category === 'auth') return translate('thread.errors.authReply');
+    if (error.category === 'network') return translate('thread.errors.offlineReply');
     return error.message;
   }
-  return 'The reply could not be posted.';
+  return translate('thread.errors.publishReply');
 }

@@ -7,6 +7,7 @@ import {
   type ReadHistory,
 } from '@novella/api-client';
 
+import type { LibraryMessage } from '@/localization/locales/library';
 import { history as historyUseCase } from '@/services/client';
 
 export type HistoryTab = 'Novel' | 'Comic';
@@ -14,7 +15,7 @@ export type HistoryTab = 'Novel' | 'Comic';
 export type HistoryTabStatus = 'idle' | 'loading' | 'loadingMore' | 'error';
 
 export interface HistoryTabState<T> {
-  error: string | null;
+  error: LibraryMessage | null;
   items: T[];
   /** Number of detail pages already loaded for this tab. */
   page: number;
@@ -27,7 +28,7 @@ export interface ReadHistoryState {
   comic: HistoryTabState<ComicSeriesListItem>;
   ids: ReadHistory | null;
   /** Index (GetReadHistory) load failure — whole-screen error state. */
-  initialError: string | null;
+  initialError: LibraryMessage | null;
   initialLoading: boolean;
   novel: HistoryTabState<BookListItem>;
   refreshing: boolean;
@@ -62,7 +63,7 @@ export function useReadHistory() {
   const [clearing, setClearing] = useState(false);
   const [comicTab, setComicTab] = useState<HistoryTabState<ComicSeriesListItem>>({ ...INITIAL_TAB });
   const [ids, setIds] = useState<ReadHistory | null>(null);
-  const [initialError, setInitialError] = useState<string | null>(null);
+  const [initialError, setInitialError] = useState<LibraryMessage | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [novelTab, setNovelTab] = useState<HistoryTabState<BookListItem>>({ ...INITIAL_TAB });
   const [refreshing, setRefreshing] = useState(false);
@@ -285,15 +286,11 @@ function dedupeComics(items: ComicSeriesListItem[]): ComicSeriesListItem[] {
   });
 }
 
-function historyErrorMessage(error: unknown): string {
+function historyErrorMessage(error: unknown): LibraryMessage {
   if (error instanceof ApiError) {
-    if (error.category === 'auth') {
-      return 'Your session has expired. Sign in again to continue.';
-    }
-    if (error.category === 'network') {
-      return 'LightNovelShelf is unreachable. Check your connection and try again.';
-    }
-    return error.message;
+    if (error.category === 'auth') return { kind: 'key', key: 'errors.auth' };
+    if (error.category === 'network') return { kind: 'key', key: 'errors.network' };
+    return { kind: 'raw', text: error.message };
   }
-  return 'LightNovelShelf returned an unexpected response.';
+  return { kind: 'key', key: 'errors.unexpected' };
 }

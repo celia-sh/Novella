@@ -22,6 +22,7 @@ import {
 import { router } from 'expo-router';
 import { Skeleton } from 'heroui-native';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import {
   Linking,
@@ -55,26 +56,13 @@ import type {
 import { CommunityHomeNavigation } from '@/components/community/community-navigation';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { useCommunityHome, type CommunityHomeQuery } from '@/hooks/use-community-home';
+import { useAppLocale } from '@/localization/localization-provider';
 import { resolveCommunityBoardIcon } from '@/services/community-board-icons';
 import {
   formatCommunityCount,
   formatCommunityTime,
-  threadAccessibilityLabel,
 } from '@/services/community-utils';
 import { createThemedStyles, resolveAccentHex, useAppTheme } from '@/theme/app-theme';
-
-const ORDER_OPTIONS: readonly { label: string; value: CommunityFeedOrder }[] = [
-  { label: 'Recent replies', value: 'reply' },
-  { label: 'Latest', value: 'latest' },
-  { label: 'Hot', value: 'hot' },
-  { label: 'Featured', value: 'featured' },
-];
-
-const SCOPE_OPTIONS: readonly { label: string; value: CommunityFeedScope }[] = [
-  { label: 'All', value: 'all' },
-  { label: 'Today', value: 'today' },
-  { label: 'This week', value: 'week' },
-];
 
 const SKELETON_KEYS = [0, 1, 2];
 
@@ -96,6 +84,7 @@ interface BoardOption {
 export function CommunityHomeScreen() {
   const styles = useCommunityHomeStyles();
   const { colorScheme, colors } = useAppTheme();
+  const { t } = useTranslation('community');
   const paperTheme = colorScheme === 'dark' ? MD3DarkTheme : MD3LightTheme;
   const { loadMore, refresh, retry, state, updateQuery } = useCommunityHome();
 
@@ -124,19 +113,19 @@ export function CommunityHomeScreen() {
       <>
         <NativeScreenScaffold
           actions={[
-            { accessibilityLabel: 'New Community post', icon: 'pencil', id: 'compose' },
+            { accessibilityLabel: t('accessibility.newPost'), icon: 'pencil', id: 'compose' },
             {
-              accessibilityLabel: 'Community notifications',
+              accessibilityLabel: t('accessibility.notifications'),
               icon: 'bell',
               id: 'notifications',
             },
             {
-              accessibilityLabel: 'Community menu',
+              accessibilityLabel: t('accessibility.menu'),
               icon: 'dots',
               id: 'community-menu',
               menuItems: [
-                { icon: 'user', id: 'mine', label: 'My Community' },
-                { icon: 'trophy', id: 'rankings', label: 'Rankings' },
+                { icon: 'user', id: 'mine', label: t('navigation.myCommunity') },
+                { icon: 'trophy', id: 'rankings', label: t('navigation.rankings') },
               ],
             },
           ]}
@@ -146,7 +135,7 @@ export function CommunityHomeScreen() {
             else if (id === 'mine') router.push('/mine');
             else if (id === 'rankings') router.push('/community-rankings');
           }}
-          title="Community"
+          title={t('navigation.community')}
         >
           <ScrollView
             alwaysBounceVertical
@@ -268,6 +257,7 @@ function CommunityFeedRow({
   row: CommunityHomeRow;
 }) {
   const styles = useCommunityHomeStyles();
+  const { t } = useTranslation('community');
 
   if (row.kind === 'thread') {
     return (
@@ -287,9 +277,9 @@ function CommunityFeedRow({
     return (
       <View style={styles.feedStateRow}>
         <MaterialStateCard
-          description={error ?? 'Community is temporarily unavailable.'}
+          description={error ?? t('home.errors.unavailable')}
           onRetry={onRetry}
-          title={hasHome ? 'Unable to update discussions' : 'Unable to load Community'}
+          title={hasHome ? t('home.errors.updateTitle') : t('home.errors.loadTitle')}
           variant="error"
         />
       </View>
@@ -298,8 +288,8 @@ function CommunityFeedRow({
   return (
     <View style={styles.feedStateRow}>
       <MaterialStateCard
-        description="Try another board or filter, or start the first discussion."
-        title="No discussions yet"
+        description={t('home.empty.description')}
+        title={t('home.empty.title')}
         variant="empty"
       />
     </View>
@@ -331,8 +321,10 @@ function CommunitySummaryPanel({
 }) {
   const styles = useCommunityHomeStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation('community');
+  const locale = useAppLocale();
   const selectedBoard = home.boards.find((board) => board.key === query.boardKey) ?? null;
-  const title = selectedBoard?.title || home.title || 'Community';
+  const title = selectedBoard?.title || home.title || t('home.title');
   const subtitle = selectedBoard?.description || home.subtitle;
   const BoardIcon = selectedBoard
     ? resolveCommunityBoardIcon(selectedBoard.icon, selectedBoard.title)
@@ -354,13 +346,13 @@ function CommunitySummaryPanel({
         <View style={styles.summaryStats}>
           <SummaryStatChip
             icon={<IconLayoutGrid color={colors.accent as string} size={15} strokeWidth={2} />}
-            label="Threads today"
-            value={formatCommunityCount(home.todayThreads)}
+            label={t('home.threadsToday')}
+            value={formatCommunityCount(home.todayThreads, locale)}
           />
           {selectedBoard && heatLabel ? (
             <SummaryStatChip
               icon={<IconFlame color={colors.accent as string} size={15} strokeWidth={2} />}
-              label="Heat"
+              label={t('home.heat')}
               value={heatLabel}
             />
           ) : null}
@@ -384,13 +376,14 @@ function SummaryStatChip({ icon, label, value }: { icon: ReactNode; label: strin
 function CommunityAnnouncementBanner({ home }: { home: CommunityHomePayload }) {
   const styles = useCommunityHomeStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation('community');
   if (!home.announcement) return null;
   const canOpen = /^https:\/\//i.test(home.announcementLink);
 
   return (
     <Surface elevation={0} style={styles.announcementSurface}>
       <TouchableRipple
-        accessibilityLabel={`Announcement: ${home.announcement}`}
+        accessibilityLabel={`${t('home.announcement')}：${home.announcement}`}
         accessibilityRole={canOpen ? 'link' : 'text'}
         borderless
         disabled={!canOpen}
@@ -404,7 +397,7 @@ function CommunityAnnouncementBanner({ home }: { home: CommunityHomePayload }) {
             <IconSpeakerphone color={colors.onPrimaryContainer as string} size={18} strokeWidth={2} />
           </View>
           <View style={styles.announcementCopy}>
-            <Text style={styles.announcementLabel}>Announcement</Text>
+            <Text style={styles.announcementLabel}>{t('home.announcement')}</Text>
             <Text style={styles.announcementText}>{home.announcement}</Text>
           </View>
           {canOpen ? (
@@ -429,15 +422,16 @@ function CommunityBoardStrip({
 }) {
   const styles = useCommunityHomeStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation('community');
   const options: BoardOption[] = boards.some((board) => board.key === 'all')
     ? boards
     : [
         {
-          description: 'Everything happening across Community',
+          description: t('home.allBoardsDescription'),
           heatLabel: '',
           icon: 'forum',
           key: 'all',
-          title: 'All boards',
+          title: t('home.allBoards'),
           todayPosts: todayThreads,
         },
         ...boards,
@@ -453,7 +447,7 @@ function CommunityBoardStrip({
       >
         <FilterCaption
           icon={<IconLayoutGrid color={colors.secondaryLabel as string} size={16} strokeWidth={2} />}
-          label="Boards"
+          label={t('home.boards')}
         />
         {options.map((board) => (
           <CommunityBoardChip
@@ -479,11 +473,16 @@ function CommunityBoardChip({
 }) {
   const styles = useCommunityHomeStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation('community');
+  const locale = useAppLocale();
   const BoardIcon = resolveCommunityBoardIcon(board.icon, board.title);
 
   return (
     <Pressable
-      accessibilityLabel={`${board.title}, ${board.todayPosts} posts today`}
+      accessibilityLabel={t('accessibility.boardPostsToday', {
+        board: board.title,
+        countLabel: formatCommunityCount(board.todayPosts, locale),
+      })}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
@@ -528,6 +527,19 @@ function FilterToolbar({
 }) {
   const styles = useCommunityHomeStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation('community');
+  const locale = useAppLocale();
+  const orderOptions: readonly { label: string; value: CommunityFeedOrder }[] = [
+    { label: t('home.order.recentReplies'), value: 'reply' },
+    { label: t('home.order.latest'), value: 'latest' },
+    { label: t('home.order.hot'), value: 'hot' },
+    { label: t('home.order.featured'), value: 'featured' },
+  ];
+  const scopeOptions: readonly { label: string; value: CommunityFeedScope }[] = [
+    { label: t('home.scope.all'), value: 'all' },
+    { label: t('home.scope.today'), value: 'today' },
+    { label: t('home.scope.week'), value: 'week' },
+  ];
 
   return (
     <View style={styles.toolbar}>
@@ -539,9 +551,9 @@ function FilterToolbar({
       >
         <FilterCaption
           icon={<IconArrowsSort color={colors.secondaryLabel as string} size={16} strokeWidth={2} />}
-          label="Sort"
+          label={t('home.sort')}
         />
-        {ORDER_OPTIONS.map((option) => (
+        {orderOptions.map((option) => (
           <CommunityFilterPill
             key={option.value}
             label={option.label}
@@ -551,9 +563,9 @@ function FilterToolbar({
         ))}
         <FilterCaption
           icon={<IconCalendarWeek color={colors.secondaryLabel as string} size={16} strokeWidth={2} />}
-          label="Time"
+          label={t('home.time')}
         />
-        {SCOPE_OPTIONS.map((option) => (
+        {scopeOptions.map((option) => (
           <CommunityFilterPill
             key={option.value}
             label={option.label}
@@ -579,17 +591,17 @@ function FilterToolbar({
         >
           <FilterCaption
             icon={<IconCategory color={colors.secondaryLabel as string} size={16} strokeWidth={2} />}
-            label="Category"
+            label={t('home.category')}
           />
           <CommunityFilterPill
-            label="All categories"
+            label={t('home.allCategories')}
             onPress={() => updateQuery({ subCategoryKey: '' })}
             selected={!query.subCategoryKey}
           />
           {subCategories.map((category) => (
             <CommunityFilterPill
               key={category.key}
-              label={`${category.label} · ${formatCommunityCount(category.count)}`}
+              label={`${category.label} · ${formatCommunityCount(category.count, locale)}`}
               onPress={() => updateQuery({ subCategoryKey: category.key })}
               selected={query.subCategoryKey === category.key}
             />
@@ -651,12 +663,27 @@ function MaterialCommunityThreadCard({
 }) {
   const styles = useCommunityHomeStyles();
   const { colors } = useAppTheme();
-  const authorName = item.authorName || (item.authorIsDeleted ? 'Deleted user' : 'Unknown user');
+  const { t } = useTranslation('community');
+  const locale = useAppLocale();
+  const authorName = item.authorName
+    || (item.authorIsDeleted ? t('labels.deletedUser') : t('labels.unknownUser'));
+  const status = [
+    item.pinned ? t('labels.pinned') : '',
+    item.featured ? t('labels.featured') : '',
+    item.locked ? t('labels.locked') : '',
+  ].filter(Boolean).join('，');
 
   return (
     <Surface elevation={0} style={styles.threadSurface}>
       <TouchableRipple
-        accessibilityLabel={threadAccessibilityLabel(item)}
+        accessibilityLabel={t('accessibility.thread', {
+          author: item.authorIsDeleted ? t('labels.deletedUser') : item.authorName || t('labels.unknownAuthor'),
+          board: item.boardName,
+          replies: item.replies,
+          status: status ? `，${status}` : '',
+          title: item.title,
+          views: item.views,
+        })}
         accessibilityRole="button"
         borderless
         onPress={onPress}
@@ -682,7 +709,7 @@ function MaterialCommunityThreadCard({
               {item.replies > 0 ? (
                 <View style={styles.replyBadge}>
                   <IconMessageCircle color={colors.secondaryLabel as string} size={13} strokeWidth={2} />
-                  <Text style={styles.replyBadgeText}>{formatCommunityCount(item.replies)}</Text>
+                  <Text style={styles.replyBadgeText}>{formatCommunityCount(item.replies, locale)}</Text>
                 </View>
               ) : null}
             </View>
@@ -703,15 +730,15 @@ function MaterialCommunityThreadCard({
               <Text numberOfLines={1} style={styles.threadAuthor}>
                 <Text style={styles.threadAuthorName}>{authorName}</Text>
                 {item.authorIsDeleted && item.authorName ? (
-                  <Text style={styles.deletedSuffix}> (deleted)</Text>
+                  <Text style={styles.deletedSuffix}>{t('labels.deletedSuffix')}</Text>
                 ) : null}
-                <Text>{` · ${formatCommunityTime(item.publishedAt)}`}</Text>
+                <Text>{` · ${formatCommunityTime(item.publishedAt, locale)}`}</Text>
               </Text>
               <View style={styles.tinyStats}>
-                <TinyStat icon={<IconEye color={colors.secondaryLabel as string} size={14} />} value={item.views} />
-                <TinyStat icon={<IconHeart color={colors.secondaryLabel as string} size={14} />} value={item.likes} />
+                <TinyStat icon={<IconEye color={colors.secondaryLabel as string} size={14} />} value={formatCommunityCount(item.views, locale)} />
+                <TinyStat icon={<IconHeart color={colors.secondaryLabel as string} size={14} />} value={formatCommunityCount(item.likes, locale)} />
                 {item.favorites > 0 ? (
-                  <TinyStat icon={<IconBookmark color={colors.secondaryLabel as string} size={14} />} value={item.favorites} />
+                  <TinyStat icon={<IconBookmark color={colors.secondaryLabel as string} size={14} />} value={formatCommunityCount(item.favorites, locale)} />
                 ) : null}
               </View>
             </View>
@@ -722,12 +749,12 @@ function MaterialCommunityThreadCard({
     </Surface>
   );}
 
-function TinyStat({ icon, value }: { icon: ReactNode; value: number }) {
+function TinyStat({ icon, value }: { icon: ReactNode; value: string }) {
   const styles = useCommunityHomeStyles();
   return (
     <View style={styles.tinyStat}>
       {icon}
-      <Text style={styles.tinyStatText}>{formatCommunityCount(value)}</Text>
+      <Text style={styles.tinyStatText}>{value}</Text>
     </View>
   );
 }
@@ -781,6 +808,7 @@ function MaterialStateCard({
 }) {
   const styles = useCommunityHomeStyles();
   const { colors } = useAppTheme();
+  const { t: tCommon } = useTranslation('common');
   const Icon = variant === 'error' ? IconAlertCircle : IconMessages;
   return (
     <Surface elevation={0} style={styles.stateSurface}>
@@ -805,7 +833,7 @@ function MaterialStateCard({
             onPress={onRetry}
             textColor={resolveAccentHex(colors.accent)}
           >
-            Try again
+            {tCommon('actions.retry')}
           </Button>
         ) : null}
       </View>
@@ -867,6 +895,7 @@ function CommunityHomeFooter({
 }) {
   const styles = useCommunityHomeStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation('community');
 
   return (
     <View style={styles.footerContent}>
@@ -880,14 +909,14 @@ function CommunityHomeFooter({
         <MaterialStateCard
           description={loadMoreError}
           onRetry={onLoadMoreRetry}
-          title="Unable to load more"
+          title={t('home.errors.loadMoreTitle')}
           variant="error"
         />
       ) : null}
       {showEnd ? (
         <View style={styles.endState}>
           <IconCircleCheck color={colors.secondaryLabel as string} size={17} strokeWidth={2} />
-          <Text style={styles.endLabel}>You’re all caught up</Text>
+          <Text style={styles.endLabel}>{t('home.empty.caughtUp')}</Text>
         </View>
       ) : null}
     </View>

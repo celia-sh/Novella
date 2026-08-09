@@ -15,6 +15,7 @@ import {
   useState,
 } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import {
   EnrichedTextInput,
   type EnrichedTextInputInstance,
@@ -52,11 +53,12 @@ export const CommunityRichEditor = forwardRef<
     editable = true,
     initialHtml = '',
     onTextChange,
-    placeholder = 'Write your post…',
+    placeholder,
   },
   ref,
 ) {
   const { colors } = useAppTheme();
+  const { t } = useTranslation('community');
   const editorRef = useRef<EnrichedTextInputInstance>(null);
   const [formatState, setFormatState] = useState<OnChangeStateEvent | null>(null);
 
@@ -75,7 +77,7 @@ export const CommunityRichEditor = forwardRef<
       blocked: formatState?.bold.isBlocking ?? false,
       icon: IconBold,
       id: 'bold',
-      label: 'Bold',
+      label: t('editor.bold'),
       run: (editor) => editor.toggleBold(),
     },
     {
@@ -83,7 +85,7 @@ export const CommunityRichEditor = forwardRef<
       blocked: formatState?.italic.isBlocking ?? false,
       icon: IconItalic,
       id: 'italic',
-      label: 'Italic',
+      label: t('editor.italic'),
       run: (editor) => editor.toggleItalic(),
     },
     {
@@ -91,7 +93,7 @@ export const CommunityRichEditor = forwardRef<
       blocked: formatState?.underline.isBlocking ?? false,
       icon: IconUnderline,
       id: 'underline',
-      label: 'Underline',
+      label: t('editor.underline'),
       run: (editor) => editor.toggleUnderline(),
     },
     {
@@ -99,7 +101,7 @@ export const CommunityRichEditor = forwardRef<
       blocked: formatState?.strikeThrough.isBlocking ?? false,
       icon: IconStrikethrough,
       id: 'strikethrough',
-      label: 'Strikethrough',
+      label: t('editor.strikethrough'),
       run: (editor) => editor.toggleStrikeThrough(),
     },
     {
@@ -107,7 +109,7 @@ export const CommunityRichEditor = forwardRef<
       blocked: formatState?.blockQuote.isBlocking ?? false,
       icon: IconBlockquote,
       id: 'blockquote',
-      label: 'Block quote',
+      label: t('editor.blockquote'),
       run: (editor) => editor.toggleBlockQuote(),
     },
     {
@@ -115,7 +117,7 @@ export const CommunityRichEditor = forwardRef<
       blocked: formatState?.unorderedList.isBlocking ?? false,
       icon: IconList,
       id: 'unordered-list',
-      label: 'Bulleted list',
+      label: t('editor.bulletedList'),
       run: (editor) => editor.toggleUnorderedList(),
     },
     {
@@ -123,7 +125,7 @@ export const CommunityRichEditor = forwardRef<
       blocked: formatState?.orderedList.isBlocking ?? false,
       icon: IconListNumbers,
       id: 'ordered-list',
-      label: 'Numbered list',
+      label: t('editor.numberedList'),
       run: (editor) => editor.toggleOrderedList(),
     },
   ];
@@ -183,7 +185,7 @@ export const CommunityRichEditor = forwardRef<
         mentionIndicators={[]}
         onChangeState={(event) => setFormatState(event.nativeEvent)}
         onChangeText={(event) => onTextChange(event.nativeEvent.value)}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t('editor.placeholder')}
         placeholderTextColor={colors.secondaryLabel}
         ref={editorRef}
         scrollEnabled

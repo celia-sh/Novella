@@ -1,5 +1,6 @@
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { IconBooks } from '@tabler/icons-react-native';
+import { useTranslation } from 'react-i18next';
 import {
   FlatList,
   Pressable,
@@ -22,16 +23,12 @@ import {
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
+import type { LibraryMessage } from '@/localization/locales/library';
 import { useBookListPage } from '@/hooks/use-book-list';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
-const ORDER_OPTIONS: readonly { label: string; value: BookListOrder }[] = [
-  { label: 'Latest', value: 'latest' },
-  { label: 'New', value: 'new' },
-  { label: 'Views', value: 'view' },
-];
-
 export function BookListScreen() {
+  const { t } = useTranslation('library');
   const styles = useBookListScreenStyles();
   const { colors } = useAppTheme();
   const {
@@ -60,13 +57,20 @@ export function BookListScreen() {
     ...(skeletonCount > 0 ? skeletonKeys(skeletonCount) : books),
     ...loadingMoreKeys,
   ];
+  const orderOptions: readonly { label: string; value: BookListOrder }[] = [
+    { label: t('catalog.orders.latest'), value: 'latest' },
+    { label: t('catalog.orders.new'), value: 'new' },
+    { label: t('catalog.orders.views'), value: 'view' },
+  ];
 
   return (
-    <NativeScreenScaffold
+    <>
+      <Stack.Screen options={{ title: t('catalog.allNovels') }} />
+      <NativeScreenScaffold
       largeTitle={false}
       onBackPress={() => router.back()}
       showBackButton
-      title="All novels"
+      title={t('catalog.allNovels')}
     >
       <View style={styles.root}>
         <FlatList
@@ -81,7 +85,7 @@ export function BookListScreen() {
             <View style={styles.orderBar}>
               <NativeSegmentedControl
                 onValueChange={changeOrder}
-                options={ORDER_OPTIONS}
+                options={orderOptions}
                 selectedValue={order}
               />
             </View>
@@ -131,37 +135,43 @@ export function BookListScreen() {
           showsVerticalScrollIndicator={false}
         />
       </View>
-    </NativeScreenScaffold>
+      </NativeScreenScaffold>
+    </>
   );
 }
 
 function EmptyState() {
+  const { t } = useTranslation('library');
   const styles = useBookListScreenStyles();
   const { colors } = useAppTheme();
   return (
     <View style={styles.emptyState}>
       <IconBooks color={colors.secondaryLabel as string} size={44} strokeWidth={1.5} />
-      <Text style={styles.emptyTitle}>No novels</Text>
+      <Text style={styles.emptyTitle}>{t('catalog.noNovels')}</Text>
       <Text style={styles.emptyDescription}>
-        The catalog has no novels to show for this order right now.
+        {t('catalog.noNovelsDescription')}
       </Text>
     </View>
   );
 }
 
-function ErrorState({ error, onRetry }: { error: string; onRetry(): void }) {
+function ErrorState({ error, onRetry }: { error: LibraryMessage; onRetry(): void }) {
+  const { t } = useTranslation('library');
+  const { t: tCommon } = useTranslation('common');
   const styles = useBookListScreenStyles();
   const { colors } = useAppTheme();
   return (
     <View style={styles.errorBlock}>
-      <Text selectable style={styles.errorText}>{error}</Text>
+      <Text selectable style={styles.errorText}>
+        {error.kind === 'raw' ? error.text : t(error.key)}
+      </Text>
       <Pressable
-        accessibilityLabel="Try again"
+        accessibilityLabel={tCommon('accessibility.retry')}
         accessibilityRole="button"
         onPress={onRetry}
         style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
       >
-        <Text style={styles.retryLabel}>Try again</Text>
+        <Text style={styles.retryLabel}>{tCommon('actions.retry')}</Text>
       </Pressable>
     </View>
   );

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { IconHistory, IconRefreshOff } from '@tabler/icons-react-native';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FlatList,
   Pressable,
@@ -26,15 +27,13 @@ import { HistoryNavigation } from '@/components/history-navigation';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
+import type { LibraryMessage } from '@/localization/locales/library';
 import { type HistoryTab, useReadHistory } from '@/hooks/use-read-history';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
-const TAB_OPTIONS = [
-  { label: 'Novels', value: 'Novel' },
-  { label: 'Comics', value: 'Comic' },
-] as const;
-
 export function HistoryScreen() {
+  const { t } = useTranslation('library');
+  const { t: tCommon } = useTranslation('common');
   const styles = useHistoryScreenStyles();
   const { colors } = useAppTheme();
   const { clear, loadMore, refresh, retry, state } = useReadHistory();
@@ -43,32 +42,36 @@ export function HistoryScreen() {
   const activeTabState = tab === 'Novel' ? state.novel : state.comic;
   const hasAnyHistory =
     (state.ids?.novelIds.length ?? 0) > 0 || (state.ids?.comicIds.length ?? 0) > 0;
+  const tabOptions = [
+    { label: t('history.novelsTab'), value: 'Novel' },
+    { label: t('history.comicsTab'), value: 'Comic' },
+  ] as const;
 
   const confirmClearHistory = useCallback(() => {
     if (state.clearing) return;
     showAlert(
-      'Clear reading history',
-      'This action cannot be undone. All novels and comics will be removed.',
+      t('history.clearTitle'),
+      t('history.clearDescription'),
       [
-        { style: 'cancel', text: 'Cancel' },
+        { style: 'cancel', text: tCommon('actions.cancel') },
         {
           onPress: () => void performClear(),
           style: 'destructive',
-          text: 'Clear',
+          text: tCommon('actions.clear'),
         },
       ],
     );
-  }, [state.clearing]);
+  }, [state.clearing, t, tCommon]);
 
   const performClear = useCallback(async () => {
     const cleared = await clear();
     if (!cleared) {
       showAlert(
-        'Clear failed',
-        'Unable to clear your reading history right now. Please try again.',
+        t('history.clearFailedTitle'),
+        t('history.clearFailedDescription'),
       );
     }
-  }, [clear]);
+  }, [clear, t]);
 
   const openBook = useCallback((item: BookListItem) => {
     router.push({
@@ -117,7 +120,7 @@ export function HistoryScreen() {
           ? {
               actions: [
                 {
-                  accessibilityLabel: 'Clear reading history',
+                  accessibilityLabel: t('history.clearAccessibility'),
                   icon: 'trash',
                   id: 'clear-history',
                 },
@@ -127,7 +130,7 @@ export function HistoryScreen() {
               },
             }
           : {})}
-        title="History"
+        title={t('history.title')}
       >
         <View style={styles.root}>
           <FlatList
@@ -135,7 +138,10 @@ export function HistoryScreen() {
               state.initialError !== null ? (
                 <InitialErrorState error={state.initialError} onRetry={() => retry(tab)} />
               ) : activeTabState.status === 'error' ? (
-                <TabErrorState error={activeTabState.error ?? ''} onRetry={() => retry(tab)} />
+                <TabErrorState
+                  error={activeTabState.error ?? { kind: 'key', key: 'errors.unexpected' }}
+                  onRetry={() => retry(tab)}
+                />
               ) : (
                 <EmptyState tab={tab} />
               )
@@ -148,7 +154,7 @@ export function HistoryScreen() {
                 <NativeSegmentedControl
                   enabled={!state.clearing}
                   onValueChange={(nextTab) => setTab(nextTab as HistoryTab)}
-                  options={TAB_OPTIONS}
+                  options={tabOptions}
                   selectedValue={tab}
                 />
               </View>
@@ -201,57 +207,64 @@ export function HistoryScreen() {
 }
 
 function EmptyState({ tab }: { tab: HistoryTab }) {
+  const { t } = useTranslation('library');
   const styles = useHistoryScreenStyles();
   const { colors } = useAppTheme();
   const isNovel = tab === 'Novel';
   return (
     <View style={styles.stateBlock}>
       <IconHistory color={colors.secondaryLabel as string} size={44} strokeWidth={1.5} />
-      <Text style={styles.stateTitle}>No reading history</Text>
+      <Text style={styles.stateTitle}>{t('history.emptyTitle')}</Text>
       <Text style={styles.stateDescription}>
-        {isNovel
-          ? 'Novels you read will appear here so you can pick up where you left off.'
-          : 'Comics you read will appear here so you can pick up where you left off.'}
+        {isNovel ? t('history.emptyNovels') : t('history.emptyComics')}
       </Text>
     </View>
   );
 }
 
-function InitialErrorState({ error, onRetry }: { error: string; onRetry(): void }) {
+function InitialErrorState({ error, onRetry }: { error: LibraryMessage; onRetry(): void }) {
+  const { t } = useTranslation('library');
+  const { t: tCommon } = useTranslation('common');
   const styles = useHistoryScreenStyles();
   const { colors } = useAppTheme();
   return (
     <View style={styles.stateBlock}>
       <IconRefreshOff color={colors.secondaryLabel as string} size={44} strokeWidth={1.5} />
-      <Text style={styles.stateTitle}>Unable to load history</Text>
-      <Text selectable style={styles.stateDescription}>{error}</Text>
+      <Text style={styles.stateTitle}>{t('history.loadFailed')}</Text>
+      <Text selectable style={styles.stateDescription}>
+        {error.kind === 'raw' ? error.text : t(error.key)}
+      </Text>
       <Pressable
-        accessibilityLabel="Try again"
+        accessibilityLabel={tCommon('accessibility.retry')}
         accessibilityRole="button"
         onPress={onRetry}
         style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
       >
-        <Text style={styles.retryLabel}>Try again</Text>
+        <Text style={styles.retryLabel}>{tCommon('actions.retry')}</Text>
       </Pressable>
     </View>
   );
 }
 
-function TabErrorState({ error, onRetry }: { error: string; onRetry(): void }) {
+function TabErrorState({ error, onRetry }: { error: LibraryMessage; onRetry(): void }) {
+  const { t } = useTranslation('library');
+  const { t: tCommon } = useTranslation('common');
   const styles = useHistoryScreenStyles();
   const { colors } = useAppTheme();
   return (
     <View style={styles.stateBlock}>
       <IconRefreshOff color={colors.secondaryLabel as string} size={44} strokeWidth={1.5} />
-      <Text style={styles.stateTitle}>Unable to load this tab</Text>
-      <Text selectable style={styles.stateDescription}>{error}</Text>
+      <Text style={styles.stateTitle}>{t('history.tabLoadFailed')}</Text>
+      <Text selectable style={styles.stateDescription}>
+        {error.kind === 'raw' ? error.text : t(error.key)}
+      </Text>
       <Pressable
-        accessibilityLabel="Try again"
+        accessibilityLabel={tCommon('accessibility.retry')}
         accessibilityRole="button"
         onPress={onRetry}
         style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
       >
-        <Text style={styles.retryLabel}>Try again</Text>
+        <Text style={styles.retryLabel}>{tCommon('actions.retry')}</Text>
       </Pressable>
     </View>
   );

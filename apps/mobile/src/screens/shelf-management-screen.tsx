@@ -8,6 +8,7 @@ import {
   IconX,
 } from '@tabler/icons-react-native';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ShelfManagementRouteSheet } from '@/components/shelf-management-route-sheet';
@@ -29,6 +30,7 @@ const icons: Record<ShelfManagementCommand['icon'], React.ComponentType<{ color:
 };
 
 export function ShelfManagementScreen() {
+  const { t } = useTranslation('library');
   const styles = useShelfManagementScreenStyles();
   const { colors } = useAppTheme();
   const session = useShelfManagementSession();
@@ -51,7 +53,7 @@ export function ShelfManagementScreen() {
         <View style={styles.sheetSection}>
           <View style={styles.sheetHeading}>
             <IconSettings color={colors.accent as string} size={22} strokeWidth={2} />
-            <Text style={styles.sheetTitle}>{session?.title ?? 'Manage shelf'}</Text>
+            <Text style={styles.sheetTitle}>{session?.title ?? t('shelf.manage')}</Text>
           </View>
           <View style={styles.commandGroup}>
             {session?.commands.map((command) => {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { ApiError, type CommentPage, type PostCommentRequest } from '@novella/api-client';
 
@@ -22,6 +23,11 @@ const initialState: CommentsState = {
 };
 
 export function useComments(bookId: number) {
+  const { t } = useTranslation('community');
+  const localizeError = useCallback(
+    (error: unknown) => getCommentErrorMessage(error, (key) => t(key)),
+    [t],
+  );
   const [state, setState] = useState<CommentsState>(initialState);
   // Kept up to date so load() (stabilized on [bookId]) can decide whether the
   // skeleton is on screen without being recreated on every state change.
@@ -57,13 +63,13 @@ export function useComments(bookId: number) {
       if (showSkeleton) await waitForMinimumDisplay(startedAt);
       setState((current) => ({
         ...current,
-        error: getCommentErrorMessage(error),
+        error: localizeError(error),
         isLoading: false,
         isLoadingMore: false,
       }));
       return null;
     }
-  }, [bookId]);
+  }, [bookId, localizeError]);
 
   useEffect(() => {
     void load();
@@ -79,12 +85,12 @@ export function useComments(bookId: number) {
     } catch (error) {
       setState((current) => ({
         ...current,
-        error: getCommentErrorMessage(error),
+        error: localizeError(error),
         isMutating: false,
       }));
       return false;
     }
-  }, [load]);
+  }, [load, localizeError]);
 
   const refresh = useCallback(() => load(1, false, true), [load]);
 
@@ -115,8 +121,8 @@ export function useComments(bookId: number) {
         setState((current) => ({
           ...current,
           error: operationError === null
-            ? getCommentErrorMessage(new Error('The comment list could not be refreshed.'))
-            : getCommentErrorMessage(operationError),
+            ? t('comments.errors.refresh')
+            : localizeError(operationError),
           isMutating: false,
         }));
         return;
@@ -129,12 +135,12 @@ export function useComments(bookId: number) {
         // delete succeeded (ignore the bogus invoke error); if it is still
         // there the delete really failed.
         error: operationError !== null && stillPresent
-          ? getCommentErrorMessage(operationError)
+          ? localizeError(operationError)
           : null,
         isMutating: false,
       }));
     })();
-  }, [load]);
+  }, [load, localizeError, t]);
 
   return {
     ...state,
@@ -163,11 +169,19 @@ export function useComments(bookId: number) {
   };
 }
 
-function getCommentErrorMessage(error: unknown): string {
+type CommentErrorKey =
+  | 'comments.errors.authUse'
+  | 'comments.errors.offlineLoad'
+  | 'comments.errors.load';
+
+function getCommentErrorMessage(
+  error: unknown,
+  translate: (key: CommentErrorKey) => string,
+): string {
   if (error instanceof ApiError) {
-    if (error.category === 'auth') return 'Sign in again to use comments.';
-    if (error.category === 'network') return 'Comments are unavailable while offline.';
+    if (error.category === 'auth') return translate('comments.errors.authUse');
+    if (error.category === 'network') return translate('comments.errors.offlineLoad');
     return error.message;
   }
-  return 'Comments could not be loaded.';
+  return translate('comments.errors.load');
 }

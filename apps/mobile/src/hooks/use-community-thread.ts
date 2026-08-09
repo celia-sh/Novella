@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type {
   CommunityThreadDetail,
@@ -34,6 +35,7 @@ export function useCommunityThread({
   replyId: number | null;
   threadId: number;
 }) {
+  const { t } = useTranslation('community');
   const [state, setState] = useState<CommunityThreadState>({
     actionId: null,
     error: null,
@@ -90,13 +92,13 @@ export function useCommunityThread({
       if (controller.signal.aborted || generation !== generationRef.current) return null;
       setState((current) => ({
         ...current,
-        error: error instanceof Error ? error.message : 'Unable to load this discussion.',
+        error: error instanceof Error ? error.message : t('thread.errors.load'),
         loading: false,
         loadingMore: false,
       }));
       return null;
     }
-  }, [threadId]);
+  }, [t, threadId]);
 
   useEffect(() => {
     void load({ page: 1, trackView: true });
@@ -208,10 +210,10 @@ export function useCommunityThread({
       setState((current) => ({
         ...current,
         actionId: null,
-        error: error instanceof Error ? error.message : 'Unable to load replies.',
+        error: error instanceof Error ? error.message : t('thread.errors.loadReplies'),
       }));
     }
-  }, [threadId]);
+  }, [t, threadId]);
 
   const toggleThreadLike = useCallback(async () => {
     const thread = state.thread;
@@ -225,9 +227,9 @@ export function useCommunityThread({
         thread: { ...current.thread, liked: result.liked, likes: result.likes },
       }) : current);
     } catch (error) {
-      setState((current) => ({ ...current, threadActionId: null, error: error instanceof Error ? error.message : 'Unable to update like.' }));
+      setState((current) => ({ ...current, threadActionId: null, error: error instanceof Error ? error.message : t('thread.errors.updateLike') }));
     }
-  }, [state.thread, state.threadActionId]);
+  }, [state.thread, state.threadActionId, t]);
 
   const toggleThreadFavorite = useCallback(async () => {
     const thread = state.thread;
@@ -241,9 +243,9 @@ export function useCommunityThread({
         thread: { ...current.thread, favorited: result.favorited, favorites: result.favorites },
       }) : current);
     } catch (error) {
-      setState((current) => ({ ...current, threadActionId: null, error: error instanceof Error ? error.message : 'Unable to update favorite.' }));
+      setState((current) => ({ ...current, threadActionId: null, error: error instanceof Error ? error.message : t('thread.errors.updateFavorite') }));
     }
-  }, [state.thread, state.threadActionId]);
+  }, [state.thread, state.threadActionId, t]);
 
   const toggleReplyLike = useCallback(async (reply: CommunityThreadReply) => {
     if (state.thread?.locked || state.actionId) return;
@@ -264,9 +266,9 @@ export function useCommunityThread({
         },
       }) : current);
     } catch (error) {
-      setState((current) => ({ ...current, actionId: null, error: error instanceof Error ? error.message : 'Unable to update like.' }));
+      setState((current) => ({ ...current, actionId: null, error: error instanceof Error ? error.message : t('thread.errors.updateLike') }));
     }
-  }, [state.actionId, state.thread?.locked]);
+  }, [state.actionId, state.thread?.locked, t]);
 
   const postReply = useCallback(async (content: string, replyToId?: number) => {
     if (state.thread?.locked || state.postingReply) return false;
@@ -279,12 +281,12 @@ export function useCommunityThread({
     } catch (error) {
       setState((current) => ({
         ...current,
-        error: error instanceof Error ? error.message : 'Unable to publish the reply.',
+        error: error instanceof Error ? error.message : t('thread.errors.publishReply'),
         postingReply: false,
       }));
       return false;
     }
-  }, [load, state.postingReply, state.thread?.locked, threadId]);
+  }, [load, state.postingReply, state.thread?.locked, t, threadId]);
 
   return {
     loadChildren,

@@ -1,5 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FlatList,
   Pressable,
@@ -24,6 +25,8 @@ import {
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { useComments } from '@/hooks/use-comments';
+import { formatRelativeTime } from '@/localization/formatters';
+import { useAppLocale } from '@/localization/localization-provider';
 import { consumeCommentsChanged } from '@/services/comment-events';
 import type { BookDetailPalette } from '@/theme/book-detail-theme';
 export interface BookCommentsScreenProps {
@@ -37,6 +40,8 @@ interface ReplyTarget {
 }
 
 export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
+  const { t } = useTranslation('community');
+  const { t: tCommon } = useTranslation('common');
   const detailTheme = useBookDetailRouteTheme(bookId, null, null, true);
   const { palette } = detailTheme;
   const commentPalette = toCommentThreadPalette(palette);
@@ -79,9 +84,9 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
   }, [bookId]);
 
   function confirmDelete(commentId: number) {
-    showAlert('Delete comment', 'This action cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => void deleteComment(commentId) },
+    showAlert(t('comments.deleteTitle'), t('comments.deleteMessage'), [
+      { text: tCommon('actions.cancel'), style: 'cancel' },
+      { text: tCommon('actions.delete'), style: 'destructive', onPress: () => void deleteComment(commentId) },
     ]);
   }
 
@@ -91,7 +96,7 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
       <NativeScreenScaffold
         actions={[
           {
-            accessibilityLabel: 'Write a comment',
+            accessibilityLabel: t('accessibility.writeComment'),
             icon: 'pencil',
             id: 'compose',
           },
@@ -102,7 +107,7 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
         }}
         onBackPress={() => router.back()}
         showBackButton
-        title="Comments"
+        title={t('comments.title')}
         containerColor={palette.surface}
         contentColor={palette.onSurface}
       >
@@ -122,19 +127,19 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
                 <View style={styles.errorBlock}>
                   <Text style={[styles.errorText, { color: palette.error }]}>{error}</Text>
                   <Pressable
-                    accessibilityLabel="Reload comments"
+                    accessibilityLabel={t('accessibility.reloadComments')}
                     accessibilityRole="button"
                     onPress={() => void refresh()}
                     style={({ pressed }) => [styles.inlineButton, pressed && styles.pressed]}
                   >
                     <IconRefresh color={palette.primary} size={17} strokeWidth={2} />
-                    <Text style={[styles.inlineButtonLabel, { color: palette.primary }]}>Try again</Text>
+                    <Text style={[styles.inlineButtonLabel, { color: palette.primary }]}>{tCommon('actions.retry')}</Text>
                   </Pressable>
                 </View>
               ) : (
                 <View style={styles.emptyState}>
                   <IconMessage color={palette.onSurfaceVariant} size={44} strokeWidth={1.5} />
-                  <Text style={[styles.emptyText, { color: palette.onSurfaceVariant }]}>No comments yet.</Text>
+                  <Text style={[styles.emptyText, { color: palette.onSurfaceVariant }]}>{t('comments.empty')}</Text>
                 </View>
               )
             }
@@ -147,13 +152,13 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
                   <View style={styles.errorBlock}>
                     <Text style={[styles.errorText, { color: palette.error }]}>{error}</Text>
                     <Pressable
-                      accessibilityLabel="Reload comments"
+                      accessibilityLabel={t('accessibility.reloadComments')}
                       accessibilityRole="button"
                       onPress={() => void refresh()}
                       style={({ pressed }) => [styles.inlineButton, pressed && styles.pressed]}
                     >
                       <IconRefresh color={palette.primary} size={17} strokeWidth={2} />
-                      <Text style={[styles.inlineButtonLabel, { color: palette.primary }]}>Try again</Text>
+                      <Text style={[styles.inlineButtonLabel, { color: palette.primary }]}>{tCommon('actions.retry')}</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -230,6 +235,7 @@ function CommentRow({
   onReply: (target: ReplyTarget) => void;
   palette: CommentThreadPalette;
 }) {
+  const locale = useAppLocale();
   return (
     <View style={styles.commentBlock}>
       <CommentThreadRow
@@ -237,7 +243,7 @@ function CommentRow({
         canDelete={item.canEdit}
         canReply
         content={item.content}
-        createdAtLabel={formatRelativeTime(item.createdAt)}
+        createdAtLabel={formatRelativeTime(item.createdAt, locale)}
         onDelete={() => onDelete(item.id)}
         onReply={() => onReply({ parentId: item.id, userName: item.user.userName })}
         palette={palette}
@@ -274,13 +280,14 @@ function ReplyRow({
   palette: CommentThreadPalette;
   reply: CommentReply;
 }) {
+  const locale = useAppLocale();
   return (
     <CommentThreadRow
       avatarUrl={reply.user.avatarUrl}
       canDelete={reply.canEdit}
       canReply
       content={reply.content}
-      createdAtLabel={formatRelativeTime(reply.createdAt)}
+      createdAtLabel={formatRelativeTime(reply.createdAt, locale)}
       onDelete={() => onDelete(reply.id)}
       onReply={() => onReply({ parentId, replyId: reply.id, userName: reply.user.userName })}
       palette={palette}
@@ -303,20 +310,6 @@ function toCommentThreadPalette(palette: BookDetailPalette): CommentThreadPalett
   };
 }
 
-function formatRelativeTime(value: string): string {
-  const elapsed = Math.max(0, Date.now() - Date.parse(value));
-  const minutes = Math.floor(elapsed / 60_000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 26) return `${days}d ago`;
-  if (days < 46) return '1mo ago';
-  if (days < 320) return `${Math.round(days / 30.4)}mo ago`;
-  if (days < 548) return '1y ago';
-  return `${Math.round(days / 365.25)}y ago`;
-}
 
 const styles = StyleSheet.create({
   commentBlock: { paddingBottom: 8 },

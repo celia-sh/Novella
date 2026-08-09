@@ -17,6 +17,10 @@ import {
   type ShelfSnapshot,
 } from '@novella/client-core';
 
+import type {
+  LibraryMessage,
+  LibraryMessageKey,
+} from '@/localization/locales/library';
 import { shelf } from '@/services/client';
 
 export type ShelfMode = 'browse' | 'edit';
@@ -25,11 +29,11 @@ export type ShelfState =
   | { status: 'loading'; snapshot: null; error: null }
   | { status: 'refreshing'; snapshot: ShelfSnapshot; error: null }
   | { status: 'ready'; snapshot: ShelfSnapshot; error: null }
-  | { status: 'error'; snapshot: ShelfSnapshot | null; error: string };
+  | { status: 'error'; snapshot: ShelfSnapshot | null; error: LibraryMessage };
 
 interface ShelfEditorState {
   draft: ShelfDraft | null;
-  error: string | null;
+  error: LibraryMessage | null;
   isSaving: boolean;
   mode: ShelfMode;
 }
@@ -240,19 +244,30 @@ export function useShelf() {
   };
 }
 
-function getShelfErrorMessage(error: unknown): string {
+function getShelfErrorMessage(error: unknown): LibraryMessage {
   if (error instanceof ApiError) {
-    if (error.category === 'auth') {
-      return 'Your session has expired. Sign in again to continue.';
-    }
-    if (error.category === 'network') {
-      return 'LightNovelShelf is unreachable. Check your connection and try again.';
-    }
-    return error.message;
+    if (error.category === 'auth') return { kind: 'key', key: 'errors.auth' };
+    if (error.category === 'network') return { kind: 'key', key: 'errors.network' };
+    return { kind: 'raw', text: error.message };
   }
-  return error instanceof Error ? error.message : 'Your shelf could not be updated.';
+  return error instanceof Error
+    ? { kind: 'raw', text: error.message }
+    : { kind: 'key', key: 'errors.shelfUpdate' };
 }
 
-function getShelfEditErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'The shelf edit could not be applied.';
+const SHELF_EDIT_ERROR_KEYS: Readonly<Record<string, LibraryMessageKey>> = {
+  'A valid folder name is required.': 'errors.folderNameRequired',
+  'A folder with this id already exists.': 'errors.folderIdExists',
+  'A folder with this name already exists.': 'errors.folderNameExists',
+  'The folder no longer exists.': 'errors.folderMissing',
+  'Select at least one book to move.': 'errors.selectBookToMove',
+  'A selected book no longer exists.': 'errors.selectedBookMissing',
+  'Reordering must contain every sibling exactly once.': 'errors.invalidReorder',
+  'The destination folder no longer exists.': 'errors.destinationMissing',
+};
+
+function getShelfEditErrorMessage(error: unknown): LibraryMessage {
+  if (!(error instanceof Error)) return { kind: 'key', key: 'errors.shelfEdit' };
+  const key = SHELF_EDIT_ERROR_KEYS[error.message];
+  return key ? { kind: 'key', key } : { kind: 'raw', text: error.message };
 }

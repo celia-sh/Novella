@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Pressable,
@@ -28,6 +29,7 @@ export function CommunityReplySheetScreen({
 }) {
   const styles = useCommunityReplySheetStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation('community');
   const onAccent = resolveOnAccentHex(colors.accent);
   const accent = resolveAccentHex(colors.accent);
   const [draft, setDraft] = useState('');
@@ -42,7 +44,9 @@ export function CommunityReplySheetScreen({
     if (await submit(draft.trim())) router.back();
   }
 
-  const prompt = replyToName ? `Reply to ${replyToName}` : 'Reply to discussion';
+  const prompt = replyToName
+    ? t('labels.replyingTo', { name: replyToName })
+    : t('thread.replyToDiscussion');
 
   return (
     <NativeRouteBottomSheet>
@@ -74,7 +78,7 @@ export function CommunityReplySheetScreen({
         {error ? <Text style={[styles.errorText, { color: colors.error as string }]}>{error}</Text> : null}
         <View style={styles.actions}>
           <Pressable
-            accessibilityLabel={isSubmitting ? 'Posting reply' : 'Publish reply'}
+            accessibilityLabel={isSubmitting ? t('actions.publishingReply') : t('actions.publishReply')}
             accessibilityRole="button"
             disabled={!canSubmit}
             onPress={() => void handleSubmit()}
@@ -91,7 +95,7 @@ export function CommunityReplySheetScreen({
               <IconSend color={onAccent} size={18} strokeWidth={2} />
             )}
             <Text style={[styles.submitLabel, { color: onAccent }]}>
-              {isSubmitting ? 'Posting' : 'Publish'}
+              {isSubmitting ? t('actions.publishing') : t('actions.publish')}
             </Text>
           </Pressable>
         </View>

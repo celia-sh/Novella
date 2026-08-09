@@ -1,4 +1,5 @@
 import { Stack, router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import type { BookDetailNavigationProps } from '@/components/book-detail-navigation.types';
 import { hasSearchableQuickSearchTags } from '@/services/book-quick-search';
@@ -11,6 +12,8 @@ const openVersions = (bookId: number, seriesTitle: string) => {
 };
 
 export function BookDetailNavigation({ book, palette, seriesTitle }: BookDetailNavigationProps) {
+  const { t } = useTranslation('book');
+  const { t: tCommon } = useTranslation('common');
   const isComic = book?.type === 'Comic';
   return (
     <>
@@ -26,7 +29,7 @@ export function BookDetailNavigation({ book, palette, seriesTitle }: BookDetailN
       />
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
-          accessibilityLabel="Back"
+          accessibilityLabel={tCommon('accessibility.back')}
           icon="chevron.left"
           onPress={() => router.back()}
           tintColor={palette.primary}
@@ -35,6 +38,7 @@ export function BookDetailNavigation({ book, palette, seriesTitle }: BookDetailN
       {book ? (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button
+            accessibilityLabel={t('navigation.bookTags')}
             hidden={!hasSearchableQuickSearchTags(book.classification.tags)}
             icon="tag"
             tintColor={palette.primary}
@@ -46,6 +50,7 @@ export function BookDetailNavigation({ book, palette, seriesTitle }: BookDetailN
             }
           />
           <Stack.Toolbar.Button
+            accessibilityLabel={t('navigation.comments')}
             icon="bubble.left"
             tintColor={palette.primary}
             onPress={() =>
@@ -54,7 +59,7 @@ export function BookDetailNavigation({ book, palette, seriesTitle }: BookDetailN
           />
           {isComic ? (
             <Stack.Toolbar.Menu
-              accessibilityLabel="More actions"
+              accessibilityLabel={t('navigation.moreActions')}
               icon="ellipsis"
               tintColor={palette.primary}
             >
@@ -67,17 +72,18 @@ export function BookDetailNavigation({ book, palette, seriesTitle }: BookDetailN
                   })
                 }
               >
-                Uploader
+                {t('navigation.uploader')}
               </Stack.Toolbar.MenuAction>
               <Stack.Toolbar.MenuAction
                 icon="books.vertical"
                 onPress={() => openVersions(book.id, seriesTitle ?? book.title)}
               >
-                Switch version
+                {t('navigation.switchVersion')}
               </Stack.Toolbar.MenuAction>
             </Stack.Toolbar.Menu>
           ) : (
             <Stack.Toolbar.Button
+              accessibilityLabel={t('navigation.uploaderInformation')}
               icon="person.crop.rectangle"
               tintColor={palette.primary}
               onPress={() =>

@@ -1,4 +1,5 @@
 import { IconCheck, IconGripVertical } from '@tabler/icons-react-native';
+import { useTranslation } from 'react-i18next';
 import {
   Pressable,
   StyleSheet,
@@ -48,6 +49,7 @@ export function BookCoverGridItem({
   rank,
   tileWidth,
 }: BookCoverGridItemProps) {
+  const { t } = useTranslation('book');
   const styles = useBookCoverGridItemStyles();
   const categoryBadge = resolveBookCategoryBadge(book.category);
   const levelBadge = resolveBookLevelBadge({
@@ -75,7 +77,7 @@ export function BookCoverGridItem({
         ]}
       >
         <BookCoverImage
-          accessibilityLabel={`${book.title} cover`}
+          accessibilityLabel={t('cover.accessibility', { title: book.title })}
           {...(animateCachedImage === undefined ? {} : { animateCachedImage })}
           blurHash={book.coverPlaceholder}
           source={book.coverUrl}

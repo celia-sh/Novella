@@ -1,6 +1,7 @@
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { IconChevronRight, IconSpeakerphone } from '@tabler/icons-react-native';
 import { Skeleton } from 'heroui-native';
+import { useTranslation } from 'react-i18next';
 import {
   Pressable,
   ScrollView,
@@ -21,10 +22,11 @@ import {
   BOOK_COVER_ASPECT_RATIO,
   BookCoverGridItem,
 } from '@/components/book-cover-grid-item';
-import { DiscoverNavigation } from '@/components/discover-navigation';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { SectionCard } from '@/components/section-card';
 import { useBookGridLayout, BOOK_GRID_COLUMN_GAP } from '@/hooks/use-book-grid-layout';
+import { useAppLocale } from '@/localization/localization-provider';
+import type { LibraryMessage } from '@/localization/locales/library';
 import { useHomeComicPreview } from '@/hooks/use-comic-list';
 import { useHomeRanking } from '@/hooks/use-ranking';
 import {
@@ -34,6 +36,7 @@ import {
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 export function HomeScreen() {
+  const { t } = useTranslation('library');
   const styles = useHomeScreenStyles();
   const { colors } = useAppTheme();
   const {
@@ -49,10 +52,11 @@ export function HomeScreen() {
 
   return (
     <>
+      <Stack.Screen options={{ title: t('discovery.title') }} />
       <NativeScreenScaffold
         actions={[
           {
-            accessibilityLabel: 'Profile and settings',
+            accessibilityLabel: t('discovery.profileAndSettings'),
             icon: 'userCircle',
             id: 'profile-settings',
           },
@@ -60,7 +64,7 @@ export function HomeScreen() {
         onActionPress={(id) => {
           if (id === 'profile-settings') openProfileAndSettings();
         }}
-        title="Discover"
+        title={t('discovery.title')}
       >
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
@@ -71,14 +75,14 @@ export function HomeScreen() {
         >
           <RankingSection />
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>All novels</Text>
+            <Text style={styles.sectionTitle}>{t('discovery.allNovels')}</Text>
             <Pressable
-              accessibilityLabel="See all novels"
+              accessibilityLabel={t('discovery.seeAllNovels')}
               accessibilityRole="button"
               onPress={() => router.push('/books')}
               style={({ pressed }) => [styles.seeAllButton, pressed && styles.pressed]}
             >
-              <Text style={styles.seeAllLabel}>See all</Text>
+              <Text style={styles.seeAllLabel}>{t('discovery.seeAll')}</Text>
               <IconChevronRight color={colors.accent as string} size={18} strokeWidth={2.2} />
             </Pressable>
           </View>
@@ -89,40 +93,46 @@ export function HomeScreen() {
           <OnlineInfoSection onRetry={retryOnlineInfo} state={onlineInfo} />
         </ScrollView>
       </NativeScreenScaffold>
-      <DiscoverNavigation />
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          accessibilityLabel={t('discovery.profileAndSettings')}
+          icon="person.crop.circle"
+          onPress={openProfileAndSettings}
+        />
+      </Stack.Toolbar>
     </>
   );
 }
 
-const RANK_PERIOD_LABELS: Record<RankPeriod, string> = {
-  daily: 'Daily',
-  weekly: 'Weekly',
-  monthly: 'Monthly',
-};
-
 function RankingSection() {
+  const { t } = useTranslation('library');
   const styles = useHomeScreenStyles();
   const { colors } = useAppTheme();
   const { books, error, period, reload, retry, status } = useHomeRanking();
   const { columns, contentWidth, tileWidth } = useBookGridLayout(20);
   const previewBooks = books.slice(0, columns * 2);
+  const periodLabels: Record<RankPeriod, string> = {
+    daily: t('discovery.periods.daily'),
+    weekly: t('discovery.periods.weekly'),
+    monthly: t('discovery.periods.monthly'),
+  };
 
   return (
     <>
       <View style={styles.sectionHeader}>
         <View style={styles.rankTitleRow}>
-          <Text style={styles.sectionTitle}>Rankings</Text>
+          <Text style={styles.sectionTitle}>{t('discovery.rankings')}</Text>
           <View style={styles.rankPeriodBadge}>
-            <Text style={styles.rankPeriodLabel}>{RANK_PERIOD_LABELS[period]}</Text>
+            <Text style={styles.rankPeriodLabel}>{periodLabels[period]}</Text>
           </View>
         </View>
         <Pressable
-          accessibilityLabel="See all rankings"
+          accessibilityLabel={t('discovery.seeAllRankings')}
           accessibilityRole="button"
           onPress={() => router.push('/ranking')}
           style={({ pressed }) => [styles.seeAllButton, pressed && styles.pressed]}
         >
-          <Text style={styles.seeAllLabel}>See all</Text>
+          <Text style={styles.seeAllLabel}>{t('discovery.seeAll')}</Text>
           <IconChevronRight color={colors.accent as string} size={18} strokeWidth={2.2} />
         </Pressable>
       </View>
@@ -135,15 +145,15 @@ function RankingSection() {
         />
       ) : status === 'error' && books.length === 0 ? (
         <SectionError
-          description={error ?? 'The rankings are unavailable.'}
+          description={error ?? t('discovery.rankingUnavailable')}
           onRetry={retry}
-          title="Unable to load rankings"
+          title={t('discovery.rankingLoadTitle')}
         />
       ) : previewBooks.length === 0 ? (
         <SectionCard>
-          <Text style={styles.cardTitle}>No rankings</Text>
+          <Text style={styles.cardTitle}>{t('discovery.noRankings')}</Text>
           <Text style={styles.cardDescription}>
-            There is no ranking data for this period right now.
+            {t('discovery.noRankingsDescription')}
           </Text>
           {status === 'error' && error ? (
             <StaleError message={error} onRetry={reload} />
@@ -172,6 +182,7 @@ function LatestBooksSection({
   onRetry(): void;
   state: DiscoverySectionState<BookListPage>;
 }) {
+  const { t } = useTranslation('library');
   const styles = useHomeScreenStyles();
   const { columns, contentWidth, tileWidth } = useBookGridLayout(20);
 
@@ -188,9 +199,9 @@ function LatestBooksSection({
   if (state.data === null) {
     return (
       <SectionError
-        description={state.error ?? 'The catalog is unavailable.'}
+        description={state.error ?? t('discovery.catalogUnavailable')}
         onRetry={onRetry}
-        title="Unable to load novels"
+        title={t('discovery.novelLoadTitle')}
       />
     );
   }
@@ -200,9 +211,9 @@ function LatestBooksSection({
   if (books.length === 0) {
     return (
       <SectionCard>
-        <Text style={styles.cardTitle}>No novels</Text>
+        <Text style={styles.cardTitle}>{t('discovery.noNovels')}</Text>
         <Text style={styles.cardDescription}>
-          The catalog has no novels to show right now.
+          {t('discovery.noNovelsDescription')}
         </Text>
         {state.status === 'error' ? <StaleError message={state.error} onRetry={onRetry} /> : null}
       </SectionCard>
@@ -223,6 +234,7 @@ function LatestBooksSection({
 }
 
 function ComicsSection() {
+  const { t } = useTranslation('library');
   const styles = useHomeScreenStyles();
   const { colors } = useAppTheme();
   const { books, error, reload, retry, status } = useHomeComicPreview();
@@ -231,14 +243,14 @@ function ComicsSection() {
   return (
     <>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>All comics</Text>
+        <Text style={styles.sectionTitle}>{t('discovery.allComics')}</Text>
         <Pressable
-          accessibilityLabel="See all comics"
+          accessibilityLabel={t('discovery.seeAllComics')}
           accessibilityRole="button"
           onPress={() => router.push('/comics')}
           style={({ pressed }) => [styles.seeAllButton, pressed && styles.pressed]}
         >
-          <Text style={styles.seeAllLabel}>See all</Text>
+          <Text style={styles.seeAllLabel}>{t('discovery.seeAll')}</Text>
           <IconChevronRight color={colors.accent as string} size={18} strokeWidth={2.2} />
         </Pressable>
       </View>
@@ -251,15 +263,15 @@ function ComicsSection() {
         />
       ) : status === 'error' && books.length === 0 ? (
         <SectionError
-          description={error ?? 'The comic catalog is unavailable.'}
+          description={error ?? t('discovery.comicCatalogUnavailable')}
           onRetry={retry}
-          title="Unable to load comics"
+          title={t('discovery.comicLoadTitle')}
         />
       ) : books.length === 0 ? (
         <SectionCard>
-          <Text style={styles.cardTitle}>No comics</Text>
+          <Text style={styles.cardTitle}>{t('discovery.noComics')}</Text>
           <Text style={styles.cardDescription}>
-            The catalog has no comics to show right now.
+            {t('discovery.noComicsDescription')}
           </Text>
           {status === 'error' && error ? <StaleError message={error} onRetry={reload} /> : null}
         </SectionCard>
@@ -285,11 +297,12 @@ function AnnouncementsSection({
   onRetry(): void;
   state: DiscoverySectionState<AnnouncementPage>;
 }) {
+  const { t } = useTranslation('library');
   const styles = useHomeScreenStyles();
   const { colors } = useAppTheme();
   return (
     <SectionCard>
-      <Text style={styles.sectionTitle}>Announcements</Text>
+      <Text style={styles.sectionTitle}>{t('discovery.announcements')}</Text>
       {state.data === null && state.status === 'loading' ? (
         <View
           accessibilityElementsHidden
@@ -302,12 +315,12 @@ function AnnouncementsSection({
         </View>
       ) : state.data === null ? (
         <InlineSectionError
-          message={state.error ?? 'Announcements are unavailable.'}
+          message={state.error ?? t('discovery.announcementsUnavailable')}
           onRetry={onRetry}
         />
       ) : state.data.items.length === 0 ? (
         <View style={styles.placeholderStack}>
-          <Text style={styles.cardDescription}>No announcements.</Text>
+          <Text style={styles.cardDescription}>{t('discovery.noAnnouncements')}</Text>
           {state.status === 'error' ? <StaleError message={state.error} onRetry={onRetry} /> : null}
         </View>
       ) : (
@@ -334,10 +347,11 @@ function OnlineInfoSection({
   onRetry(): void;
   state: DiscoverySectionState<OnlineInfo>;
 }) {
+  const { t } = useTranslation('library');
   const styles = useHomeScreenStyles();
   return (
     <SectionCard>
-      <Text style={styles.sectionTitle}>Service status</Text>
+      <Text style={styles.sectionTitle}>{t('discovery.serviceStatus')}</Text>
       {state.data === null && state.status === 'loading' ? (
         <View
           accessibilityElementsHidden
@@ -350,15 +364,15 @@ function OnlineInfoSection({
         </View>
       ) : state.data === null ? (
         <InlineSectionError
-          message={state.error ?? 'Service status is unavailable.'}
+          message={state.error ?? t('discovery.serviceStatusUnavailable')}
           onRetry={onRetry}
         />
       ) : (
         <View style={styles.placeholderStack}>
           <View style={styles.metricsRow}>
-            <StatusMetric label="Online" value={state.data.onlineUserCount} />
-            <StatusMetric label="Today" value={state.data.dayCount} />
-            <StatusMetric label="New users" value={state.data.dayRegister} />
+            <StatusMetric label={t('discovery.online')} value={state.data.onlineUserCount} />
+            <StatusMetric label={t('discovery.today')} value={state.data.dayCount} />
+            <StatusMetric label={t('discovery.newUsers')} value={state.data.dayRegister} />
           </View>
           {state.status === 'error' ? <StaleError message={state.error} onRetry={onRetry} /> : null}
         </View>
@@ -493,7 +507,7 @@ function SectionError({
   onRetry,
   title,
 }: {
-  description: string;
+  description: LibraryMessage | string;
   onRetry(): void;
   title: string;
 }) {
@@ -501,57 +515,82 @@ function SectionError({
   return (
     <SectionCard>
       <Text style={styles.cardTitle}>{title}</Text>
-      <Text selectable style={styles.cardDescription}>{description}</Text>
+      <LocalizedMessage message={description} textStyle={styles.cardDescription} />
       <RetryButton onPress={onRetry} />
     </SectionCard>
   );
 }
 
-function InlineSectionError({ message, onRetry }: { message: string; onRetry(): void }) {
+function InlineSectionError({ message, onRetry }: { message: LibraryMessage | string; onRetry(): void }) {
   const styles = useHomeScreenStyles();
   return (
     <View style={styles.inlineError}>
-      <Text selectable style={styles.cardDescription}>{message}</Text>
+      <LocalizedMessage message={message} textStyle={styles.cardDescription} />
       <RetryButton onPress={onRetry} />
     </View>
   );
 }
 
-function StaleError({ message, onRetry }: { message: string; onRetry(): void }) {
+function StaleError({ message, onRetry }: { message: LibraryMessage; onRetry(): void }) {
+  const { t } = useTranslation('library');
   const styles = useHomeScreenStyles();
+  const text = message.kind === 'raw' ? message.text : t(message.key);
   return (
     <Pressable
-      accessibilityLabel="Refresh this section"
+      accessibilityLabel={t('discovery.refreshSection')}
       accessibilityRole="button"
       onPress={onRetry}
       style={({ pressed }) => [styles.staleError, pressed && styles.pressed]}
     >
-      <Text selectable style={styles.staleErrorText}>{message} Tap to retry.</Text>
+      <Text selectable style={styles.staleErrorText}>
+        {t('discovery.staleRetry', { message: text })}
+      </Text>
     </Pressable>
   );
 }
 
 function RetryButton({ onPress }: { onPress(): void }) {
+  const { t } = useTranslation('common');
   const styles = useHomeScreenStyles();
   return (
     <Pressable
-      accessibilityLabel="Try again"
+      accessibilityLabel={t('accessibility.retry')}
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [styles.outlinedButton, pressed && styles.pressed]}
     >
-      <Text style={styles.outlinedButtonLabel}>Try again</Text>
+      <Text style={styles.outlinedButtonLabel}>{t('actions.retry')}</Text>
     </Pressable>
   );
 }
 
 function StatusMetric({ label, value }: { label: string; value: number }) {
+  const locale = useAppLocale();
   const styles = useHomeScreenStyles();
   return (
     <View style={styles.metric}>
-      <Text style={styles.metricValue}>{String(value)}</Text>
+      <Text style={styles.metricValue}>{new Intl.NumberFormat(locale).format(value)}</Text>
       <Text style={styles.metadata}>{label}</Text>
     </View>
+  );
+}
+
+function LocalizedMessage({
+  message,
+  textStyle,
+}: {
+  message: LibraryMessage | string;
+  textStyle: object;
+}) {
+  const { t } = useTranslation('library');
+  return (
+    <Text selectable style={textStyle}>
+      {typeof message === 'string'
+        ? message
+        : message.kind === 'raw'
+          ? message.text
+          : t(message.key)}
+    </Text>
   );
 }
 

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { IconSearch, IconTrash } from '@tabler/icons-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FlatList,
   Keyboard,
@@ -25,6 +26,7 @@ import {
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
+import type { LibraryMessage } from '@/localization/locales/library';
 import {
   NativeSearchControls,
 } from '@/components/native-search-controls';
@@ -50,6 +52,7 @@ export function BookSearchScreen({
   initialQuery = '',
   showBackButton = false,
 }: BookSearchScreenProps) {
+  const { t } = useTranslation('library');
   const styles = useBookSearchScreenStyles();
   const { colors } = useAppTheme();
   const search = useBookSearch();
@@ -93,13 +96,13 @@ export function BookSearchScreen({
     <NativeScreenScaffold
       actions={[
         {
-          accessibilityLabel: 'Search mode',
+          accessibilityLabel: t('search.modeAccessibility'),
           icon: 'adjustmentsHorizontal',
           id: 'search-mode',
           menuItems: BOOK_SEARCH_MODE_OPTIONS.map((option) => ({
             icon: option.androidIcon,
             id: `search-mode:${option.value}`,
-            label: option.label,
+            label: t(option.labelKey),
             selected: search.mode === option.value,
           })),
         },
@@ -114,7 +117,7 @@ export function BookSearchScreen({
         }
       }}
       showBackButton={showBackButton}
-      title="Search"
+      title={t('search.title')}
     >
       <FlatList
         ListEmptyComponent={
@@ -146,15 +149,15 @@ export function BookSearchScreen({
             {visibleStatus === 'idle' && search.history.length > 0 ? (
               <View style={styles.historySection}>
                 <View style={styles.historyHeader}>
-                  <Text style={styles.sectionTitle}>Recent searches</Text>
-                  <Pressable accessibilityLabel="Clear search history" onPress={() => void search.clearHistory()}>
+                  <Text style={styles.sectionTitle}>{t('search.recent')}</Text>
+                  <Pressable accessibilityLabel={t('search.clearHistory')} onPress={() => void search.clearHistory()}>
                     <IconTrash color={colors.secondaryLabel as string} size={18} />
                   </Pressable>
                 </View>
                 <View style={styles.historyWrap}>
                   {search.history.map((item) => (
                     <Pressable
-                      accessibilityLabel={`Search for ${item}`}
+                      accessibilityLabel={t('search.searchFor', { query: item })}
                       accessibilityRole="button"
                       key={item}
                       onLongPress={() => void search.removeHistory(item)}
@@ -172,7 +175,11 @@ export function BookSearchScreen({
             ) : null}
             {search.committedQuery && search.status !== 'loading' ? (
               <Text style={styles.resultSummary}>
-                {search.format === 'Novel' ? 'Novels' : 'Comics'} · page {Math.max(1, search.page)} of {Math.max(1, search.totalPages)}
+                {t('search.resultSummary', {
+                  format: search.format === 'Novel' ? t('formats.novels') : t('formats.comics'),
+                  page: Math.max(1, search.page),
+                  totalPages: Math.max(1, search.totalPages),
+                })}
               </Text>
             ) : null}
           </View>
@@ -236,21 +243,30 @@ function SearchEmpty({
   status,
 }: {
   committedQuery: string;
-  error: string | null;
+  error: LibraryMessage | null;
   hasHistory: boolean;
   onRetry(): void;
   status: string;
 }) {
+  const { t } = useTranslation('library');
+  const { t: tCommon } = useTranslation('common');
   const styles = useBookSearchScreenStyles();
   const { colors } = useAppTheme();
   if (status === 'loading' || status === 'loadingMore') return null;
   if (status === 'error') {
     return (
       <View style={styles.empty}>
-        <Text selectable style={styles.emptyTitle}>Search failed</Text>
-        <Text selectable style={styles.emptyText}>{error}</Text>
-        <Pressable accessibilityRole="button" onPress={onRetry} style={styles.retryButton}>
-          <Text style={styles.retryLabel}>Try again</Text>
+        <Text selectable style={styles.emptyTitle}>{t('search.failed')}</Text>
+        <Text selectable style={styles.emptyText}>
+          {error?.kind === 'raw' ? error.text : error ? t(error.key) : null}
+        </Text>
+        <Pressable
+          accessibilityLabel={tCommon('accessibility.retry')}
+          accessibilityRole="button"
+          onPress={onRetry}
+          style={styles.retryButton}
+        >
+          <Text style={styles.retryLabel}>{tCommon('actions.retry')}</Text>
         </Pressable>
       </View>
     );
@@ -258,8 +274,8 @@ function SearchEmpty({
   if (committedQuery) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyTitle}>No results</Text>
-        <Text style={styles.emptyText}>Try a different search mode or phrase.</Text>
+        <Text style={styles.emptyTitle}>{t('search.noResults')}</Text>
+        <Text style={styles.emptyText}>{t('search.noResultsDescription')}</Text>
       </View>
     );
   }
@@ -267,8 +283,8 @@ function SearchEmpty({
   return (
     <View style={styles.empty}>
       <IconSearch color={colors.secondaryLabel as string} size={34} strokeWidth={1.7} />
-      <Text style={styles.emptyTitle}>Search novels and comics</Text>
-      <Text style={styles.emptyText}>Choose a mode, then enter a title, author, series, or tag.</Text>
+      <Text style={styles.emptyTitle}>{t('search.emptyTitle')}</Text>
+      <Text style={styles.emptyText}>{t('search.emptyDescription')}</Text>
     </View>
   );
 }

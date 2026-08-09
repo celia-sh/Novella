@@ -1,6 +1,7 @@
 import { IconArrowBackUp, IconHeart, IconTrash } from '@tabler/icons-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { ColorValue } from 'react-native';
 
 import { ProfileAvatar } from '@/components/profile-avatar';
@@ -67,7 +68,8 @@ export function CommentThreadRow({
   userName,
   variant = 'comment',
 }: CommentThreadRowProps) {
-  const displayName = deleted ? 'Deleted user' : userName || 'Unknown user';
+  const { t } = useTranslation('community');
+  const displayName = deleted ? t('labels.deletedUser') : userName || t('labels.unknownUser');
   const isReply = variant === 'reply';
 
   if (isReply) {
@@ -94,10 +96,9 @@ export function CommentThreadRow({
           <Text style={[styles.replyIdentityText, { color: palette.label }]}>
             <Text style={[styles.replyName, { color: palette.label }]}>{displayName}</Text>
             {replyToName ? (
-              <>
-                <Text style={[styles.replyConnector, { color: palette.onSurfaceVariant }]}> replied to </Text>
-                <Text style={[styles.replyName, { color: palette.label }]}>{replyToName}</Text>
-              </>
+              <Text style={[styles.replyConnector, { color: palette.onSurfaceVariant }]}>
+                {' '}{t('labels.repliedTo', { name: replyToName })}
+              </Text>
             ) : null}
           </Text>
           {badge ? <CommentBadge label={badge} palette={palette} /> : null}
@@ -146,7 +147,9 @@ export function CommentThreadRow({
           {badge ? <CommentBadge label={badge} palette={palette} /> : null}
         </View>
         {replyToName ? (
-          <Text style={[styles.replyTo, { color: palette.accent }]}>Replying to {replyToName}</Text>
+          <Text style={[styles.replyTo, { color: palette.accent }]}>
+            {t('labels.replyingTo', { name: replyToName })}
+          </Text>
         ) : null}
         <Text selectable style={[styles.commentText, { color: palette.label }]}>
           {content.trim()}
@@ -209,6 +212,7 @@ export function CommentThreadActions({
   palette: CommentThreadPalette;
   variant?: 'comment' | 'reply';
 }) {
+  const { t } = useTranslation('community');
   const iconSize = variant === 'comment' ? 18 : 16;
   const disabled = actionsDisabled;
   return (
@@ -225,7 +229,7 @@ export function CommentThreadActions({
       <View style={styles.actionButtons}>
         {like ? (
           <Pressable
-            accessibilityLabel={like.liked ? 'Unlike comment' : 'Like comment'}
+            accessibilityLabel={like.liked ? t('accessibility.unlikeComment') : t('accessibility.likeComment')}
             accessibilityRole="button"
             accessibilityState={{ disabled: disabled || like.disabled, selected: like.liked }}
             disabled={disabled || like.disabled}
@@ -247,7 +251,7 @@ export function CommentThreadActions({
         ) : null}
         {onReply ? (
           <Pressable
-            accessibilityLabel="Reply"
+            accessibilityLabel={t('accessibility.replyComment')}
             accessibilityRole="button"
             accessibilityState={{ disabled: disabled || !canReply }}
             disabled={disabled || !canReply}
@@ -263,7 +267,7 @@ export function CommentThreadActions({
         ) : null}
         {canDelete && onDelete ? (
           <Pressable
-            accessibilityLabel="Delete comment"
+            accessibilityLabel={t('accessibility.deleteComment')}
             accessibilityRole="button"
             accessibilityState={{ disabled }}
             disabled={disabled}

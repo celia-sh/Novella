@@ -5,6 +5,7 @@ import {
 } from '@tabler/icons-react-native';
 import { Divider, Surface, TouchableRipple } from 'react-native-paper';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type {
   CommunityActiveUserItem,
@@ -12,6 +13,7 @@ import type {
 } from '@novella/api-client';
 
 import { ProfileAvatar } from '@/components/profile-avatar';
+import { useAppLocale } from '@/localization/localization-provider';
 import {
   formatCommunityCount,
   formatCommunityTime,
@@ -29,19 +31,21 @@ export function CommunityHotDiscussions({
 }) {
   const styles = useCommunityInsightsStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation('community');
+  const locale = useAppLocale();
 
   return (
     <Surface elevation={0} style={styles.surface}>
       <View style={styles.body}>
         <View style={styles.header}>
           <IconFlame color={colors.accent as string} size={18} strokeWidth={2} />
-          <Text style={styles.title}>Hot discussions</Text>
+          <Text style={styles.title}>{t('insights.hotDiscussions')}</Text>
         </View>
         {items.map((thread, index) => (
           <View key={thread.id}>
             {index > 0 ? <Divider style={styles.divider} /> : null}
             <TouchableRipple
-              accessibilityLabel={`Open ${thread.title}`}
+              accessibilityLabel={t('accessibility.openThread', { title: thread.title })}
               accessibilityRole="button"
               borderless
               onPress={() => onOpenThread(thread)}
@@ -52,7 +56,7 @@ export function CommunityHotDiscussions({
                 <View style={styles.copy}>
                   <Text numberOfLines={1} style={styles.rowTitle}>{thread.title}</Text>
                   <Text numberOfLines={2} style={styles.rowSubtitle}>
-                    {thread.boardName} · heat {formatCommunityCount(thread.heat)} · {formatCommunityTime(thread.publishedAt)}
+                    {thread.boardName} · {t('insights.heat', { countLabel: formatCommunityCount(thread.heat, locale) })} · {formatCommunityTime(thread.publishedAt, locale)}
                   </Text>
                 </View>
                 <IconChevronRight color={colors.secondaryLabel as string} size={18} strokeWidth={2} />
@@ -68,13 +72,15 @@ export function CommunityHotDiscussions({
 export function CommunityActiveMembers({ users }: { users: CommunityActiveUserItem[] }) {
   const styles = useCommunityInsightsStyles();
   const { colors } = useAppTheme();
+  const { t } = useTranslation('community');
+  const locale = useAppLocale();
 
   return (
     <Surface elevation={0} style={styles.surface}>
       <View style={styles.body}>
         <View style={styles.header}>
           <IconTrophy color={colors.accent as string} size={18} strokeWidth={2} />
-          <Text style={styles.title}>Active members</Text>
+          <Text style={styles.title}>{t('insights.activeMembers')}</Text>
         </View>
         {users.map((user, index) => (
           <View key={user.id}>
@@ -84,11 +90,11 @@ export function CommunityActiveMembers({ users }: { users: CommunityActiveUserIt
               <View style={styles.copy}>
                 <Text numberOfLines={1} style={styles.rowTitle}>{user.name}</Text>
                 <Text numberOfLines={2} style={styles.rowSubtitle}>
-                  {user.summary || user.badge || 'Community member'}
+                  {user.summary || user.badge || t('insights.communityMember')}
                 </Text>
               </View>
               <View style={styles.scoreBadge}>
-                <Text style={styles.scoreText}>{formatCommunityCount(user.score)}</Text>
+                <Text style={styles.scoreText}>{formatCommunityCount(user.score, locale)}</Text>
               </View>
             </View>
           </View>

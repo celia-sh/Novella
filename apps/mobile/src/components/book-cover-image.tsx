@@ -1,6 +1,7 @@
 import { Image, type ImageLoadEventData } from 'expo-image';
 import { IconBook2, IconPhotoOff } from '@tabler/icons-react-native';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Animated,
@@ -48,6 +49,7 @@ function BookCoverImageLayer({
   showLoading = true,
   source,
 }: BookCoverImageProps) {
+  const { t } = useTranslation('book');
   const styles = useBookCoverImageStyles();
   const { colors } = useAppTheme();
   const placeholder = createBookCoverBlurHashPlaceholder(blurHash);
@@ -174,7 +176,7 @@ function BookCoverImageLayer({
 
       {source && status === 'error' ? (
         <Pressable
-          accessibilityLabel={`${accessibilityLabel}. Reload image`}
+          accessibilityLabel={t('cover.reloadAccessibility', { label: accessibilityLabel })}
           accessibilityRole="button"
           onPress={(event) => {
             event.stopPropagation();
