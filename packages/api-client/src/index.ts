@@ -1296,7 +1296,11 @@ export class ApiClient {
   async getBookListByIds(ids: number[]): Promise<BookListItem[]> {
     const uniqueIds = normalizeBatchIds(ids);
     if (uniqueIds.length === 0) return Promise.resolve([]);
-    return this.invoke('GetBookListByIds', { Ids: uniqueIds }, decodeBookListItems);
+    return this.invoke(
+      'GetBookListByIds',
+      { Ids: uniqueIds },
+      decodeResolvableBookListItems,
+    );
   }
 
   async getComicSeriesByIds(ids: number[]): Promise<ComicSeriesListPage> {
@@ -1505,6 +1509,19 @@ export function decodeBookListPage(value: unknown): BookListPage {
 }
 
 export function decodeBookListItems(value: unknown): BookListItem[] {
+  return getRawBookListItems(value).map(decodeBookListItem);
+}
+
+function decodeResolvableBookListItems(value: unknown): BookListItem[] {
+  // GetBookListByIds preserves unresolved request positions with null-like
+  // placeholders. Omit those entries while keeping strict decoding for every
+  // record-shaped book returned by the server.
+  return getRawBookListItems(value)
+    .filter(isRecord)
+    .map(decodeBookListItem);
+}
+
+function getRawBookListItems(value: unknown): unknown[] {
   const rawItems = Array.isArray(value)
     ? value
     : isRecord(value) && Array.isArray(value.Data)
@@ -1513,7 +1530,7 @@ export function decodeBookListItems(value: unknown): BookListItem[] {
   if (rawItems === null) {
     throw new ApiError('Invalid book list items.', 'server');
   }
-  return rawItems.map(decodeBookListItem);
+  return rawItems;
 }
 
 export function decodeComicSeriesListPage(value: unknown): ComicSeriesListPage {

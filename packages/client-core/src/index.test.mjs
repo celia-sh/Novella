@@ -426,7 +426,10 @@ test('history hydrates novel order and comic series independently', async () => 
       return { novelIds: [3, 2, 1], comicIds: [9, 8] };
     },
     async getBookListByIds(ids) {
-      return [...ids].reverse().map((id) => ({ id, title: `Book ${id}` }));
+      return [...ids]
+        .reverse()
+        .filter((id) => id !== 2)
+        .map((id) => ({ id, title: `Book ${id}` }));
     },
     async getComicSeriesByIds() {
       return {
@@ -445,8 +448,8 @@ test('history hydrates novel order and comic series independently', async () => 
     novelIds: [3, 2, 1],
     comicIds: [9, 8],
   });
-  const novels = await useCase.loadNovelPage([3, 2, 1], 1, 2);
-  assert.deepEqual(novels.items.map((item) => item.id), [3, 2]);
+  const novels = await useCase.loadNovelPage([3, 2, 1], 1, 3);
+  assert.deepEqual(novels.items.map((item) => item.id), [3, 1]);
   const comics = await useCase.loadComicPage([9, 8], 1, 24);
   assert.equal(comics.items.length, 1);
   await useCase.clear();

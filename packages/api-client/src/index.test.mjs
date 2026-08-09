@@ -327,6 +327,41 @@ test('maps announcement list and detail to their Web-Master Hub contracts', asyn
   ]);
 });
 
+test('book id batches omit unresolved placeholders but reject malformed books', async () => {
+  let response = [{
+    Id: 3,
+    Title: 'Available book',
+    Cover: 'cover.jpg',
+    LastUpdatedAt: '2026-01-02T00:00:00.000Z',
+  }, null];
+  const client = new ApiClient(
+    { async request() { throw new Error('not used'); } },
+    {
+      async connect() {},
+      async close() {},
+      async invoke() {
+        return { Success: true, Response: response };
+      },
+    },
+    null,
+    new RateLimitRequestScheduler(20, 10),
+  );
+
+  const books = await client.getBookListByIds([3, 2]);
+  assert.deepEqual(books.map((book) => book.id), [3]);
+
+  response = [{
+    Id: 3,
+    Title: null,
+    Cover: 'cover.jpg',
+    LastUpdatedAt: '2026-01-02T00:00:00.000Z',
+  }];
+  await assert.rejects(
+    () => client.getBookListByIds([3]),
+    /invalid text field/i,
+  );
+});
+
 test('decodes dual-format history and comic history hydration', async () => {
   const calls = [];
   const client = new ApiClient(
