@@ -28,15 +28,6 @@ type QuickSearchBook = Pick<
   'authorName' | 'category' | 'classification' | 'title'
 >;
 
-export const SERIES_SEARCH_MODE_OPTIONS: readonly {
-  label: string;
-  value: SeriesSearchMode;
-}[] = [
-  { label: 'System', value: 'system' },
-  { label: 'Original', value: 'original' },
-  { label: 'Displayed', value: 'display' },
-];
-
 export function isSeriesSearchMode(value: unknown): value is SeriesSearchMode {
   return value === 'system' || value === 'original' || value === 'display';
 }

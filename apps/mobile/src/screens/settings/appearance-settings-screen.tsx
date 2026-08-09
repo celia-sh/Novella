@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { NativeGroupedList, NativeGroupedListSection } from '@/components/native-grouped-list';
 import { NativePickerRow, NativeToggleRow } from '@/components/native-setting-controls';
@@ -6,49 +7,65 @@ import { updateAppSettings, useAppSettings } from '@/services/settings';
 
 export function AppearanceSettingsScreen() {
   const settings = useAppSettings();
+  const { t } = useTranslation('settings');
 
   return (
     <NativeGroupedList
       onBackPress={() => router.back()}
       showBackButton
       testID="appearance-settings"
-      title="Appearance"
+      title={t('appearance.title')}
     >
-      <NativeGroupedListSection title="Theme">
+      <NativeGroupedListSection title={t('appearance.language.section')}>
         <NativePickerRow
-          description="Follow the device or choose a fixed appearance"
+          description={t('appearance.language.description')}
+          icon="language"
+          onValueChange={(value) => void updateAppSettings({ language: value })}
+          options={[
+            { label: t('appearance.language.options.system'), value: 'system' },
+            { label: t('appearance.language.options.simplifiedChinese'), value: 'zh-CN' },
+            { label: t('appearance.language.options.traditionalChinese'), value: 'zh-TW' },
+          ] as const}
+          selectedValue={settings.language}
+          title={t('appearance.language.title')}
+        />
+      </NativeGroupedListSection>
+
+      <NativeGroupedListSection title={t('appearance.theme.section')}>
+        <NativePickerRow
+          description={t('appearance.theme.description')}
           icon="theme"
           onValueChange={(value) => void updateAppSettings({ theme: value })}
           options={[
-            { label: 'System', value: 'system' },
-            { label: 'Light', value: 'light' },
-            { label: 'Dark', value: 'dark' },
+            { label: t('appearance.theme.options.system'), value: 'system' },
+            { label: t('appearance.theme.options.light'), value: 'light' },
+            { label: t('appearance.theme.options.dark'), value: 'dark' },
           ] as const}
           selectedValue={settings.theme}
-          title="App appearance"
+          title={t('appearance.theme.title')}
         />
         <NativeToggleRow
-          description="Use the cover color on book detail pages"
+          description={t('appearance.theme.coverColorDescription')}
           icon="coverColor"
           onValueChange={(value) => void updateAppSettings({ coverColorExtraction: value })}
-          title="Cover color extraction"
+          title={t('appearance.theme.coverColorTitle')}
           value={settings.coverColorExtraction}
         />
         {process.env.EXPO_OS === 'android' ? (
           <NativeToggleRow
-            description="Use the device wallpaper colors"
+            description={t('appearance.theme.systemColorsDescription')}
             icon="systemColors"
             onValueChange={(value) => void updateAppSettings({ useSystemColor: value })}
-            title="System colors"
+            title={t('appearance.theme.systemColorsTitle')}
             value={settings.useSystemColor}
           />
         ) : null}
         {process.env.EXPO_OS === 'android' ? (
           <NativeToggleRow
-            description="Use a pure black background in dark mode"
+            description={t('appearance.theme.oledBlackDescription')}
             icon="oledBlack"
             onValueChange={(value) => void updateAppSettings({ oledBlack: value })}
-            title="OLED black"
+            title={t('appearance.theme.oledBlackTitle')}
             value={settings.oledBlack}
           />
         ) : null}

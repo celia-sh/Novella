@@ -3,6 +3,8 @@ import { useEffect, useSyncExternalStore } from 'react';
 import type { RankPeriod } from '@novella/client-core';
 
 import { createExpoStorage } from '@/adapters/expo-runtime';
+import type { AppLanguage } from '@/localization/locale';
+import { decodeAppLanguage } from '@/localization/locale';
 import {
   decodeSeriesSearchMode,
   type SeriesSearchMode,
@@ -39,12 +41,6 @@ export function toggleCleanChapterTitleScope(
   return scopes.filter((item) => item !== scope);
 }
 
-export const RANK_PERIOD_OPTIONS: readonly { label: string; value: RankPeriod }[] = [
-  { label: 'Daily', value: 'daily' },
-  { label: 'Weekly', value: 'weekly' },
-  { label: 'Monthly', value: 'monthly' },
-];
-
 export function isRankPeriod(value: unknown): value is RankPeriod {
   return value === 'daily' || value === 'weekly' || value === 'monthly';
 }
@@ -61,6 +57,7 @@ export interface AppSettings {
   fontSize: number;
   homeRankType: RankPeriod;
   ignoreAI: boolean;
+  language: AppLanguage;
   ignoreJapanese: boolean;
   ignoreLevel6: boolean;
   oledBlack: boolean;
@@ -90,6 +87,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   homeRankType: 'weekly',
   ignoreAI: false,
   ignoreJapanese: false,
+  language: 'system',
   ignoreLevel6: true,
   oledBlack: process.env.EXPO_OS === 'ios',
   readerFirstLineIndent: false,
@@ -208,6 +206,7 @@ function decodeSettings(value: unknown): AppSettings {
     ...(typeof candidate.ignoreLevel6 === 'boolean'
       ? { ignoreLevel6: candidate.ignoreLevel6 }
       : {}),
+    language: decodeAppLanguage(candidate.language),
     ...(process.env.EXPO_OS === 'ios'
       ? { oledBlack: true }
       : typeof candidate.oledBlack === 'boolean'

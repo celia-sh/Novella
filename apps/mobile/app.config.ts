@@ -13,7 +13,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   scheme: 'novella',
   userInterfaceStyle: 'automatic',
   icon: './assets/icon.png',
+  locales: {
+    'zh-CN': './locales/zh-CN.json',
+    'zh-TW': './locales/zh-TW.json',
+  },
   plugins: [
+    [
+      'expo-localization',
+      {
+        supportedLocales: {
+          android: ['zh-CN', 'zh-TW'],
+          ios: ['zh-CN', 'zh-TW'],
+        },
+      },
+    ],
     'expo-router',
     'expo-dev-client',
     [
@@ -53,14 +66,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       // Android requests no READ_MEDIA_* granular permission.
       granularPermissions: [],
       photosPermission: false,
-      savePhotosPermission: 'Allow Novella to save images to your photo library.',
+      savePhotosPermission: '允许 Novella 将图片保存到你的照片图库。',
     }],
     'expo-sharing',
   ],
   extra: {
     // 运行时经 Constants.expoConfig.extra 读取，设置页展示构建渠道与标签。
     buildChannel: process.env.APP_BUILD_CHANNEL ?? 'local',
-    buildLabel: process.env.APP_BUILD_LABEL ?? 'Local Build',
+    buildLabel: process.env.APP_BUILD_LABEL ?? '',
   },
   ios: {
     bundleIdentifier: 'sh.celia.novella',
@@ -69,6 +82,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: true,
     // Icon Composer (iOS 26 Liquid Glass) 图标,覆盖顶层 icon。
     icon: './assets/Novella.icon',
+    infoPlist: {
+      CFBundleAllowMixedLocalizations: true,
+    },
   },
   android: {
     adaptiveIcon: {

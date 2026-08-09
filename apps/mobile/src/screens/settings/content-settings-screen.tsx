@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import {
   NativeGroupedList,
@@ -6,90 +7,94 @@ import {
   NativeGroupedListSection,
 } from '@/components/native-grouped-list';
 import { NativePickerRow, NativeToggleRow } from '@/components/native-setting-controls';
-import { SERIES_SEARCH_MODE_OPTIONS } from '@/services/book-quick-search';
-import {
-  RANK_PERIOD_OPTIONS,
-  updateAppSettings,
-  useAppSettings,
-} from '@/services/settings';
+import { updateAppSettings, useAppSettings } from '@/services/settings';
 
 export function ContentSettingsScreen() {
   const settings = useAppSettings();
+  const { t } = useTranslation('settings');
 
   return (
     <NativeGroupedList
       onBackPress={() => router.back()}
       showBackButton
       testID="content-settings"
-      title="Content"
+      title={t('content.title')}
     >
-      <NativeGroupedListSection title="Home">
+      <NativeGroupedListSection title={t('content.home.section')}>
         <NativePickerRow
-          description="Choose which leaderboard the home screen shows"
+          description={t('content.home.rankingDescription')}
           icon="ranking"
           onValueChange={(value) => void updateAppSettings({ homeRankType: value })}
-          options={RANK_PERIOD_OPTIONS}
+          options={[
+            { label: t('content.home.rankingOptions.daily'), value: 'daily' },
+            { label: t('content.home.rankingOptions.weekly'), value: 'weekly' },
+            { label: t('content.home.rankingOptions.monthly'), value: 'monthly' },
+          ] as const}
           selectedValue={settings.homeRankType}
-          title="Home ranking"
+          title={t('content.home.rankingTitle')}
         />
       </NativeGroupedListSection>
 
-      <NativeGroupedListSection title="Content filters">
+      <NativeGroupedListSection title={t('content.filters.section')}>
         <NativeToggleRow
-          description="Hide Japanese titles from discovery lists"
+          description={t('content.filters.japaneseDescription')}
           icon="japanese"
           onValueChange={(value) => void updateAppSettings({ ignoreJapanese: value })}
-          title="Hide Japanese content"
+          title={t('content.filters.japaneseTitle')}
           value={settings.ignoreJapanese}
         />
         <NativeToggleRow
-          description="Hide AI-tagged books from discovery lists"
+          description={t('content.filters.aiDescription')}
           icon="aiContent"
           onValueChange={(value) => void updateAppSettings({ ignoreAI: value })}
-          title="Hide AI content"
+          title={t('content.filters.aiTitle')}
           value={settings.ignoreAI}
         />
         <NativeToggleRow
-          description="Hide Level 6 books from discovery lists"
+          description={t('content.filters.level6Description')}
           icon="level6Content"
           onValueChange={(value) => void updateAppSettings({ ignoreLevel6: value })}
-          title="Hide Level 6 content"
+          title={t('content.filters.level6Title')}
           value={settings.ignoreLevel6}
         />
       </NativeGroupedListSection>
 
-      <NativeGroupedListSection title="Search">
+      <NativeGroupedListSection title={t('content.search.section')}>
         <NativePickerRow
-          description="Choose which series name detail-page quick search uses"
-          icon="search"
+          description={t('content.search.seriesDescription')}
+          icon="seriesSearch"
           onValueChange={(value) => void updateAppSettings({ seriesSearchMode: value })}
-          options={SERIES_SEARCH_MODE_OPTIONS}
+          options={[
+            { label: t('content.search.options.system'), value: 'system' },
+            { label: t('content.search.options.original'), value: 'original' },
+            { label: t('content.search.options.displayed'), value: 'display' },
+          ] as const}
           selectedValue={settings.seriesSearchMode}
-          title="Series search"
+          title={t('content.search.seriesTitle')}
         />
       </NativeGroupedListSection>
 
-      <NativeGroupedListSection title="Book badges">
+      <NativeGroupedListSection title={t('content.badges.section')}>
         <NativeGroupedListRow
-          description="Preview all book-cover badges and their meanings"
+          description={t('content.badges.description')}
           icon="badges"
           onPress={() => router.push('/settings/badges')}
-          title="Badge meanings"
+          title={t('content.badges.title')}
         />
       </NativeGroupedListSection>
 
-      <NativeGroupedListSection title="Text conversion">
+      <NativeGroupedListSection title={t('content.conversion.section')}>
         <NativePickerRow
-          description="Convert text while reading"
+          description={t('content.conversion.description')}
           icon="textConvert"
           onValueChange={(value) => void updateAppSettings({ convertType: value })}
           options={[
-            { label: 'Off', value: 'none' },
-            { label: 'Traditional to Simplified', value: 't2s' },
-            { label: 'Simplified to Traditional', value: 's2t' },
+            { label: t('content.conversion.options.off'), value: 'none' },
+            { label: t('content.conversion.options.traditionalToSimplified'), value: 't2s' },
+            { label: t('content.conversion.options.simplifiedToTraditional'), value: 's2t' },
           ] as const}
           selectedValue={settings.convertType}
-          title="Chinese conversion"
+          title={t('content.conversion.title')}
         />
       </NativeGroupedListSection>
     </NativeGroupedList>
