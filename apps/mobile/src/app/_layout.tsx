@@ -112,6 +112,8 @@ function RootLayoutContent() {
             }}
           />
           <Stack.Screen name="book/[id]/comments" options={{ headerShown: !usesComposeBottomSheets, title: t('routes.comments') }} />
+          <Stack.Screen name="announcements" options={{ headerShown: !usesComposeBottomSheets, title: t('routes.announcements') }} />
+          <Stack.Screen name="announcement/[source]/[id]" options={{ headerShown: !usesComposeBottomSheets, title: t('routes.announcementDetail') }} />
           <Stack.Screen name="books" options={{ headerShown: !usesComposeBottomSheets, title: t('routes.allNovels') }} />
           <Stack.Screen name="comics" options={{ headerShown: !usesComposeBottomSheets, title: t('routes.allComics') }} />
           <Stack.Screen name="ranking" options={{ headerShown: !usesComposeBottomSheets, title: t('routes.rankings') }} />
@@ -130,6 +132,23 @@ function RootLayoutContent() {
                 : {
                     sheetAllowedDetents: 'fitToContents',
                     sheetGrabberVisible: true,
+                  }),
+              headerShown: false,
+              presentation: usesComposeBottomSheets ? 'transparentModal' : 'formSheet',
+              title: '',
+            }}
+          />
+          <Stack.Screen
+            name="announcement/comment-compose"
+            options={{
+              ...(usesComposeBottomSheets
+                ? {
+                    animation: 'none',
+                    contentStyle: { backgroundColor: 'transparent' },
+                  }
+                : {
+                    sheetAllowedDetents: 'fitToContents',
+                    sheetGrabberVisible: false,
                   }),
               headerShown: false,
               presentation: usesComposeBottomSheets ? 'transparentModal' : 'formSheet',

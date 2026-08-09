@@ -1,6 +1,5 @@
 import {
   IconAlertCircle,
-  IconArrowUpRight,
   IconArrowsSort,
   IconBookmark,
   IconCalendarWeek,
@@ -25,7 +24,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import {
-  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -378,33 +376,27 @@ function CommunityAnnouncementBanner({ home }: { home: CommunityHomePayload }) {
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
   if (!home.announcement) return null;
-  const canOpen = /^https:\/\//i.test(home.announcementLink);
 
   return (
     <Surface elevation={0} style={styles.announcementSurface}>
-      <TouchableRipple
-        accessibilityLabel={`${t('home.announcement')}：${home.announcement}`}
-        accessibilityRole={canOpen ? 'link' : 'text'}
-        borderless
-        disabled={!canOpen}
-        onPress={() => {
-          if (canOpen) void Linking.openURL(home.announcementLink);
-        }}
-        style={styles.announcementRipple}
-      >
-        <View style={styles.announcementBody}>
-          <View style={styles.announcementIconBox}>
-            <IconSpeakerphone color={colors.onPrimaryContainer as string} size={18} strokeWidth={2} />
-          </View>
-          <View style={styles.announcementCopy}>
-            <Text style={styles.announcementLabel}>{t('home.announcement')}</Text>
-            <Text style={styles.announcementText}>{home.announcement}</Text>
-          </View>
-          {canOpen ? (
-            <IconArrowUpRight color={colors.secondaryLabel as string} size={18} strokeWidth={2} />
-          ) : null}
+      <View style={styles.announcementBody}>
+        <View style={styles.announcementIconBox}>
+          <IconSpeakerphone color={colors.onPrimaryContainer as string} size={18} strokeWidth={2} />
         </View>
-      </TouchableRipple>
+        <View style={styles.announcementCopy}>
+          <Text style={styles.announcementLabel}>{t('home.announcement')}</Text>
+          <Text style={styles.announcementText}>{home.announcement}</Text>
+        </View>
+        <Pressable
+          accessibilityLabel={t('announcements.accessibility.openCenter')}
+          accessibilityRole="button"
+          onPress={() => router.push('/announcements')}
+          style={({ pressed }) => [styles.announcementViewAll, pressed && styles.pillPressed]}
+        >
+          <Text style={styles.announcementViewAllText}>{t('announcements.viewAll')}</Text>
+          <IconChevronRight color={colors.accent as string} size={17} strokeWidth={2} />
+        </Pressable>
+      </View>
     </Surface>
   );
 }
@@ -964,7 +956,6 @@ const useCommunityHomeStyles = createThemedStyles((colors) => ({
     width: 34,
   },
   announcementLabel: { color: colors.label, fontSize: 13, fontWeight: '700' },
-  announcementRipple: { borderCurve: 'continuous', borderRadius: 18 },
   announcementSkeleton: { borderCurve: 'continuous', borderRadius: 18, height: 70 },
   announcementSurface: {
     backgroundColor: colors.card,
@@ -975,6 +966,8 @@ const useCommunityHomeStyles = createThemedStyles((colors) => ({
     overflow: 'hidden',
   },
   announcementText: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 19 },
+  announcementViewAll: { alignItems: 'center', flexDirection: 'row', gap: 2, paddingVertical: 8 },
+  announcementViewAllText: { color: colors.accent, fontSize: 13, fontWeight: '700' },
   avatar: { overflow: 'hidden' },
   avatarLabel: { fontSize: 14, fontWeight: '700' },
   boardStrip: { paddingTop: 8 },

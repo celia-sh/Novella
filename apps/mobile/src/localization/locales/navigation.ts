@@ -15,6 +15,8 @@ export const zhCNNavigation = {
   routes: {
     search: '搜索',
     comments: '评论',
+    announcements: '公告',
+    announcementDetail: '公告详情',
     allNovels: '全部小说',
     allComics: '全部漫画',
     rankings: '排行榜',
@@ -45,6 +47,8 @@ export const zhTWNavigation: TranslationShape<typeof zhCNNavigation> = {
   routes: {
     search: '搜尋',
     comments: '留言',
+    announcements: '公告',
+    announcementDetail: '公告詳細內容',
     allNovels: '全部小說',
     allComics: '全部漫畫',
     rankings: '排行榜',
