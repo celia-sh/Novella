@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { CustomTextualRenderer } from 'react-native-render-html';
 
 import { createThemedStyles } from '@/theme/app-theme';
@@ -8,6 +9,7 @@ export function createReaderFootnoteRenderer(
   onOpenFootnote?: (id: string) => void,
 ): CustomTextualRenderer {
   return function ReaderFootnoteRenderer({ TDefaultRenderer, tnode, ...props }) {
+    const { t } = useTranslation('reader');
     const styles = useReaderFootnoteRendererStyles();
     const id = tnode.attributes['data-reader-footnote-id'];
     const note = id ? notesById[id] : undefined;
@@ -22,8 +24,8 @@ export function createReaderFootnoteRenderer(
         {...(onOpenFootnote ? { onPress: () => onOpenFootnote(id) } : {})}
         textProps={{
           ...props.textProps,
-          accessibilityHint: 'Opens the footnote in a sheet',
-          accessibilityLabel: 'Open footnote',
+          accessibilityHint: t('accessibility.openFootnoteHint'),
+          accessibilityLabel: t('accessibility.openFootnote'),
           accessibilityRole: 'button',
           selectable: false,
           style: [

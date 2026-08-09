@@ -1,5 +1,6 @@
 import { Image, type ImageLoadEventData } from 'expo-image';
 import { useMemo, useState, type ReactElement } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Pressable,
@@ -45,6 +46,7 @@ export function createReaderHtmlImageRenderer({
     tnode,
     ...rendererProps
   }): ReactElement {
+    const { t } = useTranslation('reader');
     if (tnode.hasClass(FOOTNOTE_CLASS)) {
       return <InternalRenderer {...rendererProps} tnode={tnode} />;
     }
@@ -57,7 +59,7 @@ export function createReaderHtmlImageRenderer({
 
     return (
       <ReaderHtmlImage
-        accessibilityLabel={tnode.attributes.alt?.trim() || 'Chapter illustration'}
+        accessibilityLabel={tnode.attributes.alt?.trim() || t('images.illustration')}
         alignment={layout.alignment}
         contentWidth={contentWidth}
         {...(known ? { dimensions: known } : {})}
@@ -104,6 +106,7 @@ function ReaderHtmlImage({
   pageFrame: boolean;
   source: string;
 }) {
+  const { t } = useTranslation('reader');
   const styles = useReaderHtmlImageStyles();
   const { colors } = useAppTheme();
   const uri = resolveReaderImageUrl(source);
@@ -155,7 +158,9 @@ function ReaderHtmlImage({
   return (
     <View style={[styles.frame, { alignItems: alignment, width: grouped ? size.width : '100%' }]}>
       <Pressable
-        accessibilityLabel={failed ? `${accessibilityLabel}. Reload image` : accessibilityLabel}
+        accessibilityLabel={failed
+          ? t('images.reloadAccessibility', { label: accessibilityLabel })
+          : accessibilityLabel}
         accessibilityRole={failed ? 'button' : 'image'}
         disabled={!failed}
         onPress={() => {
@@ -193,7 +198,7 @@ function ReaderHtmlImage({
         ) : null}
         {failed ? (
           <View style={[styles.overlay, overlayFrame]}>
-            <Text selectable style={styles.errorText}>Image unavailable · Tap to retry</Text>
+            <Text selectable style={styles.errorText}>{t('images.unavailableRetry')}</Text>
           </View>
         ) : null}
       </Pressable>

@@ -1,6 +1,7 @@
 import { router, useNavigation } from 'expo-router';
 import { useRoute } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NovellaReadiumViewHandle, ReadiumLinkEvent, ReadiumLocator, ReadiumStatusEvent } from '../../modules/novella-readium';
@@ -19,7 +20,7 @@ import { ReaderImagePreview, type ReaderImagePreviewSource } from '@/components/
 import { ReaderNavigation } from '@/components/reader-navigation';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
 import { createReaderChromeInsets } from '@/services/reader-chrome-layout';
-import { useReaderChapter } from '@/hooks/use-reader-chapter';
+import { useReaderChapter, type ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
 import { useReaderFont } from '@/hooks/use-reader-font';
 import { useReadiumPublication } from '@/hooks/use-readium-publication';
@@ -59,6 +60,7 @@ export interface ReaderScreenProps {
 const NATIVE_READER_LOAD_TIMEOUT_MS = 15_000;
 
 export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: ReaderScreenProps) {
+  const { t } = useTranslation('reader');
   const insets = useSafeAreaInsets();
   const settings = useAppSettings();
   const navigation = useNavigation<{
@@ -69,7 +71,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const [mode, setMode] = useState<ReaderMode>(settings.readerViewMode);
   const [previewSource, setPreviewSource] = useState<ReaderImagePreviewSource | null>(null);
   const [nativeAttempt, setNativeAttempt] = useState(0);
-  const [nativeError, setNativeError] = useState<string | null>(null);
+  const [nativeError, setNativeError] = useState<ReaderUserMessage | null>(null);
   const [nativeReady, setNativeReady] = useState(false);
   const conversion = settings.convertType === 'none' ? undefined : settings.convertType;
   const { content, error, isLoading, reload } = useReaderChapter(
@@ -128,7 +130,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   useEffect(() => {
     if (!preparedPublication || !content || nativeReady || nativeError) return;
     const timeout = setTimeout(() => {
-      setNativeError('Readium did not finish loading the current chapter.');
+      setNativeError({ kind: 'key', key: 'errors.readiumTimeout' });
     }, NATIVE_READER_LOAD_TIMEOUT_MS);
     return () => clearTimeout(timeout);
   }, [content, nativeError, nativeReady, preparedPublication]);
@@ -364,17 +366,21 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     if (link.href.startsWith('#')) openFootnote(link.href.slice(1));
   }, [bookId, fontDataUrl, openFootnote, openReadiumChapterHref]);
 
+  const chapterError = error ?? publication.error;
+  const translateMessage = (message: ReaderUserMessage) =>
+    message.kind === 'raw' ? message.text : t(message.key);
+
   return (
     <>
       <View
         style={[styles.root, { backgroundColor: readerBackground }]}
       >
         {requiresReaderFont && readerFont.status === 'error' ? (
-          <ReaderErrorState message="The chapter font could not be loaded, so the encoded text is unavailable." onRetry={readerFont.retry} />
-        ) : error || publication.error ? (
-          <ReaderErrorState message={error ?? publication.error ?? 'The chapter could not be prepared.'} onRetry={error ? reload : publication.retry} />
+          <ReaderErrorState message={t('errors.fontLoad')} onRetry={readerFont.retry} />
+        ) : chapterError ? (
+          <ReaderErrorState message={translateMessage(chapterError)} onRetry={error ? reload : publication.retry} />
         ) : nativeError ? (
-          <ReaderErrorState message={nativeError} onRetry={retryNativeReader} />
+          <ReaderErrorState message={translateMessage(nativeError)} onRetry={retryNativeReader} />
         ) : isLoading || fontLoading || publication.status === 'loading' || (content && !preparedPublication) ? (
           <View style={styles.centered}><ActivityIndicator color={colors.accent as string} /></View>
         ) : content && preparedPublication && initialLocator ? (
@@ -388,7 +394,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               onImage={(image) => setPreviewSource(image.alt ? { uri: image.uri, alt: image.alt } : { uri: image.uri })}
               onLink={openReadiumLink}
               onLocatorChange={savePosition}
-              onError={({ message }) => setNativeError(message)}
+              onError={({ message }) => setNativeError({ kind: 'raw', text: message })}
               onReady={() => setNativeReady(true)}
               onStatus={reportReadiumStatus}
               preferences={readerPreferences}
@@ -420,7 +426,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
           pathname: '/reader/[bookId]/settings',
           params: { bookId: String(bookId), readerKey: route.key, sortNum: String(sortNum), type: 'Novel' },
         })}
-        title={readerTitle || 'Reader'}
+        title={readerTitle || t('titles.reader')}
       />
       <ReaderChapterNavigation
         backgroundColor={readerBackground}

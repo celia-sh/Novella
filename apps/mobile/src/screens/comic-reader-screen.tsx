@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { router, useNavigation } from 'expo-router';
 import { useRoute } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FlatList,
   Pressable,
@@ -11,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { ComicContent, ComicInfo } from '@novella/api-client';
+import { ApiError, type ComicContent, type ComicInfo } from '@novella/api-client';
 import { createComicPageSlots, mergeComicPageBatch, resolveReaderInitialIndex, resolveReaderRestorePosition, type ComicPageSlot, type ReaderMode, type ReaderOpenPosition } from '@novella/reader-engine';
 
 import { createComicBlurHashPlaceholder } from '@/services/blurhash';
@@ -39,6 +40,7 @@ import {
   stageReaderProgress,
   syncReaderProgress,
 } from '@/services/reader-progress-sync';
+import type { ReaderMessageKey, ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { useReaderLifecycleSave } from '@/hooks/use-reader-lifecycle-save';
 import { useReaderPositionSaver } from '@/hooks/use-reader-position-saver';
 import { updateAppSettings, useAppSettings } from '@/services/settings';
@@ -54,6 +56,16 @@ interface ComicProgressInput {
   index: number;
 }
 
+class ComicReaderKnownError extends Error {
+  readonly messageKey: ReaderMessageKey;
+
+  constructor(messageKey: ReaderMessageKey) {
+    super(messageKey);
+    this.name = 'ComicReaderKnownError';
+    this.messageKey = messageKey;
+  }
+}
+
 export interface ComicReaderScreenProps {
   bookId: number;
   sortNum: number;
@@ -61,6 +73,7 @@ export interface ComicReaderScreenProps {
 }
 
 export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: ComicReaderScreenProps) {
+  const { t } = useTranslation('reader');
   const { colors } = useAppTheme();
   const { height: windowHeight, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -88,7 +101,7 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
   const [info, setInfo] = useState<ComicInfo | null>(null);
   const [chapter, setChapter] = useState<ComicContent | null>(null);
   const [slots, setSlots] = useState<ComicPageSlot[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ReaderUserMessage | null>(null);
   const [loading, setLoading] = useState(true);
   const loadingBatchesRef = useRef(new Set<string>());
   const failedBatchesRef = useRef(new Set<number>());
@@ -120,7 +133,7 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
       const loadedInfo = await reader.loadComicInfo(bookId);
       if (version !== requestVersion.current) return;
       const selected = loadedInfo.chapters.find((item) => item.sortNum === sortNum) ?? loadedInfo.chapters[sortNum - 1];
-      if (!selected) throw new Error('This chapter is not available.');
+      if (!selected) throw new ComicReaderKnownError('errors.chapterUnavailable');
 
       const cached = openPosition === 'saved'
         ? await getCachedReaderPosition(bookId)
@@ -164,7 +177,7 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
       if (
         loadedChapter.chapter.bookId !== bookId ||
         loadedChapter.chapter.sortNum !== selected.sortNum
-      ) throw new Error('The chapter response does not match the requested chapter.');
+      ) throw new ComicReaderKnownError('errors.chapterMismatch');
 
       const authoritativePageIndex = resolveReaderInitialIndex(
         openPosition,
@@ -186,7 +199,7 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
         if (
           loadedChapter.chapter.bookId !== bookId ||
           loadedChapter.chapter.sortNum !== selected.sortNum
-        ) throw new Error('The chapter response does not match the requested chapter.');
+        ) throw new ComicReaderKnownError('errors.chapterMismatch');
       }
       const initialPageIndex = clampComicPageIndex(
         authoritativePageIndex,
@@ -199,7 +212,7 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
           loadedChapter.chapter.skip,
           loadedChapter.chapter.images.length,
         )
-      ) throw new Error('The requested comic page is not available.');
+      ) throw new ComicReaderKnownError('errors.comicPageUnavailable');
       const initialChapter = {
         ...loadedChapter,
         readPosition: {
@@ -218,7 +231,7 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
       ));
     } catch (cause) {
       if (version === requestVersion.current) {
-        setError(cause instanceof Error ? cause.message : 'The comic could not be loaded.');
+        setError(getComicReaderMessage(cause));
       }
     } finally {
       if (version === requestVersion.current) setLoading(false);
@@ -265,7 +278,7 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
         pageIndex,
         result.chapter.skip,
         result.chapter.images.length,
-      )) throw new Error('The requested comic page is not available.');
+      )) throw new ComicReaderKnownError('errors.comicPageUnavailable');
       setSlots((current) => mergeComicPageBatch(
         current,
         result.chapter.skip,
@@ -436,8 +449,11 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
     <>
       <View style={styles.root}>
       {error ? (
-        <ReaderErrorState message={error} onRetry={loadChapter} />
-      ) : loading || !activeChapter ? <ReaderPreparationState label="Loading comic" /> : mode === 'paged' ? (
+        <ReaderErrorState
+          message={error.kind === 'raw' ? error.text : t(error.key)}
+          onRetry={loadChapter}
+        />
+      ) : loading || !activeChapter ? <ReaderPreparationState label={t('states.loadingComic')} /> : mode === 'paged' ? (
         <FlatList
           contentInsetAdjustmentBehavior="never"
           contentContainerStyle={{ paddingBottom: readerBottomInset, paddingTop: readerTopInset }}
@@ -513,7 +529,7 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
           pathname: '/reader/[bookId]/settings',
           params: { bookId: String(bookId), readerKey: route.key, sortNum: String(selectedChapterIndex + 1), type: 'Comic' },
         })}
-        title={activeChapter?.chapter.title ?? 'Comic reader'}
+        title={activeChapter?.chapter.title ?? t('titles.comicReader')}
       />
       <ReaderChapterNavigation
         bottomInset={insets.bottom}
@@ -545,6 +561,8 @@ function ComicPage({
   slot,
   viewportWidth,
 }: ComicPageProps) {
+  const { t } = useTranslation('reader');
+  const { t: tCommon } = useTranslation('common');
   const { colors } = useAppTheme();
   const [failedImageUri, setFailedImageUri] = useState<string | null>(null);
   const [retryAttempt, setRetryAttempt] = useState(0);
@@ -584,7 +602,7 @@ function ComicPage({
     >
       {retryVisible ? (
         <Pressable
-          accessibilityLabel={`Retry comic page ${slot.index + 1}`}
+          accessibilityLabel={t('accessibility.retryComicPage', { number: slot.index + 1 })}
           accessibilityRole="button"
           onPress={retry}
           style={({ pressed }) => [
@@ -597,12 +615,12 @@ function ComicPage({
             },
           ]}
         >
-          <Text style={[styles.retryLabel, { color: colors.label }]}>Retry page</Text>
+          <Text style={[styles.retryLabel, { color: colors.label }]}>{tCommon('actions.retry')}</Text>
         </Pressable>
       ) : image ? (
         <Image
           key={`${image.url}:${retryAttempt}`}
-          accessibilityLabel={`Comic page ${slot.index + 1}`}
+          accessibilityLabel={t('accessibility.comicPage', { number: slot.index + 1 })}
           allowDownscaling
           cachePolicy="memory-disk"
           contentFit="contain"
@@ -629,6 +647,19 @@ function ComicPage({
       )}
     </View>
   );
+}
+
+function getComicReaderMessage(error: unknown): ReaderUserMessage {
+  if (error instanceof ComicReaderKnownError) {
+    return { kind: 'key', key: error.messageKey };
+  }
+  if (error instanceof ApiError) {
+    if (error.category === 'auth') return { kind: 'key', key: 'errors.chapterAuth' };
+    if (error.category === 'network') return { kind: 'key', key: 'errors.chapterNetwork' };
+    return { kind: 'raw', text: error.message };
+  }
+  if (error instanceof Error && error.message) return { kind: 'raw', text: error.message };
+  return { kind: 'key', key: 'errors.comicLoad' };
 }
 
 function createComicPageLayouts(

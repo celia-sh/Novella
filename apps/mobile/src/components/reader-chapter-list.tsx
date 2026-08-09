@@ -1,5 +1,6 @@
 import { IconCheck } from '@tabler/icons-react-native';
 import type { ReactElement } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { BookDetailPalette } from '@/theme/book-detail-theme';
@@ -25,6 +26,7 @@ export interface ReaderChapterListProps {
 
 /** Virtualized chapter list styled with the shared book-detail palette. */
 export function ReaderChapterList({ emptyState, header, items, onSelect, palette }: ReaderChapterListProps) {
+  const { t } = useTranslation('reader');
   return (
     <FlatList
       contentContainerStyle={styles.content}
@@ -41,7 +43,10 @@ export function ReaderChapterList({ emptyState, header, items, onSelect, palette
       nestedScrollEnabled={process.env.EXPO_OS === 'android'}
       renderItem={({ item }) => (
         <Pressable
-          accessibilityLabel={`Open chapter ${item.sortNum}: ${item.title}`}
+          accessibilityLabel={t('accessibility.openChapter', {
+            number: item.sortNum,
+            title: item.title,
+          })}
           accessibilityRole="button"
           accessibilityState={{ selected: item.isCurrent }}
           onPress={() => onSelect(item)}

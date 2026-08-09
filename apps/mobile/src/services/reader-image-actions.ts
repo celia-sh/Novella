@@ -10,7 +10,6 @@ import {
 } from '@/services/reader-image-format';
 
 export const READER_IMAGE_ALBUM_NAME = 'Novella';
-export const READER_IMAGE_SHARE_TITLE = '分享图片';
 
 export type ReaderImageActionErrorCode =
   | 'invalid-url'
@@ -48,7 +47,7 @@ export async function saveReaderImage(imageUrl: string): Promise<void> {
     throw mapSaveError(error);
   }
   if (!permission.granted) {
-    throw new ReaderImageActionError('access-denied', '未获得相册访问权限');
+    throw new ReaderImageActionError('access-denied', 'access-denied');
   }
 
   const downloaded = await downloadReaderImage(imageUrl);
@@ -79,17 +78,17 @@ export async function saveReaderImage(imageUrl: string): Promise<void> {
  * cannot be produced, fall back to sharing the original URL so a transient
  * image/download failure does not make sharing entirely unusable.
  */
-export async function shareReaderImage(imageUrl: string): Promise<void> {
+export async function shareReaderImage(imageUrl: string, shareTitle: string): Promise<void> {
   const resolvedUrl = resolveReaderImageUrl(imageUrl);
   if (!resolvedUrl) {
-    throw new ReaderImageActionError('invalid-url', '图片地址为空');
+    throw new ReaderImageActionError('invalid-url', 'invalid-url');
   }
 
   let downloaded: DownloadedReaderImage | null = null;
   try {
     downloaded = await downloadReaderImage(resolvedUrl);
   } catch {
-    await shareReaderImageUrl(resolvedUrl);
+    await shareReaderImageUrl(resolvedUrl, shareTitle);
     return;
   }
 
@@ -97,12 +96,12 @@ export async function shareReaderImage(imageUrl: string): Promise<void> {
   try {
     const available = await Sharing.isAvailableAsync();
     if (!available) {
-      await shareReaderImageUrl(resolvedUrl);
+      await shareReaderImageUrl(resolvedUrl, shareTitle);
       return;
     }
     await Sharing.shareAsync(downloaded.file.uri, {
       UTI: downloaded.format.uti,
-      dialogTitle: READER_IMAGE_SHARE_TITLE,
+      dialogTitle: shareTitle,
       mimeType: downloaded.format.mimeType,
     });
     handedToShareSheet = true;
@@ -124,7 +123,7 @@ export async function shareReaderImage(imageUrl: string): Promise<void> {
 async function downloadReaderImage(imageUrl: string): Promise<DownloadedReaderImage> {
   const resolvedUrl = resolveReaderImageUrl(imageUrl);
   if (!resolvedUrl) {
-    throw new ReaderImageActionError('invalid-url', '图片地址为空');
+    throw new ReaderImageActionError('invalid-url', 'invalid-url');
   }
 
   let response: Response;
@@ -136,7 +135,7 @@ async function downloadReaderImage(imageUrl: string): Promise<DownloadedReaderIm
   if (!response.ok) {
     throw new ReaderImageActionError(
       'download-failed',
-      `图片下载失败（HTTP ${response.status}）`,
+      `download-failed:${response.status}`,
     );
   }
 
@@ -147,7 +146,7 @@ async function downloadReaderImage(imageUrl: string): Promise<DownloadedReaderIm
     throw new ReaderImageActionError('download-failed', getErrorMessage(error));
   }
   if (bytes.byteLength === 0) {
-    throw new ReaderImageActionError('download-failed', '图片下载结果为空');
+    throw new ReaderImageActionError('download-failed', 'download-failed:empty-response');
   }
 
   const format = resolveReaderImageFormat(
@@ -167,11 +166,11 @@ async function downloadReaderImage(imageUrl: string): Promise<DownloadedReaderIm
   return { file, fileName, format };
 }
 
-async function shareReaderImageUrl(imageUrl: string): Promise<void> {
+async function shareReaderImageUrl(imageUrl: string, shareTitle: string): Promise<void> {
   try {
     await Share.share({
       message: imageUrl,
-      title: READER_IMAGE_SHARE_TITLE,
+      title: shareTitle,
       url: imageUrl,
     });
   } catch (error) {
@@ -183,13 +182,13 @@ function mapSaveError(error: unknown): ReaderImageActionError {
   if (error instanceof ReaderImageActionError) return error;
   const message = getErrorMessage(error);
   if (/permission|denied|access/iu.test(message)) {
-    return new ReaderImageActionError('access-denied', '未获得相册访问权限');
+    return new ReaderImageActionError('access-denied', 'access-denied');
   }
   if (/space|storage|quota|full/iu.test(message)) {
-    return new ReaderImageActionError('not-enough-space', '设备剩余空间不足');
+    return new ReaderImageActionError('not-enough-space', 'not-enough-space');
   }
   if (/format|unsupported|type/iu.test(message)) {
-    return new ReaderImageActionError('unsupported-format', '图片格式暂不支持保存');
+    return new ReaderImageActionError('unsupported-format', 'unsupported-format');
   }
   return new ReaderImageActionError('save-failed', message);
 }

@@ -1,5 +1,6 @@
 import { IconNote } from '@tabler/icons-react-native';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
@@ -18,6 +19,7 @@ export interface ReaderFootnoteSheetScreenProps {
  * the book's @font-face.
  */
 export function ReaderFootnoteSheetScreen({ bookId, payload }: ReaderFootnoteSheetScreenProps) {
+  const { t } = useTranslation('reader');
   const [webLoading, setWebLoading] = useState(true);
   const { palette } = useBookDetailRouteTheme(bookId, null, null, true);
   const content = payload?.content ?? '';
@@ -43,7 +45,7 @@ export function ReaderFootnoteSheetScreen({ bookId, payload }: ReaderFootnoteShe
         <View style={styles.sheetSection}>
           <View style={styles.sheetHeading}>
             <IconNote color={palette.primary} size={22} strokeWidth={2} />
-            <Text style={[styles.sheetTitle, { color: palette.onSurface }]}>Footnote</Text>
+            <Text style={[styles.sheetTitle, { color: palette.onSurface }]}>{t('titles.footnote')}</Text>
           </View>
           <View style={styles.webArea}>
             <WebView

@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { IconRefresh } from '@tabler/icons-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
@@ -16,14 +17,16 @@ export function ReaderPreparationState({ label, progress }: { label: string; pro
 }
 
 export function ReaderErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const { t } = useTranslation('reader');
+  const { t: tCommon } = useTranslation('common');
   const styles = useReaderChromeStyles();
   const { colors } = useAppTheme();
   return (
     <View style={styles.centered}>
       <Text style={styles.errorText}>{message}</Text>
-      <Pressable accessibilityLabel="Retry reader" onPress={onRetry} style={styles.retry}>
+      <Pressable accessibilityLabel={t('accessibility.retryReader')} onPress={onRetry} style={styles.retry}>
         <IconRefresh color={colors.accent as string} size={18} />
-        <Text style={styles.retryText}>Try again</Text>
+        <Text style={styles.retryText}>{tCommon('actions.retry')}</Text>
       </Pressable>
     </View>
   );

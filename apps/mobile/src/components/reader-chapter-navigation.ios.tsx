@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
 import type { ReaderChapterNavigationProps } from '@/components/reader-navigation.types';
@@ -11,19 +12,20 @@ export function ReaderChapterNavigation({
   onPrevious,
   total,
 }: ReaderChapterNavigationProps) {
+  const { t } = useTranslation('reader');
   const styles = useReaderChapterNavigationStyles();
   return (
     <>
       <Stack.Toolbar placement="bottom">
         <Stack.Toolbar.Button
-          accessibilityLabel="Previous chapter"
+          accessibilityLabel={t('accessibility.previousChapter')}
           disabled={onPrevious === null}
           icon="chevron.left"
           {...(onPrevious ? { onPress: onPrevious } : {})}
         />
         <Stack.Toolbar.Spacer />
         <Stack.Toolbar.Button
-          accessibilityLabel="Next chapter"
+          accessibilityLabel={t('accessibility.nextChapter')}
           disabled={onNext === null}
           icon="chevron.right"
           {...(onNext ? { onPress: onNext } : {})}

@@ -10,10 +10,25 @@ import {
   shouldUseCachedReaderPosition,
 } from '@/services/reader-position-cache';
 
+export type ReaderMessageKey =
+  | 'errors.chapterAuth'
+  | 'errors.chapterLoad'
+  | 'errors.chapterMismatch'
+  | 'errors.chapterNetwork'
+  | 'errors.chapterUnavailable'
+  | 'errors.comicLoad'
+  | 'errors.comicPageUnavailable'
+  | 'errors.publicationPrepare'
+  | 'errors.readiumTimeout';
+
+export type ReaderUserMessage =
+  | { kind: 'key'; key: ReaderMessageKey }
+  | { kind: 'raw'; text: string };
+
 type ReaderChapterState =
   | { key: string; status: 'loading'; content: null; error: null }
   | { key: string; status: 'ready'; content: NovelContent; error: null }
-  | { key: string; status: 'error'; content: null; error: string };
+  | { key: string; status: 'error'; content: null; error: ReaderUserMessage };
 
 export function useReaderChapter(
   bookId: number,
@@ -103,11 +118,12 @@ export function useReaderChapter(
   };
 }
 
-function getReaderErrorMessage(error: unknown): string {
+function getReaderErrorMessage(error: unknown): ReaderUserMessage {
   if (error instanceof ApiError) {
-    if (error.category === 'auth') return 'Sign in again to read this chapter.';
-    if (error.category === 'network') return 'The chapter could not be loaded while offline.';
-    return error.message;
+    if (error.category === 'auth') return { kind: 'key', key: 'errors.chapterAuth' };
+    if (error.category === 'network') return { kind: 'key', key: 'errors.chapterNetwork' };
+    return { kind: 'raw', text: error.message };
   }
-  return 'The chapter could not be loaded.';
+  if (error instanceof Error && error.message) return { kind: 'raw', text: error.message };
+  return { kind: 'key', key: 'errors.chapterLoad' };
 }

@@ -1,5 +1,6 @@
 import { IconDownload, IconShare, IconX } from '@tabler/icons-react-native';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
 import {
   ActivityIndicator,
@@ -44,6 +45,7 @@ export interface ReaderImagePreviewProps {
 
 /** Full-screen reader image preview with Flutter-equivalent actions and zoom. */
 export function ReaderImagePreview({ source, onClose }: ReaderImagePreviewProps) {
+  const { t } = useTranslation('reader');
   const { width, height } = useWindowDimensions();
   // Read the stable app-window bottom inset before presenting the transparent
   // Modal. The action group intentionally lives above the home indicator, away
@@ -126,33 +128,51 @@ export function ReaderImagePreview({ source, onClose }: ReaderImagePreviewProps)
   }));
 
   const showActionMessage = useCallback((message: string) => {
-    showAlert('提示', message);
-  }, []);
+    showAlert(t('images.actionAlertTitle'), message);
+  }, [t]);
+
+  const getActionErrorMessage = useCallback((error: unknown, action: 'save' | 'share') => {
+    if (error instanceof ReaderImageActionError) {
+      const messages: Record<ReaderImageActionErrorCode, string> = {
+        'access-denied': t('images.errors.accessDenied'),
+        'download-failed': t('images.errors.downloadFailed'),
+        'invalid-url': t('images.errors.invalidUrl'),
+        'not-enough-space': t('images.errors.notEnoughSpace'),
+        'save-failed': t('images.errors.saveFailed'),
+        'share-failed': t('images.errors.shareFailed'),
+        'unsupported-format': t('images.errors.unsupportedFormat'),
+      };
+      return messages[error.code];
+    }
+    return action === 'save'
+      ? t('images.errors.saveFailed')
+      : t('images.errors.shareFailed');
+  }, [t]);
 
   const handleSave = useCallback(async () => {
     if (isSaving || isSharing) return;
     setIsSaving(true);
     try {
       await saveReaderImage(imageUri);
-      showActionMessage('图片已保存到相册');
+      showActionMessage(t('images.saved'));
     } catch (error) {
-      showActionMessage(readerImageActionMessage(error, 'save'));
+      showActionMessage(getActionErrorMessage(error, 'save'));
     } finally {
       if (mountedRef.current) setIsSaving(false);
     }
-  }, [imageUri, isSaving, isSharing, showActionMessage]);
+  }, [getActionErrorMessage, imageUri, isSaving, isSharing, showActionMessage, t]);
 
   const handleShare = useCallback(async () => {
     if (isSaving || isSharing) return;
     setIsSharing(true);
     try {
-      await shareReaderImage(imageUri);
+      await shareReaderImage(imageUri, t('images.shareTitle'));
     } catch (error) {
-      showActionMessage(readerImageActionMessage(error, 'share'));
+      showActionMessage(getActionErrorMessage(error, 'share'));
     } finally {
       if (mountedRef.current) setIsSharing(false);
     }
-  }, [imageUri, isSaving, isSharing, showActionMessage]);
+  }, [getActionErrorMessage, imageUri, isSaving, isSharing, showActionMessage, t]);
 
   return (
     <Modal
@@ -172,11 +192,11 @@ export function ReaderImagePreview({ source, onClose }: ReaderImagePreviewProps)
             <Animated.View style={[styles.imageFrame, imageStyle]}>
               {hasError ? (
                 <View style={styles.errorState}>
-                  <Text style={styles.errorText}>图片加载失败</Text>
+                  <Text style={styles.errorText}>{t('images.loadFailed')}</Text>
                 </View>
               ) : (
                 <Image
-                  accessibilityLabel={source.alt?.trim() || 'Chapter illustration'}
+                  accessibilityLabel={source.alt?.trim() || t('images.illustration')}
                   cachePolicy="memory-disk"
                   contentFit="contain"
                   onError={() => {
@@ -211,17 +231,17 @@ export function ReaderImagePreview({ source, onClose }: ReaderImagePreviewProps)
           >
             <View style={styles.toolbar}>
               <PreviewActionButton
-                accessibilityLabel="分享图片"
+                accessibilityLabel={t('accessibility.shareImage')}
                 disabled={isSaving || isSharing}
                 onPress={handleShare}
               >
                 {isSharing ? <ActivityIndicator color="#FFFFFF" size="small" /> : <IconShare color="#FFFFFF" size={21} />}
               </PreviewActionButton>
-              <PreviewActionButton accessibilityLabel="关闭图片预览" onPress={onClose}>
+              <PreviewActionButton accessibilityLabel={t('accessibility.closeImagePreview')} onPress={onClose}>
                 <IconX color="#FFFFFF" size={21} />
               </PreviewActionButton>
               <PreviewActionButton
-                accessibilityLabel="保存图片"
+                accessibilityLabel={t('accessibility.saveImage')}
                 disabled={isSaving || isSharing}
                 onPress={handleSave}
               >
@@ -261,22 +281,6 @@ function PreviewActionButton({
       {children}
     </Pressable>
   );
-}
-
-function readerImageActionMessage(
-  error: unknown,
-  action: 'save' | 'share',
-): string {
-  if (error instanceof ReaderImageActionError) {
-    const messages: Partial<Record<ReaderImageActionErrorCode, string>> = {
-      'access-denied': '未获得相册访问权限',
-      'not-enough-space': '设备剩余空间不足',
-      'unsupported-format': '图片格式暂不支持保存',
-    };
-    const knownMessage = messages[error.code];
-    if (knownMessage) return knownMessage;
-  }
-  return action === 'save' ? '保存图片失败' : '分享图片失败';
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

@@ -1,4 +1,5 @@
 import { Host } from '@expo/ui';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 
 import type { ReaderChapterNavigationProps } from '@/components/reader-navigation.types';
@@ -18,6 +19,7 @@ export function ReaderChapterNavigation({
   onPrevious,
   total,
 }: ReaderChapterNavigationProps) {
+  const { t } = useTranslation('reader');
   const colorScheme = useAppColorScheme();
   const contentColor = colorScheme === 'dark' ? '#FFFFFF' : '#111827';
   return (
@@ -27,11 +29,11 @@ export function ReaderChapterNavigation({
         height={56}
         contentColor={contentColor}
         counterText={total > 0 ? `${current} / ${total}` : ''}
-        nextAccessibilityLabel="Next chapter"
+        nextAccessibilityLabel={t('accessibility.nextChapter')}
         nextEnabled={onNext !== null}
         {...(onNext ? { onNextPress: onNext } : {})}
         {...(onPrevious ? { onPreviousPress: onPrevious } : {})}
-        previousAccessibilityLabel="Previous chapter"
+        previousAccessibilityLabel={t('accessibility.previousChapter')}
         previousEnabled={onPrevious !== null}
       />
     </Host>

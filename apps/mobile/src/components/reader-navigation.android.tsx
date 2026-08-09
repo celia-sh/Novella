@@ -5,6 +5,7 @@ import {
   IconLayoutRows,
   IconSettings,
 } from '@tabler/icons-react-native';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { ReaderNavigationProps } from '@/components/reader-navigation.types';
@@ -34,24 +35,27 @@ function ReaderHeaderActions({
   onOpenChapters,
   onOpenSettings,
 }: ReaderNavigationProps) {
+  const { t } = useTranslation('reader');
   const ModeIcon = mode === 'scroll' ? IconLayoutRows : IconLayoutList;
   const nextMode = mode === 'scroll' ? 'paged' : 'scroll';
   return (
     <View style={styles.actions}>
       <HeaderAction
-        accessibilityLabel="Chapter list"
+        accessibilityLabel={t('accessibility.chapterList')}
         color={foregroundColor}
         icon={IconBook}
         onPress={onOpenChapters}
       />
       <HeaderAction
-        accessibilityLabel={`Switch to ${nextMode} mode`}
+        accessibilityLabel={t('accessibility.switchMode', {
+          mode: t(`modes.${nextMode}`),
+        })}
         color={foregroundColor}
         icon={ModeIcon}
         onPress={() => onModeChange(nextMode)}
       />
       <HeaderAction
-        accessibilityLabel="Reader settings"
+        accessibilityLabel={t('accessibility.readerSettings')}
         color={foregroundColor}
         icon={IconSettings}
         onPress={onOpenSettings}

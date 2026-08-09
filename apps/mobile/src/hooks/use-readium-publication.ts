@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { BookChapter, BookDetail, NovelContent, TextConversionMode } from '@novella/api-client';
+import { ApiError, type BookChapter, type BookDetail, type NovelContent, type TextConversionMode } from '@novella/api-client';
 
+import type { ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { bookDetails } from '@/services/client';
 import {
   prepareReadiumPublication,
@@ -14,7 +15,7 @@ import {
 
 interface ReadiumPublicationState {
   chapters: readonly BookChapter[];
-  error: string | null;
+  error: ReaderUserMessage | null;
   publication: PreparedReadiumPublication | null;
   status: 'error' | 'loading' | 'ready';
 }
@@ -51,7 +52,7 @@ export function useReadiumPublication({
         if (!cancelled) {
           setState({
             chapters: [],
-            error: error instanceof Error ? error.message : String(error),
+            error: getPublicationLoadMessage(error),
             publication: null,
             status: 'error',
           });
@@ -81,11 +82,11 @@ export function useReadiumPublication({
           status: 'ready',
         });
       }
-    } catch (error) {
+    } catch {
       if (!cancelled) {
         setState({
           chapters: book.chapters,
-          error: error instanceof Error ? error.message : String(error),
+          error: { kind: 'key', key: 'errors.publicationPrepare' },
           publication: null,
           status: 'error',
         });
@@ -111,4 +112,14 @@ export function useReadiumPublication({
 
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
   return { ...state, retry };
+}
+
+function getPublicationLoadMessage(error: unknown): ReaderUserMessage {
+  if (error instanceof ApiError) {
+    if (error.category === 'auth') return { kind: 'key', key: 'errors.chapterAuth' };
+    if (error.category === 'network') return { kind: 'key', key: 'errors.chapterNetwork' };
+    return { kind: 'raw', text: error.message };
+  }
+  if (error instanceof Error && error.message) return { kind: 'raw', text: error.message };
+  return { kind: 'key', key: 'errors.publicationPrepare' };
 }
