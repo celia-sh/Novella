@@ -2,6 +2,7 @@ import { Host } from '@expo/ui';
 import { RNHostView } from '@expo/ui/jetpack-compose';
 import { fillMaxSize } from '@expo/ui/jetpack-compose/modifiers';
 import { StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { NativeTopAppBarScaffold } from '../../modules/novella-ui';
 
@@ -19,6 +20,7 @@ export function NativeScreenScaffold({
   showBackButton = false,
   title,
 }: NativeScreenScaffoldProps) {
+  const { t } = useTranslation('common');
   const colorScheme = useAppColorScheme();
   const { isOledDark } = useAppTheme();
   // OLED dark renders the Compose top bar on a pure-black container so the
@@ -30,6 +32,7 @@ export function NativeScreenScaffold({
     <Host colorScheme={colorScheme} style={styles.host} useViewportSizeMeasurement>
       <NativeTopAppBarScaffold
         {...(actions ? { actions } : {})}
+        backAccessibilityLabel={t('accessibility.back')}
         {...(resolvedContainerColor ? { containerColor: resolvedContainerColor } : {})}
         {...(resolvedContentColor ? { contentColor: resolvedContentColor } : {})}
         largeTitle={largeTitle}

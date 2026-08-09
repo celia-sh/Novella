@@ -1,4 +1,5 @@
 import { Host } from '@expo/ui';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { NativeSearchBar } from '../../modules/novella-ui';
@@ -7,11 +8,6 @@ import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import type { NativeSearchControlsProps } from '@/components/native-search-controls.types';
 import { useAppColorScheme } from '@/theme/app-theme';
 
-const FORMAT_OPTIONS = [
-  { label: 'Novel', value: 'Novel' },
-  { label: 'Comic', value: 'Comic' },
-] as const;
-
 export function NativeSearchControls({
   format,
   onFormatChange,
@@ -19,20 +15,28 @@ export function NativeSearchControls({
   onSubmit,
   query,
 }: NativeSearchControlsProps) {
+  const { t } = useTranslation('library');
+  const { t: tCommon } = useTranslation('common');
   const colorScheme = useAppColorScheme();
+  const formatOptions = [
+    { label: t('search.formats.novel'), value: 'Novel' },
+    { label: t('search.formats.comic'), value: 'Comic' },
+  ] as const;
   return (
     <View style={styles.root}>
       <Host colorScheme={colorScheme} style={styles.searchHost} useViewportSizeMeasurement>
         <NativeSearchBar
+          clearAccessibilityLabel={tCommon('accessibility.clearSearch')}
           onQueryChange={onQueryChange}
           onSearch={onSubmit}
+          placeholder={t('search.placeholder')}
           query={query}
         />
       </Host>
       <View style={styles.segmented}>
         <NativeSegmentedControl
           onValueChange={onFormatChange}
-          options={FORMAT_OPTIONS}
+          options={formatOptions}
           selectedValue={format}
         />
       </View>

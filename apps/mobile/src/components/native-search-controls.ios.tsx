@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { NativeSearchBar } from '../../modules/novella-ui';
@@ -9,11 +10,6 @@ import {
   type NativeSearchControlsProps,
 } from '@/components/native-search-controls.types';
 
-const FORMAT_OPTIONS = [
-  { label: 'Novel', value: 'Novel' },
-  { label: 'Comic', value: 'Comic' },
-] as const;
-
 export function NativeSearchControls({
   format,
   mode,
@@ -23,18 +19,26 @@ export function NativeSearchControls({
   onSubmit,
   query,
 }: NativeSearchControlsProps) {
+  const { t } = useTranslation('library');
+  const { t: tCommon } = useTranslation('common');
+  const formatOptions = [
+    { label: t('search.formats.novel'), value: 'Novel' },
+    { label: t('search.formats.comic'), value: 'Comic' },
+  ] as const;
   return (
     <>
+      <Stack.Screen options={{ title: t('search.title') }} />
       <View style={styles.searchBar}>
         <NativeSearchBar
+          clearAccessibilityLabel={tCommon('accessibility.clearSearch')}
           onQueryChange={onQueryChange}
           onSearch={onSubmit}
-          placeholder="Search novels and comics"
+          placeholder={t('search.placeholder')}
           query={query}
         />
       </View>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu accessibilityLabel="Search mode" icon="slider.horizontal.3">
+        <Stack.Toolbar.Menu accessibilityLabel={t('search.modeAccessibility')} icon="slider.horizontal.3">
           {BOOK_SEARCH_MODE_OPTIONS.map((option) => (
             <Stack.Toolbar.MenuAction
               icon={option.iosIcon}
@@ -42,14 +46,14 @@ export function NativeSearchControls({
               key={option.value}
               onPress={() => onModeChange(option.value)}
             >
-              {option.label}
+              {t(option.labelKey)}
             </Stack.Toolbar.MenuAction>
           ))}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       <NativeSegmentedControl
         onValueChange={onFormatChange}
-        options={FORMAT_OPTIONS}
+        options={formatOptions}
         selectedValue={format}
       />
     </>

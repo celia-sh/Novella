@@ -89,6 +89,7 @@ data class TopAppBarActionEvent(
 @OptimizedComposeProps
 data class TopAppBarScaffoldProps(
   val title: String = "",
+  val backAccessibilityLabel: String = "",
   val containerColor: Color? = null,
   val contentColor: Color? = null,
   val largeTitle: Boolean = true,
@@ -124,7 +125,9 @@ fun FunctionalComposableScope.TopAppBarScaffoldContent(
       if (props.largeTitle) {
         LargeTopAppBar(
           title = { Text(props.title) },
-          navigationIcon = { BackButton(props.showBackButton, onBackPressed) },
+          navigationIcon = {
+            BackButton(props.showBackButton, props.backAccessibilityLabel, onBackPressed)
+          },
           actions = { TopAppBarActions(props.actions, onActionPressed) },
           colors = topAppBarColors(containerColor, contentColor),
           scrollBehavior = scrollBehavior
@@ -132,7 +135,9 @@ fun FunctionalComposableScope.TopAppBarScaffoldContent(
       } else {
         TopAppBar(
           title = { Text(props.title) },
-          navigationIcon = { BackButton(props.showBackButton, onBackPressed) },
+          navigationIcon = {
+            BackButton(props.showBackButton, props.backAccessibilityLabel, onBackPressed)
+          },
           actions = { TopAppBarActions(props.actions, onActionPressed) },
           colors = topAppBarColors(containerColor, contentColor),
           scrollBehavior = scrollBehavior
@@ -201,11 +206,15 @@ private fun TopAppBarActions(
 }
 
 @Composable
-private fun BackButton(showBackButton: Boolean, onBackPressed: () -> Unit) {
+private fun BackButton(
+  showBackButton: Boolean,
+  accessibilityLabel: String,
+  onBackPressed: () -> Unit
+) {
   if (!showBackButton) return
   IconButton(onClick = onBackPressed) {
     Icon(
-      contentDescription = "Back",
+      contentDescription = accessibilityLabel,
       painter = painterResource(R.drawable.ic_arrow_back_24)
     )
   }

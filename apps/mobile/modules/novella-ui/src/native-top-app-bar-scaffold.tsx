@@ -33,6 +33,7 @@ export type NativeTopAppBarAction = {
 
 export interface NativeTopAppBarScaffoldProps extends PrimitiveBaseProps {
   actions?: NativeTopAppBarAction[];
+  backAccessibilityLabel: string;
   children?: ReactNode;
   containerColor?: ColorValue;
   contentColor?: ColorValue;

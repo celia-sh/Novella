@@ -9,6 +9,7 @@ import {
 } from '@expo/ui/jetpack-compose';
 import { fillMaxWidth, padding, Shapes, clip, clickable } from '@expo/ui/jetpack-compose/modifiers';
 import type { PropsWithChildren } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { NativeTopAppBarScaffold } from '../../modules/novella-ui';
 
@@ -25,6 +26,7 @@ export function NativeGroupedListPlatform({
   testID,
   title,
 }: NativeGroupedListProps) {
+  const { t } = useTranslation('common');
   const { colorScheme, colors, isOledDark } = useAppTheme();
   // OLED dark renders the Compose top bar on a pure-black container so the
   // chrome matches the RN pages behind the settings list.
@@ -50,6 +52,7 @@ export function NativeGroupedListPlatform({
     >
       {title ? (
         <NativeTopAppBarScaffold
+          backAccessibilityLabel={t('accessibility.back')}
           largeTitle={largeTitle}
           {...(onBackPress ? { onBackPress } : {})}
           showBackButton={showBackButton}

@@ -3,6 +3,7 @@ import { requireNativeView } from 'expo';
 import { StyleSheet, type ViewProps } from 'react-native';
 
 export interface NativeSearchBarProps extends PrimitiveBaseProps {
+  clearAccessibilityLabel?: string;
   enabled?: boolean;
   onQueryChange?: (query: string) => void;
   onSearch?: (query: string) => void;
@@ -19,6 +20,7 @@ type NativeViewProps = ViewProps &
 const NativeView = requireNativeView<NativeViewProps>('NovellaUi', 'SearchBar');
 
 export function NativeSearchBar({
+  clearAccessibilityLabel: _clearAccessibilityLabel,
   modifiers: _modifiers,
   onQueryChange,
   onSearch,

@@ -37,7 +37,8 @@ data class SearchTextEvent(
 @OptimizedComposeProps
 data class SearchBarProps(
   val query: String = "",
-  val placeholder: String = "Search novels and comics",
+  val placeholder: String = "",
+  val clearAccessibilityLabel: String = "",
   val enabled: Boolean = true,
   val modifiers: ModifierList = emptyList()
 ) : ComposeProps
@@ -87,7 +88,7 @@ fun FunctionalComposableScope.SearchBarContent(
         {
           IconButton(onClick = { textFieldState.edit { replace(0, length, "") } }) {
             Icon(
-              contentDescription = "Clear search",
+              contentDescription = props.clearAccessibilityLabel,
               painter = painterResource(R.drawable.ic_tabler_x_24)
             )
           }

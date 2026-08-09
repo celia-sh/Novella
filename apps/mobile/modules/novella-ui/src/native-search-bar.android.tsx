@@ -3,6 +3,7 @@ import { createViewModifierEventListener } from '@expo/ui/jetpack-compose/modifi
 import { requireNativeView } from 'expo';
 
 export interface NativeSearchBarProps extends PrimitiveBaseProps {
+  clearAccessibilityLabel?: string;
   enabled?: boolean;
   onQueryChange?: (query: string) => void;
   onSearch?: (query: string) => void;

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertDialog, Button, Host, Text } from '@expo/ui/jetpack-compose';
 
 import { useAppTheme } from '@/theme/app-theme';
@@ -47,6 +48,7 @@ function close(): void {
 
 export function NativeAlertHost(): React.JSX.Element | null {
   const [, setTick] = useState(0);
+  const { t } = useTranslation('common');
   const { colorScheme, colors, isOledDark } = useAppTheme();
 
   useEffect(() => {
@@ -67,7 +69,9 @@ export function NativeAlertHost(): React.JSX.Element | null {
 
   const cancelButton = buttons.find((button) => button.style === 'cancel');
   const actions = buttons.filter((button) => button.style !== 'cancel');
-  const fallbackActions = actions.length === 0 ? [{ text: 'OK' } satisfies NativeAlertButton] : null;
+  const fallbackActions = actions.length === 0
+    ? [{ text: t('actions.confirm') } satisfies NativeAlertButton]
+    : null;
 
   const renderAction = (button: NativeAlertButton, key: string) => {
     const destructive = button.style === 'destructive';
