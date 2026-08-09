@@ -61,7 +61,7 @@ export function BookSearchScreen({
   const initialSearchPending =
     initialQueryValue !== '' && search.status === 'idle' && search.committedQuery === '';
   const visibleStatus = initialSearchPending ? 'loading' : search.status;
-  const { columns, contentWidth, height, tileWidth } = useBookGridLayout(16);
+  const { columns, contentWidth, height, listKey, tileWidth } = useBookGridLayout(16);
   const results = useMemo<SearchResult[]>(() => search.format === 'Novel'
     ? search.novels.map((item) => ({ key: `Novel:${item.id}`, kind: 'Novel', item }))
     : search.comics.map((item) => ({ key: `Comic:${item.title}`, kind: 'Comic', item })),
@@ -181,6 +181,7 @@ export function BookSearchScreen({
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic"
         data={data}
+        key={listKey}
         keyExtractor={(item) => (typeof item === 'number' ? `skeleton-${item}` : item.key)}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"

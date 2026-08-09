@@ -21,8 +21,15 @@ export interface BookGridLayout {
   contentWidth: number;
   /** Full window height (used by viewport-sized skeleton counts). */
   height: number;
+  /** Remount key required because FlatList cannot change numColumns in place. */
+  listKey: string;
   /** Cover tile width for the current column count. */
   tileWidth: number;
+}
+
+/** React key used to remount a FlatList when its column count changes. */
+export function bookGridListKey(columns: number): string {
+  return `book-grid-${columns}`;
 }
 
 /** Tile width for a given content width and column count. */

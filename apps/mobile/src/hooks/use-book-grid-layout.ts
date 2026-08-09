@@ -2,6 +2,7 @@ import { useWindowDimensions } from 'react-native';
 
 import {
   bookGridColumns,
+  bookGridListKey,
   bookGridTileWidth,
   type BookGridLayout,
 } from '@/services/book-grid-layout';
@@ -10,6 +11,7 @@ export {
   BOOK_GRID_COLUMN_GAP,
   BOOK_GRID_ROW_GAP,
   bookGridColumns,
+  bookGridListKey,
   bookGridTileWidth,
   type BookGridLayout,
 } from '@/services/book-grid-layout';
@@ -22,5 +24,11 @@ export function useBookGridLayout(horizontalPadding: number): BookGridLayout {
   const contentWidth = Math.max(1, width - horizontalPadding * 2);
   const columns = bookGridColumns(contentWidth);
   const tileWidth = bookGridTileWidth(contentWidth, columns);
-  return { columns, contentWidth, height, tileWidth };
+  return {
+    columns,
+    contentWidth,
+    height,
+    listKey: bookGridListKey(columns),
+    tileWidth,
+  };
 }

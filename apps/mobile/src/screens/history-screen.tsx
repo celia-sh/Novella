@@ -39,7 +39,7 @@ export function HistoryScreen() {
   const { colors } = useAppTheme();
   const { clear, loadMore, refresh, retry, state } = useReadHistory();
   const [tab, setTab] = useState<HistoryTab>('Novel');
-  const { columns, height, tileWidth } = useBookGridLayout(16);
+  const { columns, height, listKey, tileWidth } = useBookGridLayout(16);
   const activeTabState = tab === 'Novel' ? state.novel : state.comic;
   const hasAnyHistory =
     (state.ids?.novelIds.length ?? 0) > 0 || (state.ids?.comicIds.length ?? 0) > 0;
@@ -157,6 +157,7 @@ export function HistoryScreen() {
             contentContainerStyle={styles.content}
             contentInsetAdjustmentBehavior="automatic"
             data={data}
+            key={listKey}
             keyExtractor={(item) =>
               typeof item === 'number'
                 ? `skeleton-${item}`

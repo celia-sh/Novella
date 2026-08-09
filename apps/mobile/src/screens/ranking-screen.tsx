@@ -46,7 +46,7 @@ export function RankingScreen() {
     retry,
     status,
   } = useRankingPage(settings.homeRankType);
-  const { columns, contentWidth, height, tileWidth } = useBookGridLayout(20);
+  const { columns, contentWidth, height, listKey, tileWidth } = useBookGridLayout(20);
   const skeletonCount =
     status === 'loading' && books.length === 0
       ? bookGridSkeletonCount({ columns, headerOffset: 110, height, tileWidth })
@@ -83,6 +83,7 @@ export function RankingScreen() {
           contentContainerStyle={styles.content}
           contentInsetAdjustmentBehavior="automatic"
           data={data}
+          key={listKey}
           keyExtractor={(item) =>
             typeof item === 'number'
               ? `skeleton-${item}`
