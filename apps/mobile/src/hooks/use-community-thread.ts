@@ -20,6 +20,7 @@ interface CommunityThreadState {
   highlightedReplyId: number | null;
   loading: boolean;
   loadingMore: boolean;
+  loadMoreError: string | null;
   postingReply: boolean;
   thread: CommunityThreadDetail | null;
   /** Thread-scoped in-flight action (like / favorite); never disables replies. */
@@ -42,6 +43,7 @@ export function useCommunityThread({
     highlightedReplyId: null,
     loading: true,
     loadingMore: false,
+    loadMoreError: null,
     postingReply: false,
     thread: null,
     threadActionId: null,
@@ -49,6 +51,7 @@ export function useCommunityThread({
   const controllerRef = useRef<AbortController | null>(null);
   const generationRef = useRef(0);
   const focusGenerationRef = useRef(0);
+  const operationRef = useRef<'idle' | 'loadMore' | 'reload'>('idle');
 
   const load = useCallback(async ({
     append = false,
@@ -63,11 +66,13 @@ export function useCommunityThread({
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
+    operationRef.current = append ? 'loadMore' : 'reload';
     setState((current) => ({
       ...current,
-      error: null,
+      error: append ? current.error : null,
       loading: !append,
       loadingMore: append,
+      loadMoreError: null,
     }));
     try {
       const thread = await community.loadThread({
@@ -77,11 +82,13 @@ export function useCommunityThread({
         trackView,
       }, controller.signal);
       if (generation !== generationRef.current) return null;
+      operationRef.current = 'idle';
       setState((current) => ({
         ...current,
-        error: null,
+        error: append ? current.error : null,
         loading: false,
         loadingMore: false,
+        loadMoreError: null,
         thread: thread && append && current.thread ? {
           ...thread,
           replyItems: mergeCommunityItems(current.thread.replyItems, thread.replyItems),
@@ -90,11 +97,14 @@ export function useCommunityThread({
       return thread;
     } catch (error) {
       if (controller.signal.aborted || generation !== generationRef.current) return null;
+      operationRef.current = 'idle';
+      const message = error instanceof Error ? error.message : t('thread.errors.load');
       setState((current) => ({
         ...current,
-        error: error instanceof Error ? error.message : t('thread.errors.load'),
+        error: append ? current.error : message,
         loading: false,
         loadingMore: false,
+        loadMoreError: append ? message : null,
       }));
       return null;
     }
@@ -102,7 +112,10 @@ export function useCommunityThread({
 
   useEffect(() => {
     void load({ page: 1, trackView: true });
-    return () => controllerRef.current?.abort();
+    return () => {
+      operationRef.current = 'idle';
+      controllerRef.current?.abort();
+    };
   }, [load]);
 
   useEffect(() => {
@@ -179,9 +192,11 @@ export function useCommunityThread({
 
   const loadMore = useCallback(() => {
     const thread = state.thread;
-    if (!thread?.repliesPage.hasMore || state.loadingMore) return Promise.resolve(null);
+    if (!thread?.repliesPage.hasMore || operationRef.current !== 'idle') {
+      return Promise.resolve(null);
+    }
     return load({ append: true, page: thread.repliesPage.page + 1, trackView: false });
-  }, [load, state.loadingMore, state.thread]);
+  }, [load, state.thread]);
 
   const loadChildren = useCallback(async (parent: CommunityThreadReply) => {
     if (!parent.childPage.hasMore) return;

@@ -10,6 +10,7 @@ import {
   IconRefresh,
   IconStar,
 } from "@tabler/icons-react-native";
+import { Skeleton } from "heroui-native";
 import {
   Button,
   Card,
@@ -295,11 +296,11 @@ export function CommunityThreadSkeleton() {
     <Card accessibilityElementsHidden mode="outlined" style={styles.card}>
       <Card.Content style={styles.skeletonBody}>
         <View style={styles.skeletonTopRow}>
-          <View style={styles.skeletonAvatar} />
+          <Skeleton style={styles.skeletonAvatar} />
           <View style={styles.skeletonCopy}>
-            <View style={[styles.skeletonLine, styles.skeletonTitle]} />
-            <View style={[styles.skeletonLine, styles.skeletonLineWide]} />
-            <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
+            <Skeleton style={[styles.skeletonLine, styles.skeletonTitle]} />
+            <Skeleton style={[styles.skeletonLine, styles.skeletonLineWide]} />
+            <Skeleton style={[styles.skeletonLine, styles.skeletonLineShort]} />
           </View>
         </View>
       </Card.Content>

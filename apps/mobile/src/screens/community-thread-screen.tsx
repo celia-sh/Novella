@@ -20,7 +20,6 @@ import {
   View,
 } from 'react-native';
 import {
-  ActivityIndicator,
   Avatar,
   Button,
   MD3DarkTheme,
@@ -37,6 +36,7 @@ import {
   CommentThreadRow,
   type CommentThreadPalette,
 } from '@/components/comment-thread';
+import { CommentThreadSkeleton } from '@/components/comment-thread-item';
 import { CommunitySectionTitle, CommunityThreadSkeleton } from '@/components/community/community-ui';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { useCommunityThread } from '@/hooks/use-community-thread';
@@ -241,21 +241,18 @@ export function CommunityThreadScreen({
   const footer = thread ? (
     <View style={styles.footer}>
       {state.loadingMore ? (
-        <View style={styles.footerSpinner}>
-          <ActivityIndicator color={colors.accent as string} />
+        <View style={styles.footerSkeleton}>
+          <CommentThreadSkeleton palette={commentPalette} rows={2} />
         </View>
+      ) : state.loadMoreError ? (
+        <ThreadStateCard
+          description={state.loadMoreError}
+          onRetry={() => void loadMore()}
+          title={t('thread.actionFailed')}
+          variant="error"
+        />
       ) : null}
-      {thread.repliesPage.hasMore ? (
-        <Button
-          disabled={state.loadingMore}
-          mode="outlined"
-          onPress={() => void loadMore()}
-          style={styles.footerButton}
-        >
-          {t('actions.loadMoreReplies')}
-        </Button>
-      ) : null}
-      {thread.relatedThreads.length > 0 ? (
+      {!thread.repliesPage.hasMore && thread.relatedThreads.length > 0 ? (
         <View style={styles.related}>
           <CommunitySectionTitle title={t('thread.related')} />
           {thread.relatedThreads.map((item) => (
@@ -287,7 +284,10 @@ export function CommunityThreadScreen({
             <FlatList
               ListEmptyComponent={
                 state.loading ? (
-                  <View style={styles.loading}><CommunityThreadSkeleton /></View>
+                  <View style={styles.loading}>
+                    <CommunityThreadSkeleton />
+                    <CommentThreadSkeleton palette={commentPalette} rows={2} />
+                  </View>
                 ) : state.error && !thread ? (
                   <ThreadStateCard description={state.error} onRetry={retry} title={t('thread.errors.loadTitle')} variant="error" />
                 ) : thread ? (
@@ -313,6 +313,8 @@ export function CommunityThreadScreen({
               keyExtractor={(item) => String(item.id)}
               keyboardDismissMode="interactive"
               nestedScrollEnabled
+              onEndReached={() => void loadMore()}
+              onEndReachedThreshold={0.35}
               onScrollToIndexFailed={({ index }) => {
                 setTimeout(() => listRef.current?.scrollToIndex({ animated: true, index, viewPosition: 0.2 }), 200);
               }}
@@ -623,11 +625,10 @@ const useCommunityThreadStyles = createThemedStyles((colors) => ({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 14, paddingTop: 14 },
   content: { paddingBottom: 42, paddingHorizontal: 16 },
   footer: { gap: 16, paddingTop: 16 },
-  footerButton: { alignSelf: 'center' },
-  footerSpinner: { alignItems: 'center', paddingVertical: 4 },
+  footerSkeleton: { gap: 8 },
   header: { gap: 14, paddingBottom: 14 },
   html: { marginTop: 6 },
-  loading: { paddingTop: 14 },
+  loading: { gap: 8, paddingTop: 14 },
   noticeBody: { alignItems: 'center', flexDirection: 'row', gap: 10, padding: 14 },
   noticeCard: {
     backgroundColor: colors.card,
