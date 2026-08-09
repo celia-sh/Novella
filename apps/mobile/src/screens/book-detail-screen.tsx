@@ -211,6 +211,8 @@ function BookDetailContent({
     : null;
   const startSortNum = currentSortNum ?? 1;
   const latestChapter = book.chapters.at(-1)?.title ?? book.lastUpdatedChapter;
+  const isIos = process.env.EXPO_OS === 'ios';
+  const heroHeight = BOOK_HERO_HEIGHT + topInset;
   const usesCollapsibleAppBar = process.env.EXPO_OS === 'android';
   const usesSoftScrollEdgeRef = useRef(usesSoftScrollEdge);
   const handleScroll = useCallback((offsetY: number) => {
@@ -226,13 +228,21 @@ function BookDetailContent({
   }, [onScrollEdgeChange]);
 
   return (
-    <View style={styles.detailContent}>
+    <View style={[styles.detailContent, { backgroundColor: palette.surface }]}>
+      {isIos ? (
+        <CollapsingBookHeroBackdrop
+          maxHeight={heroHeight}
+          minHeight={BOOK_HERO_TOOLBAR_HEIGHT + topInset}
+          palette={palette}
+          scrollOffset={scrollOffset}
+        />
+      ) : null}
       <ScrollViewMarker
         scrollEdgeEffects={{ top: usesSoftScrollEdge ? 'soft' : 'hidden' }}
         style={styles.scrollViewMarker}
       >
         <Animated.ScrollView
-          bounces={false}
+          bounces={isIos}
           contentInsetAdjustmentBehavior="never"
           onScroll={({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) =>
             handleScroll(nativeEvent.contentOffset.y)
@@ -241,7 +251,7 @@ function BookDetailContent({
           ref={scrollRef}
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
-          style={{ backgroundColor: palette.surface }}
+          style={{ backgroundColor: isIos ? 'transparent' : palette.surface }}
         >
           {usesCollapsibleAppBar ? (
             <View style={{ height: BOOK_HERO_HEIGHT + topInset }} />
@@ -259,7 +269,12 @@ function BookDetailContent({
             />
           )}
 
-      <View style={[styles.body, { paddingHorizontal: horizontalPadding }]}>
+      <View
+        style={[
+          styles.body,
+          { backgroundColor: palette.surface, paddingHorizontal: horizontalPadding },
+        ]}
+      >
         <View style={styles.chips}>
           <MetaChip icon={IconHeart} palette={palette} value={formatCompactNumber(book.favoriteCount, locale)} />
           <MetaChip icon={IconEye} palette={palette} value={formatCompactNumber(book.viewCount, locale)} />
@@ -580,11 +595,88 @@ function InlineBookHero({
           horizontalPadding={horizontalPadding}
           onQuickSearch={onQuickSearch}
           palette={palette}
+          showBackdrop={false}
           titleSearchAccessibilityLabel={titleSearchAccessibilityLabel}
         />
       </Animated.View>
     </View>
   );
+}
+
+function CollapsingBookHeroBackdrop({
+  maxHeight,
+  minHeight,
+  palette,
+  scrollOffset,
+}: {
+  maxHeight: number;
+  minHeight: number;
+  palette: BookDetailPalette;
+  scrollOffset: SharedValue<number>;
+}) {
+  const backdropStyle = useAnimatedStyle(() => ({
+    height: interpolate(
+      scrollOffset.value,
+      [0, BOOK_HERO_COLLAPSE_DISTANCE],
+      [maxHeight, minHeight],
+      'clamp',
+    ),
+  }));
+  const colorStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollOffset.value,
+      [
+        0,
+        BOOK_HERO_COLLAPSE_DISTANCE - BOOK_HERO_TOOLBAR_HEIGHT,
+        BOOK_HERO_COLLAPSE_DISTANCE,
+      ],
+      [1, 1, 0],
+      'clamp',
+    ),
+  }));
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.heroBackdrop,
+        { backgroundColor: palette.surface },
+        backdropStyle,
+      ]}
+    >
+      <Animated.View style={[StyleSheet.absoluteFill, colorStyle]}>
+        <BookHeroBackdropPaint palette={palette} />
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+function BookHeroBackdrop({
+  height,
+  palette,
+}: {
+  height: number;
+  palette: BookDetailPalette;
+}) {
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        styles.heroBackdrop,
+        { backgroundColor: palette.surface, height },
+      ]}
+    >
+      <BookHeroBackdropPaint palette={palette} />
+    </View>
+  );
+}
+
+function BookHeroBackdropPaint({ palette }: { palette: BookDetailPalette }) {
+  return palette.gradientColors ? (
+    <>
+      <View style={[StyleSheet.absoluteFill, heroGradientStyle(palette.gradientColors)]} />
+      <View style={[StyleSheet.absoluteFill, heroTransitionStyle(palette.headerTransitionColors)]} />
+    </>
+  ) : null;
 }
 
 function BookHeroContent({
@@ -596,6 +688,7 @@ function BookHeroContent({
   horizontalPadding,
   onQuickSearch,
   palette,
+  showBackdrop = true,
   titleSearchAccessibilityLabel,
 }: {
   author: string;
@@ -606,6 +699,7 @@ function BookHeroContent({
   horizontalPadding: number;
   onQuickSearch: (target: BookQuickSearchTarget) => void;
   palette: BookDetailPalette;
+  showBackdrop?: boolean;
   titleSearchAccessibilityLabel: string;
 }) {
   const { t } = useTranslation('book');
@@ -617,21 +711,10 @@ function BookHeroContent({
       pointerEvents="box-none"
       style={[
         styles.hero,
-        { backgroundColor: palette.surface, height },
+        { backgroundColor: showBackdrop ? palette.surface : 'transparent', height },
       ]}
     >
-      {palette.gradientColors ? (
-        <>
-          <View
-            pointerEvents="none"
-            style={[StyleSheet.absoluteFill, heroGradientStyle(palette.gradientColors)]}
-          />
-          <View
-            pointerEvents="none"
-            style={[StyleSheet.absoluteFill, heroTransitionStyle(palette.headerTransitionColors)]}
-          />
-        </>
-      ) : null}
+      {showBackdrop ? <BookHeroBackdrop height={height} palette={palette} /> : null}
       <View
         pointerEvents="box-none"
         style={[styles.heroContent, { left: horizontalPadding, right: horizontalPadding }]}
@@ -733,7 +816,7 @@ function BookDetailLoading({
   const block = { backgroundColor: palette.surfaceContainerHighest };
   return (
     <ScrollView
-      contentInsetAdjustmentBehavior="automatic"
+      contentInsetAdjustmentBehavior="never"
       contentContainerStyle={{ backgroundColor: palette.surface }}
       scrollEnabled={false}
     >
@@ -926,6 +1009,7 @@ const styles = StyleSheet.create({
   errorTitle: { fontSize: 18, fontWeight: '700', letterSpacing: 0, lineHeight: 24 },
   flexibleAppBarBackground: { left: 0, position: 'absolute', right: 0, top: 0 },
   hero: { overflow: 'hidden' },
+  heroBackdrop: { left: 0, overflow: 'hidden', position: 'absolute', right: 0, top: 0 },
   heroContent: { alignItems: 'flex-end', bottom: 16, flexDirection: 'row', gap: 16, position: 'absolute' },
   heroText: { flex: 1, gap: 4, paddingBottom: 1 },
   inlineHeroClip: { overflow: 'hidden' },
