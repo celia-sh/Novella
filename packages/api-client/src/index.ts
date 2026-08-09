@@ -815,7 +815,10 @@ export interface AnnouncementItem {
   id: number;
   title: string;
   createdAt: string;
+  contentHtml: string;
 }
+
+export type AnnouncementDetail = AnnouncementItem;
 
 export interface AnnouncementPage {
   page: number;
@@ -1014,11 +1017,25 @@ export class ApiClient {
 
   getAnnouncementList(
     request: AnnouncementListRequest = { page: 1, size: 5 },
+    options: RequestScheduleOptions = {},
   ): Promise<AnnouncementPage> {
     return this.invoke(
       'GetAnnouncementList',
       { Page: request.page, Size: request.size },
       decodeAnnouncementPage,
+      options,
+    );
+  }
+
+  getAnnouncementDetail(
+    id: number,
+    options: RequestScheduleOptions = {},
+  ): Promise<AnnouncementDetail> {
+    return this.invoke(
+      'GetAnnouncementDetail',
+      { Id: id },
+      decodeAnnouncementDetail,
+      options,
     );
   }
 
@@ -1592,14 +1609,21 @@ export function decodeAnnouncementPage(value: unknown): AnnouncementPage {
   return {
     page: asNumber(record.Page, 1),
     totalPages: asNumber(record.TotalPages, 1),
-    items: rawItems.map((item) => {
-      const announcement = asRecord(item, 'announcement item');
-      return {
-        id: asNumber(announcement.Id),
-        title: asString(announcement.Title),
-        createdAt: asDateString(announcement.CreatedAt),
-      };
-    }),
+    items: rawItems.map(decodeAnnouncementItem),
+  };
+}
+
+export function decodeAnnouncementDetail(value: unknown): AnnouncementDetail {
+  return decodeAnnouncementItem(value);
+}
+
+function decodeAnnouncementItem(value: unknown): AnnouncementItem {
+  const announcement = asRecord(value, 'announcement item');
+  return {
+    id: asNumber(announcement.Id),
+    title: asString(announcement.Title),
+    createdAt: asDateString(announcement.CreatedAt),
+    contentHtml: asStringOrEmpty(announcement.Content),
   };
 }
 

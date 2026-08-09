@@ -266,6 +266,67 @@ test('maps novel and comic search to their Web-Master Hub contracts', async () =
   ]);
 });
 
+test('maps announcement list and detail to their Web-Master Hub contracts', async () => {
+  const calls = [];
+  const client = new ApiClient(
+    { async request() { throw new Error('not used'); } },
+    {
+      async connect() {},
+      async close() {},
+      async invoke(method, args) {
+        calls.push({ method, args });
+        if (method === 'GetAnnouncementList') {
+          return {
+            Success: true,
+            Response: {
+              Page: 2,
+              TotalPages: 3,
+              Data: [{
+                Id: 7,
+                Title: 'Service update',
+                CreatedAt: '2026-02-01T00:00:00.000Z',
+                Content: '<p>List content</p>',
+              }],
+            },
+          };
+        }
+        return {
+          Success: true,
+          Response: {
+            Id: 7,
+            Title: 'Service update',
+            CreatedAt: '2026-02-01T00:00:00.000Z',
+            Content: '',
+          },
+        };
+      },
+    },
+    null,
+    new RateLimitRequestScheduler(20, 10),
+  );
+
+  const page = await client.getAnnouncementList({ page: 2, size: 24 });
+  const detail = await client.getAnnouncementDetail(7);
+
+  assert.equal(page.items[0].contentHtml, '<p>List content</p>');
+  assert.deepEqual(detail, {
+    id: 7,
+    title: 'Service update',
+    createdAt: '2026-02-01T00:00:00.000Z',
+    contentHtml: '',
+  });
+  assert.deepEqual(calls, [
+    {
+      method: 'GetAnnouncementList',
+      args: [{ Page: 2, Size: 24 }, { UseGzip: true }],
+    },
+    {
+      method: 'GetAnnouncementDetail',
+      args: [{ Id: 7 }, { UseGzip: true }],
+    },
+  ]);
+});
+
 test('decodes dual-format history and comic history hydration', async () => {
   const calls = [];
   const client = new ApiClient(

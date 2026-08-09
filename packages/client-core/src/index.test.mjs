@@ -6,6 +6,7 @@ import {
   COMMUNITY_STORAGE_KEYS,
   CommunitySpeechBlockedError,
   CommunitySpeechRulesUnavailableError,
+  createAnnouncementsUseCase,
   createBookSearchUseCase,
   createClientSessionController,
   createCommunitySpeechGuard,
@@ -263,6 +264,41 @@ test('reader preload marks chapter Hub work as cancellable preload priority', as
     { bookId: 4, sortNum: 2, convert: 't2s' },
     { priority: 'preload', signal: controller.signal },
   ]]);
+});
+
+test('announcements load paged summaries and detail with validated identifiers', async () => {
+  const calls = [];
+  const useCase = createAnnouncementsUseCase({
+    async getAnnouncementList(request) {
+      calls.push(['page', request]);
+      return { items: [], page: request.page, totalPages: 0 };
+    },
+    async getAnnouncementDetail(id) {
+      calls.push(['detail', id]);
+      return {
+        id,
+        title: 'Service update',
+        createdAt: '2026-02-01T00:00:00.000Z',
+        contentHtml: '<p>Ready</p>',
+      };
+    },
+  });
+
+  await useCase.loadPage(2);
+  await useCase.loadPage(3, 12);
+  const detail = await useCase.loadDetail(7);
+
+  assert.equal(detail.id, 7);
+  assert.deepEqual(calls, [
+    ['page', { page: 2, size: 24 }],
+    ['page', { page: 3, size: 12 }],
+    ['detail', 7],
+  ]);
+
+  assert.throws(() => useCase.loadPage(0));
+  assert.throws(() => useCase.loadPage(1, 1.5));
+  assert.throws(() => useCase.loadDetail(-1));
+  assert.equal(calls.length, 3);
 });
 
 test('discovery exposes independently loadable home sections', async () => {

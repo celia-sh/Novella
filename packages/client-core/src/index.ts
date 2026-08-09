@@ -2,6 +2,7 @@ import {
   ApiClient,
   ApiError,
   SERVICE_ENDPOINTS,
+  type AnnouncementDetail,
   type AnnouncementPage,
   type AppNotificationPage,
   type CommunityFavoriteToggleResult,
@@ -101,6 +102,11 @@ export interface DiscoverySnapshot {
   announcements: AnnouncementPage;
   latestBooks: BookListPage;
   onlineInfo: OnlineInfo;
+}
+
+export interface AnnouncementsUseCase {
+  loadPage(page: number, size?: number, signal?: AbortSignal): Promise<AnnouncementPage>;
+  loadDetail(id: number, signal?: AbortSignal): Promise<AnnouncementDetail>;
 }
 
 export interface DiscoveryUseCase {
@@ -567,6 +573,23 @@ function createClosedInvocationGate(): {
     },
   };
   return gate;
+}
+
+export function createAnnouncementsUseCase(api: ApiClient): AnnouncementsUseCase {
+  return Object.freeze({
+    loadPage(page: number, size = 24, signal?: AbortSignal) {
+      assertPositiveInteger(page, 'A valid announcement page is required.');
+      assertPositiveInteger(size, 'A valid announcement page size is required.');
+      return api.getAnnouncementList(
+        { page, size },
+        signal ? { signal } : {},
+      );
+    },
+    loadDetail(id: number, signal?: AbortSignal) {
+      assertPositiveInteger(id, 'A valid announcement id is required.');
+      return api.getAnnouncementDetail(id, signal ? { signal } : {});
+    },
+  });
 }
 
 export function createDiscoveryUseCase(api: ApiClient): DiscoveryUseCase {

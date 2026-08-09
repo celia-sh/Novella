@@ -1,6 +1,7 @@
 import { ApiClient } from '@novella/api-client';
 import {
   AUTH_CREDENTIAL_KEYS,
+  createAnnouncementsUseCase,
   createAuthenticationUseCase,
   createBookDetailUseCase,
   createBookSearchUseCase,
@@ -15,6 +16,7 @@ import {
   createProfileUseCase,
   createReaderUseCase,
   createShelfUseCase,
+  type AnnouncementsUseCase,
   type AuthenticationUseCase,
   type BookDetailUseCase,
   type BookSearchUseCase,
@@ -60,6 +62,7 @@ const api = new ApiClient(http, session.transport, {
   refresh: () => authentication.refresh(),
 });
 
+export const announcements: AnnouncementsUseCase = createAnnouncementsUseCase(api);
 export const discovery: DiscoveryUseCase = createDiscoveryUseCase(api);
 export const bookDetails: BookDetailUseCase = createBookDetailUseCase(api);
 export const comicDetails: ComicDetailUseCase = createComicDetailUseCase(api);
