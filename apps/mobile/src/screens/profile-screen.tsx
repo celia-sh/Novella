@@ -160,7 +160,7 @@ export function ProfileScreen() {
           <NativeGroupedListSection title={t('profile.sections.growth')}>
             <StaticValueRow icon="level" label={t('profile.fields.level')} value={t('profile.fields.levelValue', { level: profile.growth.level })} />
             <StaticValueRow icon="experience" label={t('profile.fields.experience')} value={new Intl.NumberFormat(locale).format(profile.growth.experience)} />
-            <StaticValueRow icon="points" label={t('profile.fields.points')} value={new Intl.NumberFormat(locale).format(profile.point)} />
+            <StaticValueRow icon="coins" label={t('profile.fields.coins')} value={new Intl.NumberFormat(locale).format(profile.growth.coin)} />
             <NativeGroupedListRow
               description={profile.growth.signedToday
                 ? t('profile.checkIn.signedDescription', { days: profile.growth.signInStreak })
@@ -221,7 +221,7 @@ function StaticValueRow({
   label,
   value,
 }: {
-  icon: 'experience' | 'level' | 'points' | 'registered' | 'userGroup';
+  icon: 'coins' | 'experience' | 'level' | 'registered' | 'userGroup';
   label: string;
   value: string;
 }) {

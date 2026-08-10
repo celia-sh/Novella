@@ -68,6 +68,7 @@ test('decodes the Web-Master profile and growth summary', () => {
     RegisterAt: '2026-01-02T00:00:00.000Z',
     Growth: {
       Exp: 180,
+      Coin: 96,
       Level: 4,
       GrowthLevel: 3,
       CurrentLevelExp: 150,
@@ -84,11 +85,11 @@ test('decodes the Web-Master profile and growth summary', () => {
     email: 'reader@example.com',
     inviteCode: 'INVITE',
     groupName: 'Member',
-    point: 320,
     unreadNotificationCount: 3,
     registeredAt: '2026-01-02T00:00:00.000Z',
     growth: {
       experience: 180,
+      coin: 96,
       level: 4,
       growthLevel: 3,
       currentLevelExperience: 150,

@@ -524,6 +524,7 @@ export interface OnlineInfo {
 
 export interface UserGrowth {
   experience: number;
+  coin: number;
   level: number;
   growthLevel: number;
   currentLevelExperience: number;
@@ -539,7 +540,6 @@ export interface UserProfile {
   email: string;
   inviteCode: string;
   groupName: string;
-  point: number;
   unreadNotificationCount: number;
   registeredAt: string | null;
   growth: UserGrowth;
@@ -1562,11 +1562,11 @@ export function decodeUserProfile(value: unknown): UserProfile {
     email: asStringOrEmpty(record.Email),
     inviteCode: asStringOrEmpty(record.InviteCode),
     groupName: asStringOrEmpty(role.Name),
-    point: asNumber(record.Point, 0),
     unreadNotificationCount: asNumber(record.UnreadNotificationCount, 0),
     registeredAt: asNullableDateString(record.RegisterAt),
     growth: {
       experience: asNumber(growth.Exp, 0),
+      coin: asNumber(growth.Coin, 0),
       level: asNumber(growth.Level, 0),
       growthLevel: asNumber(growth.GrowthLevel, 0),
       currentLevelExperience: asNumber(growth.CurrentLevelExp, 0),

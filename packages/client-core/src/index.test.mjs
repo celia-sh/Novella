@@ -483,11 +483,11 @@ test('profile repository publishes refreshed avatar and check-in state', async (
     email: 'reader@example.com',
     inviteCode: 'INVITE',
     groupName: 'Member',
-    point: 0,
     unreadNotificationCount: 0,
     registeredAt: null,
     growth: {
       experience: 10,
+      coin: 0,
       level: 1,
       growthLevel: 1,
       currentLevelExperience: 0,
