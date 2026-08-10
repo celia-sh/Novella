@@ -15,6 +15,7 @@ import {
   decodeUserProfile,
   extractBlurHashPlaceholder,
   normalizeBlurHash,
+  normalizeCoverUrl,
 } from './index.ts';
 
 test('decodes book details whose optional Web-Master text fields are empty', () => {
@@ -187,7 +188,7 @@ test('maps novel and comic search to their Web-Master Hub contracts', async () =
                 Id: 7,
                 Type: 'Novel',
                 Title: 'Novel result',
-                Cover: 'https://cdn.example/novel.jpg',
+                Cover: 'https://cdn.example/novel.jpg?placeholder=J8RyW#-=9sR:_NIq&t=signed',
                 UserName: '',
                 LastUpdatedAt: '2026-01-01T00:00:00.000Z',
                 Category: null,
@@ -204,7 +205,7 @@ test('maps novel and comic search to their Web-Master Hub contracts', async () =
               Id: 9,
               Title: 'Comic series',
               OriginalTitle: '',
-              Cover: 'https://cdn.example/comic.jpg',
+              Cover: 'https://cdn.example/comic.jpg?placeholder=J8RyW#-=9sR:_NIq&t=signed',
               Count: 2,
               LastUpdatedAt: '2026-01-02T00:00:00.000Z',
             }],
@@ -233,7 +234,15 @@ test('maps novel and comic search to their Web-Master Hub contracts', async () =
   const comicList = await client.getComicList({ page: 1, size: 24, order: 'view' });
 
   assert.equal(novels.items[0].title, 'Novel result');
+  assert.equal(
+    novels.items[0].coverUrl,
+    'https://cdn.example/novel.jpg?placeholder=J8RyW%23-=9sR:_NIq&t=signed',
+  );
   assert.equal(comics.items[0].title, 'Comic series');
+  assert.equal(
+    comics.items[0].coverUrl,
+    'https://cdn.example/comic.jpg?placeholder=J8RyW%23-=9sR:_NIq&t=signed',
+  );
   assert.equal(comics.items[0].originalTitle, null);
   assert.equal(comicList.items[0].chapterCount, 2);
   assert.equal(comicList.totalPages, 3);
@@ -509,6 +518,50 @@ test('validates BlurHash characters, components, and cover URL extraction', () =
     'JCL|i+@;_3^J^i-W',
   );
   assert.equal(extractBlurHashPlaceholder('https://cdn.example/cover.jpg'), null);
+});
+
+test('repairs raw cover BlurHash fragments without dropping signed query parameters', () => {
+  const raw = 'https://img.lightnovel.life/images/001_md.jpg?placeholder=J8RyW#-=9sR:_NIq&t=cf0d7f';
+  const normalized = normalizeCoverUrl(raw);
+
+  assert.equal(
+    normalized,
+    'https://img.lightnovel.life/images/001_md.jpg?placeholder=J8RyW%23-=9sR:_NIq&t=cf0d7f',
+  );
+  assert.equal(extractBlurHashPlaceholder(normalized), 'J8RyW#-=9sR:_NIq');
+  const parsed = new URL(normalized);
+  assert.equal(parsed.hash, '');
+  assert.equal(parsed.searchParams.get('t'), 'cf0d7f');
+  const alreadyEncoded = 'https://img.example/cover.jpg?placeholder=J8RyW%23-%3d9sR%3a_NIq&t=abc';
+  assert.equal(normalizeCoverUrl(alreadyEncoded), alreadyEncoded);
+  assert.equal(
+    normalizeCoverUrl('https://img.example/cover.jpg?placeholder=invalid#hash&t=abc'),
+    'https://img.example/cover.jpg?placeholder=invalid%23hash&t=abc',
+  );
+  assert.equal(
+    extractBlurHashPlaceholder('https://img.example/cover.jpg?placeholder=invalid#hash&t=abc'),
+    null,
+  );
+});
+
+test('normalizes decoded detail cover URLs while preserving raw placeholders', () => {
+  const detail = decodeBookDetail({
+    Book: {
+      Id: 19138,
+      Cover: 'https://img.example/001_md.jpg?placeholder=J8RyW#-=9sR:_NIq&t=signed',
+      Title: 'Book',
+      LastUpdatedAt: '2026-08-09T00:00:00.000Z',
+      CreatedAt: '2026-08-01T00:00:00.000Z',
+      Chapter: [],
+      User: { Id: 1, UserName: 'uploader', Avatar: '' },
+    },
+  });
+
+  assert.equal(
+    detail.coverUrl,
+    'https://img.example/001_md.jpg?placeholder=J8RyW%23-=9sR:_NIq&t=signed',
+  );
+  assert.equal(detail.coverPlaceholder, 'J8RyW#-=9sR:_NIq');
 });
 
 test('drops invalid comic BlurHash placeholders at the API boundary', () => {

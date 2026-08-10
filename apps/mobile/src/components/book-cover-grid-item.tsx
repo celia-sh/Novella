@@ -10,7 +10,10 @@ import {
   type GestureResponderEvent,
 } from 'react-native';
 
-import type { BookListItem } from '@novella/api-client';
+import {
+  normalizeCoverUrl,
+  type BookListItem,
+} from '@novella/api-client';
 
 import { BookCoverImage } from '@/components/book-cover-image';
 import { BookTypeBadgeIcon } from '@/components/book-type-badge';
@@ -52,6 +55,7 @@ export function BookCoverGridItem({
   const { t } = useTranslation('book');
   const styles = useBookCoverGridItemStyles();
   const categoryBadge = resolveBookCategoryBadge(book.category);
+  const coverUrl = normalizeCoverUrl(book.coverUrl);
   const levelBadge = resolveBookLevelBadge({
     interiorLevel: book.interiorLevel,
     level: book.level,
@@ -80,7 +84,7 @@ export function BookCoverGridItem({
           accessibilityLabel={t('cover.accessibility', { title: book.title })}
           {...(animateCachedImage === undefined ? {} : { animateCachedImage })}
           blurHash={book.coverPlaceholder}
-          source={book.coverUrl}
+          source={coverUrl}
         />
 
         {levelBadge ? (

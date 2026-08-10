@@ -1,4 +1,4 @@
-import { Image, type ImageLoadEventData } from 'expo-image';
+import { Image } from 'expo-image';
 import { IconBook2, IconPhotoOff } from '@tabler/icons-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +9,8 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+
+import { normalizeCoverUrl } from '@novella/api-client';
 
 import { BookCoverBlurHash } from '@/components/book-cover-blur-hash';
 import { createBookCoverBlurHashPlaceholder } from '@/services/blurhash';
@@ -33,13 +35,14 @@ export interface BookCoverImageProps {
 /**
  * Flutter-parity cover loading surface.
  *
- * The validated 32×48 BlurHash stays mounted below the network image. The
+ * The validated 32x48 BlurHash stays mounted below the network image. The
  * resolved pixels appear only after a minimum placeholder interval and fade
  * over them, so native cache hits and list recycling cannot flash an empty
  * frame between placeholder and cover.
  */
 export function BookCoverImage(props: BookCoverImageProps) {
-  return <BookCoverImageLayer key={props.source} {...props} />;
+  const source = normalizeCoverUrl(props.source);
+  return <BookCoverImageLayer key={source} {...props} source={source} />;
 }
 
 function BookCoverImageLayer({
@@ -53,15 +56,18 @@ function BookCoverImageLayer({
   const styles = useBookCoverImageStyles();
   const { colors } = useAppTheme();
   const placeholder = createBookCoverBlurHashPlaceholder(blurHash);
-  const wasRevealed = source.length > 0 && revealedCoverUrls.has(source);
-  const opacity = useRef(new Animated.Value(wasRevealed ? 1 : 0)).current;
+  const cacheKey = coverCacheKey(source);
+  const wasRevealed = source.length > 0 && revealedCoverUrls.has(cacheKey);
+  // A cache hit means decoding can be skipped, not that this native view has
+  // displayed pixels. Keep the placeholder visible until onDisplay fires.
+  const opacity = useRef(new Animated.Value(0)).current;
   const startedAt = useRef(Date.now());
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revealScheduled = useRef(false);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mounted = useRef(true);
   const [attempt, setAttempt] = useState(0);
-  const [status, setStatus] = useState<CoverStatus>(wasRevealed ? 'loaded' : 'loading');
+  const [status, setStatus] = useState<CoverStatus>('loading');
 
   useEffect(() => () => {
     mounted.current = false;
@@ -70,14 +76,11 @@ function BookCoverImageLayer({
     opacity.stopAnimation();
   }, [opacity]);
 
-  const reveal = (event: ImageLoadEventData) => {
+  const reveal = () => {
     if (revealScheduled.current || status === 'loaded' || status === 'revealing') return;
     revealScheduled.current = true;
-    // Pixels are reusable as soon as the native image reports them loaded. Do
-    // not wait for this instance's fade to finish before a destination route
-    // can reveal the same cover.
     rememberRevealedCover(source);
-    if (wasRevealed || (event.cacheType === 'memory' && !animateCachedImage)) {
+    if (wasRevealed && !animateCachedImage) {
       opacity.setValue(1);
       setStatus('loaded');
       return;
@@ -155,17 +158,17 @@ function BookCoverImageLayer({
             cachePolicy="memory-disk"
             contentFit="cover"
             enforceEarlyResizing={process.env.EXPO_OS === 'ios'}
-            key={`${source}:${attempt}`}
+            key={`${cacheKey}:${attempt}`}
+            onDisplay={reveal}
             onError={fail}
-            onLoad={reveal}
-            recyclingKey={source}
-            source={{ uri: source }}
+            recyclingKey={cacheKey}
+            source={{ cacheKey, uri: source }}
             style={StyleSheet.absoluteFill}
           />
         </Animated.View>
       ) : null}
 
-      {source && showLoading && status === 'loading' ? (
+      {source && showLoading && !wasRevealed && status === 'loading' ? (
         <View pointerEvents="none" style={styles.centeredOverlay}>
           <ActivityIndicator
             color={(placeholder ? 'rgba(255, 255, 255, 0.8)' : colors.secondaryLabel) as string}
@@ -198,6 +201,21 @@ function BookCoverImageLayer({
   );
 }
 
+function coverCacheKey(source: string): string {
+  const queryStart = source.indexOf('?');
+  if (queryStart < 0) return source.split('#', 1)[0] ?? source;
+  const fragmentStart = source.indexOf('#', queryStart + 1);
+  const queryEnd = fragmentStart < 0 ? source.length : fragmentStart;
+  const query = source.slice(queryStart + 1, queryEnd);
+  const retained = query.split('&').filter((pair) => {
+    const separator = pair.indexOf('=');
+    const key = separator < 0 ? pair : pair.slice(0, separator);
+    return key !== 'placeholder';
+  });
+  const base = source.slice(0, queryStart);
+  return retained.length > 0 ? `${base}?${retained.join('&')}` : base;
+}
+
 export function clearBookCoverRevealCache(): number {
   const count = revealedCoverUrls.size;
   revealedCoverUrls.clear();
@@ -206,8 +224,9 @@ export function clearBookCoverRevealCache(): number {
 
 function rememberRevealedCover(source: string): void {
   if (!source) return;
-  revealedCoverUrls.delete(source);
-  revealedCoverUrls.add(source);
+  const cacheKey = coverCacheKey(source);
+  revealedCoverUrls.delete(cacheKey);
+  revealedCoverUrls.add(cacheKey);
   while (revealedCoverUrls.size > MAX_REVEALED_COVERS) {
     const oldest = revealedCoverUrls.values().next().value as string | undefined;
     if (oldest === undefined) break;
