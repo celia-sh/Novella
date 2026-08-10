@@ -132,6 +132,12 @@ export const zhCNSettings = {
     },
     behavior: {
       section: '阅读行为',
+      directionTitle: '漫画分页方向',
+      directionDescription: '设置漫画分页模式的点击与滑动方向',
+      directionOptions: {
+        ltr: '从左到右',
+        rtl: '从右到左',
+      },
       modeTitle: '阅读模式',
       modeDescription: '选择滚动或逐页阅读',
       modeOptions: {
@@ -144,8 +150,6 @@ export const zhCNSettings = {
       preloadCount: '{{count}} 章',
       indentTitle: '首行缩进',
       indentDescription: '每个段落的首行缩进',
-      noAnimationTitle: '关闭翻页动画',
-      noAnimationDescription: '点击翻页或滚动时不播放切换动画',
       imagePreviewTitle: '长按预览图片',
       imagePreviewDescription: '长按打开图片预览',
     },
@@ -421,6 +425,12 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
     },
     behavior: {
       section: '閱讀方式',
+      directionTitle: '漫畫分頁方向',
+      directionDescription: '設定漫畫分頁模式的點擊與滑動方向',
+      directionOptions: {
+        ltr: '從左到右',
+        rtl: '從右到左',
+      },
       modeTitle: '閱讀模式',
       modeDescription: '選擇捲動或逐頁閱讀',
       modeOptions: {
@@ -433,8 +443,6 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
       preloadCount: '{{count}} 章',
       indentTitle: '首行縮排',
       indentDescription: '每個段落的首行縮排',
-      noAnimationTitle: '關閉翻頁動畫',
-      noAnimationDescription: '點擊翻頁或捲動時不播放切換動畫',
       imagePreviewTitle: '長按預覽圖片',
       imagePreviewDescription: '長按開啟圖片預覽',
     },

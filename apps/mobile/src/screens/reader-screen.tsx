@@ -317,10 +317,9 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     imagePreviewOpenOnLongPress: settings.readerImagePreviewOpenOnLongPress,
     lineHeight: settings.readerLineHeight,
     mode,
-    noPageAnimation: settings.readerPagedNoAnimation,
     sidePadding: settings.readerSidePadding,
     textColor: readerTextColor,
-  }), [readerBackground, readerTextColor, settings.fontSize, settings.readerFirstLineIndent, settings.readerImagePreviewOpenOnLongPress, settings.readerLineHeight, settings.readerPagedNoAnimation, settings.readerSidePadding, mode]);
+  }), [readerBackground, readerTextColor, settings.fontSize, settings.readerFirstLineIndent, settings.readerImagePreviewOpenOnLongPress, settings.readerLineHeight, settings.readerSidePadding, mode]);
   const readerInsets = useMemo(
     () => createReadiumContentInsets(
       readerChromeInsets.top,

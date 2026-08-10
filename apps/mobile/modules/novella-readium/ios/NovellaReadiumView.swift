@@ -21,6 +21,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   private var contentInsets: [String: Double] = [:]
   private var navigator: EPUBNavigatorViewController?
   private var directionalNavigationAdapter: DirectionalNavigationAdapter?
+  private var scrollNavigationObserver: InputObservableToken?
   private var openTask: Task<Void, Never>?
   private var isReady = false
 
@@ -196,14 +197,37 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   @MainActor private func installDirectionalNavigationAdapter() {
     guard let navigator else { return }
     directionalNavigationAdapter?.unbind()
-    let isScrolling = (preferences["mode"] as? String) == "scroll"
+    directionalNavigationAdapter = nil
+    if let scrollNavigationObserver {
+      navigator.removeObserver(scrollNavigationObserver)
+      self.scrollNavigationObserver = nil
+    }
+    if (preferences["mode"] as? String) == "scroll" {
+      scrollNavigationObserver = navigator.addObserver(.tap { [weak navigator] event in
+        guard let navigator else { return false }
+        let height = navigator.view.bounds.height
+        let direction: Int
+        if event.location.y <= height * 0.3 {
+          direction = -1
+        } else if event.location.y >= height * 0.7 {
+          direction = 1
+        } else {
+          return false
+        }
+        _ = await navigator.evaluateJavaScript(
+          "window.scrollBy({top:window.innerHeight * 0.5 * \(direction),behavior:'auto'});true;"
+        )
+        return true
+      })
+      return
+    }
     let adapter = DirectionalNavigationAdapter(
       pointerPolicy: .init(
         types: [.touch, .mouse],
-        edges: isScrolling ? .vertical : .horizontal,
-        ignoreWhileScrolling: false
+        edges: .horizontal,
+        ignoreWhileScrolling: true
       ),
-      animatedTransition: (preferences["pageTurnAnimation"] as? Bool) != false
+      animatedTransition: false
     )
     adapter.bind(to: navigator)
     directionalNavigationAdapter = adapter
@@ -279,6 +303,10 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   private func detachNavigator() {
     directionalNavigationAdapter?.unbind()
     directionalNavigationAdapter = nil
+    if let controller = navigator, let scrollNavigationObserver {
+      controller.removeObserver(scrollNavigationObserver)
+    }
+    scrollNavigationObserver = nil
     guard let controller = navigator else { return }
     controller.willMove(toParent: nil)
     controller.view.removeFromSuperview()

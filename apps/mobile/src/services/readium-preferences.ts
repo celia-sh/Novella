@@ -9,12 +9,11 @@ const BASE_SIDE_PADDING = 30;
 
 export function createReadiumReaderPreferences({
   backgroundColor,
-  firstLineIndent: _firstLineIndent,
+  firstLineIndent,
   fontSize,
   imagePreviewOpenOnLongPress,
   lineHeight,
   mode,
-  noPageAnimation,
   sidePadding,
   textColor,
 }: {
@@ -24,7 +23,6 @@ export function createReadiumReaderPreferences({
   imagePreviewOpenOnLongPress: boolean;
   lineHeight: number;
   mode: ReaderMode;
-  noPageAnimation: boolean;
   sidePadding: number;
   textColor: string;
 }): ReadiumReaderPreferences {
@@ -35,8 +33,7 @@ export function createReadiumReaderPreferences({
     lineHeight,
     mode,
     pageMargins: Math.max(0, sidePadding / BASE_SIDE_PADDING),
-    paragraphIndent: _firstLineIndent ? 2 : 0,
-    pageTurnAnimation: !noPageAnimation,
+    paragraphIndent: firstLineIndent ? 2 : 0,
     textColor,
   };
 }

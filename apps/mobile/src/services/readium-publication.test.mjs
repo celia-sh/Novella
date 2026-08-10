@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createReadiumReaderPreferences } from './readium-preferences.ts';
 import {
   buildReadiumChapterDocument,
   buildReadiumPublicationResources,
@@ -51,7 +52,7 @@ test('chapter XHTML receives deterministic fragments and a relative font stylesh
   assert.match(html, /<p id="nv-block-0">First block<\/p>/);
   assert.match(html, /<p id="nv-block-1">Second block<\/p>/);
   assert.match(html, /href="\.\.\/styles\/reader\.css"/);
-  assert.match(html, /label\.className='nv-reader-image-interaction'/);
+  assert.doesNotMatch(html, /nv-reader-image-interaction/);
   assert.match(html, /e\.stopImmediatePropagation\(\);send\(i,'tap'\)/);
   assert.match(html, /window\.webkit\.messageHandlers\.novellaReader\.postMessage\(p\)/);
   assert.doesNotMatch(html, /preventDefault\(\)/);
@@ -88,6 +89,8 @@ test('image tables retain their authored rows and columns', () => {
   assert.equal((html.match(/<img\b/gu) ?? []).length, 8);
   assert.match(publication.resources['EPUB/styles/reader.css'], /table\{width:100%;max-width:100%;table-layout:fixed/);
   assert.match(publication.resources['EPUB/styles/reader.css'], /body>:last-child\{margin-bottom:0!important;\}/);
+  assert.match(publication.resources['EPUB/styles/reader.css'], /body>p\{text-indent:var\(--USER__paraIndent\)!important;\}/);
+  assert.match(publication.resources['EPUB/styles/reader.css'], /-webkit-user-select:none;user-select:none/);
 });
 
 test('chapter HTML is normalized with inline footnotes', () => {
@@ -149,9 +152,23 @@ test('readiness gates target chapter and required font but not future chapters o
   }), true);
 });
 
+test('reader preferences map first-line indentation to Readium rem units', () => {
+  const base = {
+    backgroundColor: '#ffffff',
+    fontSize: 18,
+    imagePreviewOpenOnLongPress: false,
+    lineHeight: 1.6,
+    mode: 'paged',
+    sidePadding: 30,
+    textColor: '#000000',
+  };
+  assert.equal(createReadiumReaderPreferences({ ...base, firstLineIndent: true }).paragraphIndent, 2);
+  assert.equal(createReadiumReaderPreferences({ ...base, firstLineIndent: false }).paragraphIndent, 0);
+});
+
 test('publication cache identity includes the conversion mode', () => {
-  assert.equal(readiumPublicationCacheKey(9, undefined), '9-none-v2');
-  assert.equal(readiumPublicationCacheKey(9, 't2s'), '9-t2s-v2');
+  assert.equal(readiumPublicationCacheKey(9, undefined), '9-none');
+  assert.equal(readiumPublicationCacheKey(9, 't2s'), '9-t2s');
   assert.equal(readiumBlockFragment(3), 'nv-block-3');
   assert.equal(readiumChapterHref(205), 'EPUB/chapters/205.xhtml');
 });

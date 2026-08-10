@@ -30,6 +30,8 @@ import org.readium.r2.navigator.HyperlinkNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
+import org.readium.r2.navigator.input.InputListener
+import org.readium.r2.navigator.input.TapEvent
 import org.readium.r2.navigator.preferences.Color
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.publication.Link
@@ -70,6 +72,7 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
   private var openJob: Job? = null
   private var locatorJob: Job? = null
   private var directionalNavigationAdapter: DirectionalNavigationAdapter? = null
+  private var scrollNavigationListener: InputListener? = null
   private var isReady = false
   private val fragmentTag get() = "novella-readium-${id}"
 
@@ -260,17 +263,33 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
   private fun installDirectionalNavigationAdapter() {
     val navigator = navigator ?: return
     directionalNavigationAdapter?.let(navigator::removeInputListener)
+    directionalNavigationAdapter = null
+    scrollNavigationListener?.let(navigator::removeInputListener)
+    scrollNavigationListener = null
+    if (preferences["mode"] == "scroll") {
+      scrollNavigationListener = object : InputListener {
+        override fun onTap(event: TapEvent): Boolean {
+          val height = navigator.publicationView.height.toFloat()
+          val direction = when {
+            event.point.y <= height * 0.3f -> -1
+            event.point.y >= height * 0.7f -> 1
+            else -> return false
+          }
+          (appContext.currentActivity as? FragmentActivity)?.lifecycleScope?.launch {
+            navigator.evaluateJavascript(
+              "window.scrollBy({top:window.innerHeight * 0.5 * $direction,behavior:'auto'});true;"
+            )
+          }
+          return true
+        }
+      }.also(navigator::addInputListener)
+      return
+    }
     directionalNavigationAdapter = DirectionalNavigationAdapter(
       navigator = navigator,
-      tapEdges = setOf(
-        if (preferences["mode"] == "scroll") {
-          DirectionalNavigationAdapter.TapEdge.Vertical
-        } else {
-          DirectionalNavigationAdapter.TapEdge.Horizontal
-        }
-      ),
-      handleTapsWhileScrolling = true,
-      animatedTransition = preferences["pageTurnAnimation"] != false
+      tapEdges = setOf(DirectionalNavigationAdapter.TapEdge.Horizontal),
+      handleTapsWhileScrolling = false,
+      animatedTransition = false
     ).also(navigator::addInputListener)
   }
 
@@ -345,6 +364,7 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
       }
     }
     directionalNavigationAdapter = null
+    scrollNavigationListener = null
     navigator = null
     navigatorPublication?.close()
     navigatorPublication = null

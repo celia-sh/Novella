@@ -24,7 +24,6 @@ export interface ReadiumReaderPreferences {
   mode: 'paged' | 'scroll';
   pageMargins: number;
   paragraphIndent: number;
-  pageTurnAnimation: boolean;
   textColor: string;
 }
 

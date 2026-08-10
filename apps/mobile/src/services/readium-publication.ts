@@ -58,7 +58,7 @@ export function readiumPublicationCacheKey(
   bookId: number,
   conversion: string | null | undefined,
 ): string {
-  return `${bookId}-${conversion ?? 'none'}-v2`;
+  return `${bookId}-${conversion ?? 'none'}`;
 }
 
 /**
@@ -197,9 +197,10 @@ function buildReadiumPublicationStylesheet(fontRequired: boolean): string {
   return [
     fontFace,
     'html,body{margin:0;padding:0;}',
-    'body{word-break:break-word;overflow-wrap:break-word;}',
+    'body{word-break:break-word;overflow-wrap:break-word;-webkit-user-select:none;user-select:none;}',
     '.nv-book-font{font-family:\'NovellaBookFont\',sans-serif;}',
     'p{margin:0 0 .8em;}',
+    'html[style*="--USER__paraIndent"] body>p{text-indent:var(--USER__paraIndent)!important;}',
     'body>:last-child{margin-bottom:0!important;}',
     'table{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;margin:0 0 .8em;}',
     'th,td{padding:0;vertical-align:top;}',
@@ -209,7 +210,6 @@ function buildReadiumPublicationStylesheet(fontRequired: boolean): string {
     '.nv-inline-footnote-content>ol,.nv-inline-footnote-content>ul{margin:0;padding:0;list-style:none;}',
     '.nv-inline-footnote-content p,.nv-inline-footnote-content li{margin:0;}',
     '.nv-inline-footnote-label{flex:none;font-weight:600;}',
-    '.nv-reader-image-interaction{display:contents;}',
     'img{max-width:100%;height:auto;}',
     'ruby rt{font-size:.5em;}',
   ].join('');
@@ -253,7 +253,7 @@ function inlineFootnotesAfterBlock(
 }
 
 function buildImagePreviewScript(): string {
-  return `<script type="text/javascript"><![CDATA[(function(){if(window.__novellaImagePreviewInstalled)return;window.__novellaImagePreviewInstalled=true;var timer=null,sx=0,sy=0;function img(t){var i=t&&t.closest?t.closest('img'):null;if(!i)return null;var a=i.closest('a');return a&&/(^|\\s)noteref(\\s|$)/.test(a.getAttribute('epub:type')||'')?null:i}function prepare(){var images=document.querySelectorAll('img');for(var n=0;n<images.length;n++){var i=img(images[n]);if(!i||i.parentElement&&i.parentElement.classList.contains('nv-reader-image-interaction'))continue;var label=document.createElement('label');label.className='nv-reader-image-interaction';i.parentNode.insertBefore(label,i);label.appendChild(i)}}function send(i,g){if(!i)return;var p={type:'image',uri:i.currentSrc||i.src,alt:i.alt||'',gesture:g};if(window.novellaReader&&window.novellaReader.open){window.novellaReader.open(p.uri,p.alt,p.gesture)}else if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.novellaReader){window.webkit.messageHandlers.novellaReader.postMessage(p)}}document.addEventListener('DOMContentLoaded',prepare);document.addEventListener('click',function(e){var i=img(e.target);if(!i)return;e.stopImmediatePropagation();send(i,'tap')},true);document.addEventListener('touchstart',function(e){var i=img(e.target);if(!i)return;var t=e.touches[0];sx=t.clientX;sy=t.clientY;timer=setTimeout(function(){timer=null;send(i,'longPress')},520)},true);document.addEventListener('touchmove',function(e){if(!timer)return;var t=e.touches[0];if(Math.abs(t.clientX-sx)>10||Math.abs(t.clientY-sy)>10){clearTimeout(timer);timer=null}},true);document.addEventListener('touchend',function(){if(timer){clearTimeout(timer);timer=null}},true)})()]]></script>`;
+  return `<script type="text/javascript"><![CDATA[(function(){if(window.__novellaImagePreviewInstalled)return;window.__novellaImagePreviewInstalled=true;var timer=null,sx=0,sy=0;function img(t){var i=t&&t.closest?t.closest('img'):null;if(!i)return null;var a=i.closest('a');return a&&/(^|\\s)noteref(\\s|$)/.test(a.getAttribute('epub:type')||'')?null:i}function send(i,g){if(!i)return;var p={type:'image',uri:i.currentSrc||i.src,alt:i.alt||'',gesture:g};if(window.novellaReader&&window.novellaReader.open){window.novellaReader.open(p.uri,p.alt,p.gesture)}else if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.novellaReader){window.webkit.messageHandlers.novellaReader.postMessage(p)}}document.addEventListener('click',function(e){var i=img(e.target);if(!i)return;e.stopImmediatePropagation();send(i,'tap')},true);document.addEventListener('touchstart',function(e){var i=img(e.target);if(!i)return;var t=e.touches[0];sx=t.clientX;sy=t.clientY;timer=setTimeout(function(){timer=null;send(i,'longPress')},520)},true);document.addEventListener('touchmove',function(e){if(!timer)return;var t=e.touches[0];if(Math.abs(t.clientX-sx)>10||Math.abs(t.clientY-sy)>10){clearTimeout(timer);timer=null}},true);document.addEventListener('touchend',function(){if(timer){clearTimeout(timer);timer=null}},true)})()]]></script>`;
 }
 
 function normalizeHtmlFragmentForXhtml(html: string): string {

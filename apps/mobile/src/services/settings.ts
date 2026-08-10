@@ -64,7 +64,7 @@ export interface AppSettings {
   readerFirstLineIndent: boolean;
   readerImagePreviewOpenOnLongPress: boolean;
   readerLineHeight: number;
-  readerPagedNoAnimation: boolean;
+  comicPagedDirection: 'ltr' | 'rtl';
   readerPreloadWindow: number;
   readerSidePadding: number;
   readerViewMode: ReaderViewMode;
@@ -93,8 +93,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   readerFirstLineIndent: false,
   readerImagePreviewOpenOnLongPress: false,
   readerLineHeight: 1.6,
-  readerPagedNoAnimation: false,
-  readerPreloadWindow: 1,
+  comicPagedDirection: 'ltr',
+  readerPreloadWindow: 3,
   readerSidePadding: 30,
   readerViewMode: 'paged',
   seedColorValue: DEFAULT_THEME_SEED,
@@ -221,8 +221,8 @@ function decodeSettings(value: unknown): AppSettings {
     ...(typeof candidate.readerLineHeight === 'number'
       ? { readerLineHeight: clamp(candidate.readerLineHeight, 1, 2.5) }
       : {}),
-    ...(typeof candidate.readerPagedNoAnimation === 'boolean'
-      ? { readerPagedNoAnimation: candidate.readerPagedNoAnimation }
+    ...(candidate.comicPagedDirection === 'ltr' || candidate.comicPagedDirection === 'rtl'
+      ? { comicPagedDirection: candidate.comicPagedDirection }
       : {}),
     ...(typeof candidate.readerPreloadWindow === 'number' &&
       Number.isFinite(candidate.readerPreloadWindow)

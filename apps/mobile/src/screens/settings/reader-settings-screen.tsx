@@ -106,6 +106,17 @@ export function ReaderSettingsContent() {
 
       <NativeGroupedListSection title={t('reader.behavior.section')}>
         <NativePickerRow
+          description={t('reader.behavior.directionDescription')}
+          icon="readingDirection"
+          onValueChange={(value) => void updateAppSettings({ comicPagedDirection: value })}
+          options={[
+            { label: t('reader.behavior.directionOptions.ltr'), value: 'ltr' },
+            { label: t('reader.behavior.directionOptions.rtl'), value: 'rtl' },
+          ] as const}
+          selectedValue={settings.comicPagedDirection}
+          title={t('reader.behavior.directionTitle')}
+        />
+        <NativePickerRow
           description={t('reader.behavior.modeDescription')}
           icon="readingMode"
           onValueChange={(value) => void updateAppSettings({ readerViewMode: value })}
@@ -138,13 +149,6 @@ export function ReaderSettingsContent() {
           onValueChange={(value) => void updateAppSettings({ readerFirstLineIndent: value })}
           title={t('reader.behavior.indentTitle')}
           value={settings.readerFirstLineIndent}
-        />
-        <NativeToggleRow
-          description={t('reader.behavior.noAnimationDescription')}
-          icon="noPageAnimation"
-          onValueChange={(value) => void updateAppSettings({ readerPagedNoAnimation: value })}
-          title={t('reader.behavior.noAnimationTitle')}
-          value={settings.readerPagedNoAnimation}
         />
         <NativeToggleRow
           description={t('reader.behavior.imagePreviewDescription')}
