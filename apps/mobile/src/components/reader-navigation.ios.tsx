@@ -18,6 +18,12 @@ export function ReaderNavigation({
         options={{
           headerTintColor: foregroundColor,
           headerTransparent: true,
+          scrollEdgeEffects: {
+            bottom: 'hidden',
+            left: 'hidden',
+            right: 'hidden',
+            top: 'soft',
+          },
           title,
         }}
       />
