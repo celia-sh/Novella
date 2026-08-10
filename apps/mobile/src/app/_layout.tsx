@@ -120,7 +120,11 @@ function RootLayoutContent() {
           <Stack.Screen name="ranking" options={{ headerShown: !usesComposeBottomSheets, title: t('routes.rankings') }} />
           <Stack.Screen
             name="shelf/folder"
-            options={{ headerShown: !usesComposeBottomSheets, title: t('routes.folder') }}
+            options={{
+              headerLargeTitle: false,
+              headerShown: !usesComposeBottomSheets,
+              title: t('routes.folder'),
+            }}
           />
           <Stack.Screen
             name="shelf/manage"
