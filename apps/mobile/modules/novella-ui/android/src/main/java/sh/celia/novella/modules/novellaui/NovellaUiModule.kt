@@ -12,6 +12,14 @@ class NovellaUiModule : Module() {
       Content { props -> BlurHashContent(props) }
     }
 
+    ExpoUIView<BottomSheetProps>("BottomSheet") {
+      val onDismissRequest by Event<BottomSheetDismissEvent>()
+
+      Content { props ->
+        BottomSheetContent(props) { onDismissRequest(BottomSheetDismissEvent()) }
+      }
+    }
+
     ExpoUIView<TopAppBarScaffoldProps>("TopAppBarScaffold") {
       val onActionPressed by Event<TopAppBarActionEvent>()
       val onBackPressed by Event<BackPressedEvent>()

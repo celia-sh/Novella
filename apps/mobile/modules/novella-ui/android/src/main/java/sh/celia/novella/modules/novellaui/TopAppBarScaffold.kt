@@ -2,6 +2,7 @@ package sh.celia.novella.modules.novellaui
 
 import android.graphics.Color
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -121,6 +122,7 @@ fun FunctionalComposableScope.TopAppBarScaffoldContent(
     modifier = modifier,
     containerColor = containerColor,
     contentColor = contentColor,
+    contentWindowInsets = WindowInsets(0, 0, 0, 0),
     topBar = {
       if (props.largeTitle) {
         LargeTopAppBar(

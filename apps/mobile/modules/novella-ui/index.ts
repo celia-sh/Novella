@@ -32,3 +32,8 @@ export {
   NativeBottomAppBar,
   type NativeBottomAppBarProps,
 } from './src/native-bottom-app-bar';
+
+export {
+  NativeBottomSheet,
+  type NativeBottomSheetProps,
+} from './src/native-bottom-sheet';

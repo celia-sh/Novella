@@ -1,7 +1,7 @@
-import BottomSheet, { BottomSheetView } from '@expo/ui/community/bottom-sheet';
 import { router } from 'expo-router';
 import { useCallback, useContext, useRef } from 'react';
-import { StyleSheet } from 'react-native';
+
+import { NativeBottomSheet } from '../../modules/novella-ui';
 
 import { BookDetailThemeContext } from '@/components/book-detail-theme-provider';
 import type { NativeRouteBottomSheetProps } from '@/components/native-route-bottom-sheet';
@@ -28,22 +28,13 @@ export function NativeRouteBottomSheet({
   }, []);
 
   return (
-    <BottomSheet
-      backgroundStyle={{ backgroundColor: surface }}
-      enableDynamicSizing={!snapPoints}
-      enablePanDownToClose
-      index={0}
+    <NativeBottomSheet
+      containerColor={surface}
+      fitToContents={!snapPoints}
       onDismiss={handleDismiss}
-      {...(snapPoints ? { snapPoints } : {})}
+      supportsPartialExpansion={Boolean(snapPoints)}
     >
-      <BottomSheetView style={[styles.content, snapPoints && styles.fill]}>
-        {children}
-      </BottomSheetView>
-    </BottomSheet>
+      {children}
+    </NativeBottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  content: { width: '100%' },
-  fill: { flex: 1 },
-});
