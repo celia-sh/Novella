@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { NovellaReadiumViewHandle, ReadiumLinkEvent, ReadiumLocator, ReadiumStatusEvent } from '../../modules/novella-readium';
+import type { NovellaReadiumViewHandle, ReadiumLinkEvent, ReadiumLocator } from '../../modules/novella-readium';
 import { NovellaReadiumView } from '../../modules/novella-readium';
 import {
   getAdjacentChapterSortNum,
@@ -173,18 +173,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const savePosition = useCallback((locator: ReadiumLocator) => {
     if (!content || activeChapterIdRef.current !== content.chapter.id) return;
     lastPositionRef.current = locator;
-    if (process.env.NODE_ENV !== 'production') {
-      console.info('[Reader][Readium] raw locator', locator);
-    }
     const mapped = readiumLocatorToReaderPosition(locator, content.chapter.id, blocks);
-    if (process.env.NODE_ENV !== 'production') {
-      console.info('[Reader][Readium] mapped locator', {
-        href: locator.href,
-        progression: locator.locations.progression,
-        fragments: locator.locations.fragments,
-        position: mapped?.position,
-      });
-    }
     if (!mapped) return;
     schedulePosition(mapped);
   }, [blocks, content, schedulePosition]);
@@ -339,14 +328,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     [readerChromeInsets.bottom, readerChromeInsets.top],
   );
 
-  const reportReadiumStatus = useCallback((status: ReadiumStatusEvent) => {
-    if (process.env.NODE_ENV === 'production') return;
-    console.info('[Reader][Readium]', status.stage, {
-      ...(status.href ? { href: status.href } : {}),
-      ...(status.detail ? { detail: status.detail } : {}),
-    });
-  }, []);
-
   const retryNativeReader = useCallback(() => {
     setNativeError(null);
     setNativeReady(false);
@@ -396,7 +377,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               onLocatorChange={savePosition}
               onError={({ message }) => setNativeError({ kind: 'raw', text: message })}
               onReady={() => setNativeReady(true)}
-              onStatus={reportReadiumStatus}
               preferences={readerPreferences}
               publicationId={preparedPublication.publicationId}
               publicationUri={preparedPublication.directoryUri}

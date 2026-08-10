@@ -136,27 +136,6 @@ export function buildChapterXhtml(
   const footnoteScript = `
   <script>
   (function () {
-    // Forward console logs to React Native so they appear in the Metro
-    // terminal (Safari Web Inspector cannot see this WebView).
-    (function () {
-      var origLog = console.log.bind(console);
-      var origWarn = console.warn.bind(console);
-      var origError = console.error.bind(console);
-      function forward(kind, args) {
-        try {
-          var parts = Array.prototype.map.call(args, function (a) {
-            if (typeof a === 'string') return a;
-            try { return JSON.stringify(a); } catch (e) { return String(a); }
-          });
-          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'log', level: kind, message: parts.join(' ') }));
-          }
-        } catch (e) {}
-      }
-      console.log = function () { forward('log', arguments); origLog.apply(console, arguments); };
-      console.warn = function () { forward('warn', arguments); origWarn.apply(console, arguments); };
-      console.error = function () { forward('error', arguments); origError.apply(console, arguments); };
-    })();
     var isPaged = ${isPaged ? 'true' : 'false'};
     function initFootnotes() {
       // Tap a note marker -> tell React Native to present the note in a
@@ -270,7 +249,6 @@ export function buildChapterXhtml(
         startX = e.touches[0].clientX;
         startLeft = scrollEl.scrollLeft;
         lastX = startX; lastT = Date.now(); velocity = 0;
-        console.log('[paged] touchstart x=' + Math.round(startX) + ' left=' + Math.round(startLeft));
       }, { passive: false });
       document.addEventListener('touchmove', function (e) {
         if (!dragging || e.touches.length !== 1) return;

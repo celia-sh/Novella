@@ -25,11 +25,6 @@ export function loadReaderFont(family: string, fontUrl: string): Promise<string>
 
   const pending = loadReaderFontInternal(family, fontUrl).catch((error: unknown) => {
     readerFontCache.delete(fontUrl);
-    console.info('[ReaderFont] failed', {
-      family,
-      url: fontUrl,
-      error: error instanceof Error ? error.message : String(error),
-    });
     throw error;
   });
   readerFontCache.set(fontUrl, pending);
@@ -99,9 +94,7 @@ export function clearReaderFontCache(): number {
 }
 
 async function loadReaderFontInternal(family: string, url: string): Promise<string> {
-  console.info('[ReaderFont] loading', { family, url });
-  const woff2File = await getCachedFontFile(url);
-  console.info('[ReaderFont] cached WOFF2', { uri: woff2File.uri, bytes: woff2File.size });
+  await getCachedFontFile(url);
   return family;
 }
 
@@ -110,24 +103,19 @@ async function getCachedFontFile(url: string): Promise<FileSystem.File> {
 
   const cacheKey = hashFontUrl(url);
   const woff2File = new FileSystem.File(readerFontCacheDirectory, `${cacheKey}.woff2`);
-  if (woff2File.exists && isWoff2File(woff2File)) {
-    console.info('[ReaderFont] using cached WOFF2', { uri: woff2File.uri });
-    return woff2File;
-  }
+  if (woff2File.exists && isWoff2File(woff2File)) return woff2File;
   if (woff2File.exists) woff2File.delete();
 
   // Drop any legacy TTF produced by the previous conversion pipeline.
   const legacyTtf = new FileSystem.File(readerFontCacheDirectory, `${cacheKey}.ttf`);
   if (legacyTtf.exists) legacyTtf.delete();
 
-  console.info('[ReaderFont] downloading WOFF2', { url });
   const downloaded = await downloadFont(url, `${cacheKey}.woff2`);
   const bytes = downloaded.bytesSync();
   if (!isWoff2Bytes(bytes)) {
     downloaded.delete();
     throw new Error('Reader font is not a WOFF2 file');
   }
-  console.info('[ReaderFont] downloaded WOFF2', { bytes: bytes.byteLength });
   return downloaded;
 }
 
