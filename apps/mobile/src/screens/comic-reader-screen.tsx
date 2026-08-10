@@ -11,6 +11,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, type ComicContent, type ComicInfo } from '@novella/api-client';
 import { createComicPageSlots, mergeComicPageBatch, resolveReaderInitialIndex, resolveReaderRestorePosition, type ComicPageSlot, type ReaderMode, type ReaderOpenPosition } from '@novella/reader-engine';
@@ -19,11 +21,13 @@ import { createComicBlurHashPlaceholder } from '@/services/blurhash';
 import { createReaderChromeInsets } from '@/services/reader-chrome-layout';
 import {
   clampComicPageIndex,
+  clampComicScrollOffset,
   createComicPrefetchPlan,
   doesComicBatchContainPage,
   fitComicPage,
   getComicPageBatchStart,
   getContinuousComicContentWidth,
+  resolveComicTapDirection,
   type ComicReadingDirection,
 } from '@/services/comic-reader-layout';
 import { reader } from '@/services/client';
@@ -108,6 +112,12 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
   const [failedBatches, setFailedBatches] = useState<ReadonlySet<number>>(() => new Set());
   const [visiblePage, setVisiblePage] = useState(0);
   const [readingDirection, setReadingDirection] = useState<ComicReadingDirection>(1);
+  const pagedListRef = useRef<FlatList<ComicPageSlot> | null>(null);
+  const scrollListRef = useRef<FlatList<ComicPageSlot> | null>(null);
+  const pagedTapTargetRef = useRef<number | null>(null);
+  const scrollTapTargetRef = useRef<number | null>(null);
+  const suppressContentTap = useSharedValue(false);
+  const scrollMetricsRef = useRef({ contentHeight: 0, offset: 0, viewportHeight: availablePageHeight });
   const requestVersion = useRef(0);
 
   const setBatchFailed = useCallback((batchStart: number, failed: boolean) => {
@@ -319,6 +329,8 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
     setVisiblePage(initialPageIndex);
     setReadingDirection(1);
     lastVisiblePageRef.current = initialPageIndex;
+    pagedTapTargetRef.current = null;
+    scrollTapTargetRef.current = null;
     restoreTargetRef.current = activeChapter && mode === 'scroll'
       ? { chapterId: activeChapter.chapter.id, index: initialPageIndex }
       : null;
@@ -433,6 +445,46 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
     setMode(nextMode);
     void updateAppSettings({ readerViewMode: nextMode });
   }, [activeChapter]);
+  const handleContentTap = useCallback((x: number, y: number) => {
+    const direction = resolveComicTapDirection(mode, x, y, width, windowHeight);
+    if (direction === null || activeSlots.length === 0) return;
+    const animated = !settings.readerPagedNoAnimation;
+    if (mode === 'paged') {
+      const currentTarget = pagedTapTargetRef.current ?? lastVisiblePageRef.current;
+      const target = clampComicPageIndex(currentTarget + direction, activeSlots.length);
+      if (target === currentTarget) return;
+      pagedTapTargetRef.current = target;
+      pagedListRef.current?.scrollToIndex({ animated, index: target });
+      if (!animated) recordVisiblePage(target);
+      return;
+    }
+    const metrics = scrollMetricsRef.current;
+    const currentTarget = scrollTapTargetRef.current ?? metrics.offset;
+    const target = clampComicScrollOffset(
+      currentTarget,
+      direction * availablePageHeight,
+      metrics.contentHeight,
+      metrics.viewportHeight,
+    );
+    if (target === currentTarget) return;
+    scrollTapTargetRef.current = target;
+    scrollListRef.current?.scrollToOffset({ animated, offset: target });
+    if (!animated) {
+      requestAnimationFrame(() => {
+        scrollTapTargetRef.current = null;
+      });
+    }
+  }, [activeSlots.length, availablePageHeight, mode, recordVisiblePage, settings.readerPagedNoAnimation, width, windowHeight]);
+  const contentTapGesture = useMemo(
+    () => Gesture.Tap()
+      .maxDistance(10)
+      .onEnd((event, success) => {
+        if (success && !suppressContentTap.value) {
+          runOnJS(handleContentTap)(event.x, event.y);
+        }
+      }),
+    [handleContentTap, suppressContentTap],
+  );
   const openChapters = useCallback(() => {
     router.push({
       pathname: '/reader/[bookId]/chapters',
@@ -453,8 +505,11 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
           message={error.kind === 'raw' ? error.text : t(error.key)}
           onRetry={loadChapter}
         />
-      ) : loading || !activeChapter ? <ReaderPreparationState label={t('states.loadingComic')} /> : mode === 'paged' ? (
+      ) : loading || !activeChapter ? <ReaderPreparationState label={t('states.loadingComic')} /> : (
+        <GestureDetector gesture={contentTapGesture}>
+          {mode === 'paged' ? (
         <FlatList
+          ref={pagedListRef}
           contentInsetAdjustmentBehavior="never"
           contentContainerStyle={{ paddingBottom: readerBottomInset, paddingTop: readerTopInset }}
           data={activeSlots}
@@ -473,6 +528,7 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
               contentWidth={pageWidth}
               maxHeight={availablePageHeight}
               onRetryBatch={() => { void loadBatch(item.index, true); }}
+              onRetryInteractionChange={(active) => { suppressContentTap.value = active; }}
               priority={Math.abs(item.index - visiblePage) <= 1 ? 'high' : 'normal'}
               slot={item}
               viewportWidth={pageWidth}
@@ -480,14 +536,17 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
           )}
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={(event) => {
-            recordVisiblePage(Math.round(
+            const index = Math.round(
               event.nativeEvent.contentOffset.x / Math.max(1, pageWidth),
-            ));
+            );
+            pagedTapTargetRef.current = null;
+            recordVisiblePage(index);
           }}
           windowSize={5}
         />
       ) : (
         <FlatList
+          ref={scrollListRef}
           contentInsetAdjustmentBehavior="never"
           data={activeSlots}
           key={`scroll-${activeChapter.chapter.id}`}
@@ -502,6 +561,7 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
               batchFailed={failedBatches.has(getComicPageBatchStart(item.index, activeSlots.length, PAGE_BATCH))}
               contentWidth={continuousContentWidth}
               onRetryBatch={() => { void loadBatch(item.index, true); }}
+              onRetryInteractionChange={(active) => { suppressContentTap.value = active; }}
               priority={Math.abs(item.index - visiblePage) <= 1 ? 'high' : 'normal'}
               slot={item}
               viewportWidth={pageWidth}
@@ -509,6 +569,17 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
           )}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: readerBottomInset + 16, paddingTop: readerTopInset }}
+          onContentSizeChange={(_width, height) => {
+            scrollMetricsRef.current.contentHeight = height;
+          }}
+          onScroll={(event) => {
+            scrollMetricsRef.current.offset = event.nativeEvent.contentOffset.y;
+            scrollMetricsRef.current.viewportHeight = event.nativeEvent.layoutMeasurement.height;
+          }}
+          scrollEventThrottle={16}
+          onMomentumScrollEnd={() => {
+            scrollTapTargetRef.current = null;
+          }}
           onViewableItemsChanged={({ viewableItems }) => {
             const first = viewableItems.find((item) => item.isViewable)?.item as ComicPageSlot | undefined;
             if (first) recordVisiblePage(first.index);
@@ -517,6 +588,8 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
           viewabilityConfig={COMIC_VIEWABILITY_CONFIG}
           windowSize={5}
         />
+      )}
+        </GestureDetector>
       )}
       </View>
       <ReaderNavigation
@@ -547,6 +620,7 @@ interface ComicPageProps {
   contentWidth: number;
   maxHeight?: number;
   onRetryBatch: () => void;
+  onRetryInteractionChange: (active: boolean) => void;
   priority: 'high' | 'normal';
   slot: ComicPageSlot;
   viewportWidth: number;
@@ -557,6 +631,7 @@ function ComicPage({
   contentWidth,
   maxHeight,
   onRetryBatch,
+  onRetryInteractionChange,
   priority,
   slot,
   viewportWidth,
@@ -605,6 +680,8 @@ function ComicPage({
           accessibilityLabel={t('accessibility.retryComicPage', { number: slot.index + 1 })}
           accessibilityRole="button"
           onPress={retry}
+          onPressIn={() => onRetryInteractionChange(true)}
+          onPressOut={() => requestAnimationFrame(() => onRetryInteractionChange(false))}
           style={({ pressed }) => [
             styles.retryPage,
             {

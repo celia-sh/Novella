@@ -3,12 +3,29 @@ import test from 'node:test';
 
 import {
   clampComicPageIndex,
+  clampComicScrollOffset,
   createComicPrefetchPlan,
   doesComicBatchContainPage,
   fitComicPage,
   getComicPageBatchStart,
   getContinuousComicContentWidth,
+  resolveComicTapDirection,
 } from './comic-reader-layout.ts';
+
+test('comic tap edges follow the active reading axis', () => {
+  assert.equal(resolveComicTapDirection('paged', 20, 400, 400, 800), -1);
+  assert.equal(resolveComicTapDirection('paged', 380, 400, 400, 800), 1);
+  assert.equal(resolveComicTapDirection('paged', 200, 20, 400, 800), null);
+  assert.equal(resolveComicTapDirection('scroll', 200, 20, 400, 800), -1);
+  assert.equal(resolveComicTapDirection('scroll', 200, 780, 400, 800), 1);
+  assert.equal(resolveComicTapDirection('scroll', 20, 400, 400, 800), null);
+});
+
+test('comic tap scrolling clamps to content bounds', () => {
+  assert.equal(clampComicScrollOffset(500, 700, 3000, 800), 1200);
+  assert.equal(clampComicScrollOffset(100, -700, 3000, 800), 0);
+  assert.equal(clampComicScrollOffset(2100, 700, 2600, 800), 1800);
+});
 
 test('comic page indexes and batches clamp to chapter bounds', () => {
   assert.equal(clampComicPageIndex(-4, 100), 0);

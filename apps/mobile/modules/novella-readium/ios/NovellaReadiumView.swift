@@ -20,6 +20,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   private var preferences: [String: Any] = [:]
   private var contentInsets: [String: Double] = [:]
   private var navigator: EPUBNavigatorViewController?
+  private var directionalNavigationAdapter: DirectionalNavigationAdapter?
   private var openTask: Task<Void, Never>?
   private var isReady = false
 
@@ -54,6 +55,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   func setPreferences(_ value: [String: Any]) {
     preferences = value
     applyPreferences()
+    installDirectionalNavigationAdapter()
   }
 
   func setContentInsets(_ value: [String: Double]) {
@@ -159,6 +161,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       controller.delegate = self
       detachNavigator()
       navigator = controller
+      installDirectionalNavigationAdapter()
       guard let parent = parentViewController else { throw PublicationViewError.missingParentController }
       parent.addChild(controller)
       addSubview(controller.view)
@@ -188,6 +191,22 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
 
   private func applyPreferences() {
     navigator?.submitPreferences(makePreferences())
+  }
+
+  @MainActor private func installDirectionalNavigationAdapter() {
+    guard let navigator else { return }
+    directionalNavigationAdapter?.unbind()
+    let isScrolling = (preferences["mode"] as? String) == "scroll"
+    let adapter = DirectionalNavigationAdapter(
+      pointerPolicy: .init(
+        types: [.touch, .mouse],
+        edges: isScrolling ? .vertical : .horizontal,
+        ignoreWhileScrolling: false
+      ),
+      animatedTransition: (preferences["pageTurnAnimation"] as? Bool) != false
+    )
+    adapter.bind(to: navigator)
+    directionalNavigationAdapter = adapter
   }
 
   func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
@@ -222,11 +241,6 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
 
   func navigator(_ navigator: EPUBNavigatorViewController, setupUserScripts userContentController: WKUserContentController) {
     userContentController.add(self, name: "novellaReader")
-    userContentController.addUserScript(WKUserScript(
-      source: Self.imagePreviewScript,
-      injectionTime: .atDocumentEnd,
-      forMainFrameOnly: true
-    ))
   }
 
   func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -262,30 +276,9 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     locator.jsonObject.mapValues(\.any)
   }
 
-  private static let imagePreviewScript = """
-  (function(){
-    if(window.__novellaImagePreviewInstalled)return;
-    window.__novellaImagePreviewInstalled=true;
-    var timer=null,startX=0,startY=0;
-    function image(target){return target&&target.closest?target.closest('img'):null;}
-    function send(img,gesture){if(!img)return;window.webkit.messageHandlers.novellaReader.postMessage({type:'image',uri:img.currentSrc||img.src,alt:img.alt||'',gesture:gesture});}
-    document.addEventListener('click',function(event){
-      var img=image(event.target);if(!img)return;send(img,'tap');
-    },true);
-    document.addEventListener('touchstart',function(event){
-      var img=image(event.target);if(!img)return;
-      var touch=event.touches[0];startX=touch.clientX;startY=touch.clientY;
-      timer=setTimeout(function(){timer=null;send(img,'longPress');},520);
-    },true);
-    document.addEventListener('touchmove',function(event){
-      if(!timer)return;var touch=event.touches[0];
-      if(Math.abs(touch.clientX-startX)>10||Math.abs(touch.clientY-startY)>10){clearTimeout(timer);timer=null;}
-    },true);
-    document.addEventListener('touchend',function(){if(timer){clearTimeout(timer);timer=null;}},true);
-  })();
-  """
-
   private func detachNavigator() {
+    directionalNavigationAdapter?.unbind()
+    directionalNavigationAdapter = nil
     guard let controller = navigator else { return }
     controller.willMove(toParent: nil)
     controller.view.removeFromSuperview()

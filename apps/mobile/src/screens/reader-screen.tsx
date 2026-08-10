@@ -235,9 +235,10 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   }), [bookId, openChapter, route.key]);
 
   const changeMode = useCallback((nextMode: ReaderMode) => {
+    void saveCurrentPosition();
     setMode(nextMode);
     void updateAppSettings({ readerViewMode: nextMode });
-  }, []);
+  }, [saveCurrentPosition]);
   const openChapters = useCallback(() => {
     router.push({
       pathname: '/reader/[bookId]/chapters',

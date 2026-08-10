@@ -1,4 +1,7 @@
+import type { ReaderMode } from '@novella/reader-engine';
+
 export type ComicReadingDirection = -1 | 1;
+export type ComicTapDirection = -1 | 1;
 
 export interface ComicImageSize {
   height: number;
@@ -8,6 +11,36 @@ export interface ComicImageSize {
 export interface ComicPrefetchPlan {
   directional: number[];
   immediate: number[];
+}
+
+export function resolveComicTapDirection(
+  mode: ReaderMode,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  edgeRatio = 0.3,
+): ComicTapDirection | null {
+  const viewportWidth = positiveDimension(width, 1);
+  const viewportHeight = positiveDimension(height, 1);
+  const ratio = Math.min(0.5, Math.max(0, edgeRatio));
+  const coordinate = mode === 'paged' ? x : y;
+  const extent = mode === 'paged' ? viewportWidth : viewportHeight;
+  if (!Number.isFinite(coordinate)) return null;
+  if (coordinate <= extent * ratio) return -1;
+  if (coordinate >= extent * (1 - ratio)) return 1;
+  return null;
+}
+
+export function clampComicScrollOffset(
+  offset: number,
+  delta: number,
+  contentHeight: number,
+  viewportHeight: number,
+): number {
+  const maximum = Math.max(0, contentHeight - positiveDimension(viewportHeight, 1));
+  const target = (Number.isFinite(offset) ? offset : 0) + (Number.isFinite(delta) ? delta : 0);
+  return Math.min(maximum, Math.max(0, target));
 }
 
 export function clampComicPageIndex(index: number, total: number): number {

@@ -31,6 +31,7 @@ import org.readium.r2.navigator.epub.EpubNavigatorFactory
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.preferences.Color
+import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
@@ -68,6 +69,7 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
   private var navigatorPublication: Publication? = null
   private var openJob: Job? = null
   private var locatorJob: Job? = null
+  private var directionalNavigationAdapter: DirectionalNavigationAdapter? = null
   private var isReady = false
   private val fragmentTag get() = "novella-readium-${id}"
 
@@ -101,6 +103,7 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
   fun setPreferences(value: Map<String, Any>) {
     preferences = value
     navigator?.submitPreferences(makePreferences())
+    installDirectionalNavigationAdapter()
   }
 
   fun setContentInsets(value: Map<String, Double>) {
@@ -124,9 +127,14 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
 
   fun goBackward(): Boolean = navigator?.goBackward() ?: false
 
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    scheduleOpen()
+  }
+
   override fun onDetachedFromWindow() {
-    super.onDetachedFromWindow()
     cleanup()
+    super.onDetachedFromWindow()
   }
 
   override fun onResourceLoadFailed(href: Url, error: ReadError) {
@@ -148,9 +156,11 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
 
   private fun scheduleOpen() {
     openJob?.cancel()
+    openJob = null
     val uri = publicationUri ?: return
     if (publicationId.isNullOrEmpty() || declaredHrefs.isEmpty()) return
     val activity = appContext.currentActivity as? FragmentActivity ?: return
+    if (!isFragmentContainerAttached(activity)) return
     isReady = false
     onStatus(buildMap {
       put("stage", "opening")
@@ -167,6 +177,10 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
         val opener = PublicationOpener(DefaultPublicationParser(context, httpClient, retriever, pdfFactory = null))
         val asset = retriever.retrieve(container, MediaType.EPUB).getOrElse { throw IllegalStateException(it.message) }
         val opened = opener.open(asset, allowUserInteraction = false).getOrElse { throw IllegalStateException(it.message) }
+        if (!isFragmentContainerAttached(activity)) {
+          opened.close()
+          return@launch
+        }
         onStatus(buildMap {
           put("stage", "publicationOpened")
           put("detail", "readingOrder=${opened.readingOrder.size}")
@@ -182,6 +196,10 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
   }
 
   private fun install(activity: FragmentActivity, opened: Publication) {
+    if (!isFragmentContainerAttached(activity)) {
+      opened.close()
+      return
+    }
     cleanupInstalledNavigator(activity)
     publication = opened
     val initial = initialLocator?.let { Locator.fromJSON(JSONObject(it)) }
@@ -223,6 +241,7 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
     val fragment = activity.supportFragmentManager.findFragmentByTag(fragmentTag) as EpubNavigatorFragment
     navigator = fragment
     fragment.view?.layoutParams = LayoutParams(MATCH_PARENT, MATCH_PARENT)
+    installDirectionalNavigationAdapter()
     applyContentInsets()
     locatorJob = activity.lifecycleScope.launch {
       fragment.currentLocator.collectLatest { locator ->
@@ -233,6 +252,26 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
       put("stage", "navigatorInstalled")
       initial?.href?.toString()?.let { put("href", it) }
     })
+  }
+
+  private fun isFragmentContainerAttached(activity: FragmentActivity): Boolean =
+    isAttachedToWindow && activity.findViewById<View>(id) === this
+
+  private fun installDirectionalNavigationAdapter() {
+    val navigator = navigator ?: return
+    directionalNavigationAdapter?.let(navigator::removeInputListener)
+    directionalNavigationAdapter = DirectionalNavigationAdapter(
+      navigator = navigator,
+      tapEdges = setOf(
+        if (preferences["mode"] == "scroll") {
+          DirectionalNavigationAdapter.TapEdge.Vertical
+        } else {
+          DirectionalNavigationAdapter.TapEdge.Horizontal
+        }
+      ),
+      handleTapsWhileScrolling = true,
+      animatedTransition = preferences["pageTurnAnimation"] != false
+    ).also(navigator::addInputListener)
   }
 
   private fun applyContentInsets() {
@@ -305,6 +344,7 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
         activity.supportFragmentManager.commitNow(allowStateLoss = true) { remove(fragment) }
       }
     }
+    directionalNavigationAdapter = null
     navigator = null
     navigatorPublication?.close()
     navigatorPublication = null

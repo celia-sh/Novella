@@ -51,6 +51,10 @@ test('chapter XHTML receives deterministic fragments and a relative font stylesh
   assert.match(html, /<p id="nv-block-0">First block<\/p>/);
   assert.match(html, /<p id="nv-block-1">Second block<\/p>/);
   assert.match(html, /href="\.\.\/styles\/reader\.css"/);
+  assert.match(html, /label\.className='nv-reader-image-interaction'/);
+  assert.match(html, /e\.stopImmediatePropagation\(\);send\(i,'tap'\)/);
+  assert.match(html, /window\.webkit\.messageHandlers\.novellaReader\.postMessage\(p\)/);
+  assert.doesNotMatch(html, /preventDefault\(\)/);
 });
 
 test('image tables retain their authored rows and columns', () => {
@@ -146,8 +150,8 @@ test('readiness gates target chapter and required font but not future chapters o
 });
 
 test('publication cache identity includes the conversion mode', () => {
-  assert.equal(readiumPublicationCacheKey(9, undefined), '9-none');
-  assert.equal(readiumPublicationCacheKey(9, 't2s'), '9-t2s');
+  assert.equal(readiumPublicationCacheKey(9, undefined), '9-none-v2');
+  assert.equal(readiumPublicationCacheKey(9, 't2s'), '9-t2s-v2');
   assert.equal(readiumBlockFragment(3), 'nv-block-3');
   assert.equal(readiumChapterHref(205), 'EPUB/chapters/205.xhtml');
 });
