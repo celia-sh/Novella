@@ -63,6 +63,7 @@ export default function RegisterRoute() {
   return (
     <AuthFormLayout
       description={t('register.description')}
+      navigationTitle={t('navigation.register')}
       title={t('register.title')}
     >
       <View style={styles.form}>

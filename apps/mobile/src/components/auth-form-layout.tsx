@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import type { ReactNode } from 'react';
 import {
@@ -15,50 +16,61 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import NovellaLogo from '../../assets/novella-logo.svg';
+import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { useAuthPalette } from '@/theme/auth-theme';
 
 export function AuthFormLayout({
   children,
   description,
+  navigationTitle,
   title,
 }: {
   children: ReactNode;
   description: string;
+  navigationTitle: string;
   title: string;
 }) {
   const insets = useSafeAreaInsets();
   const palette = useAuthPalette();
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.root, { backgroundColor: palette.background }]}
+    <NativeScreenScaffold
+      largeTitle={false}
+      onBackPress={() => router.back()}
+      showBackButton
+      title={navigationTitle}
     >
-      <StatusBar style={palette.isDark ? 'light' : 'dark'} />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: Math.max(32, insets.bottom + 20) },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[styles.root, { backgroundColor: palette.background }]}
       >
-        <View style={styles.contentColumn}>
-          <View style={styles.header}>
-            <NovellaLogo
-              fill={palette.foreground}
-              height={36}
-              viewBox="0 0 63 71"
-              width={32}
-            />
-            <Text style={[styles.title, { color: palette.foreground }]}>{title}</Text>
-            <Text style={[styles.description, { color: palette.secondary }]}>{description}</Text>
+        <StatusBar style={palette.isDark ? 'light' : 'dark'} />
+        <ScrollView
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: Math.max(32, insets.bottom + 20) },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled={process.env.EXPO_OS === 'android'}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.contentColumn}>
+            <View style={styles.header}>
+              <NovellaLogo
+                fill={palette.foreground}
+                height={36}
+                viewBox="0 0 63 71"
+                width={32}
+              />
+              <Text style={[styles.title, { color: palette.foreground }]}>{title}</Text>
+              <Text style={[styles.description, { color: palette.secondary }]}>{description}</Text>
+            </View>
+            {children}
           </View>
-          {children}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </NativeScreenScaffold>
   );
 }
 

@@ -41,6 +41,7 @@ export default function ResetPasswordRoute() {
   return (
     <AuthFormLayout
       description={t('resetPassword.description')}
+      navigationTitle={t('navigation.recover')}
       title={t('resetPassword.title')}
     >
       <View style={styles.form}>

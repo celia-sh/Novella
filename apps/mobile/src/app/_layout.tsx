@@ -42,6 +42,7 @@ export default function RootLayout() {
 function RootLayoutContent() {
   const authentication = useAuthentication();
   const { t } = useTranslation('navigation');
+  const { t: tAuth } = useTranslation('auth');
   const { colorScheme, colors } = useAppTheme();
   const systemScreenStackPreset = useSystemScreenStackPreset();
   const usesComposeBottomSheets = process.env.EXPO_OS === 'android';
@@ -303,12 +304,12 @@ function RootLayoutContent() {
           </Stack.Protected>
           <Stack.Protected guard={!hasAuthenticatedSession}>
             <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-            <Stack.Screen name="sign-in/credentials" options={{ title: t('routes.signIn') }} />
-            <Stack.Screen name="register" options={{ title: t('routes.createAccount') }} />
-            <Stack.Screen name="register/verify" options={{ title: t('routes.verifyEmail') }} />
-            <Stack.Screen name="reset-password" options={{ title: t('routes.resetPassword') }} />
-            <Stack.Screen name="reset-password/verify" options={{ title: t('routes.verifyEmail') }} />
-            <Stack.Screen name="reset-password/new-password" options={{ title: t('routes.newPassword') }} />
+            <Stack.Screen name="sign-in/credentials" options={{ headerShown: !usesComposeBottomSheets, title: tAuth('navigation.signIn') }} />
+            <Stack.Screen name="register" options={{ headerShown: !usesComposeBottomSheets, title: tAuth('navigation.register') }} />
+            <Stack.Screen name="register/verify" options={{ headerShown: !usesComposeBottomSheets, title: tAuth('navigation.register') }} />
+            <Stack.Screen name="reset-password" options={{ headerShown: !usesComposeBottomSheets, title: tAuth('navigation.recover') }} />
+            <Stack.Screen name="reset-password/verify" options={{ headerShown: !usesComposeBottomSheets, title: tAuth('navigation.recover') }} />
+            <Stack.Screen name="reset-password/new-password" options={{ headerShown: !usesComposeBottomSheets, title: tAuth('navigation.recover') }} />
           </Stack.Protected>
         </Stack>
       <NativeAlertHost />

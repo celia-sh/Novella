@@ -62,6 +62,7 @@ export default function ResetPasswordVerifyRoute() {
   return (
     <AuthFormLayout
       description={t('resetPassword.verify.description', { email: draft.email })}
+      navigationTitle={t('navigation.recover')}
       title={t('resetPassword.verify.title')}
     >
       <View style={styles.form}>

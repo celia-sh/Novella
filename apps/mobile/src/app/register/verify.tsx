@@ -72,6 +72,7 @@ export default function RegisterVerifyRoute() {
   return (
     <AuthFormLayout
       description={t('register.verify.description', { email: draft.email })}
+      navigationTitle={t('navigation.register')}
       title={t('register.verify.title')}
     >
       <View style={styles.form}>

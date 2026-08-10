@@ -12,6 +12,7 @@ import type { ColorValue } from 'react-native';
 import { usePlatformAppColors } from '@/hooks/use-platform-app-colors';
 import { useAppSettings } from '@/services/settings';
 import type { AppColors } from '@/theme/app-colors';
+import { createHeroUIThemeVariables } from '@/theme/hero-ui-theme';
 import { resolveAppColorScheme, type AppColorScheme } from '@/theme/theme-mode';
 
 interface AppThemeContextValue {
@@ -43,27 +44,15 @@ export function AppThemeProvider({ children }: PropsWithChildren) {
     Uniwind.setTheme(settings.theme);
   }, [settings.theme]);
 
-  // Keep HeroUI Native's semantic color tokens driven by the app theme so
-  // its components (chips, inputs, skeletons, …) use the same accent as
-  // everything else instead of the library default blue. iOS exposes the
-  // accent as an opaque PlatformColor (systemPink, stable in both
-  // appearances); Android exposes it as an `#RRGGBBAA` Material primary.
+  // HeroUI Native derives component states from these semantic roots. Keep
+  // them aligned with the same iOS semantic / Android Material palette used
+  // by RN screens and native chrome instead of overriding tokens per page.
   useLayoutEffect(() => {
-    const accentHex = resolveThemeAccentHex(colors.accent);
-    const white = '#FFFFFF';
-    const theme = colorScheme === 'dark' ? 'dark' : 'light';
-    Uniwind.updateCSSVariables(theme, {
-      '--accent': accentHex,
-      '--accent-foreground': white,
-      '--color-accent': accentHex,
-      '--color-accent-foreground': white,
-      '--focus': accentHex,
-      '--color-focus': accentHex,
-      '--color-accent-soft': `${accentHex}26`,
-      '--color-accent-soft-hover': `${accentHex}33`,
-      '--color-accent-soft-foreground': accentHex,
-    });
-  }, [colorScheme, colors.accent]);
+    Uniwind.updateCSSVariables(
+      colorScheme === 'dark' ? 'dark' : 'light',
+      createHeroUIThemeVariables(colors, colorScheme),
+    );
+  }, [colorScheme, colors]);
 
   const value = useMemo<AppThemeContextValue>(
     () => ({ colorScheme, colors, isOledDark }),
@@ -106,10 +95,6 @@ export function resolveOnAccentHex(accent: ColorValue): string {
   const b = parseInt(hex.slice(5, 7), 16);
   if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return '#FFFFFF';
   return 0.299 * r + 0.587 * g + 0.114 * b > 186 ? '#000000' : '#FFFFFF';
-}
-
-function resolveThemeAccentHex(accent: ColorValue): string {
-  return resolveAccentHex(accent);
 }
 
 export function createThemedStyles<T extends StyleSheet.NamedStyles<T>>(

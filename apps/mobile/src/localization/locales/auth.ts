@@ -1,6 +1,11 @@
 import type { TranslationShape } from '../resource-shape.ts';
 
 export const zhCNAuth = {
+  navigation: {
+    signIn: '登录',
+    register: '注册',
+    recover: '找回',
+  },
   fields: {
     username: '用户名',
     email: '邮箱',
@@ -94,6 +99,11 @@ export const zhCNAuth = {
 } as const;
 
 export const zhTWAuth: TranslationShape<typeof zhCNAuth> = {
+  navigation: {
+    signIn: '登入',
+    register: '註冊',
+    recover: '找回',
+  },
   fields: {
     username: '使用者名稱',
     email: '電子郵件',
