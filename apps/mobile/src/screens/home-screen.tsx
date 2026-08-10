@@ -1,4 +1,4 @@
-import { router, Stack } from 'expo-router';
+import { router } from 'expo-router';
 import { IconChevronRight, IconSpeakerphone } from '@tabler/icons-react-native';
 import { Skeleton } from 'heroui-native';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +22,7 @@ import {
   BOOK_COVER_ASPECT_RATIO,
   BookCoverGridItem,
 } from '@/components/book-cover-grid-item';
+import { DiscoverNavigation } from '@/components/discover-navigation';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { SectionCard } from '@/components/section-card';
 import { useBookGridLayout, BOOK_GRID_COLUMN_GAP } from '@/hooks/use-book-grid-layout';
@@ -52,7 +53,6 @@ export function HomeScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: t('discovery.title') }} />
       <NativeScreenScaffold
         actions={[
           {
@@ -93,13 +93,7 @@ export function HomeScreen() {
           <OnlineInfoSection onRetry={retryOnlineInfo} state={onlineInfo} />
         </ScrollView>
       </NativeScreenScaffold>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          accessibilityLabel={t('discovery.profileAndSettings')}
-          icon="person.crop.circle"
-          onPress={openProfileAndSettings}
-        />
-      </Stack.Toolbar>
+      <DiscoverNavigation />
     </>
   );
 }
