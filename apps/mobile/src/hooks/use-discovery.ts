@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   ApiError,
-  type AnnouncementPage,
   type BookListPage,
   type OnlineInfo,
 } from '@novella/api-client';
@@ -19,7 +18,6 @@ export type DiscoverySectionState<T> =
   | { status: 'error'; data: T | null; error: LibraryMessage };
 
 interface DiscoveryState {
-  announcements: DiscoverySectionState<AnnouncementPage>;
   latestBooks: DiscoverySectionState<BookListPage>;
   onlineInfo: DiscoverySectionState<OnlineInfo>;
 }
@@ -27,7 +25,6 @@ interface DiscoveryState {
 type DiscoverySection = keyof DiscoveryState;
 
 const INITIAL_STATE: DiscoveryState = {
-  announcements: { status: 'loading', data: null, error: null },
   latestBooks: { status: 'loading', data: null, error: null },
   onlineInfo: { status: 'loading', data: null, error: null },
 };
@@ -37,7 +34,6 @@ export function useDiscovery() {
   const [state, setState] = useState<DiscoveryState>(INITIAL_STATE);
   const mounted = useRef(true);
   const epochs = useRef<Record<DiscoverySection, number>>({
-    announcements: 0,
     latestBooks: 0,
     onlineInfo: 0,
   });
@@ -47,32 +43,6 @@ export function useDiscovery() {
     return () => {
       mounted.current = false;
     };
-  }, []);
-
-  const loadAnnouncements = useCallback(async (preserveData = true) => {
-    const epoch = ++epochs.current.announcements;
-    setState((current) => ({
-      ...current,
-      announcements: beginLoad(current.announcements, preserveData),
-    }));
-    try {
-      const data = await discovery.loadAnnouncements();
-      if (!mounted.current || epoch !== epochs.current.announcements) return;
-      setState((current) => ({
-        ...current,
-        announcements: { status: 'ready', data, error: null },
-      }));
-    } catch (error) {
-      if (!mounted.current || epoch !== epochs.current.announcements) return;
-      setState((current) => ({
-        ...current,
-        announcements: {
-          status: 'error',
-          data: current.announcements.data,
-          error: getDiscoveryErrorMessage(error),
-        },
-      }));
-    }
   }, []);
 
   const loadLatestBooks = useCallback(async (preserveData = true) => {
@@ -148,24 +118,21 @@ export function useDiscovery() {
   const loadAll = useCallback(async (preserveData = true) => {
     await Promise.allSettled([
       loadLatestBooks(preserveData),
-      loadAnnouncements(preserveData),
       loadOnlineInfo(preserveData),
     ]);
-  }, [loadAnnouncements, loadLatestBooks, loadOnlineInfo]);
+  }, [loadLatestBooks, loadOnlineInfo]);
 
   useEffect(() => {
     void loadAll(false);
   }, [loadAll]);
 
   return {
-    announcements: state.announcements,
     isRefreshing: Object.values(state).some(
       (section) => section.status === 'refreshing',
     ),
     latestBooks: state.latestBooks,
     onlineInfo: state.onlineInfo,
     reload: () => loadAll(true),
-    retryAnnouncements: () => loadAnnouncements(true),
     retryLatestBooks: () => loadLatestBooks(true),
     retryOnlineInfo: () => loadOnlineInfo(true),
   };

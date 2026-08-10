@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { IconChevronRight, IconSpeakerphone } from '@tabler/icons-react-native';
+import { IconChevronRight } from '@tabler/icons-react-native';
 import { Skeleton } from 'heroui-native';
 import { useTranslation } from 'react-i18next';
 import {
@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 
 import type {
-  AnnouncementPage,
   BookListItem,
   BookListPage,
   OnlineInfo,
@@ -41,10 +40,8 @@ export function HomeScreen() {
   const styles = useHomeScreenStyles();
   const { colors } = useAppTheme();
   const {
-    announcements,
     latestBooks,
     onlineInfo,
-    retryAnnouncements,
     retryLatestBooks,
     retryOnlineInfo,
   } = useDiscovery();
@@ -89,7 +86,6 @@ export function HomeScreen() {
 
           <LatestBooksSection onRetry={retryLatestBooks} state={latestBooks} />
           <ComicsSection />
-          <AnnouncementsSection onRetry={retryAnnouncements} state={announcements} />
           <OnlineInfoSection onRetry={retryOnlineInfo} state={onlineInfo} />
         </ScrollView>
       </NativeScreenScaffold>
@@ -284,56 +280,6 @@ function ComicsSection() {
   );
 }
 
-function AnnouncementsSection({
-  onRetry,
-  state,
-}: {
-  onRetry(): void;
-  state: DiscoverySectionState<AnnouncementPage>;
-}) {
-  const { t } = useTranslation('library');
-  const styles = useHomeScreenStyles();
-  const { colors } = useAppTheme();
-  return (
-    <SectionCard>
-      <Text style={styles.sectionTitle}>{t('discovery.announcements')}</Text>
-      {state.data === null && state.status === 'loading' ? (
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={styles.placeholderStack}
-        >
-          <SkeletonLine width="92%" />
-          <SkeletonLine width="76%" />
-          <SkeletonLine width="84%" />
-        </View>
-      ) : state.data === null ? (
-        <InlineSectionError
-          message={state.error ?? t('discovery.announcementsUnavailable')}
-          onRetry={onRetry}
-        />
-      ) : state.data.items.length === 0 ? (
-        <View style={styles.placeholderStack}>
-          <Text style={styles.cardDescription}>{t('discovery.noAnnouncements')}</Text>
-          {state.status === 'error' ? <StaleError message={state.error} onRetry={onRetry} /> : null}
-        </View>
-      ) : (
-        <View style={styles.placeholderStack}>
-          {state.data.items.map((announcement) => (
-            <View key={announcement.id} style={styles.announcementRow}>
-              <IconSpeakerphone color={colors.accent as string} size={18} strokeWidth={2.1} />
-              <Text style={[styles.cardDescription, styles.flexText]}>
-                {announcement.title}
-              </Text>
-            </View>
-          ))}
-          {state.status === 'error' ? <StaleError message={state.error} onRetry={onRetry} /> : null}
-        </View>
-      )}
-    </SectionCard>
-  );
-}
-
 function OnlineInfoSection({
   onRetry,
   state,
@@ -344,34 +290,38 @@ function OnlineInfoSection({
   const { t } = useTranslation('library');
   const styles = useHomeScreenStyles();
   return (
-    <SectionCard>
-      <Text style={styles.sectionTitle}>{t('discovery.serviceStatus')}</Text>
-      {state.data === null && state.status === 'loading' ? (
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={styles.metricsRow}
-        >
-          <MetricPlaceholder />
-          <MetricPlaceholder />
-          <MetricPlaceholder />
-        </View>
-      ) : state.data === null ? (
-        <InlineSectionError
-          message={state.error ?? t('discovery.serviceStatusUnavailable')}
-          onRetry={onRetry}
-        />
-      ) : (
-        <View style={styles.placeholderStack}>
-          <View style={styles.metricsRow}>
-            <StatusMetric label={t('discovery.online')} value={state.data.onlineUserCount} />
-            <StatusMetric label={t('discovery.today')} value={state.data.dayCount} />
-            <StatusMetric label={t('discovery.newUsers')} value={state.data.dayRegister} />
+    <>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{t('discovery.serviceStatus')}</Text>
+      </View>
+      <SectionCard>
+        {state.data === null && state.status === 'loading' ? (
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={styles.metricsRow}
+          >
+            <MetricPlaceholder />
+            <MetricPlaceholder />
+            <MetricPlaceholder />
           </View>
-          {state.status === 'error' ? <StaleError message={state.error} onRetry={onRetry} /> : null}
-        </View>
-      )}
-    </SectionCard>
+        ) : state.data === null ? (
+          <InlineSectionError
+            message={state.error ?? t('discovery.serviceStatusUnavailable')}
+            onRetry={onRetry}
+          />
+        ) : (
+          <View style={styles.placeholderStack}>
+            <View style={styles.metricsRow}>
+              <StatusMetric label={t('discovery.online')} value={state.data.onlineUserCount} />
+              <StatusMetric label={t('discovery.today')} value={state.data.dayCount} />
+              <StatusMetric label={t('discovery.newUsers')} value={state.data.dayRegister} />
+            </View>
+            {state.status === 'error' ? <StaleError message={state.error} onRetry={onRetry} /> : null}
+          </View>
+        )}
+      </SectionCard>
+    </>
   );
 }
 
@@ -589,11 +539,6 @@ function LocalizedMessage({
 }
 
 const useHomeScreenStyles = createThemedStyles((colors) => ({
-  announcementRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
   bookGrid: {
     gap: 12,
   },
@@ -620,9 +565,6 @@ const useHomeScreenStyles = createThemedStyles((colors) => ({
     paddingHorizontal: 20,
     paddingTop: 20,
   },
-  flexText: {
-    flex: 1,
-  },
   inlineError: {
     alignItems: 'flex-start',
     gap: 10,
@@ -630,8 +572,10 @@ const useHomeScreenStyles = createThemedStyles((colors) => ({
   metadata: {
     color: colors.secondaryLabel,
     fontSize: 13,
+    textAlign: 'center',
   },
   metric: {
+    alignItems: 'center',
     flex: 1,
     gap: 5,
   },
@@ -644,6 +588,7 @@ const useHomeScreenStyles = createThemedStyles((colors) => ({
     fontSize: 20,
     fontVariant: ['tabular-nums'],
     fontWeight: '700',
+    textAlign: 'center',
   },
   metricValuePlaceholder: {
     height: 24,
