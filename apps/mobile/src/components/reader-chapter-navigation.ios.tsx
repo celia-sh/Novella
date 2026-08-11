@@ -3,32 +3,42 @@ import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
 import type { ReaderChapterNavigationProps } from '@/components/reader-navigation.types';
+import { resolveReaderChapterBarOrder } from '@/services/reader-chrome-layout';
 import { createThemedStyles } from '@/theme/app-theme';
 
 export function ReaderChapterNavigation({
   bottomInset,
   current,
+  direction = 'ltr',
   onNext,
   onPrevious,
   total,
 }: ReaderChapterNavigationProps) {
   const { t } = useTranslation('reader');
   const styles = useReaderChapterNavigationStyles();
+  const order = resolveReaderChapterBarOrder(direction);
+  const actions = { next: onNext, previous: onPrevious } as const;
+  const labels = {
+    next: t('accessibility.nextChapter'),
+    previous: t('accessibility.previousChapter'),
+  } as const;
+  const leftAction = actions[order.left];
+  const rightAction = actions[order.right];
   return (
     <>
       <Stack.Toolbar placement="bottom">
         <Stack.Toolbar.Button
-          accessibilityLabel={t('accessibility.previousChapter')}
-          disabled={onPrevious === null}
+          accessibilityLabel={labels[order.left]}
+          disabled={leftAction === null}
           icon="chevron.left"
-          {...(onPrevious ? { onPress: onPrevious } : {})}
+          {...(leftAction ? { onPress: leftAction } : {})}
         />
         <Stack.Toolbar.Spacer />
         <Stack.Toolbar.Button
-          accessibilityLabel={t('accessibility.nextChapter')}
-          disabled={onNext === null}
+          accessibilityLabel={labels[order.right]}
+          disabled={rightAction === null}
           icon="chevron.right"
-          {...(onNext ? { onPress: onNext } : {})}
+          {...(rightAction ? { onPress: rightAction } : {})}
         />
       </Stack.Toolbar>
       {/* The page counter is drawn by the screen layer instead of the native

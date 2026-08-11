@@ -1,7 +1,21 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createReaderChromeInsets } from './reader-chrome-layout.ts';
+import {
+  createReaderChromeInsets,
+  resolveReaderChapterBarOrder,
+} from './reader-chrome-layout.ts';
+
+test('reader chapter bar follows physical reading direction', () => {
+  assert.deepEqual(resolveReaderChapterBarOrder('ltr'), {
+    left: 'previous',
+    right: 'next',
+  });
+  assert.deepEqual(resolveReaderChapterBarOrder('rtl'), {
+    left: 'next',
+    right: 'previous',
+  });
+});
 
 test('reader chrome insets include overlay controls and safe areas', () => {
   assert.deepEqual(createReaderChromeInsets('ios', 59, 34), {

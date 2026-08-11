@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 
 import type { ReaderChapterNavigationProps } from '@/components/reader-navigation.types';
+import { resolveReaderChapterBarOrder } from '@/services/reader-chrome-layout';
 import { useAppColorScheme } from '@/theme/app-theme';
 import { NativeBottomAppBar } from '../../modules/novella-ui';
 
@@ -15,6 +16,7 @@ import { NativeBottomAppBar } from '../../modules/novella-ui';
 export function ReaderChapterNavigation({
   backgroundColor,
   current,
+  direction = 'ltr',
   onNext,
   onPrevious,
   total,
@@ -22,6 +24,14 @@ export function ReaderChapterNavigation({
   const { t } = useTranslation('reader');
   const colorScheme = useAppColorScheme();
   const contentColor = colorScheme === 'dark' ? '#FFFFFF' : '#111827';
+  const order = resolveReaderChapterBarOrder(direction);
+  const actions = { next: onNext, previous: onPrevious } as const;
+  const labels = {
+    next: t('accessibility.nextChapter'),
+    previous: t('accessibility.previousChapter'),
+  } as const;
+  const leftAction = actions[order.left];
+  const rightAction = actions[order.right];
   return (
     <Host colorScheme={colorScheme} matchContents={{ vertical: true }} style={styles.host}>
       <NativeBottomAppBar
@@ -29,12 +39,12 @@ export function ReaderChapterNavigation({
         height={56}
         contentColor={contentColor}
         counterText={total > 0 ? `${current} / ${total}` : ''}
-        nextAccessibilityLabel={t('accessibility.nextChapter')}
-        nextEnabled={onNext !== null}
-        {...(onNext ? { onNextPress: onNext } : {})}
-        {...(onPrevious ? { onPreviousPress: onPrevious } : {})}
-        previousAccessibilityLabel={t('accessibility.previousChapter')}
-        previousEnabled={onPrevious !== null}
+        nextAccessibilityLabel={labels[order.right]}
+        nextEnabled={rightAction !== null}
+        {...(rightAction ? { onNextPress: rightAction } : {})}
+        {...(leftAction ? { onPreviousPress: leftAction } : {})}
+        previousAccessibilityLabel={labels[order.left]}
+        previousEnabled={leftAction !== null}
       />
     </Host>
   );
