@@ -25,6 +25,7 @@ interface ShelfFolderGridItemProps {
   accessibilityActions?: readonly AccessibilityActionInfo[];
   interactionState?: 'default' | 'selected' | 'sorting';
   itemCount: number;
+  networkImageEnabled?: boolean;
   onAccessibilityAction?: (event: AccessibilityActionEvent) => void;
   onLongPress?: (event: GestureResponderEvent) => void;
   onPress: () => void;
@@ -38,6 +39,7 @@ export function ShelfFolderGridItem({
   accessibilityActions,
   interactionState = 'default',
   itemCount,
+  networkImageEnabled = true,
   onAccessibilityAction,
   onLongPress,
   onPress,
@@ -82,6 +84,7 @@ export function ShelfFolderGridItem({
             accessibilityLabel={t('shelf.coverAccessibility', { title: firstBook.title })}
             animateCachedImage
             blurHash={firstBook.coverPlaceholder}
+            networkImageEnabled={networkImageEnabled}
             source={firstBook.coverUrl}
           />
         ) : (
@@ -96,6 +99,7 @@ export function ShelfFolderGridItem({
                     accessibilityLabel={t('shelf.coverAccessibility', { title: book.title })}
                     animateCachedImage
                     blurHash={book.coverPlaceholder}
+                    networkImageEnabled={networkImageEnabled}
                     source={book.coverUrl}
                   />
                 ) : null}

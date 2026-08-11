@@ -27,6 +27,7 @@ import { HistoryNavigation } from '@/components/history-navigation';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
+import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
 import { type HistoryTab, useReadHistory } from '@/hooks/use-read-history';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
@@ -112,6 +113,12 @@ export function HistoryScreen() {
     ...(skeletonCount > 0 ? skeletonKeys(skeletonCount) : activeTabState.items),
     ...loadingMoreKeys,
   ];
+  const coverActivation = useFlatListCoverActivation({
+    columns,
+    items: data,
+    keyForItem: (item) => typeof item === 'number' ? null : historyCoverKey(item, tab),
+    scopeKey: `${tab}:${listKey}`,
+  });
 
   return (
     <>
@@ -163,18 +170,16 @@ export function HistoryScreen() {
             contentContainerStyle={styles.content}
             contentInsetAdjustmentBehavior="automatic"
             data={data}
+            extraData={coverActivation.activatedKeys}
             key={listKey}
-            keyExtractor={(item) =>
-              typeof item === 'number'
-                ? `skeleton-${item}`
-                : `${tab === 'Novel' ? 'Novel' : 'Comic'}-${item.id}`
-            }
+            keyExtractor={(item) => historyItemKey(item, tab)}
             numColumns={columns}
             // Inside the Android Compose top-bar host the list must
             // participate in the nested scrolling coordinator.
             nestedScrollEnabled={process.env.EXPO_OS === 'android'}
             onEndReached={() => loadMore(tab)}
             onEndReachedThreshold={0.6}
+            onViewableItemsChanged={coverActivation.onViewableItemsChanged}
             refreshControl={
               <RefreshControl
                 colors={[colors.accent as string]}
@@ -188,22 +193,43 @@ export function HistoryScreen() {
                 return <BookCoverSkeletonTile tileWidth={tileWidth} />;
               }
               return tab === 'Novel' ? (
-                <BookCoverGridItem book={item as BookListItem} onPress={() => openBook(item as BookListItem)} tileWidth={tileWidth} />
+                <BookCoverGridItem
+                  book={item as BookListItem}
+                  networkImageEnabled={coverActivation.activatedKeys.has(historyCoverKey(item, tab))}
+                  onPress={() => openBook(item as BookListItem)}
+                  tileWidth={tileWidth}
+                />
               ) : (
                 <BookCoverGridItem
                   book={comicToBookListItem(item as ComicSeriesListItem)}
+                  networkImageEnabled={coverActivation.activatedKeys.has(historyCoverKey(item, tab))}
                   onPress={() => openComic(item as ComicSeriesListItem)}
                   tileWidth={tileWidth}
                 />
               );
             }}
             showsVerticalScrollIndicator={false}
+            viewabilityConfig={coverActivation.viewabilityConfig}
           />
         </View>
       </NativeScreenScaffold>
       <HistoryNavigation onClear={confirmClearHistory} showClear={hasAnyHistory} />
     </>
   );
+}
+
+function historyCoverKey(
+  item: BookListItem | ComicSeriesListItem,
+  tab: HistoryTab,
+): string {
+  return `${tab}-${item.id}`;
+}
+
+function historyItemKey(
+  item: number | BookListItem | ComicSeriesListItem,
+  tab: HistoryTab,
+): string {
+  return typeof item === 'number' ? `skeleton-${item}` : historyCoverKey(item, tab);
 }
 
 function EmptyState({ tab }: { tab: HistoryTab }) {

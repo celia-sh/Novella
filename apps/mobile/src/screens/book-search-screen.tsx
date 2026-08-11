@@ -26,6 +26,7 @@ import {
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
+import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
 import {
   NativeSearchControls,
@@ -81,6 +82,12 @@ export function BookSearchScreen({
     ...(skeletonCount > 0 ? skeletonKeys(skeletonCount) : results),
     ...loadingMoreKeys,
   ];
+  const coverActivation = useFlatListCoverActivation({
+    columns,
+    items: data,
+    keyForItem: (item) => typeof item === 'number' ? null : item.key,
+    scopeKey: `${search.committedQuery}:${search.format}:${search.mode}:${listKey}`,
+  });
 
   useEffect(() => {
     if (submittedInitial.current) return;
@@ -188,19 +195,22 @@ export function BookSearchScreen({
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic"
         data={data}
+        extraData={coverActivation.activatedKeys}
         key={listKey}
-        keyExtractor={(item) => (typeof item === 'number' ? `skeleton-${item}` : item.key)}
+        keyExtractor={searchItemKey}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled
         numColumns={columns}
         onEndReached={search.loadMore}
         onEndReachedThreshold={0.6}
+        onViewableItemsChanged={coverActivation.onViewableItemsChanged}
         renderItem={({ item }) => typeof item === 'number' ? (
           <BookCoverSkeletonTile tileWidth={tileWidth} />
         ) : item.kind === 'Novel' ? (
           <BookCoverGridItem
             book={item.item}
+            networkImageEnabled={coverActivation.activatedKeys.has(item.key)}
             onPress={() => router.push({
               pathname: '/book/[id]',
               params: {
@@ -216,6 +226,7 @@ export function BookSearchScreen({
         ) : (
           <BookCoverGridItem
             book={comicToBookListItem(item.item)}
+            networkImageEnabled={coverActivation.activatedKeys.has(item.key)}
             onPress={() => router.push({
               pathname: '/book/[id]',
               params: {
@@ -230,9 +241,14 @@ export function BookSearchScreen({
           />
         )}
         showsVerticalScrollIndicator={false}
+        viewabilityConfig={coverActivation.viewabilityConfig}
       />
     </NativeScreenScaffold>
   );
+}
+
+function searchItemKey(item: number | SearchResult): string {
+  return typeof item === 'number' ? `skeleton-${item}` : item.key;
 }
 
 function SearchEmpty({

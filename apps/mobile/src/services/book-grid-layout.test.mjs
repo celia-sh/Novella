@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { bookGridColumns, bookGridListKey } from './book-grid-layout.ts';
+import { nearbyGridItemIndices, scrollGridItemIndices } from './cover-activation.ts';
 
 test('book grid columns adapt to window width', () => {
   assert.equal(bookGridColumns(320), 3, 'small phone stays at 3 columns');
@@ -37,4 +38,36 @@ test('tile widths stay in a sane range across breakpoints', () => {
     assert.ok(tileWidth >= 80, `tile too narrow at width ${width}: ${tileWidth}`);
     assert.ok(tileWidth <= 200, `tile too wide at width ${width}: ${tileWidth}`);
   }
+});
+
+test('cover activation expands visible FlatList items by complete nearby rows', () => {
+  assert.deepEqual(nearbyGridItemIndices(24, [6, 7, 8], 3), [3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  assert.deepEqual(nearbyGridItemIndices(8, [0, 1], 3), [0, 1, 2, 3, 4, 5]);
+  assert.deepEqual(nearbyGridItemIndices(8, [6, 7], 3), [3, 4, 5, 6, 7]);
+  assert.deepEqual(nearbyGridItemIndices(8, [], 3), []);
+});
+
+test('cover activation resolves nearby rows inside a ScrollView grid', () => {
+  assert.deepEqual(
+    scrollGridItemIndices({
+      columns: 3,
+      gridHeight: 800,
+      gridTop: 200,
+      itemCount: 12,
+      viewportHeight: 200,
+      viewportTop: 400,
+    }),
+    [0, 1, 2, 3, 4, 5, 6, 7, 8],
+  );
+  assert.deepEqual(
+    scrollGridItemIndices({
+      columns: 3,
+      gridHeight: 800,
+      gridTop: 1_000,
+      itemCount: 12,
+      viewportHeight: 200,
+      viewportTop: 0,
+    }),
+    [],
+  );
 });

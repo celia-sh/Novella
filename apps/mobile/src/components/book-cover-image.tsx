@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { IconBook2, IconPhotoOff } from '@tabler/icons-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -28,6 +28,8 @@ export interface BookCoverImageProps {
   accessibilityLabel: string;
   animateCachedImage?: boolean;
   blurHash?: string | null;
+  /** Mount the URI-backed image. BlurHash/fallback rendering is independent. */
+  networkImageEnabled?: boolean;
   source: string;
   showLoading?: boolean;
 }
@@ -49,6 +51,7 @@ function BookCoverImageLayer({
   accessibilityLabel,
   animateCachedImage = false,
   blurHash,
+  networkImageEnabled = true,
   showLoading = true,
   source,
 }: BookCoverImageProps) {
@@ -62,6 +65,7 @@ function BookCoverImageLayer({
   // displayed pixels. Keep the placeholder visible until onDisplay fires.
   const opacity = useRef(new Animated.Value(0)).current;
   const startedAt = useRef(Date.now());
+  const networkStarted = useRef(networkImageEnabled);
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revealScheduled = useRef(false);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -75,6 +79,24 @@ function BookCoverImageLayer({
     if (retryTimer.current !== null) clearTimeout(retryTimer.current);
     opacity.stopAnimation();
   }, [opacity]);
+
+  useLayoutEffect(() => {
+    if (!networkImageEnabled) {
+      if (revealTimer.current !== null) clearTimeout(revealTimer.current);
+      if (retryTimer.current !== null) clearTimeout(retryTimer.current);
+      revealTimer.current = null;
+      retryTimer.current = null;
+      revealScheduled.current = false;
+      networkStarted.current = false;
+      opacity.stopAnimation();
+      opacity.setValue(0);
+      setStatus('loading');
+      return;
+    }
+    if (networkStarted.current) return;
+    networkStarted.current = true;
+    startedAt.current = Date.now();
+  }, [networkImageEnabled, opacity]);
 
   const reveal = () => {
     if (revealScheduled.current || status === 'loaded' || status === 'revealing') return;
@@ -150,7 +172,7 @@ function BookCoverImageLayer({
         </View>
       )}
 
-      {source ? (
+      {source && networkImageEnabled ? (
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity }]}>
           <Image
             accessibilityLabel={accessibilityLabel}
@@ -168,7 +190,7 @@ function BookCoverImageLayer({
         </Animated.View>
       ) : null}
 
-      {source && showLoading && !wasRevealed && status === 'loading' ? (
+      {source && networkImageEnabled && showLoading && !wasRevealed && status === 'loading' ? (
         <View pointerEvents="none" style={styles.centeredOverlay}>
           <ActivityIndicator
             color={(placeholder ? 'rgba(255, 255, 255, 0.8)' : colors.secondaryLabel) as string}
@@ -177,7 +199,7 @@ function BookCoverImageLayer({
         </View>
       ) : null}
 
-      {source && status === 'error' ? (
+      {source && networkImageEnabled && status === 'error' ? (
         <Pressable
           accessibilityLabel={t('cover.reloadAccessibility', { label: accessibilityLabel })}
           accessibilityRole="button"

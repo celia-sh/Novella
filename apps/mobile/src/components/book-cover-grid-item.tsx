@@ -31,6 +31,7 @@ interface BookCoverGridItemProps {
   animateCachedImage?: boolean;
   book: BookListItem;
   interactionState?: 'default' | 'selected' | 'sorting';
+  networkImageEnabled?: boolean;
   onAccessibilityAction?: (event: AccessibilityActionEvent) => void;
   onLongPress?: (event: GestureResponderEvent) => void;
   onPress?: () => void;
@@ -45,6 +46,7 @@ export function BookCoverGridItem({
   animateCachedImage,
   book,
   interactionState = 'default',
+  networkImageEnabled = true,
   onAccessibilityAction,
   onLongPress,
   onPress,
@@ -85,6 +87,7 @@ export function BookCoverGridItem({
           accessibilityLabel={t('cover.accessibility', { title: book.title })}
           {...(animateCachedImage === undefined ? {} : { animateCachedImage })}
           blurHash={book.coverPlaceholder}
+          networkImageEnabled={networkImageEnabled}
           source={coverUrl}
         />
 

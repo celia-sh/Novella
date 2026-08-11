@@ -54,6 +54,11 @@ import {
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { SectionCard } from '@/components/section-card';
 import { useBookGridLayout, BOOK_GRID_COLUMN_GAP } from '@/hooks/use-book-grid-layout';
+import {
+  useCoverScrollViewport,
+  useScrollGridCoverActivation,
+  type CoverScrollViewportController,
+} from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
 import { useShelf, type ShelfMode } from '@/hooks/use-shelf';
 import { closeShelfManagementSession, openShelfManagementSession } from '@/services/shelf-management-session';
@@ -92,6 +97,8 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollOffsetRef = useRef(0);
   const viewportHeightRef = useRef(0);
+  const coverViewport = useCoverScrollViewport();
+  const { columns, contentWidth, listKey, tileWidth } = useBookGridLayout(20);
 
   const visibleItems = useMemo(
     () => snapshot ? getShelfItemsAtPath(toDraft(snapshot), parents) : [],
@@ -311,9 +318,11 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
           nestedScrollEnabled
           onLayout={(event) => {
             viewportHeightRef.current = event.nativeEvent.layout.height;
+            coverViewport.onLayout(event);
           }}
           onScroll={(event) => {
             scrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+            coverViewport.onScroll(event);
           }}
           ref={scrollViewRef}
           refreshControl={(
@@ -347,7 +356,11 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
           {snapshot ? (
             <ShelfContent
               beginDrag={beginDrag}
+              columns={columns}
+              contentWidth={contentWidth}
+              coverViewport={coverViewport}
               interactionMode={interactionMode}
+              listKey={listKey}
               mode={mode}
               onOpenFolder={openFolder}
               onReorder={reorderSiblings}
@@ -357,6 +370,7 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
               selectedKeys={selectedKeys}
               setSelectedKeys={setSelectedKeys}
               snapshot={snapshot}
+              tileWidth={tileWidth}
               viewportHeightRef={viewportHeightRef}
               visibleItems={visibleItems}
             />
@@ -392,7 +406,11 @@ function ShelfScrollRoot({
 
 function ShelfContent({
   beginDrag,
+  columns,
+  contentWidth,
+  coverViewport,
   interactionMode,
+  listKey,
   mode,
   onOpenFolder,
   onReorder,
@@ -402,11 +420,16 @@ function ShelfContent({
   selectedKeys,
   setSelectedKeys,
   snapshot,
+  tileWidth,
   viewportHeightRef,
   visibleItems,
 }: {
   beginDrag: () => boolean;
+  columns: number;
+  contentWidth: number;
+  coverViewport: CoverScrollViewportController;
   interactionMode: 'browse' | 'drag' | 'select';
+  listKey: string;
   mode: ShelfMode;
   onOpenFolder: (folderId: string) => void;
   onReorder: (parents: readonly string[], keys: readonly ShelfItemKey[]) => void;
@@ -416,13 +439,20 @@ function ShelfContent({
   selectedKeys: Set<ShelfItemKey>;
   setSelectedKeys: React.Dispatch<React.SetStateAction<Set<ShelfItemKey>>>;
   snapshot: ShelfSnapshot;
+  tileWidth: number;
   viewportHeightRef: React.MutableRefObject<number>;
   visibleItems: ShelfItem[];
 }) {
   const { t } = useTranslation('library');
   const styles = useShelfScreenStyles();
-  const { columns, contentWidth, tileWidth } = useBookGridLayout(20);
   const booksById = new Map(snapshot.books.map((book) => [book.id, book]));
+  const shelfCoverKeys = useMemo(() => visibleItems.map(shelfItemKey), [visibleItems]);
+  const coverActivation = useScrollGridCoverActivation({
+    columns,
+    itemKeys: shelfCoverKeys,
+    scopeKey: `shelf:${parents.join('/')}:${listKey}`,
+    viewport: coverViewport,
+  });
 
   if (visibleItems.length === 0) {
     return <EmptyShelfState nested={parents.length > 0} />;
@@ -462,6 +492,7 @@ function ShelfContent({
           interactionState={interactionState}
           itemCount={itemCount}
           key={key}
+          networkImageEnabled={coverActivation.activatedKeys.has(key)}
           onPress={() => {
             if (interactionMode === 'select') toggleSelection(key);
             else onOpenFolder(item.id);
@@ -494,6 +525,7 @@ function ShelfContent({
         book={book}
         interactionState={interactionState}
         key={key}
+        networkImageEnabled={coverActivation.activatedKeys.has(key)}
         onPress={interactionMode === 'select' ? () => toggleSelection(key) : handlePress}
         tileWidth={tileWidth}
       />
@@ -516,6 +548,7 @@ function ShelfContent({
         dragEnabled
         items={visibleItems}
         onBeginDrag={beginDrag}
+        onLayout={coverActivation.onGridLayout}
         onReorder={(keys) => onReorder(parents, keys)}
         renderItem={renderShelfItem}
         tileWidth={tileWidth}
@@ -529,7 +562,10 @@ function ShelfContent({
   }
 
   return (
-    <View style={[styles.grid, { width: contentWidth }]}>
+    <View
+      onLayout={coverActivation.onGridLayout}
+      style={[styles.grid, { width: contentWidth }]}
+    >
       {rows.map((row, rowIndex) => (
         <View key={`shelf-row-${rowIndex}`} style={styles.gridRow}>
           {row.map((item) => renderShelfItem(item))}

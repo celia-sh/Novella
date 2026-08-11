@@ -1,5 +1,5 @@
 import Sortable, { type SortableGridRenderItem } from 'react-native-sortables';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
 import type { ShelfItem } from '@novella/api-client';
 import type { ShelfItemKey } from '@novella/client-core';
@@ -16,6 +16,7 @@ interface ReorderableShelfGridProps {
   items: ShelfItem[];
   dragEnabled: boolean;
   onBeginDrag?: () => boolean;
+  onLayout?: (event: LayoutChangeEvent) => void;
   onReorder: (orderedKeys: ShelfItemKey[]) => void;
   renderItem: (item: ShelfItem, state: ReorderableShelfGridItemState) => React.ReactNode;
   tileWidth: number;
@@ -27,6 +28,7 @@ export function ReorderableShelfGrid({
   dragEnabled,
   items,
   onBeginDrag,
+  onLayout,
   onReorder,
   renderItem,
   tileWidth,
@@ -36,7 +38,7 @@ export function ReorderableShelfGrid({
   );
 
   return (
-    <View style={[styles.grid, { width: contentWidth }]}>
+    <View onLayout={onLayout} style={[styles.grid, { width: contentWidth }]}>
       <Sortable.Grid
         autoScrollActivationOffset={72}
         autoScrollEnabled

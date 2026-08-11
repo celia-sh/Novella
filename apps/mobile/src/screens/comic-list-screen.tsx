@@ -23,6 +23,7 @@ import {
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
+import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
 import { useComicListPage } from '@/hooks/use-comic-list';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
@@ -54,6 +55,12 @@ export function ComicListScreen() {
     ...(skeletonCount > 0 ? skeletonKeys(skeletonCount) : books),
     ...loadingMoreKeys,
   ];
+  const coverActivation = useFlatListCoverActivation({
+    columns,
+    items: data,
+    keyForItem: (item) => typeof item === 'number' ? null : comicListCoverKey(item),
+    scopeKey: `${order}:${listKey}`,
+  });
   const orderOptions: readonly { label: string; value: ComicOrder }[] = [
     { label: t('catalog.orders.latest'), value: 'latest' },
     { label: t('catalog.orders.new'), value: 'new' },
@@ -91,16 +98,14 @@ export function ComicListScreen() {
           contentContainerStyle={styles.content}
           contentInsetAdjustmentBehavior="automatic"
           data={data}
+          extraData={coverActivation.activatedKeys}
           key={listKey}
-          keyExtractor={(item) =>
-            typeof item === 'number'
-              ? `skeleton-${item}`
-              : `${item.type ?? 'Novel'}-${item.id}`
-          }
+          keyExtractor={comicListItemKey}
           nestedScrollEnabled
           numColumns={columns}
           onEndReached={loadMore}
           onEndReachedThreshold={0.6}
+          onViewableItemsChanged={coverActivation.onViewableItemsChanged}
           refreshControl={
             <RefreshControl
               colors={[colors.accent as string]}
@@ -115,6 +120,7 @@ export function ComicListScreen() {
             ) : (
               <BookCoverGridItem
                 book={item}
+                networkImageEnabled={coverActivation.activatedKeys.has(comicListCoverKey(item))}
                 onPress={() => router.push({
                   pathname: '/book/[id]',
                   params: {
@@ -130,11 +136,20 @@ export function ComicListScreen() {
             )
           }
           showsVerticalScrollIndicator={false}
+          viewabilityConfig={coverActivation.viewabilityConfig}
         />
       </View>
       </NativeScreenScaffold>
     </>
   );
+}
+
+function comicListCoverKey(item: BookListItem): string {
+  return `${item.type ?? 'Comic'}-${item.id}`;
+}
+
+function comicListItemKey(item: number | BookListItem): string {
+  return typeof item === 'number' ? `skeleton-${item}` : comicListCoverKey(item);
 }
 
 function EmptyState() {

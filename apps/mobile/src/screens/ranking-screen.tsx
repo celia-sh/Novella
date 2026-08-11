@@ -24,6 +24,7 @@ import {
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
+import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
 import { useRankingPage } from '@/hooks/use-ranking';
 import { useAppSettings } from '@/services/settings';
@@ -50,6 +51,12 @@ export function RankingScreen() {
       : 0;
   const data: (number | BookListItem)[] =
     skeletonCount > 0 ? skeletonKeys(skeletonCount) : books;
+  const coverActivation = useFlatListCoverActivation({
+    columns,
+    items: data,
+    keyForItem: (item) => typeof item === 'number' ? null : rankingCoverKey(item),
+    scopeKey: `${period}:${listKey}`,
+  });
   const periodOptions: readonly { label: string; value: RankPeriod }[] = [
     { label: t('ranking.periods.daily'), value: 'daily' },
     { label: t('ranking.periods.weekly'), value: 'weekly' },
@@ -87,14 +94,12 @@ export function RankingScreen() {
           contentContainerStyle={styles.content}
           contentInsetAdjustmentBehavior="automatic"
           data={data}
+          extraData={coverActivation.activatedKeys}
           key={listKey}
-          keyExtractor={(item) =>
-            typeof item === 'number'
-              ? `skeleton-${item}`
-              : `${item.type ?? 'Novel'}-${item.id}`
-          }
+          keyExtractor={rankingItemKey}
           nestedScrollEnabled
           numColumns={columns}
+          onViewableItemsChanged={coverActivation.onViewableItemsChanged}
           refreshControl={
             <RefreshControl
               colors={[colors.accent as string]}
@@ -109,6 +114,7 @@ export function RankingScreen() {
             ) : (
               <BookCoverGridItem
                 book={item}
+                networkImageEnabled={coverActivation.activatedKeys.has(rankingCoverKey(item))}
                 onPress={() => router.push({
                   pathname: '/book/[id]',
                   params: {
@@ -125,11 +131,20 @@ export function RankingScreen() {
             )
           }
           showsVerticalScrollIndicator={false}
+          viewabilityConfig={coverActivation.viewabilityConfig}
         />
       </View>
       </NativeScreenScaffold>
     </>
   );
+}
+
+function rankingCoverKey(item: BookListItem): string {
+  return `${item.type ?? 'Novel'}-${item.id}`;
+}
+
+function rankingItemKey(item: number | BookListItem): string {
+  return typeof item === 'number' ? `skeleton-${item}` : rankingCoverKey(item);
 }
 
 function EmptyState() {

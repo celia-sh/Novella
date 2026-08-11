@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { IconChevronRight } from '@tabler/icons-react-native';
 import { Skeleton } from 'heroui-native';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Pressable,
@@ -25,6 +26,11 @@ import { DiscoverNavigation } from '@/components/discover-navigation';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { SectionCard } from '@/components/section-card';
 import { useBookGridLayout, BOOK_GRID_COLUMN_GAP } from '@/hooks/use-book-grid-layout';
+import {
+  useCoverScrollViewport,
+  useScrollGridCoverActivation,
+  type CoverScrollViewportController,
+} from '@/hooks/use-cover-activation';
 import { useAppLocale } from '@/localization/localization-provider';
 import type { LibraryMessage } from '@/localization/locales/library';
 import { useHomeComicPreview } from '@/hooks/use-comic-list';
@@ -45,6 +51,7 @@ export function HomeScreen() {
     retryLatestBooks,
     retryOnlineInfo,
   } = useDiscovery();
+  const coverViewport = useCoverScrollViewport();
 
   const openProfileAndSettings = () => router.push('/settings');
 
@@ -67,10 +74,13 @@ export function HomeScreen() {
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.content}
           nestedScrollEnabled
+          onLayout={coverViewport.onLayout}
+          onScroll={coverViewport.onScroll}
+          scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
           style={styles.root}
         >
-          <RankingSection />
+          <RankingSection viewport={coverViewport} />
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{t('discovery.allNovels')}</Text>
             <Pressable
@@ -84,8 +94,12 @@ export function HomeScreen() {
             </Pressable>
           </View>
 
-          <LatestBooksSection onRetry={retryLatestBooks} state={latestBooks} />
-          <ComicsSection />
+          <LatestBooksSection
+            onRetry={retryLatestBooks}
+            state={latestBooks}
+            viewport={coverViewport}
+          />
+          <ComicsSection viewport={coverViewport} />
           <OnlineInfoSection onRetry={retryOnlineInfo} state={onlineInfo} />
         </ScrollView>
       </NativeScreenScaffold>
@@ -94,13 +108,20 @@ export function HomeScreen() {
   );
 }
 
-function RankingSection() {
+function RankingSection({ viewport }: { viewport: CoverScrollViewportController }) {
   const { t } = useTranslation('library');
   const styles = useHomeScreenStyles();
   const { colors } = useAppTheme();
   const { books, error, period, reload, retry, status } = useHomeRanking();
   const { columns, contentWidth, tileWidth } = useBookGridLayout(20);
-  const previewBooks = books.slice(0, columns * 2);
+  const previewBooks = useMemo(() => books.slice(0, columns * 2), [books, columns]);
+  const rankingCoverKeys = useMemo(() => previewBooks.map(homeBookCoverKey), [previewBooks]);
+  const coverActivation = useScrollGridCoverActivation({
+    columns,
+    itemKeys: rankingCoverKeys,
+    scopeKey: `ranking:${period}:${columns}`,
+    viewport,
+  });
   const periodLabels: Record<RankPeriod, string> = {
     daily: t('discovery.periods.daily'),
     weekly: t('discovery.periods.weekly'),
@@ -150,8 +171,9 @@ function RankingSection() {
           ) : null}
         </SectionCard>
       ) : (
-        <View style={styles.sectionBody}>
+        <View onLayout={coverActivation.onGridLayout} style={styles.sectionBody}>
           <BookGrid
+            activatedCoverKeys={coverActivation.activatedKeys}
             books={previewBooks}
             columns={columns}
             showRanks
@@ -168,13 +190,23 @@ function RankingSection() {
 function LatestBooksSection({
   onRetry,
   state,
+  viewport,
 }: {
   onRetry(): void;
   state: DiscoverySectionState<BookListPage>;
+  viewport: CoverScrollViewportController;
 }) {
   const { t } = useTranslation('library');
   const styles = useHomeScreenStyles();
   const { columns, contentWidth, tileWidth } = useBookGridLayout(20);
+  const books = useMemo(() => state.data?.items.slice(0, 6) ?? [], [state.data]);
+  const latestCoverKeys = useMemo(() => books.map(homeBookCoverKey), [books]);
+  const coverActivation = useScrollGridCoverActivation({
+    columns,
+    itemKeys: latestCoverKeys,
+    scopeKey: `latest:${columns}`,
+    viewport,
+  });
 
   if (state.data === null && state.status === 'loading') {
     return (
@@ -196,8 +228,6 @@ function LatestBooksSection({
     );
   }
 
-  const books = state.data.items.slice(0, 6);
-
   if (books.length === 0) {
     return (
       <SectionCard>
@@ -211,8 +241,9 @@ function LatestBooksSection({
   }
 
   return (
-    <View style={styles.sectionBody}>
+    <View onLayout={coverActivation.onGridLayout} style={styles.sectionBody}>
       <BookGrid
+        activatedCoverKeys={coverActivation.activatedKeys}
         books={books}
         columns={columns}
         tileWidth={tileWidth}
@@ -223,12 +254,19 @@ function LatestBooksSection({
   );
 }
 
-function ComicsSection() {
+function ComicsSection({ viewport }: { viewport: CoverScrollViewportController }) {
   const { t } = useTranslation('library');
   const styles = useHomeScreenStyles();
   const { colors } = useAppTheme();
   const { books, error, reload, retry, status } = useHomeComicPreview();
   const { columns, contentWidth, tileWidth } = useBookGridLayout(20);
+  const comicCoverKeys = useMemo(() => books.map(homeBookCoverKey), [books]);
+  const coverActivation = useScrollGridCoverActivation({
+    columns,
+    itemKeys: comicCoverKeys,
+    scopeKey: `comics:${columns}`,
+    viewport,
+  });
 
   return (
     <>
@@ -266,8 +304,9 @@ function ComicsSection() {
           {status === 'error' && error ? <StaleError message={error} onRetry={reload} /> : null}
         </SectionCard>
       ) : (
-        <View style={styles.sectionBody}>
+        <View onLayout={coverActivation.onGridLayout} style={styles.sectionBody}>
           <BookGrid
+            activatedCoverKeys={coverActivation.activatedKeys}
             books={books}
             columns={columns}
             tileWidth={tileWidth}
@@ -326,12 +365,14 @@ function OnlineInfoSection({
 }
 
 function BookGrid({
+  activatedCoverKeys,
   books,
   columns,
   showRanks = false,
   tileWidth,
   width,
 }: {
+  activatedCoverKeys: ReadonlySet<string>;
   books: BookListItem[];
   columns: number;
   showRanks?: boolean;
@@ -351,7 +392,8 @@ function BookGrid({
           {row.map((book, columnIndex) => (
             <BookCoverGridItem
               book={book}
-              key={`${book.type}-${book.id}`}
+              key={homeBookCoverKey(book)}
+              networkImageEnabled={activatedCoverKeys.has(homeBookCoverKey(book))}
               onPress={() => router.push({
                 pathname: '/book/[id]',
                 params: {
@@ -377,6 +419,10 @@ function BookGrid({
       ))}
     </View>
   );
+}
+
+function homeBookCoverKey(book: BookListItem): string {
+  return `${book.type}-${book.id}`;
 }
 
 function BookGridPlaceholder({
