@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FlatList,
@@ -34,7 +34,7 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
   const { t: tCommon } = useTranslation('common');
   const detailTheme = useBookDetailRouteTheme(bookId, null, null, true);
   const { palette } = detailTheme;
-  const commentPalette = toCommentThreadPalette(palette);
+  const commentPalette = useMemo(() => toCommentThreadPalette(palette), [palette]);
   const {
     deleteComment,
     error,
@@ -78,12 +78,12 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
     });
   }, [bookId]);
 
-  function confirmDelete(commentId: number) {
+  const confirmDelete = useCallback((commentId: number) => {
     showAlert(t('comments.deleteTitle'), t('comments.deleteMessage'), [
       { text: tCommon('actions.cancel'), style: 'cancel' },
       { text: tCommon('actions.delete'), style: 'destructive', onPress: () => void deleteComment(commentId) },
     ]);
-  }
+  }, [deleteComment, t, tCommon]);
 
   return (
     <PaperProvider theme={detailTheme.paperTheme}>

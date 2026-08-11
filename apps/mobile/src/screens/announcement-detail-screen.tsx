@@ -6,9 +6,9 @@ import {
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { Card, Skeleton } from 'heroui-native';
 import { marked } from 'marked';
-import { useCallback, useMemo, useRef } from 'react';
+import { memo, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AnnouncementDetail } from '@novella/api-client';
+import type { AnnouncementDetail, CommentItem } from '@novella/api-client';
 
 import {
   FlatList,
@@ -191,7 +191,7 @@ function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
   const { t: tCommon } = useTranslation('common');
-  const commentPalette = toCommentPalette(colors);
+  const commentPalette = useMemo(() => toCommentPalette(colors), [colors]);
   const {
     deleteComment,
     error: commentsError,
@@ -243,6 +243,18 @@ function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
       },
     ]);
   }, [deleteComment, t, tCommon]);
+
+  const renderComment = useCallback(
+    ({ item }: { item: CommentItem }) => (
+      <CommentThreadItem
+        item={item}
+        onDelete={confirmDelete}
+        onReply={openComposer}
+        palette={commentPalette}
+      />
+    ),
+    [commentPalette, confirmDelete, openComposer],
+  );
 
   return (
     <NativeScreenScaffold
@@ -302,14 +314,7 @@ function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
         nestedScrollEnabled={process.env.EXPO_OS === 'android'}
         onEndReached={loadMore}
         onEndReachedThreshold={0.35}
-        renderItem={({ item }) => (
-          <CommentThreadItem
-            item={item}
-            onDelete={confirmDelete}
-            onReply={openComposer}
-            palette={commentPalette}
-          />
-        )}
+        renderItem={renderComment}
         showsVerticalScrollIndicator={false}
         style={styles.root}
       />
@@ -318,7 +323,7 @@ function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
   );
 }
 
-function AnnouncementArticle({
+const AnnouncementArticle = memo(function AnnouncementArticle({
   html,
   publishedAt,
   showHeader = true,
@@ -366,7 +371,7 @@ function AnnouncementArticle({
       </Card.Body>
     </Card>
   );
-}
+});
 
 function AnnouncementDetailSkeleton() {
   const styles = useAnnouncementDetailStyles();

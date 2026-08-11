@@ -1,4 +1,5 @@
 import { Skeleton } from 'heroui-native';
+import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { CommentItem, CommentReply } from '@novella/api-client';
@@ -17,7 +18,7 @@ export interface CommentReplyTarget {
   userName: string;
 }
 
-export function CommentThreadItem({
+export const CommentThreadItem = memo(function CommentThreadItem({
   item,
   onDelete,
   onReply,
@@ -58,7 +59,7 @@ export function CommentThreadItem({
       ) : null}
     </View>
   );
-}
+});
 
 export function CommentThreadSkeleton({
   palette,
