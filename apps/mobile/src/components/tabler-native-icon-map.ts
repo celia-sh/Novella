@@ -8,6 +8,7 @@ import {
   IconBookDownload,
   IconBooks,
   IconBrandGithub,
+  IconBrandTelegram,
   IconBrightnessHalf,
   IconBrush,
   IconCalendar,
@@ -58,6 +59,7 @@ import {
   IconUsers,
   IconUsersGroup,
   IconWallpaper,
+  IconWorld,
 } from '@tabler/icons-react-native';
 import type { ComponentProps, ComponentType } from 'react';
 
@@ -69,6 +71,7 @@ export const tablerNativeIcons: Record<NativeIconName, TablerNativeIcon> = {
   account: IconUserCircle,
   aiContent: IconRobot,
   announcement: IconSpeakerphone,
+  appUpdate: IconRefresh,
   appearance: IconPalette,
   avatar: IconPhotoCircle,
   badgeAi: IconRobot,
@@ -132,6 +135,7 @@ export const tablerNativeIcons: Record<NativeIconName, TablerNativeIcon> = {
   signOut: IconLogout,
   sourceCode: IconBrandGithub,
   systemColors: IconWallpaper,
+  telegram: IconBrandTelegram,
   textConvert: IconExchange,
   textSize: IconTextSize,
   theme: IconBrightnessHalf,
@@ -139,4 +143,5 @@ export const tablerNativeIcons: Record<NativeIconName, TablerNativeIcon> = {
   userGroup: IconUsersGroup,
   userName: IconAt,
   version: IconTag,
+  website: IconWorld,
 };

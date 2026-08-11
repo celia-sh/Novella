@@ -22,6 +22,7 @@ export function NativeSettingsPanel() {
   return (
     <>
       <NativeGroupedList
+        iconSet="platform"
         largeTitle
         onBackPress={returnToDiscover}
         showBackButton

@@ -74,6 +74,7 @@
     "test:reader": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/services/comic-reader-layout.test.mjs src/services/reader-chrome-layout.test.mjs src/services/reader-image-format.test.mjs src/services/reader-locator-mapping.test.mjs src/services/reader-xhtml-builder.test.mjs src/services/readium-publication.test.mjs",
     "test:shelf": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/services/shelf-grid-reorder.test.mjs src/services/book-grid-layout.test.mjs src/services/chapter-title.test.mjs src/services/content-filter.test.mjs src/services/book-badge-definitions.test.mjs",
     "test:theme": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/theme/auth-theme.test.mjs src/theme/hero-ui-theme.test.mjs",
+    "test:update": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/services/app-update.test.mjs",
     "typecheck": "tsc -p tsconfig.json"
   },
   "private": true

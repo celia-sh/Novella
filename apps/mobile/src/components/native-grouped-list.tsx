@@ -6,8 +6,13 @@ import {
   NativeGroupedListSectionPlatform,
 } from '@/components/native-grouped-list-platform';
 import type { NativeIconName } from '@/components/native-icon';
+import {
+  NativeIconSetProvider,
+  type NativeIconSet,
+} from '@/components/native-icon-set-context';
 
 export interface NativeGroupedListProps extends PropsWithChildren {
+  iconSet?: NativeIconSet;
   largeTitle?: boolean;
   onBackPress?: () => void;
   showBackButton?: boolean;
@@ -17,6 +22,7 @@ export interface NativeGroupedListProps extends PropsWithChildren {
 
 export function NativeGroupedList({
   children,
+  iconSet = 'tabler',
   largeTitle,
   onBackPress,
   showBackButton,
@@ -24,15 +30,17 @@ export function NativeGroupedList({
   title,
 }: NativeGroupedListProps) {
   return (
-    <NativeGroupedListPlatform
-      {...(largeTitle === undefined ? {} : { largeTitle })}
-      {...(onBackPress ? { onBackPress } : {})}
-      {...(showBackButton === undefined ? {} : { showBackButton })}
-      {...(testID ? { testID } : {})}
-      {...(title ? { title } : {})}
-    >
-      {children}
-    </NativeGroupedListPlatform>
+    <NativeIconSetProvider value={iconSet}>
+      <NativeGroupedListPlatform
+        {...(largeTitle === undefined ? {} : { largeTitle })}
+        {...(onBackPress ? { onBackPress } : {})}
+        {...(showBackButton === undefined ? {} : { showBackButton })}
+        {...(testID ? { testID } : {})}
+        {...(title ? { title } : {})}
+      >
+        {children}
+      </NativeGroupedListPlatform>
+    </NativeIconSetProvider>
   );
 }
 

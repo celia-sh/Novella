@@ -29,6 +29,7 @@ export type NativeIconName =
   | 'clock'
   | 'community'
   | 'announcement'
+  | 'appUpdate'
   | 'content'
   | 'continueReading'
   | 'coverColor'
@@ -65,10 +66,12 @@ export type NativeIconName =
   | 'signOut'
   | 'sourceCode'
   | 'systemColors'
+  | 'telegram'
   | 'textConvert'
   | 'textSize'
   | 'theme'
   | 'uid'
   | 'userGroup'
   | 'userName'
-  | 'version';
+  | 'version'
+  | 'website';

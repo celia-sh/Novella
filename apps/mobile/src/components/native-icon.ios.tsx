@@ -3,14 +3,14 @@ import { Image } from '@expo/ui/swift-ui';
 import { accessibilityLabel } from '@expo/ui/swift-ui/modifiers';
 import { StyleSheet, View } from 'react-native';
 
+import { useNativeIconSet } from '@/components/native-icon-set-context';
 import { tablerNativeIcons } from '@/components/tabler-native-icon-map';
 import type { NativeIconName } from '@/components/native-icon-types';
 
 type SystemName = NonNullable<React.ComponentProps<typeof Image>['systemName']>;
 
-// SF Symbols are used where they express the meaning well. Names without an SF
-// entry (settings second-level rows use Tabler-only names because SF cannot
-// express those meanings) fall back to the shared Tabler icon set.
+// SF Symbols are used for platform-native surfaces. Second-level settings
+// explicitly select the shared Tabler set so every row uses one visual style.
 const icons: Partial<Record<NativeIconName, SystemName>> = {
   account: 'person.crop.circle',
   announcement: 'megaphone.fill',
@@ -41,6 +41,7 @@ const icons: Partial<Record<NativeIconName, SystemName>> = {
   reader: 'book.pages',
   search: 'magnifyingglass',
   settings: 'gearshape',
+  website: 'globe',
 };
 
 export type { NativeIconName } from '@/components/native-icon-types';
@@ -56,7 +57,8 @@ export function NativeIcon({
   name: NativeIconName;
   size?: number;
 }) {
-  const systemName = icons[name];
+  const iconSet = useNativeIconSet();
+  const systemName = iconSet === 'platform' ? icons[name] : undefined;
   if (!systemName) {
     const IconComponent = tablerNativeIcons[name];
     return (
