@@ -19,11 +19,7 @@ import {
 } from 'react-native';
 
 import type { CommunityCatalogBoard } from '@novella/api-client';
-import {
-  COMMUNITY_STORAGE_KEYS,
-  CommunitySpeechBlockedError,
-  CommunitySpeechRulesUnavailableError,
-} from '@novella/client-core';
+import { COMMUNITY_STORAGE_KEYS } from '@novella/client-core';
 
 import { CommunityPublishNavigation } from '@/components/community/community-navigation';
 import {
@@ -36,7 +32,7 @@ import {
 } from '@/components/community/community-ui';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { showAlert } from '@/components/native-alert-dialog';
-import { community, communitySpeechGuard, storage } from '@/services/client';
+import { community, storage } from '@/services/client';
 import { createThemedStyles } from '@/theme/app-theme';
 
 export function CommunityComposeScreen({
@@ -60,24 +56,14 @@ export function CommunityComposeScreen({
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [noticeAccepted, setNoticeAccepted] = useState(false);
-  const [speechDisabled, setSpeechDisabled] = useState(communitySpeechGuard.getSnapshot());
 
   useEffect(() => {
     let active = true;
-    const unsubscribe = communitySpeechGuard.subscribe((disabled) => {
-      setSpeechDisabled(disabled);
-      if (disabled) router.replace('/community');
-    });
     void Promise.all([
       community.loadHome({ page: 1, size: 1 }),
-      communitySpeechGuard.isSpeechDisabled(),
       storage.get(COMMUNITY_STORAGE_KEYS.postNoticeAccepted),
-    ]).then(([home, disabled, notice]) => {
+    ]).then(([home, notice]) => {
       if (!active) return;
-      if (disabled) {
-        router.replace('/community');
-        return;
-      }
       setBoards(home.catalogBoards.filter((board) => board.key !== 'all'));
       if (initialBoardKey && home.catalogBoards.some((board) => board.key === initialBoardKey)) {
         setBoardKey(initialBoardKey);
@@ -92,7 +78,6 @@ export function CommunityComposeScreen({
     });
     return () => {
       active = false;
-      unsubscribe();
     };
   }, [initialBoardKey, initialSubCategoryKey, loadToken, t]);
 
@@ -102,7 +87,6 @@ export function CommunityComposeScreen({
   );
   const canPublish = Boolean(
     noticeAccepted &&
-    !speechDisabled &&
     !publishing &&
     boardKey &&
     title.trim().length >= 6 &&
@@ -154,17 +138,11 @@ export function CommunityComposeScreen({
         params: { id: String(thread.id), initialTitle: thread.title },
       });
     } catch (publishError) {
-      if (publishError instanceof CommunitySpeechBlockedError) {
-        router.replace('/community');
-        return;
-      }
       showAlert(
         t('compose.errors.publishDiscussionTitle'),
-        publishError instanceof CommunitySpeechRulesUnavailableError
-          ? t('compose.errors.rulesUnavailable')
-          : publishError instanceof Error
-            ? publishError.message
-            : t('compose.errors.publishDiscussion'),
+        publishError instanceof Error
+          ? publishError.message
+          : t('compose.errors.publishDiscussion'),
       );
     } finally {
       setPublishing(false);

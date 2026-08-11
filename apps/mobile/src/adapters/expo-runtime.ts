@@ -17,14 +17,11 @@ import { MessagePackHubProtocol } from '@microsoft/signalr-protocol-msgpack';
 import type {
   AppLifecycle,
   AppLifecycleState,
-  Clock,
   CredentialStore,
   HttpRequest,
   HttpResponse,
   HttpTransport,
-  JsonPrimitive,
   KeyValueStore,
-  Logger,
   SignalRTransport,
   PasswordHasher,
   Unsubscribe,
@@ -361,30 +358,6 @@ export class ExpoAppLifecycle implements AppLifecycle {
       listener(next);
     });
     return () => subscription.remove();
-  }
-}
-
-export class ExpoClock implements Clock {
-  now(): Date {
-    return new Date();
-  }
-}
-
-export class ExpoLogger implements Logger {
-  debug(message: string, metadata?: Readonly<Record<string, JsonPrimitive>>): void {
-    console.debug(message, metadata);
-  }
-
-  error(message: string, metadata?: Readonly<Record<string, JsonPrimitive>>): void {
-    console.error(message, metadata);
-  }
-
-  info(message: string, metadata?: Readonly<Record<string, JsonPrimitive>>): void {
-    console.info(message, metadata);
-  }
-
-  warn(message: string, metadata?: Readonly<Record<string, JsonPrimitive>>): void {
-    console.warn(message, metadata);
   }
 }
 

@@ -3,9 +3,6 @@ id: 2026-05-28-long-time-no-see
 title: 好久不见
 publishedAt: 2026-05-28T00:00:00Z
 summary: 好久不见，希望你能认真看完。
-required: true
-requiredReadSeconds: 30
-completionAction: openAbout
 ---
 
 # 好久不见，希望你能认真看完。

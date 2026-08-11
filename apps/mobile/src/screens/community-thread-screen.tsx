@@ -41,7 +41,6 @@ import { CommunitySectionTitle, CommunityThreadSkeleton } from '@/components/com
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { useCommunityThread } from '@/hooks/use-community-thread';
 import { useAppLocale } from '@/localization/localization-provider';
-import { communitySpeechGuard } from '@/services/client';
 import { consumeCommunityThreadChanged } from '@/services/community-reply-events';
 import { findCommunityReply, formatCommunityTime } from '@/services/community-utils';
 import { createThemedStyles, resolveAccentHex, resolveOnAccentHex, useAppTheme } from '@/theme/app-theme';
@@ -84,8 +83,6 @@ export function CommunityThreadScreen({
   const commentPalette = toCommunityCommentPalette(colors);
   const listRef = useRef<FlatList<CommunityThreadReply>>(null);
   const hasFocused = useRef(false);
-  const [speechDisabled, setSpeechDisabled] = useState(communitySpeechGuard.getSnapshot());
-  const [speechReady, setSpeechReady] = useState(communitySpeechGuard.getSnapshot());
   const {
     loadChildren,
     loadMore,
@@ -110,17 +107,6 @@ export function CommunityThreadScreen({
   );
 
   useEffect(() => {
-    void communitySpeechGuard.isSpeechDisabled().then((disabled) => {
-      setSpeechDisabled(disabled);
-      setSpeechReady(true);
-    });
-    return communitySpeechGuard.subscribe((disabled) => {
-      setSpeechDisabled(disabled);
-      setSpeechReady(true);
-    });
-  }, []);
-
-  useEffect(() => {
     if (!state.highlightedReplyId || !state.thread) return;
     const targetTopLevelId = parentReplyId && findCommunityReply(state.thread.replyItems, parentReplyId)
       ? parentReplyId
@@ -132,7 +118,7 @@ export function CommunityThreadScreen({
   }, [parentReplyId, state.highlightedReplyId, state.thread]);
 
   const thread = state.thread;
-  const canReply = Boolean(thread && !thread.locked && speechReady && !speechDisabled);
+  const canReply = Boolean(thread && !thread.locked);
   const title = thread?.boardName || initialTitle || t('navigation.discussion');
 
   function openReply(reply: CommunityThreadReply | null) {
@@ -218,11 +204,6 @@ export function CommunityThreadScreen({
         <ThreadNotice
           icon={<IconLock color={colors.secondaryLabel as string} size={20} strokeWidth={2} />}
           text={t('thread.lockedNotice')}
-        />
-      ) : speechDisabled ? (
-        <ThreadNotice
-          icon={<IconLock color={colors.secondaryLabel as string} size={20} strokeWidth={2} />}
-          text={t('thread.postingDisabledNotice')}
         />
       ) : null}
 

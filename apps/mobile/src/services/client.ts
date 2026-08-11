@@ -8,7 +8,6 @@ import {
   createClientSessionController,
   createCommentsUseCase,
   createComicDetailUseCase,
-  createCommunitySpeechGuard,
   createCommunityUseCase,
   createDiscoveryUseCase,
   createHistoryUseCase,
@@ -22,7 +21,6 @@ import {
   type BookSearchUseCase,
   type CommentsUseCase,
   type ComicDetailUseCase,
-  type CommunitySpeechGuard,
   type CommunityUseCase,
   type DiscoveryUseCase,
   type HistoryUseCase,
@@ -35,10 +33,8 @@ import {
 import {
   createExpoStorage,
   ExpoAppLifecycle,
-  ExpoClock,
   ExpoCredentialStore,
   ExpoHttpTransport,
-  ExpoLogger,
   ExpoPasswordHasher,
   ExpoRequestIdentity,
   ExpoSignalRTransport,
@@ -68,17 +64,7 @@ export const bookDetails: BookDetailUseCase = createBookDetailUseCase(api);
 export const comicDetails: ComicDetailUseCase = createComicDetailUseCase(api);
 export const bookSearch: BookSearchUseCase = createBookSearchUseCase(api);
 export const comments: CommentsUseCase = createCommentsUseCase(api);
-export const communitySpeechGuard: CommunitySpeechGuard = createCommunitySpeechGuard({
-  clock: new ExpoClock(),
-  hasher: passwordHasher,
-  http,
-  logger: new ExpoLogger(),
-  storage,
-});
-export const community: CommunityUseCase = createCommunityUseCase(
-  api,
-  communitySpeechGuard,
-);
+export const community: CommunityUseCase = createCommunityUseCase(api);
 export const notifications: NotificationsUseCase = createNotificationsUseCase(api);
 export const history: HistoryUseCase = createHistoryUseCase(api);
 export const profile: ProfileUseCase = createProfileUseCase(api);

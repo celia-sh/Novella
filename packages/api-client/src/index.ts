@@ -16,8 +16,6 @@ export const SERVICE_ENDPOINTS = Object.freeze({
   resetPasswordPath: '/api/user/reset_password',
   refreshTokenPath: '/api/user/refresh_token',
   signalRHub: 'https://api.lightnovel.life/hub/api',
-  communityModerationManifest:
-    'https://novella.celia.sh/assets/community-moderation/manifest.json',
 });
 
 export const SIGNALR_PROTOCOL = Object.freeze({

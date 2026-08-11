@@ -16,18 +16,13 @@ for (const fileName of (await readdir(announcementsDirectory)).filter((name) => 
   if (!title) throw new Error(`Announcement ${filePath} must define title or a level-one heading.`);
   if (!publishedAt) throw new Error(`Announcement ${filePath} must define publishedAt or include YYYY-MM-DD in its filename.`);
 
-  const announcement = {
+  entries.push({
     id,
     path: `assets/announcements/${fileName}`,
     publishedAt,
-    required: parseBoolean(metadata.required) ?? false,
     summary: metadata.summary || extractSummary(body),
     title,
-  };
-  const readSeconds = parsePositiveInt(metadata.requiredReadSeconds);
-  if (readSeconds !== undefined) announcement.requiredReadSeconds = readSeconds;
-  if (metadata.completionAction) announcement.completionAction = { type: metadata.completionAction };
-  entries.push(announcement);
+  });
 }
 
 entries.sort((left, right) => right.publishedAt.localeCompare(left.publishedAt));
@@ -69,20 +64,6 @@ function extractSummary(body) {
     if (cleaned) return cleaned.length > 80 ? `${cleaned.slice(0, 80)}...` : cleaned;
   }
   return '';
-}
-
-function parseBoolean(value) {
-  if (value === undefined) return undefined;
-  if (/^(true|1)$/i.test(value)) return true;
-  if (/^(false|0)$/i.test(value)) return false;
-  throw new Error(`Announcement required must be true or false, got ${value}.`);
-}
-
-function parsePositiveInt(value) {
-  if (value === undefined || value === '') return undefined;
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`Announcement requiredReadSeconds must be positive, got ${value}.`);
-  return parsed;
 }
 
 function resolvePublishedAt(value, fileName) {

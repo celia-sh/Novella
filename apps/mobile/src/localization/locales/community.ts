@@ -122,7 +122,7 @@ export const zhCNCommunity = {
   },
   compose: {
     beforePostTitle: '发布前请注意',
-    beforePostMessage: '社区帖子会公开显示。请尊重他人，不要索取或传播受限内容，也不要分享隐私信息。\n\n• 请选择相关的版面和分类。\n• 标题应清楚具体，内容应有助于交流。\n• 发布前会在此设备上检查社区规则。',
+    beforePostMessage: '社区用于友好交流，请在发布前确认：\n\n• 尊重他人，避免攻击、嘲讽或引战。\n• 请勿求书，也不要请求他人上传或发送书籍。\n• 不要在站点社区反馈软件问题。',
     board: '版面',
     category: '分类',
     selectCategory: '请选择分类。',
@@ -140,7 +140,6 @@ export const zhCNCommunity = {
       publishTitle: '无法发布',
       publishDiscussionTitle: '无法发布讨论',
       publishDiscussion: '无法发布讨论。',
-      rulesUnavailable: '无法获取社区规则。请检查网络连接后重试。',
     },
   },
   editor: {
@@ -180,7 +179,6 @@ export const zhCNCommunity = {
     replies: '回复 · {{count}}',
     related: '相关讨论',
     lockedNotice: '此讨论已锁定，无法再进行互动或回复。',
-    postingDisabledNotice: '此设备已停用社区发言功能，但仍可浏览内容。',
     actionFailed: '社区操作失败',
     errors: {
       load: '无法加载此讨论。',
@@ -375,7 +373,7 @@ export const zhTWCommunity: TranslationShape<typeof zhCNCommunity> = {
   },
   compose: {
     beforePostTitle: '發表前請留意',
-    beforePostMessage: '社群文章會公開顯示。請尊重他人，不要索取或散布受限制的內容，也不要分享個人隱私。\n\n• 請選擇相關的看板和分類。\n• 標題應清楚具體，內容應有助於交流。\n• 發表前會在此裝置上檢查社群規範。',
+    beforePostMessage: '社群用於友善交流，請在發表前確認：\n\n• 尊重他人，避免攻擊、嘲諷或引戰。\n• 請勿求書，也不要要求他人上傳或傳送書籍。\n• 不要在站點社群回報軟體問題。',
     board: '看板',
     category: '分類',
     selectCategory: '請選擇分類。',
@@ -393,7 +391,6 @@ export const zhTWCommunity: TranslationShape<typeof zhCNCommunity> = {
       publishTitle: '無法發表',
       publishDiscussionTitle: '無法發表討論',
       publishDiscussion: '無法發表討論。',
-      rulesUnavailable: '無法取得社群規範。請檢查網路連線後再試一次。',
     },
   },
   editor: {
@@ -433,7 +430,6 @@ export const zhTWCommunity: TranslationShape<typeof zhCNCommunity> = {
     replies: '回覆 · {{count}}',
     related: '相關討論',
     lockedNotice: '此討論已鎖定，無法再按讚、收藏或回覆。',
-    postingDisabledNotice: '此裝置已停用社群發言功能，但仍可瀏覽內容。',
     actionFailed: '社群操作失敗',
     errors: {
       load: '無法載入此討論。',

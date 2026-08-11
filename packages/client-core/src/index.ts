@@ -1,7 +1,6 @@
 import {
   ApiClient,
   ApiError,
-  SERVICE_ENDPOINTS,
   type AnnouncementDetail,
   type AnnouncementPage,
   type AppNotificationPage,
@@ -51,7 +50,6 @@ import type {
   KeyValueStore,
   Logger,
   PasswordHasher,
-  Sha256Hasher,
   SignalRTransport,
 } from '@novella/platform-contracts';
 
@@ -183,7 +181,6 @@ export type CreateCommunityThreadInput = CreateCommunityThreadRequest & {
 export interface CommunityUseCase {
   createReply(request: CreateCommunityReplyRequest): Promise<CommunityThreadReply>;
   createThread(request: CreateCommunityThreadInput): Promise<CommunityThreadDetail>;
-  getSpeechGuard(): CommunitySpeechGuard;
   loadFeed(query?: CommunityListQuery, signal?: AbortSignal): Promise<CommunityFeedPayload>;
   loadHome(query?: CommunityListQuery, signal?: AbortSignal): Promise<CommunityHomePayload>;
   loadMyOverview(signal?: AbortSignal): Promise<CommunityMyOverview>;
@@ -206,61 +203,8 @@ export interface NotificationsUseCase {
 }
 
 export const COMMUNITY_STORAGE_KEYS = Object.freeze({
-  moderationRulesCache: 'community_moderation_rules_cache_v1',
   postNoticeAccepted: 'community_post_notice_accepted_v1',
-  speechDisabled: 'community_speech_disabled_v1',
-  speechDisabledMetadata: 'community_speech_disabled_metadata_v1',
 });
-
-export type CommunitySpeechScope = 'threadTitle' | 'threadBody' | 'reply';
-
-export interface CommunitySpeechField {
-  scope: CommunitySpeechScope;
-  text: string;
-}
-
-export type CommunitySpeechDecision =
-  | { type: 'allowed'; revision: number }
-  | { type: 'blocked'; revision: number }
-  | { type: 'rulesUnavailable'; error: CommunitySpeechRulesUnavailableError }
-  | { type: 'alreadyDisabled' };
-
-export interface CommunitySpeechGuard {
-  check(fields: readonly CommunitySpeechField[]): Promise<CommunitySpeechDecision>;
-  getSnapshot(): boolean;
-  isSpeechDisabled(): Promise<boolean>;
-  subscribe(listener: (disabled: boolean) => void): () => void;
-}
-
-export interface CommunityModerationDependencies {
-  clock: Clock;
-  hasher: Sha256Hasher;
-  http: HttpTransport;
-  logger: Logger;
-  manifestUrl?: string;
-  storage: KeyValueStore;
-}
-
-export class CommunityModerationFormatError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'CommunityModerationFormatError';
-  }
-}
-
-export class CommunitySpeechRulesUnavailableError extends Error {
-  constructor(options: { cause?: unknown } = {}) {
-    super('Community speech rules are unavailable.', options);
-    this.name = 'CommunitySpeechRulesUnavailableError';
-  }
-}
-
-export class CommunitySpeechBlockedError extends Error {
-  constructor() {
-    super('Community speech is disabled.');
-    this.name = 'CommunitySpeechBlockedError';
-  }
-}
 
 export interface ShelfSnapshot {
   items: ShelfItem[];
@@ -827,23 +771,7 @@ export function createCommentsUseCase(api: ApiClient): CommentsUseCase {
   });
 }
 
-export function createCommunityUseCase(
-  api: ApiClient,
-  speechGuard: CommunitySpeechGuard,
-): CommunityUseCase {
-  async function ensureSpeechAllowed(fields: readonly CommunitySpeechField[]): Promise<void> {
-    const decision = await speechGuard.check(fields);
-    switch (decision.type) {
-      case 'allowed':
-        return;
-      case 'rulesUnavailable':
-        throw decision.error;
-      case 'blocked':
-      case 'alreadyDisabled':
-        throw new CommunitySpeechBlockedError();
-    }
-  }
-
+export function createCommunityUseCase(api: ApiClient): CommunityUseCase {
   return Object.freeze({
     async createReply(request: CreateCommunityReplyRequest) {
       assertPositiveInteger(request.threadId, 'A valid Community thread id is required.');
@@ -852,7 +780,6 @@ export function createCommunityUseCase(
       }
       const content = request.content.trim();
       if (!content) throw new Error('Reply content is required.');
-      await ensureSpeechAllowed([{ scope: 'reply', text: content }]);
       return api.createCommunityReply({
         threadId: request.threadId,
         content,
@@ -869,19 +796,12 @@ export function createCommunityUseCase(
       if (title.length > 60) throw new Error('The title cannot exceed 60 characters.');
       if (contentText.length < 20) throw new Error('The post must be at least 20 characters.');
       if (!contentHtml) throw new Error('Post content is required.');
-      await ensureSpeechAllowed([
-        { scope: 'threadTitle', text: title },
-        { scope: 'threadBody', text: contentText },
-      ]);
       return api.createCommunityThread({
         boardKey,
         subCategoryKey: request.subCategoryKey?.trim() ?? '',
         title,
         contentHtml,
       });
-    },
-    getSpeechGuard() {
-      return speechGuard;
     },
     loadFeed(query: CommunityListQuery = {}, signal?: AbortSignal) {
       assertCommunityListQuery(query);
@@ -950,422 +870,11 @@ export function createNotificationsUseCase(api: ApiClient): NotificationsUseCase
   });
 }
 
-interface CommunityModerationManifest {
-  schemaVersion: number;
-  revision: number;
-  rulesPath: string;
-  sha256Digest: string;
-  size: number;
-  cacheMaxAgeSeconds: number;
-}
-
-interface CommunityModerationRule {
-  id: string;
-  scopes: ReadonlySet<CommunitySpeechScope>;
-  clauses: readonly (readonly string[])[];
-}
-
-interface CommunityModerationRuleSet {
-  revision: number;
-  rules: readonly CommunityModerationRule[];
-}
-
-interface LoadedCommunityModerationRules {
-  rules: CommunityModerationRuleSet;
-  validUntil: number;
-}
-
-const COMMUNITY_MODERATION_SCHEMA_VERSION = 1;
-const COMMUNITY_MODERATION_NORMALIZATION = 'compact-v1';
-const COMMUNITY_MODERATION_MIN_CACHE_AGE_SECONDS = 60;
-const COMMUNITY_MODERATION_MAX_CACHE_AGE_SECONDS = 86_400;
-const COMMUNITY_MODERATION_SHA256_PATTERN = /^[0-9a-f]{64}$/;
-const COMMUNITY_MODERATION_IGNORED_CHARACTERS = /[\p{P}\p{S}\p{Z}\p{C}]/gu;
-
-export function normalizeCommunitySpeechText(text: string): string {
-  let widthFolded = '';
-  for (const character of text) {
-    const codePoint = character.codePointAt(0) ?? 0;
-    if (codePoint >= 0xff01 && codePoint <= 0xff5e) {
-      widthFolded += String.fromCodePoint(codePoint - 0xfee0);
-    } else if (codePoint === 0x3000) {
-      widthFolded += ' ';
-    } else {
-      widthFolded += character;
-    }
-  }
-  return widthFolded.toLowerCase().replace(COMMUNITY_MODERATION_IGNORED_CHARACTERS, '');
-}
-
-export function createCommunitySpeechGuard(
-  dependencies: CommunityModerationDependencies,
-): CommunitySpeechGuard {
-  const manifestUrl = dependencies.manifestUrl ?? SERVICE_ENDPOINTS.communityModerationManifest;
-  const listeners = new Set<(disabled: boolean) => void>();
-  let speechDisabled = false;
-  let inMemoryRules: LoadedCommunityModerationRules | null = null;
-  let loadingRules: Promise<LoadedCommunityModerationRules> | null = null;
-
-  function publishDisabled(): void {
-    if (speechDisabled) return;
-    speechDisabled = true;
-    for (const listener of listeners) listener(true);
-  }
-
-  async function isSpeechDisabled(): Promise<boolean> {
-    if (speechDisabled) return true;
-    if ((await dependencies.storage.get(COMMUNITY_STORAGE_KEYS.speechDisabled)) === 'true') {
-      publishDisabled();
-    }
-    return speechDisabled;
-  }
-
-  async function fetchText(url: string): Promise<string> {
-    const response = await dependencies.http.request<string>({
-      headers: { Accept: 'application/json' },
-      method: 'GET',
-      responseType: 'text',
-      url,
-    });
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(`Community moderation HTTP ${response.status}.`);
-    }
-    if (typeof response.body !== 'string') {
-      throw new CommunityModerationFormatError('Community moderation response must be text.');
-    }
-    return response.body;
-  }
-
-  async function parseAndValidateRules(
-    manifest: CommunityModerationManifest,
-    rulesText: string,
-  ): Promise<CommunityModerationRuleSet> {
-    if (utf8ByteLength(rulesText) !== manifest.size) {
-      throw new CommunityModerationFormatError(
-        'Community moderation rules size does not match the manifest.',
-      );
-    }
-    const digest = (await dependencies.hasher.sha256(rulesText)).toLowerCase();
-    if (digest !== manifest.sha256Digest) {
-      throw new CommunityModerationFormatError(
-        'Community moderation rules digest does not match the manifest.',
-      );
-    }
-    const rules = parseCommunityModerationRuleSet(parseJsonRecord(rulesText, 'rules'));
-    if (rules.revision !== manifest.revision) {
-      throw new CommunityModerationFormatError(
-        'Community moderation revision does not match the manifest.',
-      );
-    }
-    return rules;
-  }
-
-  async function readCachedRules(): Promise<LoadedCommunityModerationRules | null> {
-    const cacheText = await dependencies.storage.get(
-      COMMUNITY_STORAGE_KEYS.moderationRulesCache,
-    );
-    if (cacheText === null) return null;
-
-    try {
-      const cache = parseJsonRecord(cacheText, 'cached rules');
-      const manifest = parseCommunityModerationManifest(
-        asUnknownRecord(cache.manifest, 'cached moderation manifest'),
-      );
-      if (typeof cache.rulesText !== 'string' || typeof cache.fetchedAt !== 'string') {
-        throw new CommunityModerationFormatError('Cached moderation data is incomplete.');
-      }
-      const fetchedAt = Date.parse(cache.fetchedAt);
-      const now = dependencies.clock.now().getTime();
-      if (!Number.isFinite(fetchedAt) || fetchedAt > now ||
-          now - fetchedAt >= manifest.cacheMaxAgeSeconds * 1_000) {
-        throw new CommunityModerationFormatError('Cached moderation data has expired.');
-      }
-      const rules = await parseAndValidateRules(manifest, cache.rulesText);
-      return {
-        rules,
-        validUntil: fetchedAt + manifest.cacheMaxAgeSeconds * 1_000,
-      };
-    } catch {
-      await dependencies.storage.delete(COMMUNITY_STORAGE_KEYS.moderationRulesCache);
-      return null;
-    }
-  }
-
-  async function fetchRules(): Promise<LoadedCommunityModerationRules> {
-    const manifestText = await fetchText(manifestUrl);
-    const manifest = parseCommunityModerationManifest(
-      parseJsonRecord(manifestText, 'manifest'),
-    );
-    const rulesUrl = new URL(manifest.rulesPath, manifestUrl).toString();
-    const rulesText = await fetchText(rulesUrl);
-    const rules = await parseAndValidateRules(manifest, rulesText);
-    const fetchedAt = dependencies.clock.now();
-    try {
-      await dependencies.storage.set(
-        COMMUNITY_STORAGE_KEYS.moderationRulesCache,
-        JSON.stringify({
-          manifest: {
-            schemaVersion: manifest.schemaVersion,
-            revision: manifest.revision,
-            rulesPath: manifest.rulesPath,
-            sha256: manifest.sha256Digest,
-            size: manifest.size,
-            cacheMaxAgeSeconds: manifest.cacheMaxAgeSeconds,
-          },
-          rulesText,
-          fetchedAt: fetchedAt.toISOString(),
-        }),
-      );
-    } catch {
-      dependencies.logger.warn('Failed to cache Community moderation rules.');
-    }
-    return {
-      rules,
-      validUntil: fetchedAt.getTime() + manifest.cacheMaxAgeSeconds * 1_000,
-    };
-  }
-
-  async function loadRules(): Promise<LoadedCommunityModerationRules> {
-    const now = dependencies.clock.now().getTime();
-    if (inMemoryRules && inMemoryRules.validUntil > now) return inMemoryRules;
-    if (loadingRules) return loadingRules;
-    const pending = (async () => {
-      const cached = await readCachedRules();
-      const loaded = cached ?? await fetchRules();
-      inMemoryRules = loaded;
-      return loaded;
-    })().finally(() => {
-      if (loadingRules === pending) loadingRules = null;
-    });
-    loadingRules = pending;
-    return pending;
-  }
-
-  async function disableSpeech(ruleId: string, revision: number): Promise<void> {
-    publishDisabled();
-    try {
-      await Promise.all([
-        dependencies.storage.set(COMMUNITY_STORAGE_KEYS.speechDisabled, 'true'),
-        dependencies.storage.set(
-          COMMUNITY_STORAGE_KEYS.speechDisabledMetadata,
-          JSON.stringify({
-            revision,
-            ruleId,
-            triggeredAt: dependencies.clock.now().toISOString(),
-          }),
-        ),
-      ]);
-    } catch {
-      dependencies.logger.warn('Failed to persist Community speech disabled state.');
-    }
-  }
-
-  async function check(
-    fields: readonly CommunitySpeechField[],
-  ): Promise<CommunitySpeechDecision> {
-    try {
-      if (await isSpeechDisabled()) return { type: 'alreadyDisabled' };
-      const { rules } = await loadRules();
-      const matched = firstMatchingCommunityRule(rules, fields);
-      if (!matched) return { type: 'allowed', revision: rules.revision };
-      await disableSpeech(matched.id, rules.revision);
-      return { type: 'blocked', revision: rules.revision };
-    } catch (error) {
-      dependencies.logger.warn('Community speech moderation check failed.');
-      return {
-        type: 'rulesUnavailable',
-        error: new CommunitySpeechRulesUnavailableError({ cause: error }),
-      };
-    }
-  }
-
-  return Object.freeze({
-    check,
-    getSnapshot: () => speechDisabled,
-    isSpeechDisabled,
-    subscribe(listener: (disabled: boolean) => void) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-  });
-}
-
 function assertCommunityListQuery(query: CommunityListQuery): void {
   if (query.page !== undefined) {
     assertPositiveInteger(query.page, 'A valid Community page is required.');
   }
   if (query.size !== undefined) assertPageSize(query.size);
-}
-
-function parseCommunityModerationManifest(
-  value: Record<string, unknown>,
-): CommunityModerationManifest {
-  const schemaVersion = requiredPositiveInteger(value.schemaVersion, 'schemaVersion');
-  if (schemaVersion !== COMMUNITY_MODERATION_SCHEMA_VERSION) {
-    throw new CommunityModerationFormatError(
-      `Unsupported Community moderation manifest schema: ${schemaVersion}.`,
-    );
-  }
-  const rulesPath = requiredNonEmptyString(value.rulesPath, 'rulesPath');
-  if (/^[a-z][a-z\d+.-]*:/i.test(rulesPath) || rulesPath.startsWith('//')) {
-    throw new CommunityModerationFormatError('rulesPath must be a relative URL.');
-  }
-  const sha256Digest = requiredNonEmptyString(value.sha256, 'sha256').toLowerCase();
-  if (!COMMUNITY_MODERATION_SHA256_PATTERN.test(sha256Digest)) {
-    throw new CommunityModerationFormatError(
-      'sha256 must be a 64-character hexadecimal digest.',
-    );
-  }
-  const cacheMaxAgeSeconds = requiredPositiveInteger(
-    value.cacheMaxAgeSeconds,
-    'cacheMaxAgeSeconds',
-  );
-  if (cacheMaxAgeSeconds < COMMUNITY_MODERATION_MIN_CACHE_AGE_SECONDS ||
-      cacheMaxAgeSeconds > COMMUNITY_MODERATION_MAX_CACHE_AGE_SECONDS) {
-    throw new CommunityModerationFormatError(
-      `cacheMaxAgeSeconds must be between ${COMMUNITY_MODERATION_MIN_CACHE_AGE_SECONDS} and ${COMMUNITY_MODERATION_MAX_CACHE_AGE_SECONDS}.`,
-    );
-  }
-  return {
-    schemaVersion,
-    revision: requiredPositiveInteger(value.revision, 'revision'),
-    rulesPath,
-    sha256Digest,
-    size: requiredPositiveInteger(value.size, 'size'),
-    cacheMaxAgeSeconds,
-  };
-}
-
-function parseCommunityModerationRuleSet(
-  value: Record<string, unknown>,
-): CommunityModerationRuleSet {
-  const schemaVersion = requiredPositiveInteger(value.schemaVersion, 'schemaVersion');
-  if (schemaVersion !== COMMUNITY_MODERATION_SCHEMA_VERSION) {
-    throw new CommunityModerationFormatError(
-      `Unsupported Community moderation rules schema: ${schemaVersion}.`,
-    );
-  }
-  const normalization = requiredNonEmptyString(value.normalization, 'normalization');
-  if (normalization !== COMMUNITY_MODERATION_NORMALIZATION) {
-    throw new CommunityModerationFormatError(
-      `Unsupported Community moderation normalization: ${normalization}.`,
-    );
-  }
-  if (typeof value.publishedAt !== 'string' || !Number.isFinite(Date.parse(value.publishedAt))) {
-    throw new CommunityModerationFormatError('publishedAt must be an ISO 8601 date.');
-  }
-  if (!Array.isArray(value.rules) || value.rules.length === 0) {
-    throw new CommunityModerationFormatError('rules must be a non-empty list.');
-  }
-  const ids = new Set<string>();
-  const rules = value.rules.map((rawRule) => {
-    const rule = asUnknownRecord(rawRule, 'Community moderation rule');
-    const id = requiredNonEmptyString(rule.id, 'rule id');
-    if (!ids.add(id)) {
-      throw new CommunityModerationFormatError(`Duplicate Community moderation rule id: ${id}.`);
-    }
-    if (!Array.isArray(rule.scopes) || rule.scopes.length === 0) {
-      throw new CommunityModerationFormatError('Rule scopes must be a non-empty list.');
-    }
-    const scopes = new Set<CommunitySpeechScope>();
-    for (const rawScope of rule.scopes) {
-      if (rawScope !== 'threadTitle' && rawScope !== 'threadBody' && rawScope !== 'reply') {
-        throw new CommunityModerationFormatError(`Unknown Community speech scope: ${String(rawScope)}.`);
-      }
-      scopes.add(rawScope);
-    }
-    if (!Array.isArray(rule.clauses) || rule.clauses.length === 0) {
-      throw new CommunityModerationFormatError('Rule clauses must be a non-empty list.');
-    }
-    const clauses = rule.clauses.map((rawClause) => {
-      const clause = asUnknownRecord(rawClause, 'Community moderation clause');
-      if (!Array.isArray(clause.anyOf) || clause.anyOf.length === 0) {
-        throw new CommunityModerationFormatError('Clause anyOf must be a non-empty list.');
-      }
-      const terms = new Set<string>();
-      for (const rawTerm of clause.anyOf) {
-        if (typeof rawTerm !== 'string' || !rawTerm.trim()) {
-          throw new CommunityModerationFormatError('Clause terms must be non-empty strings.');
-        }
-        const term = normalizeCommunitySpeechText(rawTerm);
-        if (!term) {
-          throw new CommunityModerationFormatError(
-            'Clause terms cannot normalize to an empty string.',
-          );
-        }
-        terms.add(term);
-      }
-      return [...terms];
-    });
-    return { id, scopes, clauses };
-  });
-  return {
-    revision: requiredPositiveInteger(value.revision, 'revision'),
-    rules,
-  };
-}
-
-function firstMatchingCommunityRule(
-  ruleSet: CommunityModerationRuleSet,
-  fields: readonly CommunitySpeechField[],
-): CommunityModerationRule | null {
-  const normalized = new Map<CommunitySpeechScope, string[]>();
-  for (const field of fields) {
-    const text = normalizeCommunitySpeechText(field.text);
-    if (!text) continue;
-    const values = normalized.get(field.scope) ?? [];
-    values.push(text);
-    normalized.set(field.scope, values);
-  }
-  for (const rule of ruleSet.rules) {
-    const candidates = [...rule.scopes].flatMap((scope) => normalized.get(scope) ?? []);
-    if (candidates.length === 0) continue;
-    if (rule.clauses.every((terms) =>
-      candidates.some((candidate) => terms.some((term) => candidate.includes(term))),
-    )) {
-      return rule;
-    }
-  }
-  return null;
-}
-
-function parseJsonRecord(text: string, name: string): Record<string, unknown> {
-  try {
-    return asUnknownRecord(JSON.parse(text), `Community moderation ${name}`);
-  } catch (error) {
-    if (error instanceof CommunityModerationFormatError) throw error;
-    throw new CommunityModerationFormatError(`Invalid Community moderation ${name} JSON.`);
-  }
-}
-
-function asUnknownRecord(value: unknown, name: string): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new CommunityModerationFormatError(`${name} must be an object.`);
-  }
-  return value as Record<string, unknown>;
-}
-
-function requiredPositiveInteger(value: unknown, name: string): number {
-  if (!Number.isInteger(value) || (value as number) <= 0) {
-    throw new CommunityModerationFormatError(`${name} must be a positive integer.`);
-  }
-  return value as number;
-}
-
-function requiredNonEmptyString(value: unknown, name: string): string {
-  if (typeof value !== 'string' || !value.trim()) {
-    throw new CommunityModerationFormatError(`${name} must be a non-empty string.`);
-  }
-  return value.trim();
-}
-
-function utf8ByteLength(value: string): number {
-  let length = 0;
-  for (const character of value) {
-    const codePoint = character.codePointAt(0) ?? 0;
-    length += codePoint <= 0x7f ? 1 : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4;
-  }
-  return length;
 }
 
 const HTTPS_IMAGE_URL_PATTERN = /^https:\/\/[\w-]+(?:\.[\w-]+)+(?:[\w\-.,@?^=%&:/~+#]*[\w\-@?^=%&/~+#])?$/i;
