@@ -28,6 +28,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-router',
+    [
+      'expo-splash-screen',
+      {
+        backgroundColor: '#FFFFFF',
+        dark: {
+          backgroundColor: '#000000',
+          image: './assets/splash-icon-dark.png',
+        },
+        image: './assets/splash-icon.png',
+        imageWidth: 200,
+        resizeMode: 'contain',
+      },
+    ],
     'expo-dev-client',
     [
       'expo-build-properties',
