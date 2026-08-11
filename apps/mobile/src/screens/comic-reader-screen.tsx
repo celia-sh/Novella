@@ -10,6 +10,7 @@ import {
   Text,
   useWindowDimensions,
   View,
+  type ViewToken,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, type ComicContent, type ComicInfo } from '@novella/api-client';
@@ -50,7 +51,19 @@ import { useAppTheme } from '@/theme/app-theme';
 
 const PAGE_BATCH = 12;
 const COMIC_DISK_LOOKAHEAD = 4;
-const COMIC_VIEWABILITY_CONFIG = { viewAreaCoveragePercentThreshold: 1 } as const;
+// Keep real ComicPage/Image cells mounted ahead of the viewport. Fetch-only
+// preloading does not guarantee that the native image has decoded and painted.
+const COMIC_PAGED_INITIAL_RENDER_COUNT = 5;
+const COMIC_PAGED_RENDER_BATCH = 7;
+const COMIC_PAGED_WINDOW_SIZE = 7;
+const COMIC_PAGED_VIEWABILITY_CONFIG = {
+  itemVisiblePercentThreshold: 51,
+  waitForInteraction: false,
+} as const;
+const COMIC_SCROLL_VIEWABILITY_CONFIG = {
+  viewAreaCoveragePercentThreshold: 1,
+  waitForInteraction: false,
+} as const;
 const EMPTY_COMIC_SLOTS: readonly ComicPageSlot[] = [];
 
 interface ComicProgressInput {
@@ -328,7 +341,7 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
     lastVisiblePageRef.current = initialPageIndex;
     pagedTapTargetRef.current = null;
     scrollTapTargetRef.current = null;
-    restoreTargetRef.current = activeChapter && mode === 'scroll'
+    restoreTargetRef.current = activeChapter
       ? { chapterId: activeChapter.chapter.id, index: initialPageIndex }
       : null;
   }, [activeChapter, initialPageIndex, mode]);
@@ -402,6 +415,33 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
     void loadBatch(nextIndex);
     scheduleActivePosition(nextIndex);
   }, [activeChapter, activeSlots.length, loadBatch, scheduleActivePosition]);
+  const recordVisiblePageRef = useRef(recordVisiblePage);
+  recordVisiblePageRef.current = recordVisiblePage;
+  const onPagedViewableItemsChanged = useCallback(({
+    viewableItems,
+  }: {
+    changed: ViewToken<ComicPageSlot>[];
+    viewableItems: ViewToken<ComicPageSlot>[];
+  }) => {
+    const visible = viewableItems.find((token) => token.isViewable);
+    if (visible?.index !== null && visible?.index !== undefined) {
+      recordVisiblePageRef.current(visible.index);
+    }
+  }, []);
+  const onScrollViewableItemsChanged = useCallback(({
+    viewableItems,
+  }: {
+    changed: ViewToken<ComicPageSlot>[];
+    viewableItems: ViewToken<ComicPageSlot>[];
+  }) => {
+    const firstVisibleIndex = viewableItems.reduce<number | null>((first, token) => {
+      if (!token.isViewable || token.index === null) return first;
+      return first === null ? token.index : Math.min(first, token.index);
+    }, null);
+    if (firstVisibleIndex !== null) {
+      recordVisiblePageRef.current(firstVisibleIndex);
+    }
+  }, []);
   const saveCurrentPosition = useCallback(() => {
     if (!activeChapter) return flushPosition();
     return commitPosition({
@@ -505,9 +545,9 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
           keyExtractor={(slot) => String(slot.index)}
           getItemLayout={(_, index) => ({ index, length: pageWidth, offset: pageWidth * index })}
           pagingEnabled
-          initialNumToRender={3}
-          maxToRenderPerBatch={3}
-          removeClippedSubviews={process.env.EXPO_OS === 'android'}
+          initialNumToRender={COMIC_PAGED_INITIAL_RENDER_COUNT}
+          maxToRenderPerBatch={COMIC_PAGED_RENDER_BATCH}
+          removeClippedSubviews={false}
           renderItem={({ item }) => (
             <ComicPage
               batchFailed={failedBatches.has(getComicPageBatchStart(item.index, activeSlots.length, PAGE_BATCH))}
@@ -528,7 +568,10 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
             pagedTapTargetRef.current = null;
             recordVisiblePage(index);
           }}
-          windowSize={5}
+          onViewableItemsChanged={onPagedViewableItemsChanged}
+          updateCellsBatchingPeriod={0}
+          viewabilityConfig={COMIC_PAGED_VIEWABILITY_CONFIG}
+          windowSize={COMIC_PAGED_WINDOW_SIZE}
         />
       ) : (
         <FlatList
@@ -566,12 +609,9 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
           onMomentumScrollEnd={() => {
             scrollTapTargetRef.current = null;
           }}
-          onViewableItemsChanged={({ viewableItems }) => {
-            const first = viewableItems.find((item) => item.isViewable)?.item as ComicPageSlot | undefined;
-            if (first) recordVisiblePage(first.index);
-          }}
+          onViewableItemsChanged={onScrollViewableItemsChanged}
           updateCellsBatchingPeriod={32}
-          viewabilityConfig={COMIC_VIEWABILITY_CONFIG}
+          viewabilityConfig={COMIC_SCROLL_VIEWABILITY_CONFIG}
           windowSize={5}
         />
       )
