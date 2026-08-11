@@ -41,6 +41,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         resizeMode: 'contain',
       },
     ],
+    // Expo config mods unwind in reverse order: register this first so it can
+    // update the build phase after expo-dev-client creates it.
+    './plugins/with-expo-dev-launcher-build-phase',
     'expo-dev-client',
     [
       'expo-build-properties',
