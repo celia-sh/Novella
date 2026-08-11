@@ -33,8 +33,13 @@ export function useCommunityNotifications() {
   const controllerRef = useRef<AbortController | null>(null);
   const generationRef = useRef(0);
   const hasLoadedRef = useRef(false);
+  const loadingMoreRef = useRef(false);
 
   const load = useCallback(async ({ append = false, refreshing = false } = {}) => {
+    if (append) {
+      if (loadingMoreRef.current) return;
+      loadingMoreRef.current = true;
+    }
     const generation = ++generationRef.current;
     controllerRef.current?.abort();
     const controller = new AbortController();
@@ -70,6 +75,8 @@ export function useCommunityNotifications() {
         loadingMore: false,
         refreshing: false,
       }));
+    } finally {
+      if (append) loadingMoreRef.current = false;
     }
   }, [state.page, t]);
 
@@ -121,11 +128,13 @@ export function useCommunityNotifications() {
     setState((current) => ({ ...current, marking: false }));
   }, [reconcile, state.items, state.marking]);
 
+  const loadMore = useCallback(() => {
+    if (loadingMoreRef.current || state.page >= state.totalPages) return Promise.resolve();
+    return load({ append: true });
+  }, [load, state.page, state.totalPages]);
+
   return {
-    loadMore: () => {
-      if (state.loadingMore || state.page >= state.totalPages) return Promise.resolve();
-      return load({ append: true });
-    },
+    loadMore,
     mark,
     markAll,
     refresh: () => load({ refreshing: true }),

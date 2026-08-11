@@ -52,6 +52,7 @@ export function useCommunityThread({
   const generationRef = useRef(0);
   const focusGenerationRef = useRef(0);
   const operationRef = useRef<'idle' | 'loadMore' | 'reload'>('idle');
+  const replyOperationRef = useRef<string | null>(null);
 
   const load = useCallback(async ({
     append = false,
@@ -114,6 +115,7 @@ export function useCommunityThread({
     void load({ page: 1, trackView: true });
     return () => {
       operationRef.current = 'idle';
+      replyOperationRef.current = null;
       controllerRef.current?.abort();
     };
   }, [load]);
@@ -201,6 +203,8 @@ export function useCommunityThread({
   const loadChildren = useCallback(async (parent: CommunityThreadReply) => {
     if (!parent.childPage.hasMore) return;
     const actionId = `children:${parent.id}`;
+    if (replyOperationRef.current !== null) return;
+    replyOperationRef.current = actionId;
     setState((current) => ({ ...current, actionId }));
     try {
       const children = await community.loadReplyChildren({
@@ -227,6 +231,8 @@ export function useCommunityThread({
         actionId: null,
         error: error instanceof Error ? error.message : t('thread.errors.loadReplies'),
       }));
+    } finally {
+      if (replyOperationRef.current === actionId) replyOperationRef.current = null;
     }
   }, [t, threadId]);
 
@@ -263,8 +269,9 @@ export function useCommunityThread({
   }, [state.thread, state.threadActionId, t]);
 
   const toggleReplyLike = useCallback(async (reply: CommunityThreadReply) => {
-    if (state.thread?.locked || state.actionId) return;
+    if (state.thread?.locked || replyOperationRef.current !== null) return;
     const actionId = `reply-like:${reply.id}`;
+    replyOperationRef.current = actionId;
     setState((current) => ({ ...current, actionId }));
     try {
       const result = await community.toggleReplyLike(reply.id);
@@ -282,8 +289,10 @@ export function useCommunityThread({
       }) : current);
     } catch (error) {
       setState((current) => ({ ...current, actionId: null, error: error instanceof Error ? error.message : t('thread.errors.updateLike') }));
+    } finally {
+      if (replyOperationRef.current === actionId) replyOperationRef.current = null;
     }
-  }, [state.actionId, state.thread?.locked, t]);
+  }, [state.thread?.locked, t]);
 
   const postReply = useCallback(async (content: string, replyToId?: number) => {
     if (state.thread?.locked || state.postingReply) return false;

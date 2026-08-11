@@ -12,6 +12,7 @@ import {
 import { showAlert } from '@/components/native-alert-dialog';
 import { IconMessage, IconRefresh } from '@tabler/icons-react-native';
 import { PaperProvider } from 'react-native-paper';
+import type { CommentItem } from '@novella/api-client';
 
 import { BookCommentsNavigation } from '@/components/book-comments-navigation';
 import type { CommentThreadPalette } from '@/components/comment-thread';
@@ -84,6 +85,18 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
       { text: tCommon('actions.delete'), style: 'destructive', onPress: () => void deleteComment(commentId) },
     ]);
   }, [deleteComment, t, tCommon]);
+
+  const renderComment = useCallback(
+    ({ item }: { item: CommentItem }) => (
+      <CommentThreadItem
+        item={item}
+        onDelete={confirmDelete}
+        onReply={openComposer}
+        palette={commentPalette}
+      />
+    ),
+    [commentPalette, confirmDelete, openComposer],
+  );
 
   return (
     <PaperProvider theme={detailTheme.paperTheme}>
@@ -161,14 +174,7 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
             }
             onEndReached={loadMore}
             onEndReachedThreshold={0.35}
-            renderItem={({ item }) => (
-              <CommentThreadItem
-                item={item}
-                onDelete={confirmDelete}
-                onReply={openComposer}
-                palette={commentPalette}
-              />
-            )}
+            renderItem={renderComment}
             showsVerticalScrollIndicator={false}
           />
         </View>

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ApiError, type CommentPage, type PostCommentRequest } from '@novella/api-client';
 
 import { comments } from '@/services/client';
+import { mergeCommunityItems } from '@/services/community-utils';
 import type { CommentTarget } from '@/services/comment-target';
 import { waitForMinimumDisplay } from '@/services/min-skeleton-display';
 
@@ -67,7 +68,7 @@ export function useComments(target: CommentTarget) {
         isLoadingMore: false,
         page:
           append && current.page
-            ? { ...next, items: [...current.page.items, ...next.items] }
+            ? { ...next, items: mergeCommunityItems(current.page.items, next.items) }
             : next,
       }));
       return next;

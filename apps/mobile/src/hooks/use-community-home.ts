@@ -55,6 +55,7 @@ export function useCommunityHome() {
   });
   const controllerRef = useRef<AbortController | null>(null);
   const generationRef = useRef(0);
+  const loadingMoreRef = useRef(false);
   const queryRef = useRef(INITIAL_QUERY);
   queryRef.current = state.query;
 
@@ -185,7 +186,13 @@ export function useCommunityHome() {
 
   const loadMore = useCallback(async () => {
     const snapshot = state;
-    if (!snapshot.home?.feedPage.hasMore || snapshot.loadingMore || snapshot.loading) return;
+    if (
+      loadingMoreRef.current
+      || !snapshot.home?.feedPage.hasMore
+      || snapshot.loading
+      || snapshot.refreshing
+    ) return;
+    loadingMoreRef.current = true;
     const nextPage = snapshot.home.feedPage.page + 1;
     const generation = ++generationRef.current;
     controllerRef.current?.abort();
@@ -218,6 +225,8 @@ export function useCommunityHome() {
         loadingMore: false,
         loadMoreError: error instanceof Error ? error.message : t('home.errors.loadMore'),
       }));
+    } finally {
+      loadingMoreRef.current = false;
     }
   }, [state, t]);
 

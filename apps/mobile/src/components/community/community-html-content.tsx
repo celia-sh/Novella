@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Linking, useWindowDimensions } from 'react-native';
 import RenderHTML from 'react-native-render-html';
 
@@ -8,7 +8,7 @@ interface CommunityHtmlContentProps {
   html: string;
 }
 
-export function CommunityHtmlContent({ html }: CommunityHtmlContentProps) {
+export const CommunityHtmlContent = memo(function CommunityHtmlContent({ html }: CommunityHtmlContentProps) {
   const { width } = useWindowDimensions();
   const { colors } = useAppTheme();
   const contentWidth = Math.max(1, width - 64);
@@ -55,4 +55,4 @@ export function CommunityHtmlContent({ html }: CommunityHtmlContentProps) {
       tagsStyles={tagsStyles}
     />
   );
-}
+});

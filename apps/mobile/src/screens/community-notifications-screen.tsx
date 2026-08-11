@@ -6,6 +6,7 @@ import {
 } from '@tabler/icons-react-native';
 import { router, Stack } from 'expo-router';
 import { Button, Card, Chip, Spinner } from 'heroui-native';
+import { memo, useCallback } from 'react';
 import {
   FlatList,
   Pressable,
@@ -44,7 +45,7 @@ export function CommunityNotificationsScreen() {
   const { loadMore, mark, markAll, refresh, retry, state } = useCommunityNotifications();
   const hasUnread = state.items.some((item) => !item.isRead);
 
-  function openNotification(item: AppNotificationItem) {
+  const openNotification = useCallback((item: AppNotificationItem) => {
     void mark(item);
     const target = notificationTargetParams(item);
     if (item.objectType === 'CommunityThread' && target.id > 0) {
@@ -70,7 +71,14 @@ export function CommunityNotificationsScreen() {
       t('notifications.targetUnavailable'),
       [{ text: tCommon('actions.confirm') }],
     );
-  }
+  }, [mark, t, tCommon]);
+
+  const renderNotification = useCallback(
+    ({ item }: { item: AppNotificationItem }) => (
+      <NotificationCard item={item} onPress={openNotification} />
+    ),
+    [openNotification],
+  );
 
   return (
     <CommunityPaperProvider>
@@ -141,7 +149,7 @@ export function CommunityNotificationsScreen() {
               tintColor={colors.accent}
             />
           }
-          renderItem={({ item }) => <NotificationCard item={item} onPress={() => openNotification(item)} />}
+          renderItem={renderNotification}
           showsVerticalScrollIndicator={false}
         />
         </View>
@@ -152,7 +160,13 @@ export function CommunityNotificationsScreen() {
   );
 }
 
-function NotificationCard({ item, onPress }: { item: AppNotificationItem; onPress(): void }) {
+const NotificationCard = memo(function NotificationCard({
+  item,
+  onPress,
+}: {
+  item: AppNotificationItem;
+  onPress(item: AppNotificationItem): void;
+}) {
   const styles = useCommunityNotificationsStyles();
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
@@ -172,7 +186,7 @@ function NotificationCard({ item, onPress }: { item: AppNotificationItem; onPres
         status: item.isRead ? t('accessibility.read') : t('accessibility.unread'),
       })}
       accessibilityRole="button"
-      onPress={onPress}
+      onPress={() => onPress(item)}
       style={({ pressed }) => pressed && styles.pressed}
     >
       <Card
@@ -212,7 +226,7 @@ function NotificationCard({ item, onPress }: { item: AppNotificationItem; onPres
       </Card>
     </Pressable>
   );
-}
+});
 
 type NotificationActionKey =
   | 'notifications.action.comment'

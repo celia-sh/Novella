@@ -8,7 +8,7 @@ import {
   IconRefresh,
 } from '@tabler/icons-react-native';
 import { router, Stack, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import {
@@ -70,17 +70,18 @@ export function CommunityThreadScreen({
   const accentHex = resolveAccentHex(colors.accent);
   const primaryContainerHex = resolveAccentHex(colors.primaryContainer);
   const onPrimaryContainerHex = resolveAccentHex(colors.onPrimaryContainer);
-  const paperTheme = {
+  const onPrimaryHex = resolveOnAccentHex(colors.accent);
+  const paperTheme = useMemo(() => ({
     ...basePaperTheme,
     colors: {
       ...basePaperTheme.colors,
       primary: accentHex,
-      onPrimary: resolveOnAccentHex(colors.accent),
+      onPrimary: onPrimaryHex,
       secondaryContainer: primaryContainerHex,
       onSecondaryContainer: onPrimaryContainerHex,
     },
-  };
-  const commentPalette = toCommunityCommentPalette(colors);
+  }), [accentHex, basePaperTheme, onPrimaryContainerHex, onPrimaryHex, primaryContainerHex]);
+  const commentPalette = useMemo(() => toCommunityCommentPalette(colors), [colors]);
   const listRef = useRef<FlatList<CommunityThreadReply>>(null);
   const hasFocused = useRef(false);
   const {
@@ -121,7 +122,7 @@ export function CommunityThreadScreen({
   const canReply = Boolean(thread && !thread.locked);
   const title = thread?.boardName || initialTitle || t('navigation.discussion');
 
-  function openReply(reply: CommunityThreadReply | null) {
+  const openReply = useCallback((reply: CommunityThreadReply | null) => {
     if (!canReply) return;
     router.push({
       pathname: '/thread/[id]/reply',
@@ -132,7 +133,39 @@ export function CommunityThreadScreen({
           : {}),
       },
     });
-  }
+  }, [canReply, threadId]);
+
+  const handleReplyLike = useCallback(
+    (reply: CommunityThreadReply) => void toggleReplyLike(reply),
+    [toggleReplyLike],
+  );
+  const handleLoadChildren = useCallback(
+    (reply: CommunityThreadReply) => void loadChildren(reply),
+    [loadChildren],
+  );
+  const renderReply = useCallback(
+    ({ item }: { item: CommunityThreadReply }) => (
+      <ReplyCard
+        actionId={state.actionId}
+        canReply={canReply}
+        highlightedReplyId={state.highlightedReplyId}
+        onLike={handleReplyLike}
+        onLoadChildren={handleLoadChildren}
+        onReply={openReply}
+        palette={commentPalette}
+        reply={item}
+      />
+    ),
+    [
+      canReply,
+      commentPalette,
+      handleLoadChildren,
+      handleReplyLike,
+      openReply,
+      state.actionId,
+      state.highlightedReplyId,
+    ],
+  );
 
   const header = thread ? (
     <View style={styles.header}>
@@ -308,18 +341,7 @@ export function CommunityThreadScreen({
                   tintColor={colors.accent}
                 />
               }
-              renderItem={({ item }) => (
-                <ReplyCard
-                  actionId={state.actionId}
-                  canReply={canReply}
-                  highlightedReplyId={state.highlightedReplyId}
-                  onLike={(reply) => void toggleReplyLike(reply)}
-                  onLoadChildren={(reply) => void loadChildren(reply)}
-                  onReply={openReply}
-                  palette={commentPalette}
-                  reply={item}
-                />
-              )}
+              renderItem={renderReply}
               showsVerticalScrollIndicator={false}
             />
           </View>
@@ -482,7 +504,7 @@ function RelatedThreadCard({
   );
 }
 
-function ReplyCard({
+const ReplyCard = memo(function ReplyCard({
   actionId,
   canReply,
   highlightedReplyId,
@@ -578,7 +600,7 @@ function ReplyCard({
       ) : null}
     </View>
   );
-}
+});
 
 function toCommunityCommentPalette(
   colors: ReturnType<typeof useAppTheme>['colors'],
