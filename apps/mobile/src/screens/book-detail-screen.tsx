@@ -309,7 +309,7 @@ function BookDetailContent({
           )}
 
       {isLoading ? (
-        <BookDetailBodyLoading palette={palette} />
+        <BookDetailBodyLoading horizontalPadding={horizontalPadding} palette={palette} />
       ) : (
         <>
       <View
@@ -888,7 +888,13 @@ function SectionTitle({ children, palette }: { children: ReactNode; palette: Boo
   return <Text style={[styles.sectionTitle, { color: palette.onSurfaceVariant }]}>{children}</Text>;
 }
 
-function BookDetailBodyLoading({ palette }: { palette: BookDetailPalette }) {
+function BookDetailBodyLoading({
+  horizontalPadding,
+  palette,
+}: {
+  horizontalPadding: number;
+  palette: BookDetailPalette;
+}) {
   const block = { backgroundColor: palette.surfaceContainerHighest };
   return (
     <SkeletonGroup
@@ -901,7 +907,7 @@ function BookDetailBodyLoading({ palette }: { palette: BookDetailPalette }) {
       isLoading
       variant="shimmer"
     >
-      <View style={styles.loadingBody}>
+      <View style={[styles.loadingBody, { paddingHorizontal: horizontalPadding }]}>
         <View style={styles.loadingChipRow}>
           <SkeletonGroup.Item style={[styles.loadingBlock, styles.loadingChip, block]} />
           <SkeletonGroup.Item style={[styles.loadingBlock, styles.loadingChip, block]} />
@@ -1045,7 +1051,7 @@ const styles = StyleSheet.create({
   loadingAction: { borderRadius: 16, height: 56, width: '100%' },
   loadingAuthor: { height: 15, width: '42%' },
   loadingBlock: { borderRadius: 8, overflow: 'hidden' },
-  loadingBody: { gap: 20, padding: 20 },
+  loadingBody: { gap: 20, paddingVertical: 20 },
   loadingChip: { height: 26, width: 58 },
   loadingChipRow: { flexDirection: 'row', gap: 8 },
   loadingChipWide: { height: 26, width: 92 },

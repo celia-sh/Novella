@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -7,7 +8,6 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import {
   IconFileDescription,
@@ -42,7 +42,7 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
   const { t } = useTranslation('book');
   const { t: tCommon } = useTranslation('common');
   const { book, error, isLoading, reload } = useBookInfo(bookId, kind);
-  const { width } = useWindowDimensions();
+  const [contentWidth, setContentWidth] = useState(1);
   const { palette } = useBookDetailRouteTheme(
     bookId,
     book?.coverUrl ?? null,
@@ -65,6 +65,7 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
       nestedScrollEnabled={process.env.EXPO_OS === 'android'}
+      onLayout={(event) => setContentWidth(Math.max(1, event.nativeEvent.layout.width - 48))}
       showsVerticalScrollIndicator={false}
       style={[
         styles.scroll,
@@ -177,7 +178,7 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
             </Text>
           </View>
           <BookHtmlContent
-            contentWidth={Math.max(1, width - 48)}
+            contentWidth={contentWidth}
             html={book.introduction}
             textColor={palette.onSurface}
           />
@@ -222,7 +223,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.68 },
   retryButton: { alignItems: 'center', flexDirection: 'row', gap: 7, padding: 8 },
   retryLabel: { fontSize: 15, fontWeight: '600' },
-  scroll: {},
+  scroll: { alignSelf: 'stretch', width: '100%' },
   scrollFill: { flex: 1 },
   sheetHeading: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   sheetSection: { gap: 16 },

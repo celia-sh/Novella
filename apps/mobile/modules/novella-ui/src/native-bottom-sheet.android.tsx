@@ -10,6 +10,8 @@ type NativeViewProps = Omit<NativeBottomSheetProps, 'onDismiss'> &
 
 const NativeView = requireNativeView<NativeViewProps>('NovellaUi', 'BottomSheet');
 
+const MATERIAL_SHEET_MAX_WIDTH = 640;
+
 export function NativeBottomSheet({
   children,
   fitToContents = false,
@@ -17,11 +19,17 @@ export function NativeBottomSheet({
   ...props
 }: NativeBottomSheetProps) {
   const { width } = useWindowDimensions();
+  const contentWidth = Math.min(width, MATERIAL_SHEET_MAX_WIDTH);
   return (
     <Host pointerEvents="box-none" style={[styles.host, { width }]}>
       <NativeView {...props} onDismissRequest={onDismiss}>
-        <RNHostView matchContents={fitToContents}>
-          <View style={fitToContents ? undefined : styles.fill}>{children}</View>
+        <RNHostView
+          matchContents={fitToContents}
+          style={fitToContents ? { width: contentWidth } : undefined}
+        >
+          <View style={fitToContents ? [styles.fitContent, { width: contentWidth }] : styles.fill}>
+            {children}
+          </View>
         </RNHostView>
       </NativeView>
     </Host>
@@ -30,5 +38,6 @@ export function NativeBottomSheet({
 
 const styles = StyleSheet.create({
   fill: { flexGrow: 1, height: 0 },
+  fitContent: { alignSelf: 'stretch' },
   host: { position: 'absolute' },
 });
