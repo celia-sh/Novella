@@ -47,7 +47,7 @@ jobs:
 
           event_name = os.environ["EVENT_NAME"]
           repo = os.environ["REPOSITORY"]
-          repo_display = "Kanscape/Novella" if repo.lower() == "kanscape/novella" else repo
+          repo_display = "celia-sh/Novella" if repo.lower() == "celia-sh/novella" else repo
           server_url = os.environ["SERVER_URL"]
           repo_url = f"{server_url}/{repo_display}"
           run_url = f"{repo_url}/actions/runs/{os.environ['RUN_ID']}"

@@ -43,7 +43,7 @@ interface SiteData {
   };
 }
 
-const repositoryFallback = 'https://github.com/Kanscape/Novella';
+const repositoryFallback = 'https://github.com/celia-sh/Novella';
 const pages: ReadonlyArray<{ id: Page; label: string }> = [
   { id: 'home', label: 'Home' },
   { id: 'download', label: 'Download' },

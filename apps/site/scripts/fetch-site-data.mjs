@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-const repositorySlug = process.env.GITHUB_REPOSITORY || 'Kanscape/Novella';
+const repositorySlug = process.env.GITHUB_REPOSITORY || 'celia-sh/Novella';
 const outputPath = process.env.SITE_DATA_OUTPUT || 'public/site_data.json';
 const token = process.env.GITHUB_TOKEN;
 const headers = {

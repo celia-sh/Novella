@@ -4,7 +4,7 @@
 
 # 📚 Novella
 
-<a href="https://trendshift.io/repositories/22931?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-22931" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/22931" alt="Kanscape%2FNovella | Trendshift" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/22931?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-22931" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/22931" alt="celia-sh%2FNovella | Trendshift" width="250" height="55"/></a>
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![React Native](https://img.shields.io/badge/React%20Native-61DAFB?logo=react&logoColor=black)
@@ -23,7 +23,7 @@
 
 ## 开发状态
 
-React Native 重写正在积极开发中，欢迎向本仓库提交代码。功能开发清单见 [Issues](https://github.com/Kanscape/Novella/issues) 中的待办事项；如果你想做的功能不在清单中，请先在 [Discussions](https://github.com/Kanscape/Novella/discussions) 中讨论。
+React Native 重写正在积极开发中，欢迎向本仓库提交代码。功能开发清单见 [Issues](https://github.com/celia-sh/Novella/issues) 中的待办事项；如果你想做的功能不在清单中，请先在 [Discussions](https://github.com/celia-sh/Novella/discussions) 中讨论。
 
 ## 移动端开发
 

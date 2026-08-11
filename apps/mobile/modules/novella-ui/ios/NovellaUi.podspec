@@ -5,8 +5,8 @@ Pod::Spec.new do |s|
   s.description = 'Native UIKit and SwiftUI controls used by the Novella mobile application.'
   s.license = { type: 'MIT' }
   s.author = { 'Novella' => 'dev@lightnovel.life' }
-  s.homepage = 'https://github.com/Kanscape/Novella'
-  s.source = { git: 'https://github.com/Kanscape/Novella.git' }
+  s.homepage = 'https://github.com/celia-sh/Novella'
+  s.source = { git: 'https://github.com/celia-sh/Novella.git' }
   s.platforms = { ios: '16.4' }
   s.swift_version = '5.9'
   s.static_framework = true
