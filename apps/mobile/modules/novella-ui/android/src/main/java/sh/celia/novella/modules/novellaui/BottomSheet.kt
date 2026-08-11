@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.BottomSheet
@@ -105,7 +106,14 @@ fun FunctionalComposableScope.BottomSheetContent(
       decorFitsSystemWindows = false
     )
   ) {
-    Box(modifier = Modifier.fillMaxSize()) {
+    // This Dialog is edge-to-edge, so the activity's adjustResize policy does
+    // not resize it for the IME. Constrain the native sheet above the keyboard
+    // before measuring its anchors and the hosted React Native content.
+    Box(
+      modifier = Modifier
+        .fillMaxSize()
+        .imePadding()
+    ) {
       Box(
         modifier = Modifier
           .fillMaxSize()

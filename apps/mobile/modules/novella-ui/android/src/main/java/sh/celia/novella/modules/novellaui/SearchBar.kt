@@ -8,9 +8,9 @@ package sh.celia.novella.modules.novellaui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.material3.DockedSearchBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.rememberSearchBarState
@@ -70,12 +70,10 @@ fun FunctionalComposableScope.SearchBarContent(
     focusManager.clearFocus()
   }
   val inputField = @Composable {
-    @Suppress("DEPRECATION")
     SearchBarDefaults.InputField(
-      state = textFieldState,
+      textFieldState = textFieldState,
+      searchBarState = searchBarState,
       onSearch = submit,
-      expanded = false,
-      onExpandedChange = {},
       enabled = props.enabled,
       placeholder = { androidx.compose.material3.Text(props.placeholder) },
       leadingIcon = {
@@ -104,10 +102,15 @@ fun FunctionalComposableScope.SearchBarContent(
       .applyModifiers(props.modifiers, appContext, composableScope, globalEventDispatcher)
       .fillMaxWidth()
   ) {
-    SearchBar(
-      state = searchBarState,
+    // The collapsed SearchBar intentionally suppresses the IME and expects a
+    // separate expanded search surface. This screen keeps results in React
+    // Native, so use the docked container as an always-editable input instead.
+    @Suppress("DEPRECATION")
+    DockedSearchBar(
+      expanded = false,
+      onExpandedChange = {},
       inputField = inputField,
       modifier = Modifier.fillMaxWidth()
-    )
+    ) {}
   }
 }
