@@ -72,7 +72,7 @@ export const zhCNLibrary = {
     allNovels: '全部小说',
     allComics: '全部漫画',
     orders: {
-      latest: '最近更新',
+      latest: '最近',
       new: '新作',
       views: '浏览量',
     },
@@ -238,7 +238,7 @@ export const zhTWLibrary: TranslationShape<typeof zhCNLibrary> = {
     allNovels: '全部小說',
     allComics: '全部漫畫',
     orders: {
-      latest: '最近更新',
+      latest: '最近',
       new: '新作',
       views: '瀏覽次數',
     },
