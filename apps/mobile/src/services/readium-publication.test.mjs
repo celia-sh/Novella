@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createReadiumReaderPreferences } from './readium-preferences.ts';
+import { createReadiumReaderPreferences, opaqueCssColor } from './readium-preferences.ts';
 import {
   buildReadiumChapterDocument,
   buildReadiumPublicationResources,
@@ -150,6 +150,26 @@ test('readiness gates target chapter and required font but not future chapters o
     fontRequired: false,
     targetChapterId: 101,
   }), true);
+});
+
+test('reader colors cross the native bridge as opaque RGB hex', () => {
+  assert.equal(opaqueCssColor('#1D1B20FF'), '#1D1B20');
+  assert.equal(opaqueCssColor('#ABC8'), '#AABBCC');
+  assert.equal(opaqueCssColor('#F2F2F7'), '#F2F2F7');
+  assert.equal(opaqueCssColor('black'), 'black');
+
+  const preferences = createReadiumReaderPreferences({
+    backgroundColor: '#FFFBFEFF',
+    firstLineIndent: false,
+    fontSize: 16,
+    imagePreviewOpenOnLongPress: false,
+    lineHeight: 1.6,
+    mode: 'paged',
+    sidePadding: 30,
+    textColor: '#1D1B20FF',
+  });
+  assert.equal(preferences.backgroundColor, '#FFFBFE');
+  assert.equal(preferences.textColor, '#1D1B20');
 });
 
 test('reader preferences map first-line indentation to Readium rem units', () => {

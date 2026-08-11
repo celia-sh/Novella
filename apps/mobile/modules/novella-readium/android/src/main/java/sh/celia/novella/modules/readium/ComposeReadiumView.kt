@@ -105,6 +105,7 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
 
   fun setPreferences(value: Map<String, Any>) {
     preferences = value
+    applyBackgroundColor()
     navigator?.submitPreferences(makePreferences())
     installDirectionalNavigationAdapter()
   }
@@ -244,6 +245,7 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
     val fragment = activity.supportFragmentManager.findFragmentByTag(fragmentTag) as EpubNavigatorFragment
     navigator = fragment
     fragment.view?.layoutParams = LayoutParams(MATCH_PARENT, MATCH_PARENT)
+    applyBackgroundColor()
     installDirectionalNavigationAdapter()
     applyContentInsets()
     locatorJob = activity.lifecycleScope.launch {
@@ -293,6 +295,13 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
     ).also(navigator::addInputListener)
   }
 
+  private fun applyBackgroundColor() {
+    val backgroundColor = androidColor(preferences["backgroundColor"] as? String) ?: return
+    setBackgroundColor(backgroundColor)
+    navigator?.view?.setBackgroundColor(backgroundColor)
+    navigator?.publicationView?.setBackgroundColor(backgroundColor)
+  }
+
   private fun applyContentInsets() {
     navigator?.view?.setPadding(
       contentInsetPixels("left"),
@@ -327,8 +336,29 @@ class ComposeReadiumView(context: Context, appContext: AppContext) : ExpoView(co
     }
   }
 
-  private fun color(value: String?): Color? = value?.let {
-    runCatching { Color(AndroidColor.parseColor(it)) }.getOrNull()
+  private fun color(value: String?): Color? = androidColor(value)?.let(::Color)
+
+  /** React Native sends CSS hex (#RRGGBB or #RRGGBBAA), while Android's
+   * parseColor treats eight digits as #AARRGGBB. Readium colors are opaque,
+   * so parse CSS RGB channels explicitly and ignore alpha. */
+  private fun androidColor(value: String?): Int? = value?.trim()?.let { color ->
+    runCatching {
+      when {
+        color.matches(Regex("^#[0-9a-fA-F]{8}$")) ->
+          AndroidColor.rgb(
+            color.substring(1, 3).toInt(16),
+            color.substring(3, 5).toInt(16),
+            color.substring(5, 7).toInt(16)
+          )
+        color.matches(Regex("^#[0-9a-fA-F]{4}$")) ->
+          AndroidColor.rgb(
+            color.substring(1, 2).repeat(2).toInt(16),
+            color.substring(2, 3).repeat(2).toInt(16),
+            color.substring(3, 4).repeat(2).toInt(16)
+          )
+        else -> AndroidColor.parseColor(color)
+      }
+    }.getOrNull()
   }
 
   private fun jsonObjectToMap(value: JSONObject): Map<String, Any> = buildMap {
