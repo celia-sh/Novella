@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { ColorValue } from 'react-native';
 
-import { ProfileAvatar } from '@/components/profile-avatar';
+import { CommentAvatar } from '@/components/comment-avatar';
 
 export interface CommentThreadPalette {
   accent: ColorValue;
@@ -86,10 +86,10 @@ export function CommentThreadRow({
         ]}
       >
         <View style={styles.replyIdentity}>
-          <ProfileAvatar
+          <CommentAvatar
             avatarUrl={avatarUrl}
-            fallbackBackground={palette.surfaceContainerHighest}
-            fallbackColor={palette.label}
+            backgroundColor={palette.surfaceContainerHighest}
+            color={palette.label}
             size={24}
             userName={displayName}
           />
@@ -103,7 +103,12 @@ export function CommentThreadRow({
           </Text>
           {badge ? <CommentBadge label={badge} palette={palette} /> : null}
         </View>
-        <Text selectable style={[styles.commentText, { color: palette.label }]}>
+        <Text
+          android_hyphenationFrequency="none"
+          selectable
+          style={[styles.commentText, { color: palette.label }]}
+          textBreakStrategy="simple"
+        >
           {content.trim()}
         </Text>
         <CommentThreadActions
@@ -134,10 +139,10 @@ export function CommentThreadRow({
         },
       ]}
     >
-      <ProfileAvatar
+      <CommentAvatar
         avatarUrl={avatarUrl}
-        fallbackBackground={palette.surfaceContainerHighest}
-        fallbackColor={palette.label}
+        backgroundColor={palette.surfaceContainerHighest}
+        color={palette.label}
         size={40}
         userName={displayName}
       />
@@ -151,7 +156,12 @@ export function CommentThreadRow({
             {t('labels.replyingTo', { name: replyToName })}
           </Text>
         ) : null}
-        <Text selectable style={[styles.commentText, { color: palette.label }]}>
+        <Text
+          android_hyphenationFrequency="none"
+          selectable
+          style={[styles.commentText, { color: palette.label }]}
+          textBreakStrategy="simple"
+        >
           {content.trim()}
         </Text>
         <CommentThreadActions

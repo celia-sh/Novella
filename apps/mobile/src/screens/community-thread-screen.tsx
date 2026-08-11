@@ -32,7 +32,6 @@ import type { CommunityThreadReply } from '@novella/api-client';
 
 import { CommunityHtmlContent } from '@/components/community/community-html-content';
 import {
-  CommentThreadChildren,
   CommentThreadRow,
   type CommentThreadPalette,
 } from '@/components/comment-thread';
@@ -42,7 +41,12 @@ import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { useCommunityThread } from '@/hooks/use-community-thread';
 import { useAppLocale } from '@/localization/localization-provider';
 import { consumeCommunityThreadChanged } from '@/services/community-reply-events';
-import { findCommunityReply, formatCommunityTime } from '@/services/community-utils';
+import { formatCommunityTime } from '@/services/community-utils';
+import {
+  findCommunityThreadRowIndex,
+  flattenCommunityThreadRows,
+  type CommunityThreadRow,
+} from '@/services/community-thread-rows';
 import { createThemedStyles, resolveAccentHex, resolveOnAccentHex, useAppTheme } from '@/theme/app-theme';
 
 export function CommunityThreadScreen({
@@ -82,7 +86,7 @@ export function CommunityThreadScreen({
     },
   }), [accentHex, basePaperTheme, onPrimaryContainerHex, onPrimaryHex, primaryContainerHex]);
   const commentPalette = useMemo(() => toCommunityCommentPalette(colors), [colors]);
-  const listRef = useRef<FlatList<CommunityThreadReply>>(null);
+  const listRef = useRef<FlatList<CommunityThreadRow>>(null);
   const hasFocused = useRef(false);
   const {
     loadChildren,
@@ -107,18 +111,19 @@ export function CommunityThreadScreen({
     }, [refresh]),
   );
 
+  const thread = state.thread;
+  const rows = useMemo(
+    () => flattenCommunityThreadRows(thread?.replyItems ?? []),
+    [thread?.replyItems],
+  );
+
   useEffect(() => {
-    if (!state.highlightedReplyId || !state.thread) return;
-    const targetTopLevelId = parentReplyId && findCommunityReply(state.thread.replyItems, parentReplyId)
-      ? parentReplyId
-      : state.highlightedReplyId;
-    const index = state.thread.replyItems.findIndex((item) => item.id === targetTopLevelId);
+    if (!state.highlightedReplyId) return;
+    const index = findCommunityThreadRowIndex(rows, state.highlightedReplyId);
     if (index >= 0) {
       setTimeout(() => listRef.current?.scrollToIndex({ animated: true, index, viewPosition: 0.2 }), 100);
     }
-  }, [parentReplyId, state.highlightedReplyId, state.thread]);
-
-  const thread = state.thread;
+  }, [rows, state.highlightedReplyId]);
   const canReply = Boolean(thread && !thread.locked);
   const title = thread?.boardName || initialTitle || t('navigation.discussion');
 
@@ -144,8 +149,8 @@ export function CommunityThreadScreen({
     [loadChildren],
   );
   const renderReply = useCallback(
-    ({ item }: { item: CommunityThreadReply }) => (
-      <ReplyCard
+    ({ item }: { item: CommunityThreadRow }) => (
+      <ThreadReplyRow
         actionId={state.actionId}
         canReply={canReply}
         highlightedReplyId={state.highlightedReplyId}
@@ -153,7 +158,7 @@ export function CommunityThreadScreen({
         onLoadChildren={handleLoadChildren}
         onReply={openReply}
         palette={commentPalette}
-        reply={item}
+        row={item}
       />
     ),
     [
@@ -322,11 +327,11 @@ export function CommunityThreadScreen({
               ListHeaderComponent={header}
               contentContainerStyle={styles.content}
               contentInsetAdjustmentBehavior="automatic"
-              data={thread?.replyItems ?? []}
-              ItemSeparatorComponent={() => <View style={styles.replySeparator} />}
-              keyExtractor={(item) => String(item.id)}
+              data={rows}
+              keyExtractor={(item) => item.key}
+              initialNumToRender={6}
               keyboardDismissMode="interactive"
-              nestedScrollEnabled
+              maxToRenderPerBatch={6}
               onEndReached={() => void loadMore()}
               onEndReachedThreshold={0.35}
               onScrollToIndexFailed={({ index }) => {
@@ -341,8 +346,11 @@ export function CommunityThreadScreen({
                   tintColor={colors.accent}
                 />
               }
+              removeClippedSubviews={process.env.EXPO_OS === 'android'}
               renderItem={renderReply}
               showsVerticalScrollIndicator={false}
+              updateCellsBatchingPeriod={32}
+              windowSize={7}
             />
           </View>
         </NativeScreenScaffold>
@@ -504,7 +512,7 @@ function RelatedThreadCard({
   );
 }
 
-const ReplyCard = memo(function ReplyCard({
+const ThreadReplyRow = memo(function ThreadReplyRow({
   actionId,
   canReply,
   highlightedReplyId,
@@ -512,7 +520,7 @@ const ReplyCard = memo(function ReplyCard({
   onLoadChildren,
   onReply,
   palette,
-  reply,
+  row,
 }: {
   actionId: string | null;
   canReply: boolean;
@@ -521,18 +529,52 @@ const ReplyCard = memo(function ReplyCard({
   onLoadChildren(reply: CommunityThreadReply): void;
   onReply(reply: CommunityThreadReply): void;
   palette: CommentThreadPalette;
-  reply: CommunityThreadReply;
+  row: CommunityThreadRow;
 }) {
   const styles = useCommunityThreadStyles();
   const { t } = useTranslation('community');
   const locale = useAppLocale();
-  const hasChildren = reply.childReplies.length > 0 || reply.childPage.hasMore;
+
+  if (row.kind === 'more') {
+    const loading = actionId === `children:${row.parent.id}`;
+    return (
+      <View
+        style={[
+          styles.threadChildRow,
+          styles.threadGroupEnd,
+          { borderLeftColor: palette.separator },
+        ]}
+      >
+        <Button
+          disabled={loading}
+          loading={loading}
+          mode="text"
+          onPress={() => onLoadChildren(row.parent)}
+          style={styles.childMoreButton}
+        >
+          {row.parent.childReplies.length > 0
+            ? t('actions.loadMoreReplies')
+            : t('actions.showReplies')}
+        </Button>
+      </View>
+    );
+  }
+
+  const reply = row.reply;
   const replyToName = reply.replyTo
     ? (reply.replyTo.authorIsDeleted ? t('labels.deletedUser') : reply.replyTo.authorName)
     : null;
+  const isChild = row.kind === 'child';
+  const closesGroup = isChild ? row.closesGroup : reply.childReplies.length === 0 && !reply.childPage.hasMore;
 
   return (
-    <View style={styles.replyBlock}>
+    <View
+      style={[
+        isChild ? styles.threadChildRow : styles.replyBlock,
+        isChild && { borderLeftColor: palette.separator },
+        closesGroup && styles.threadGroupEnd,
+      ]}
+    >
       <CommentThreadRow
         actionsDisabled={actionId !== null}
         avatarUrl={reply.authorAvatar}
@@ -553,51 +595,8 @@ const ReplyCard = memo(function ReplyCard({
         palette={palette}
         replyToName={replyToName}
         userName={reply.authorName}
+        {...(isChild ? { variant: 'reply' as const } : {})}
       />
-      {hasChildren ? (
-        <CommentThreadChildren horizontalInset={0} palette={palette}>
-          {reply.childReplies.map((child) => {
-            const childReplyToName = child.replyTo
-              ? (child.replyTo.authorIsDeleted ? t('labels.deletedUser') : child.replyTo.authorName)
-              : null;
-            return (
-              <CommentThreadRow
-                actionsDisabled={actionId !== null}
-                avatarUrl={child.authorAvatar}
-                badge={child.authorBadge}
-                canReply={canReply}
-                content={child.content}
-                createdAtLabel={formatCommunityTime(child.publishedAt, locale)}
-                deleted={child.authorIsDeleted}
-                highlighted={highlightedReplyId === child.id}
-                key={child.id}
-                like={{
-                  count: child.likes,
-                  disabled: actionId !== null,
-                  liked: child.liked,
-                  onPress: () => onLike(child),
-                }}
-                onReply={() => onReply(child)}
-                palette={palette}
-                replyToName={childReplyToName}
-                userName={child.authorName}
-                variant="reply"
-              />
-            );
-          })}
-          {reply.childPage.hasMore ? (
-            <Button
-              disabled={actionId === `children:${reply.id}`}
-              loading={actionId === `children:${reply.id}`}
-              mode="text"
-              onPress={() => onLoadChildren(reply)}
-              style={styles.childMoreButton}
-            >
-              {reply.childReplies.length > 0 ? t('actions.loadMoreReplies') : t('actions.showReplies')}
-            </Button>
-          ) : null}
-        </CommentThreadChildren>
-      ) : null}
     </View>
   );
 });
@@ -666,8 +665,19 @@ const useCommunityThreadStyles = createThemedStyles((colors) => ({
   relatedReplies: { alignItems: 'center', flexDirection: 'row', gap: 4 },
   relatedRepliesText: { color: colors.secondaryLabel, fontSize: 12, fontVariant: ['tabular-nums'], fontWeight: '700' },
   relatedTitle: { color: colors.label, fontSize: 15, fontWeight: '600', lineHeight: 20 },
-  replyBlock: { paddingVertical: 8 },
-  replySeparator: { backgroundColor: colors.separator, height: StyleSheet.hairlineWidth },
+  replyBlock: { paddingTop: 8 },
+  threadChildRow: {
+    borderLeftWidth: 2,
+    marginLeft: 56,
+    paddingLeft: 12,
+    paddingRight: 0,
+    paddingTop: 6,
+  },
+  threadGroupEnd: {
+    borderBottomColor: colors.separator,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom: 8,
+  },
   root: { backgroundColor: colors.background, flex: 1 },
   stateBody: { alignItems: 'flex-start', flexDirection: 'row', gap: 12, padding: 18 },
   stateCard: {

@@ -12,19 +12,19 @@ import {
 import { showAlert } from '@/components/native-alert-dialog';
 import { IconMessage, IconRefresh } from '@tabler/icons-react-native';
 import { PaperProvider } from 'react-native-paper';
-import type { CommentItem } from '@novella/api-client';
 
 import { BookCommentsNavigation } from '@/components/book-comments-navigation';
 import type { CommentThreadPalette } from '@/components/comment-thread';
 import {
-  CommentThreadItem,
   CommentThreadSkeleton,
   type CommentReplyTarget,
 } from '@/components/comment-thread-item';
+import { CommentThreadListItem } from '@/components/comment-thread-list-item';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { useComments } from '@/hooks/use-comments';
 import { consumeCommentsChanged } from '@/services/comment-events';
+import { flattenCommentRows, type CommentListRow } from '@/services/comment-list-rows';
 import type { BookDetailPalette } from '@/theme/book-detail-theme';
 export interface BookCommentsScreenProps {
   bookId: number;
@@ -46,6 +46,7 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
     refresh,
   } = useComments({ type: 'Book', id: bookId });
   const hasFocused = useRef(false);
+  const rows = useMemo(() => flattenCommentRows(page?.items ?? []), [page?.items]);
 
   useFocusEffect(
     useCallback(() => {
@@ -87,12 +88,12 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
   }, [deleteComment, t, tCommon]);
 
   const renderComment = useCallback(
-    ({ item }: { item: CommentItem }) => (
-      <CommentThreadItem
-        item={item}
+    ({ item }: { item: CommentListRow }) => (
+      <CommentThreadListItem
         onDelete={confirmDelete}
         onReply={openComposer}
         palette={commentPalette}
+        row={item}
       />
     ),
     [commentPalette, confirmDelete, openComposer],
@@ -123,11 +124,10 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
           <FlatList
             contentInsetAdjustmentBehavior="automatic"
             contentContainerStyle={styles.content}
-            data={page?.items ?? []}
-            keyExtractor={(item) => String(item.id)}
-            // Inside the Android Compose top-bar host the list must
-            // participate in the nested scrolling coordinator.
-            nestedScrollEnabled={process.env.EXPO_OS === 'android'}
+            data={rows}
+            initialNumToRender={8}
+            keyExtractor={(item) => item.key}
+            maxToRenderPerBatch={6}
             ListEmptyComponent={
               isLoading ? (
                 <CommentThreadSkeleton palette={commentPalette} />
@@ -174,8 +174,11 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
             }
             onEndReached={loadMore}
             onEndReachedThreshold={0.35}
+            removeClippedSubviews={process.env.EXPO_OS === 'android'}
             renderItem={renderComment}
             showsVerticalScrollIndicator={false}
+            updateCellsBatchingPeriod={32}
+            windowSize={7}
           />
         </View>
       </NativeScreenScaffold>

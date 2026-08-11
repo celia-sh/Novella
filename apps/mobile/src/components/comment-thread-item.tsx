@@ -127,7 +127,7 @@ export function CommentThreadSkeleton({
   );
 }
 
-function CommentReplyItem({
+const CommentReplyItem = memo(function CommentReplyItem({
   onDelete,
   onReply,
   parentId,
@@ -160,7 +160,7 @@ function CommentReplyItem({
       variant="reply"
     />
   );
-}
+});
 
 const styles = StyleSheet.create({
   commentBlock: { paddingBottom: 8 },

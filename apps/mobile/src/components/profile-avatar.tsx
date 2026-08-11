@@ -1,4 +1,5 @@
 import { Avatar as HeroAvatar } from 'heroui-native';
+import { memo } from 'react';
 import type { ColorValue } from 'react-native';
 
 export interface ProfileAvatarProps {
@@ -18,7 +19,7 @@ export interface ProfileAvatarProps {
  * the person icon when the name is empty) is heroui's Avatar.Fallback
  * placeholder shown when the image is missing or fails to load.
  */
-export function ProfileAvatar({
+export const ProfileAvatar = memo(function ProfileAvatar({
   avatarUrl,
   fallbackBackground,
   fallbackColor,
@@ -38,11 +39,15 @@ export function ProfileAvatar({
         }
       : undefined;
   return (
-    <HeroAvatar {...(heroSize ? { size: heroSize } : {})} style={numericStyle}>
+    <HeroAvatar
+      animation="disable-all"
+      {...(heroSize ? { size: heroSize } : {})}
+      style={numericStyle}
+    >
       {trimmedUrl ? <HeroAvatar.Image source={{ uri: trimmedUrl }} /> : null}
       <HeroAvatar.Fallback {...(fallbackStyles ? { styles: fallbackStyles } : {})}>
         {initial || undefined}
       </HeroAvatar.Fallback>
     </HeroAvatar>
   );
-}
+});

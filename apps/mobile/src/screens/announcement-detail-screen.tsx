@@ -8,7 +8,7 @@ import { Card, Skeleton } from 'heroui-native';
 import { marked } from 'marked';
 import { memo, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AnnouncementDetail, CommentItem } from '@novella/api-client';
+import type { AnnouncementDetail } from '@novella/api-client';
 
 import {
   FlatList,
@@ -22,16 +22,17 @@ import {
 
 import { BookHtmlContent } from '@/components/book-html-content';
 import {
-  CommentThreadItem,
   CommentThreadSkeleton,
   type CommentReplyTarget,
 } from '@/components/comment-thread-item';
+import { CommentThreadListItem } from '@/components/comment-thread-list-item';
 import type { CommentThreadPalette } from '@/components/comment-thread';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { showAlert } from '@/components/native-alert-dialog';
 import { useAnnouncementDetail } from '@/hooks/use-announcement-detail';
 import { useComments } from '@/hooks/use-comments';
 import { formatDate } from '@/localization/formatters';
+import { flattenCommentRows, type CommentListRow } from '@/services/comment-list-rows';
 import { useAppLocale } from '@/localization/localization-provider';
 import { consumeCommentsChanged } from '@/services/comment-events';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
@@ -202,6 +203,7 @@ function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
     refresh: refreshComments,
   } = useComments({ type: 'Announcement', id: serverId });
   const hasFocused = useRef(false);
+  const rows = useMemo(() => flattenCommentRows(page?.items ?? []), [page?.items]);
   const title = detail.title;
 
   useFocusEffect(
@@ -245,12 +247,12 @@ function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
   }, [deleteComment, t, tCommon]);
 
   const renderComment = useCallback(
-    ({ item }: { item: CommentItem }) => (
-      <CommentThreadItem
-        item={item}
+    ({ item }: { item: CommentListRow }) => (
+      <CommentThreadListItem
         onDelete={confirmDelete}
         onReply={openComposer}
         palette={commentPalette}
+        row={item}
       />
     ),
     [commentPalette, confirmDelete, openComposer],
@@ -285,8 +287,10 @@ function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
       <FlatList
         contentContainerStyle={styles.commentsContent}
         contentInsetAdjustmentBehavior="automatic"
-        data={page?.items ?? []}
-        keyExtractor={(item) => String(item.id)}
+        data={rows}
+        initialNumToRender={8}
+        keyExtractor={(item) => item.key}
+        maxToRenderPerBatch={6}
         ListEmptyComponent={commentsLoading
           ? <CommentThreadSkeleton palette={commentPalette} />
           : commentsError
@@ -311,11 +315,13 @@ function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
             ) : null}
           </View>
         }
-        nestedScrollEnabled={process.env.EXPO_OS === 'android'}
         onEndReached={loadMore}
         onEndReachedThreshold={0.35}
+        removeClippedSubviews={process.env.EXPO_OS === 'android'}
         renderItem={renderComment}
         showsVerticalScrollIndicator={false}
+        updateCellsBatchingPeriod={32}
+        windowSize={7}
         style={styles.root}
       />
       </>
