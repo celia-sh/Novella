@@ -72,7 +72,14 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
       contentContainerStyle={styles.content}
       nestedScrollEnabled={process.env.EXPO_OS === 'android'}
       showsVerticalScrollIndicator={false}
-      style={[styles.scroll, { backgroundColor: palette.surface }]}
+      style={[
+        styles.scroll,
+        {
+          backgroundColor: process.env.EXPO_OS === 'android'
+            ? 'transparent'
+            : palette.surface,
+        },
+      ]}
     >
       {isLoading ? (
         <View style={styles.state}>

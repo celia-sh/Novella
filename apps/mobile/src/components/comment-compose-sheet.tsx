@@ -64,7 +64,14 @@ export function CommentComposeSheet({
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
-        style={[styles.root, { backgroundColor: palette.surface }]}
+        style={[
+          styles.root,
+          {
+            backgroundColor: process.env.EXPO_OS === 'android'
+              ? 'transparent'
+              : palette.surface,
+          },
+        ]}
       >
         <TextInput
           accessibilityLabel={prompt}

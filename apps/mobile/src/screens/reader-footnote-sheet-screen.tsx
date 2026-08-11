@@ -40,7 +40,16 @@ export function ReaderFootnoteSheetScreen({ bookId, payload }: ReaderFootnoteShe
     *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}</style></head><body>${content}</body></html>`;
 
   return (
-    <View style={[styles.root, { backgroundColor }]}>
+    <View
+      style={[
+        styles.root,
+        {
+          backgroundColor: process.env.EXPO_OS === 'android'
+            ? 'transparent'
+            : backgroundColor,
+        },
+      ]}
+    >
       <View style={styles.content}>
         <View style={styles.sheetSection}>
           <View style={styles.sheetHeading}>

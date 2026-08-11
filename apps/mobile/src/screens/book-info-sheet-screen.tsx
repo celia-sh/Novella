@@ -69,7 +69,11 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
       showsVerticalScrollIndicator={false}
       style={[
         styles.scroll,
-        { backgroundColor: palette.surface },
+        {
+          backgroundColor: process.env.EXPO_OS === 'android'
+            ? 'transparent'
+            : palette.surface,
+        },
         variant === 'introduction' && styles.scrollFill,
       ]}
     >

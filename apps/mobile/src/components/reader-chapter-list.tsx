@@ -102,7 +102,14 @@ export function ReaderChapterList({ emptyState, header, items, onSelect, palette
         </Pressable>
       )}
       showsVerticalScrollIndicator={false}
-      style={[styles.list, { backgroundColor: palette.surface }]}
+      style={[
+        styles.list,
+        {
+          backgroundColor: process.env.EXPO_OS === 'android'
+            ? 'transparent'
+            : palette.surface,
+        },
+      ]}
     />
   );
 }

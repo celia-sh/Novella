@@ -28,19 +28,15 @@ export function NativeBottomSheet({
         containerColor={containerColor}
         onDismissRequest={onDismiss}
       >
+        {/* The Compose BottomSheet owns the base surface. Keeping the hosted
+            Android view transparent avoids unclipped full-height rectangles
+            when partial sheets translate or resize their RN content. */}
         <RNHostView
           matchContents={fitToContents}
-          style={[
-            { backgroundColor: containerColor },
-            fitToContents ? { width: contentWidth } : undefined,
-          ]}
+          style={fitToContents ? { width: contentWidth } : undefined}
         >
           <View
-            style={[
-              fitToContents ? styles.fitContent : styles.fill,
-              fitToContents ? { width: contentWidth } : undefined,
-              { backgroundColor: containerColor },
-            ]}
+            style={fitToContents ? [styles.fitContent, { width: contentWidth }] : styles.fill}
           >
             {children}
           </View>

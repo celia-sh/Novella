@@ -111,7 +111,9 @@ const useCommunityReplySheetStyles = createThemedStyles((colors) => ({
   errorText: { color: colors.error, fontSize: 13, lineHeight: 18 },
   input: { borderRadius: 20, fontSize: 15, lineHeight: 21, maxHeight: 148, minHeight: 104, padding: 12 },
   pressed: { opacity: 0.68 },
-  root: { backgroundColor: colors.background },
+  root: {
+    backgroundColor: process.env.EXPO_OS === 'android' ? 'transparent' : colors.background,
+  },
   submitButton: {
     alignItems: 'center',
     borderRadius: 20,

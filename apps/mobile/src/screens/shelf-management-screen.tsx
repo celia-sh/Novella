@@ -91,7 +91,9 @@ const useShelfManagementScreenStyles = createThemedStyles((colors) => ({
   commandRow: { alignItems: 'center', flexDirection: 'row', gap: 12, minHeight: 56, paddingHorizontal: 16 },
   content: { paddingBottom: 32, paddingHorizontal: 24, paddingTop: process.env.EXPO_OS === 'android' ? 8 : 28 },
   pressed: { opacity: 0.68 },
-  scroll: { backgroundColor: colors.surface },
+  scroll: {
+    backgroundColor: process.env.EXPO_OS === 'android' ? 'transparent' : colors.surface,
+  },
   sheetHeading: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   sheetSection: { gap: 16 },
   sheetTitle: { color: colors.label, fontSize: 17, fontWeight: '700', lineHeight: 22 },
