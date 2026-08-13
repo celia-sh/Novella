@@ -38,6 +38,7 @@ import {
 import { CommentThreadSkeleton } from '@/components/comment-thread-item';
 import { CommunitySectionTitle, CommunityThreadSkeleton } from '@/components/community/community-ui';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { useCommunityThread } from '@/hooks/use-community-thread';
 import { useAppLocale } from '@/localization/localization-provider';
 import { consumeCommunityThreadChanged } from '@/services/community-reply-events';
@@ -300,6 +301,7 @@ export function CommunityThreadScreen({
           title={title}
         >
           <View style={styles.root}>
+            <NativeStackScrollEdgeMarker>
             <FlatList
               ListEmptyComponent={
                 state.loading ? (
@@ -352,6 +354,7 @@ export function CommunityThreadScreen({
               updateCellsBatchingPeriod={32}
               windowSize={7}
             />
+            </NativeStackScrollEdgeMarker>
           </View>
         </NativeScreenScaffold>
       </>

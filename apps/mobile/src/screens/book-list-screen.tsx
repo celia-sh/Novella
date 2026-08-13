@@ -22,6 +22,7 @@ import {
 } from '@/components/book-grid-skeleton';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
@@ -80,6 +81,7 @@ export function BookListScreen() {
       title={t('catalog.allNovels')}
     >
       <View style={styles.root}>
+        <NativeStackScrollEdgeMarker>
         <FlatList
           ListEmptyComponent={
             error ? (
@@ -141,6 +143,7 @@ export function BookListScreen() {
           showsVerticalScrollIndicator={false}
           viewabilityConfig={coverActivation.viewabilityConfig}
         />
+        </NativeStackScrollEdgeMarker>
       </View>
       </NativeScreenScaffold>
     </>
