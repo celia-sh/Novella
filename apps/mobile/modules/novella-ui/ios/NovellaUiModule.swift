@@ -30,6 +30,10 @@ public final class NovellaUiModule: Module {
       }
     }
 
+    View(NovellaScrollEdgeMarkerView.self) {
+      ViewName("ScrollEdgeMarker")
+    }
+
     View(NovellaSegmentedControlView.self) {
       ViewName("SegmentedControl")
 

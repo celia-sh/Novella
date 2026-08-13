@@ -11,20 +11,24 @@ import {
 import { isValidElement, type PropsWithChildren, type ReactNode } from 'react';
 
 import { NativeIcon } from '@/components/native-icon';
+import { NativeScrollEdgeMarker } from '../../modules/novella-ui/src/native-scroll-edge-marker';
 import type { NativeGroupedListProps, NativeGroupedListRowProps } from '@/components/native-grouped-list';
 import { useAppTheme } from '@/theme/app-theme';
 
 export function NativeGroupedListPlatform({ children, testID }: NativeGroupedListProps) {
   const { colors } = useAppTheme();
   return (
-    <Host seedColor={colors.accent} style={{ flex: 1, width: '100%' }}>
-      <List
-        modifiers={[listStyle('insetGrouped')]}
-        {...(testID ? { testID } : {})}
-      >
-        {children}
-      </List>
-    </Host>
+    <>
+      <Host seedColor={colors.accent} style={{ flex: 1, width: '100%' }}>
+        <List
+          modifiers={[listStyle('insetGrouped')]}
+          {...(testID ? { testID } : {})}
+        >
+          {children}
+        </List>
+      </Host>
+      <NativeScrollEdgeMarker />
+    </>
   );
 }
 
