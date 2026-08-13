@@ -90,6 +90,16 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   override func layoutSubviews() {
     super.layoutSubviews()
     navigator?.view.frame = bounds
+    applyScrollEdgeEffects()
+  }
+
+  override func didMoveToWindow() {
+    super.didMoveToWindow()
+    guard window != nil else { return }
+    applyScrollEdgeEffects()
+    DispatchQueue.main.async { [weak self] in
+      self?.applyScrollEdgeEffects()
+    }
   }
 
   private func scheduleOpen() {
@@ -168,6 +178,10 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       addSubview(controller.view)
       controller.didMove(toParent: parent)
       controller.view.frame = bounds
+      applyScrollEdgeEffects()
+      DispatchQueue.main.async { [weak self] in
+        self?.applyScrollEdgeEffects()
+      }
       var installedStatus: [String: Any] = ["stage": "navigatorInstalled"]
       if let href = location?.href.description { installedStatus["href"] = href }
       onStatus(installedStatus)
@@ -192,6 +206,31 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
 
   private func applyPreferences() {
     navigator?.submitPreferences(makePreferences())
+  }
+
+  private func applyScrollEdgeEffects() {
+    guard #available(iOS 26.0, *), let navigator else { return }
+    for scrollView in descendantScrollViews(of: navigator.view) {
+      scrollView.topEdgeEffect.style = .soft
+      scrollView.topEdgeEffect.isHidden = false
+      scrollView.bottomEdgeEffect.isHidden = true
+      scrollView.leftEdgeEffect.isHidden = true
+      scrollView.rightEdgeEffect.isHidden = true
+    }
+  }
+
+  private func descendantScrollViews(of root: UIView) -> [UIScrollView] {
+    var result: [UIScrollView] = []
+    var pending = [root]
+    while let view = pending.popLast() {
+      if let scrollView = view as? UIScrollView {
+        result.append(scrollView)
+      }
+      // Readium nests each WKWebView scroll view inside its outer pagination
+      // scroll view, so continue through scroll-view descendants as well.
+      pending.append(contentsOf: view.subviews)
+    }
+    return result
   }
 
   @MainActor private func installDirectionalNavigationAdapter() {
@@ -234,6 +273,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   }
 
   func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
+    applyScrollEdgeEffects()
     if !isReady {
       isReady = true
       onStatus(["stage": "resourceLoaded", "href": locator.href.description])
