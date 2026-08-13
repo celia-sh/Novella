@@ -9,7 +9,7 @@ export function ReaderScrollEdgeMarker({
   return (
     <ScrollViewMarker
       scrollEdgeEffects={{
-        bottom: 'hidden',
+        bottom: 'soft',
         left: 'hidden',
         right: 'hidden',
         top: 'soft',

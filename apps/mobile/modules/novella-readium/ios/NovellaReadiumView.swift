@@ -213,7 +213,8 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     for scrollView in descendantScrollViews(of: navigator.view) {
       scrollView.topEdgeEffect.style = .soft
       scrollView.topEdgeEffect.isHidden = false
-      scrollView.bottomEdgeEffect.isHidden = true
+      scrollView.bottomEdgeEffect.style = .soft
+      scrollView.bottomEdgeEffect.isHidden = false
       scrollView.leftEdgeEffect.isHidden = true
       scrollView.rightEdgeEffect.isHidden = true
     }
