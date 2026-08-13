@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import NovellaLogo from '../../assets/novella-logo.svg';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { useAuthPalette } from '@/theme/auth-theme';
 
 export function AuthFormLayout({
@@ -45,6 +46,7 @@ export function AuthFormLayout({
         style={[styles.root, { backgroundColor: palette.background }]}
       >
         <StatusBar style={palette.isDark ? 'light' : 'dark'} />
+        <NativeStackScrollEdgeMarker>
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={[
@@ -69,6 +71,7 @@ export function AuthFormLayout({
             {children}
           </View>
         </ScrollView>
+        </NativeStackScrollEdgeMarker>
       </KeyboardAvoidingView>
     </NativeScreenScaffold>
   );

@@ -3,8 +3,6 @@ import { SkeletonGroup } from 'heroui-native';
 import { useTranslation } from 'react-i18next';
 import {
   useCallback,
-  useRef,
-  useState,
   type ComponentProps,
   type ComponentType,
   type ReactNode,
@@ -17,8 +15,6 @@ import {
   StyleSheet,
   View,
   useWindowDimensions,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
   type ViewStyle,
 } from 'react-native';
 import Animated, {
@@ -54,6 +50,7 @@ import {
 } from '@novella/api-client';
 
 import { BookCoverImage } from '@/components/book-cover-image';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { BookDetailNavigation } from '@/components/book-detail-navigation';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { BookHtmlContent } from '@/components/book-html-content';
@@ -115,7 +112,6 @@ export function BookDetailScreen({
     ? initialCoverPlaceholder ?? book?.coverPlaceholder ?? null
     : book?.coverPlaceholder ?? null;
   const detailTheme = useBookDetailRouteTheme(bookId, coverUrl, coverPlaceholder);
-  const [usesSoftScrollEdge, setUsesSoftScrollEdge] = useState(false);
   const displayBook = book ?? createLoadingBookDetail({
     bookId,
     coverUrl,
@@ -146,10 +142,8 @@ export function BookDetailScreen({
             coverUrl={coverUrl}
             isInShelf={isInShelf}
             isLoading={isLoading}
-            usesSoftScrollEdge={usesSoftScrollEdge}
             isShelfLoading={isShelfLoading}
             onToggleShelf={toggleShelf}
-            onScrollEdgeChange={setUsesSoftScrollEdge}
             palette={detailTheme.palette}
             shelfError={shelfError}
           />
@@ -197,10 +191,8 @@ function BookDetailContent({
   coverUrl,
   isInShelf,
   isLoading,
-  usesSoftScrollEdge,
   isShelfLoading,
   onToggleShelf,
-  onScrollEdgeChange,
   palette,
   shelfError,
 }: {
@@ -210,10 +202,8 @@ function BookDetailContent({
   coverUrl: string | null;
   isInShelf: boolean;
   isLoading: boolean;
-  usesSoftScrollEdge: boolean;
   isShelfLoading: boolean;
   onToggleShelf: () => Promise<void>;
-  onScrollEdgeChange: (usesSoftScrollEdge: boolean) => void;
   palette: BookDetailPalette;
   shelfError: BookUserMessage | null;
 }) {
@@ -252,18 +242,6 @@ function BookDetailContent({
   const isIos = process.env.EXPO_OS === 'ios';
   const heroHeight = BOOK_HERO_HEIGHT + topInset;
   const usesCollapsibleAppBar = process.env.EXPO_OS === 'android';
-  const usesSoftScrollEdgeRef = useRef(usesSoftScrollEdge);
-  const handleScroll = useCallback((offsetY: number) => {
-    if (process.env.EXPO_OS !== 'ios') return;
-
-    if (!usesSoftScrollEdgeRef.current && offsetY >= BOOK_HERO_COLLAPSE_DISTANCE) {
-      usesSoftScrollEdgeRef.current = true;
-      onScrollEdgeChange(true);
-    } else if (usesSoftScrollEdgeRef.current && offsetY <= 1) {
-      usesSoftScrollEdgeRef.current = false;
-      onScrollEdgeChange(false);
-    }
-  }, [onScrollEdgeChange]);
 
   return (
     <View style={[styles.detailContent, { backgroundColor: palette.surface }]}>
@@ -276,15 +254,12 @@ function BookDetailContent({
         />
       ) : null}
       <ScrollViewMarker
-        scrollEdgeEffects={{ top: usesSoftScrollEdge ? 'soft' : 'hidden' }}
+        scrollEdgeEffects={{ top: 'soft' }}
         style={styles.scrollViewMarker}
       >
         <Animated.ScrollView
           bounces={isIos}
           contentInsetAdjustmentBehavior="never"
-          onScroll={({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) =>
-            handleScroll(nativeEvent.contentOffset.y)
-          }
           overScrollMode="never"
           ref={scrollRef}
           scrollEventThrottle={16}
@@ -948,6 +923,7 @@ function BookDetailError({
   const { t } = useTranslation('book');
   const { t: tCommon } = useTranslation('common');
   return (
+    <NativeStackScrollEdgeMarker>
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.errorContent}
@@ -969,6 +945,7 @@ function BookDetailError({
         </Button>
       ) : null}
     </ScrollView>
+    </NativeStackScrollEdgeMarker>
   );
 }
 

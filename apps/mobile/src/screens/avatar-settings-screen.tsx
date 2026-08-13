@@ -23,6 +23,7 @@ import {
 
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { ProfileAvatar } from '@/components/profile-avatar';
 import { useProfile } from '@/hooks/use-profile';
 import { profile as profileUseCase } from '@/services/client';
@@ -114,6 +115,7 @@ export function AvatarSettingsScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.root}
       >
+        <NativeStackScrollEdgeMarker>
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={[styles.content, { paddingBottom: Math.max(28, insets.bottom + 20) }]}
@@ -182,6 +184,7 @@ export function AvatarSettingsScreen() {
           <Text style={styles.saveLabel}>{saving ? t('avatar.saving') : t('avatar.save')}</Text>
         </Pressable>
         </ScrollView>
+        </NativeStackScrollEdgeMarker>
       </KeyboardAvoidingView>
     </NativeScreenScaffold>
   );

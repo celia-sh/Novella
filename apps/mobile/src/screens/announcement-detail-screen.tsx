@@ -28,6 +28,7 @@ import {
 import { CommentThreadListItem } from '@/components/comment-thread-list-item';
 import type { CommentThreadPalette } from '@/components/comment-thread';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { showAlert } from '@/components/native-alert-dialog';
 import { useAnnouncementDetail } from '@/hooks/use-announcement-detail';
 import { useComments } from '@/hooks/use-comments';
@@ -91,6 +92,7 @@ function AppAnnouncementDetail({ id, initialTitle }: { id: string; initialTitle?
     >
       <>
       <Stack.Screen options={{ title }} />
+      <NativeStackScrollEdgeMarker>
       <ScrollView
         contentContainerStyle={styles.detailContent}
         contentInsetAdjustmentBehavior="automatic"
@@ -114,6 +116,7 @@ function AppAnnouncementDetail({ id, initialTitle }: { id: string; initialTitle?
           />
         )}
       </ScrollView>
+      </NativeStackScrollEdgeMarker>
       </>
     </NativeScreenScaffold>
   );
@@ -144,6 +147,7 @@ function SiteAnnouncementDetail({
     >
       <>
         <Stack.Screen options={{ title }} />
+        <NativeStackScrollEdgeMarker>
         <ScrollView
           contentContainerStyle={styles.detailContent}
           contentInsetAdjustmentBehavior="automatic"
@@ -160,6 +164,7 @@ function SiteAnnouncementDetail({
             />
           )}
         </ScrollView>
+        </NativeStackScrollEdgeMarker>
       </>
     </NativeScreenScaffold>
   );
@@ -284,6 +289,7 @@ function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
           />
         </Stack.Toolbar>
       ) : null}
+      <NativeStackScrollEdgeMarker>
       <FlatList
         contentContainerStyle={styles.commentsContent}
         contentInsetAdjustmentBehavior="automatic"
@@ -324,6 +330,7 @@ function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
         windowSize={7}
         style={styles.root}
       />
+      </NativeStackScrollEdgeMarker>
       </>
     </NativeScreenScaffold>
   );

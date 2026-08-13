@@ -31,6 +31,7 @@ import {
   CommunityPaperProvider,
 } from '@/components/community/community-ui';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { showAlert } from '@/components/native-alert-dialog';
 import { community, storage } from '@/services/client';
 import { createThemedStyles } from '@/theme/app-theme';
@@ -178,6 +179,7 @@ export function CommunityComposeScreen({
         {loading ? (
           <View style={styles.center}><Spinner /></View>
         ) : (
+          <NativeStackScrollEdgeMarker>
           <ScrollView
             contentContainerStyle={styles.content}
             contentInsetAdjustmentBehavior="automatic"
@@ -272,6 +274,7 @@ export function CommunityComposeScreen({
               ) : null}
             </View>
           </ScrollView>
+          </NativeStackScrollEdgeMarker>
         )}
       </KeyboardAvoidingView>
       </NativeScreenScaffold>

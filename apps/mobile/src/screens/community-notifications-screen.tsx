@@ -27,6 +27,7 @@ import {
 } from '@/components/community/community-ui';
 import { showAlert } from '@/components/native-alert-dialog';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { ProfileAvatar } from '@/components/profile-avatar';
 import { useCommunityNotifications } from '@/hooks/use-community-notifications';
 import { useAppLocale } from '@/localization/localization-provider';
@@ -105,6 +106,7 @@ export function CommunityNotificationsScreen() {
         }}
       >
         <View style={styles.root}>
+        <NativeStackScrollEdgeMarker>
         <FlatList
           ListEmptyComponent={
             state.loading ? (
@@ -151,6 +153,7 @@ export function CommunityNotificationsScreen() {
           renderItem={renderNotification}
           showsVerticalScrollIndicator={false}
         />
+        </NativeStackScrollEdgeMarker>
         </View>
       </NativeScreenScaffold>
         <CommunityNotificationsNavigation hidden={!hasUnread} onMarkAll={() => void markAll()} />

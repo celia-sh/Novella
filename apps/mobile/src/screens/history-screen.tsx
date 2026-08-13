@@ -25,6 +25,7 @@ import {
 } from '@/components/book-grid-skeleton';
 import { HistoryNavigation } from '@/components/history-navigation';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
@@ -140,6 +141,7 @@ export function HistoryScreen() {
         title={t('history.title')}
       >
         <View style={styles.root}>
+          <NativeStackScrollEdgeMarker>
           <FlatList
             ListEmptyComponent={
               state.initialError !== null ? (
@@ -211,6 +213,7 @@ export function HistoryScreen() {
             showsVerticalScrollIndicator={false}
             viewabilityConfig={coverActivation.viewabilityConfig}
           />
+          </NativeStackScrollEdgeMarker>
         </View>
       </NativeScreenScaffold>
       <HistoryNavigation onClear={confirmClearHistory} showClear={hasAnyHistory} />

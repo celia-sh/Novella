@@ -22,6 +22,7 @@ import {
 import { CommentThreadListItem } from '@/components/comment-thread-list-item';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { useComments } from '@/hooks/use-comments';
 import { consumeCommentsChanged } from '@/services/comment-events';
 import { flattenCommentRows, type CommentListRow } from '@/services/comment-list-rows';
@@ -121,6 +122,7 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
         contentColor={palette.onSurface}
       >
         <View style={[styles.root, { backgroundColor: palette.surface }]}>
+          <NativeStackScrollEdgeMarker>
           <FlatList
             contentInsetAdjustmentBehavior="automatic"
             contentContainerStyle={styles.content}
@@ -180,6 +182,7 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
             updateCellsBatchingPeriod={32}
             windowSize={7}
           />
+          </NativeStackScrollEdgeMarker>
         </View>
       </NativeScreenScaffold>
     </PaperProvider>

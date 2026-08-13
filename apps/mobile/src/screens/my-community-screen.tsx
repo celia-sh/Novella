@@ -24,6 +24,7 @@ import {
   CommunityThreadSkeleton,
 } from "@/components/community/community-ui";
 import { NativeScreenScaffold } from "@/components/native-screen-scaffold";
+import { NativeStackScrollEdgeMarker } from "@/components/native-stack-scroll-edge-marker";
 import {
   NativeSegmentedControl,
   type NativeSegmentedControlOption,
@@ -65,6 +66,7 @@ export function MyCommunityScreen() {
         showBackButton
         title={t("myCommunity.title")}
       >
+        <NativeStackScrollEdgeMarker>
         <ScrollView
           alwaysBounceVertical
           contentContainerStyle={styles.content}
@@ -153,6 +155,7 @@ export function MyCommunityScreen() {
             </View>
           )}
         </ScrollView>
+        </NativeStackScrollEdgeMarker>
       </NativeScreenScaffold>
     </CommunityPaperProvider>
   );

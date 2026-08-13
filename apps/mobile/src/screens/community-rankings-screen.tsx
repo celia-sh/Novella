@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import {
   CommunityActiveMembers,
   CommunityHotDiscussions,
@@ -30,6 +31,7 @@ export function CommunityRankingsScreen() {
       showBackButton
       title={t('rankings.title')}
     >
+      <NativeStackScrollEdgeMarker>
       <ScrollView
         alwaysBounceVertical
         contentContainerStyle={styles.content}
@@ -54,6 +56,7 @@ export function CommunityRankingsScreen() {
           </View>
         )}
       </ScrollView>
+      </NativeStackScrollEdgeMarker>
     </NativeScreenScaffold>
   );
 }

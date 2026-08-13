@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import {
   useAnnouncements,
   type AnnouncementListEntry,
@@ -56,6 +57,7 @@ export function AnnouncementCenterScreen() {
       showBackButton
       title={t('announcements.title')}
     >
+      <NativeStackScrollEdgeMarker>
       <FlatList
         contentContainerStyle={[
           styles.content,
@@ -118,6 +120,7 @@ export function AnnouncementCenterScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.root}
       />
+      </NativeStackScrollEdgeMarker>
     </NativeScreenScaffold>
   );
 }

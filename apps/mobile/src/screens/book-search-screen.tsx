@@ -33,6 +33,7 @@ import {
 } from '@/components/native-search-controls';
 import { BOOK_SEARCH_MODE_OPTIONS } from '@/components/native-search-controls.types';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { useBookSearch, type BookSearchFormat } from '@/hooks/use-book-search';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
@@ -126,6 +127,7 @@ export function BookSearchScreen({
       showBackButton={showBackButton}
       title={t('search.title')}
     >
+      <NativeStackScrollEdgeMarker>
       <FlatList
         ListEmptyComponent={
           <SearchEmpty
@@ -243,6 +245,7 @@ export function BookSearchScreen({
         showsVerticalScrollIndicator={false}
         viewabilityConfig={coverActivation.viewabilityConfig}
       />
+      </NativeStackScrollEdgeMarker>
     </NativeScreenScaffold>
   );
 }

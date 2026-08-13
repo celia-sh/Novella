@@ -52,6 +52,7 @@ import {
   type ReorderableShelfGridItemState,
 } from '@/components/reorderable-shelf-grid';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { SectionCard } from '@/components/section-card';
 import { useBookGridLayout, BOOK_GRID_COLUMN_GAP } from '@/hooks/use-book-grid-layout';
 import {
@@ -311,7 +312,7 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
         showBackButton={parents.length > 0}
         title={title}
       >
-        <ShelfScrollRoot nested={parents.length > 0}>
+        <NativeStackScrollEdgeMarker>
           <ScrollView
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.content}
@@ -376,7 +377,7 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
             />
           ) : null}
           </ScrollView>
-        </ShelfScrollRoot>
+        </NativeStackScrollEdgeMarker>
       </NativeScreenScaffold>
       <ShelfNavigation
         isSaving={isSaving}
@@ -391,17 +392,6 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
 
     </>
   );
-}
-
-function ShelfScrollRoot({
-  children,
-  nested,
-}: {
-  children: React.ReactElement;
-  nested: boolean;
-}) {
-  const styles = useShelfScreenStyles();
-  return nested ? <View style={styles.root}>{children}</View> : children;
 }
 
 function ShelfContent({

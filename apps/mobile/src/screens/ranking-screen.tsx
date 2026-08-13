@@ -22,6 +22,7 @@ import {
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
@@ -73,6 +74,7 @@ export function RankingScreen() {
       title={t('ranking.title')}
     >
       <View style={styles.root}>
+        <NativeStackScrollEdgeMarker>
         <FlatList
           ListEmptyComponent={
             error ? (
@@ -133,6 +135,7 @@ export function RankingScreen() {
           showsVerticalScrollIndicator={false}
           viewabilityConfig={coverActivation.viewabilityConfig}
         />
+        </NativeStackScrollEdgeMarker>
       </View>
       </NativeScreenScaffold>
     </>

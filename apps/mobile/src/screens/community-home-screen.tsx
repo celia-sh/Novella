@@ -53,6 +53,7 @@ import type {
 
 import { CommunityHomeNavigation } from '@/components/community/community-navigation';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { useCommunityHome, type CommunityHomeQuery } from '@/hooks/use-community-home';
 import { useAppLocale } from '@/localization/localization-provider';
 import { resolveCommunityBoardIcon } from '@/services/community-board-icons';
@@ -135,6 +136,7 @@ export function CommunityHomeScreen() {
           }}
           title={t('navigation.community')}
         >
+          <NativeStackScrollEdgeMarker>
           <ScrollView
             alwaysBounceVertical
             contentContainerStyle={styles.content}
@@ -200,6 +202,7 @@ export function CommunityHomeScreen() {
               />
             ) : null}
           </ScrollView>
+          </NativeStackScrollEdgeMarker>
         </NativeScreenScaffold>
         <CommunityHomeNavigation />
       </>

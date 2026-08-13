@@ -24,6 +24,7 @@ import {
 } from '@/components/book-cover-grid-item';
 import { DiscoverNavigation } from '@/components/discover-navigation';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { NativeStackScrollEdgeMarker } from '@/components/native-stack-scroll-edge-marker';
 import { SectionCard } from '@/components/section-card';
 import { useBookGridLayout, BOOK_GRID_COLUMN_GAP } from '@/hooks/use-book-grid-layout';
 import {
@@ -70,6 +71,7 @@ export function HomeScreen() {
         }}
         title={t('discovery.title')}
       >
+        <NativeStackScrollEdgeMarker>
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.content}
@@ -102,6 +104,7 @@ export function HomeScreen() {
           <ComicsSection viewport={coverViewport} />
           <OnlineInfoSection onRetry={retryOnlineInfo} state={onlineInfo} />
         </ScrollView>
+        </NativeStackScrollEdgeMarker>
       </NativeScreenScaffold>
       <DiscoverNavigation />
     </>

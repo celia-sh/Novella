@@ -18,6 +18,9 @@ export function useSystemScreenStackPreset(): StackScreenOptions {
     headerLargeTitleShadowVisible: false,
     headerShadowVisible: false,
     headerTintColor: colors.accent,
+    ...(process.env.EXPO_OS === 'ios'
+      ? { scrollEdgeEffects: { top: 'soft' as const } }
+      : {}),
     headerTitleStyle: { color: colors.label as string },
     headerTransparent: hasLiquidGlass,
   }), [colors]);
