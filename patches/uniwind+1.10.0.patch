@@ -1,0 +1,22 @@
+diff --git a/node_modules/uniwind/src/core/config/config.common.ts b/node_modules/uniwind/src/core/config/config.common.ts
+index 674d903..e09a1f6 100644
+--- a/node_modules/uniwind/src/core/config/config.common.ts
++++ b/node_modules/uniwind/src/core/config/config.common.ts
+@@ -64,7 +64,7 @@ export class UniwindConfigBuilder {
+                 this.#hasAdaptiveThemes = true
+                 this.#currentTheme = this.colorScheme
+ 
+-                if (Platform.OS !== 'web') {
++                if (Platform.OS !== 'web' && Platform.OS !== 'ios') {
+                     // @ts-expect-error RN >0.82 - breaking change
+                     Appearance.setColorScheme(UNSPECIFIED_THEME)
+                 }
+@@ -79,7 +79,7 @@ export class UniwindConfigBuilder {
+             this.#hasAdaptiveThemes = false
+             this.#currentTheme = theme
+ 
+-            if (Platform.OS !== 'web') {
++            if (Platform.OS !== 'web' && Platform.OS !== 'ios') {
+                 Appearance.setColorScheme(
+                     // @ts-expect-error RN >0.82 - breaking change
+                     isAdaptiveTheme
