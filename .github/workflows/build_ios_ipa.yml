@@ -136,20 +136,26 @@ jobs:
       - name: Install ccache
         run: |
           if ! command -v ccache >/dev/null 2>&1; then
+            if brew tap | grep -Fxq 'aws/tap'; then
+              brew untap aws/tap
+            fi
             brew install ccache
           fi
+          # Xcode 26 omits user-defined build settings from CompileC environments
+          # (facebook/react-native#55381), so pass the binary as a real process env var.
+          echo "CCACHE_BINARY=$(command -v ccache)" >> "$GITHUB_ENV"
           ccache --version | head -1
 
       - name: Restore iOS compiler cache
         id: ios-ccache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ~/Library/Caches/ccache
           key: >-
-            ios-ccache-v1-${{ runner.os }}-xcode26.6-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+            ios-ccache-${{ runner.os }}-xcode26.6-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
           restore-keys: |
-            ios-ccache-v1-${{ runner.os }}-xcode26.6-${{ hashFiles('package-lock.json') }}-
-            ios-ccache-v1-${{ runner.os }}-xcode26.6-
+            ios-ccache-${{ runner.os }}-xcode26.6-${{ hashFiles('package-lock.json') }}-
+            ios-ccache-${{ runner.os }}-xcode26.6-
 
       - name: Reset ccache statistics
         run: ccache --zero-stats
@@ -172,7 +178,7 @@ jobs:
 
       - name: Restore CocoaPods cache
         id: ios-pods
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             ~/Library/Caches/CocoaPods
@@ -199,7 +205,7 @@ jobs:
         # pod install 之后才保存（save 立即执行，放前面会存空目录/旧内容）。
         # 只由 main 写入：PR 缓存存 merge-ref scope，关闭后无复用价值。
         if: success() && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             ~/Library/Caches/CocoaPods
@@ -226,12 +232,51 @@ jobs:
         if: always()
         run: ccache --show-stats
 
+      - name: Write iOS build summary
+        if: always()
+        run: |
+          STATS="$(ccache --print-stats)"
+          CACHE_MISSES="$(awk '$1 == "cache_miss" { print $2 }' <<< "$STATS")"
+          CACHE_HITS="$(
+            awk '$1 == "direct_cache_hit" || $1 == "preprocessed_cache_hit" { total += $2 } END { print total + 0 }' <<< "$STATS"
+          )"
+          CACHEABLE_CALLS="$((CACHE_HITS + CACHE_MISSES))"
+          HIT_RATE="$(
+            awk -v hits="$CACHE_HITS" -v calls="$CACHEABLE_CALLS" \
+              'BEGIN { if (calls > 0) printf "%.1f%%", hits * 100 / calls; else printf "—" }'
+          )"
+          CACHE_SIZE_KIB="$(awk '$1 == "cache_size_kibibyte" { print $2 }' <<< "$STATS")"
+          CACHE_SIZE="$(
+            awk -v kib="$CACHE_SIZE_KIB" \
+              'BEGIN { if (kib >= 1048576) printf "%.1f GiB", kib / 1048576; else printf "%.1f MiB", kib / 1024 }'
+          )"
+          XCODE_VERSION="$(xcodebuild -version | awk 'NR == 1 { print $2 }')"
+
+          case "${{ job.status }}" in
+            success) BUILD_OUTCOME="✅" ;;
+            failure) BUILD_OUTCOME="❌" ;;
+            cancelled) BUILD_OUTCOME="⏹️" ;;
+            *) BUILD_OUTCOME="${{ job.status }}" ;;
+          esac
+
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          | Xcode Workspace | Scheme | Configuration | Xcode Version | Build Outcome |
+          | --- | --- | --- | --- | :---: |
+          | Novella.xcworkspace | Novella | Release | $XCODE_VERSION | $BUILD_OUTCOME |
+
+          ### Compiler Caching - ⚡ ccache
+
+          | Cacheable Calls | Hits | Misses | Hit Rate | Cache Size |
+          | ---: | ---: | ---: | ---: | ---: |
+          | $CACHEABLE_CALLS | $CACHE_HITS | $CACHE_MISSES | $HIT_RATE | $CACHE_SIZE |
+          EOF
+
       - name: Save iOS compiler cache
         # 编译完成之后才保存（save 立即执行）。
         # 只由 main 写入：PR 缓存存 merge-ref scope，关闭后无复用价值，
         # 且避免 1G 条目快速挤爆 10G 仓库缓存上限。
         if: success() && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ~/Library/Caches/ccache
           key: ${{ steps.ios-ccache.outputs.cache-primary-key }}
