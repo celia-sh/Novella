@@ -17,8 +17,7 @@
     "ios": "npm run ios --workspace @novella/mobile",
     "test:client": "npm run test --workspace @novella/client-core && npm run test --workspace @novella/api-client && npm run test --workspace @novella/reader-engine && npm run test:shelf --workspace @novella/mobile && npm run test:community --workspace @novella/mobile",
     "test:reader": "npm run test --workspace @novella/reader-engine && npm run test --workspace @novella/api-client && npm run test:reader --workspace @novella/mobile",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "postinstall": "patch-package"
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "overrides": {
     "@tiptap/extension-bubble-menu": "3.27.1",
@@ -30,7 +29,6 @@
   },
   "devDependencies": {
     "@tiptap/extension-bubble-menu": "3.27.1",
-    "@tiptap/extension-floating-menu": "3.27.1",
-    "patch-package": "^8.0.0"
+    "@tiptap/extension-floating-menu": "3.27.1"
   }
 }

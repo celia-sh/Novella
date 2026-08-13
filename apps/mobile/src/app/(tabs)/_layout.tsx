@@ -7,7 +7,7 @@ import { runAutomaticAppUpdateCheck } from '@/services/app-update-alerts';
 import { useAppTheme } from '@/theme/app-theme';
 
 export default function TabsLayout() {
-  const { colorScheme, colors } = useAppTheme();
+  const { colors } = useAppTheme();
   const { t } = useTranslation('navigation');
   const { t: tSettings } = useTranslation('settings');
   const { profile } = useProfile();
@@ -21,7 +21,6 @@ export default function TabsLayout() {
     <NativeTabs
       iconColor={{ default: colors.secondaryLabel, selected: colors.accent }}
       tintColor={colors.accent}
-      unstable_nativeProps={{ colorScheme }}
     >
       <NativeTabs.Trigger name="(discover)">
         <NativeTabs.Trigger.Icon
