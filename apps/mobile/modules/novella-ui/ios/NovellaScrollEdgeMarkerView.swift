@@ -42,7 +42,11 @@ final class NovellaScrollEdgeMarkerView: ExpoView {
   private func applyToNearestScrollView() -> Bool {
     guard #available(iOS 26.0, *) else { return true }
     guard let scrollView = nearestScrollView() else { return false }
-    scrollView.topEdgeEffect.style = .soft
+    if #available(iOS 27.0, *) {
+      scrollView.topEdgeEffect.style = .hard
+    } else {
+      scrollView.topEdgeEffect.style = .soft
+    }
     scrollView.topEdgeEffect.isHidden = false
     return true
   }

@@ -10,6 +10,7 @@ import {
 import { ScrollViewMarker } from 'react-native-screens/experimental';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -69,6 +70,10 @@ import {
 } from '@/services/book-quick-search';
 import { useAppSettings } from '@/services/settings';
 import type { BookDetailPalette } from '@/theme/book-detail-theme';
+
+const topScrollEdgeEffect = Platform.OS === 'ios' && Number(Platform.Version) >= 27
+  ? 'hard'
+  : 'soft';
 
 export interface BookDetailScreenProps {
   bookId: number;
@@ -254,7 +259,7 @@ function BookDetailContent({
         />
       ) : null}
       <ScrollViewMarker
-        scrollEdgeEffects={{ top: 'soft' }}
+        scrollEdgeEffects={{ top: topScrollEdgeEffect }}
         style={styles.scrollViewMarker}
       >
         <Animated.ScrollView
