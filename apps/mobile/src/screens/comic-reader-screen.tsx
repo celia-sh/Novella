@@ -33,6 +33,7 @@ import { reader } from '@/services/client';
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
 import { ReaderErrorState, ReaderPreparationState } from '@/components/reader-chrome';
 import { ReaderNavigation } from '@/components/reader-navigation';
+import { ReaderScrollEdgeMarker } from '@/components/reader-scroll-edge-marker';
 import { subscribeReaderChapterSelection } from '@/services/reader-chapter-selection';
 import {
   getCachedReaderPosition,
@@ -532,7 +533,8 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
           onRetry={loadChapter}
         />
       ) : loading || !activeChapter ? <ReaderPreparationState label={t('states.loadingComic')} /> : (
-        mode === 'paged' ? (
+        <ReaderScrollEdgeMarker style={styles.scrollMarker}>
+        {mode === 'paged' ? (
         <FlatList
           ref={pagedListRef}
           contentInsetAdjustmentBehavior="never"
@@ -614,7 +616,8 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
           viewabilityConfig={COMIC_SCROLL_VIEWABILITY_CONFIG}
           windowSize={5}
         />
-      )
+      )}
+        </ReaderScrollEdgeMarker>
       )}
       </View>
       <ReaderNavigation
@@ -789,4 +792,5 @@ const styles = StyleSheet.create({
   retryLabel: { fontSize: 15, fontWeight: '600' },
   retryPage: { alignItems: 'center', borderRadius: 4, justifyContent: 'center' },
   root: { flex: 1 },
+  scrollMarker: { flex: 1 },
 });
