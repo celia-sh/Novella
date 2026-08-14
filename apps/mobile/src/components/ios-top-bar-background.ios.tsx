@@ -1,9 +1,7 @@
-import MaskedView from '@react-native-masked-view/masked-view';
-import { BlurView } from 'expo-blur';
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View, type ViewProps } from 'react-native';
+import { Animated, StyleSheet, type ViewProps } from 'react-native';
 
-import { useAppColorScheme } from '@/theme/app-theme';
+import { IosProgressiveBlur } from '@/components/ios-progressive-blur';
 
 export type IosTopBarBackgroundProps = ViewProps & {
   visible?: boolean;
@@ -21,10 +19,7 @@ export function IosTopBarBackground({
   visible = true,
   ...rest
 }: IosTopBarBackgroundProps) {
-  const colorScheme = useAppColorScheme();
   const opacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
-  const tint = colorScheme === 'dark' ? 'dark' : 'light';
-  const scrimRgb = colorScheme === 'dark' ? '0,0,0' : '255,255,255';
 
   useEffect(() => {
     Animated.timing(opacity, {
@@ -40,35 +35,14 @@ export function IosTopBarBackground({
       pointerEvents="none"
       style={[styles.root, { opacity }, style]}
     >
-      <MaskedView
+      <IosProgressiveBlur
+        intensity={TOP_BAR_BLUR_INTENSITY}
         style={StyleSheet.absoluteFill}
-        maskElement={
-          <View
-            style={[
-              styles.fill,
-              {
-                experimental_backgroundImage:
-                  'linear-gradient(to bottom, rgb(0,0,0) 0%, rgb(0,0,0) 30%, rgba(0,0,0,0.95) 45%, rgba(0,0,0,0.82) 58%, rgba(0,0,0,0.62) 70%, rgba(0,0,0,0.38) 81%, rgba(0,0,0,0.16) 91%, rgba(0,0,0,0) 100%)',
-              },
-            ]}
-          />
-        }
-      >
-        <BlurView intensity={TOP_BAR_BLUR_INTENSITY} style={StyleSheet.absoluteFill} tint={tint} />
-      </MaskedView>
-      <View
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            experimental_backgroundImage: `linear-gradient(to bottom, rgba(${scrimRgb},0.70) 0%, rgba(${scrimRgb},0.32) 42%, rgba(${scrimRgb},0.08) 68%, rgba(${scrimRgb},0) 88%)`,
-          },
-        ]}
       />
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1 },
   root: { flex: 1 },
 });

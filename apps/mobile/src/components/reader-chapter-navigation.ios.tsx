@@ -2,9 +2,15 @@ import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
+import {
+  IOS_PROGRESSIVE_BLUR_BLEED,
+  IosProgressiveBlur,
+} from '@/components/ios-progressive-blur';
 import type { ReaderChapterNavigationProps } from '@/components/reader-navigation.types';
 import { resolveReaderChapterBarOrder } from '@/services/reader-chrome-layout';
 import { createThemedStyles } from '@/theme/app-theme';
+
+const IOS_BOTTOM_TOOLBAR_HEIGHT = 44;
 
 export function ReaderChapterNavigation({
   bottomInset,
@@ -24,8 +30,15 @@ export function ReaderChapterNavigation({
   } as const;
   const leftAction = actions[order.left];
   const rightAction = actions[order.right];
+  const backgroundHeight = Math.max(0, bottomInset)
+    + IOS_BOTTOM_TOOLBAR_HEIGHT
+    + IOS_PROGRESSIVE_BLUR_BLEED;
   return (
     <>
+      <IosProgressiveBlur
+        direction="bottom"
+        style={[styles.progressiveBackground, { height: backgroundHeight }]}
+      />
       <Stack.Toolbar placement="bottom">
         <Stack.Toolbar.Button
           accessibilityLabel={labels[order.left]}
@@ -69,5 +82,11 @@ const useReaderChapterNavigationStyles = createThemedStyles((colors) => ({
     color: colors.secondaryLabel,
     fontSize: 13,
     fontVariant: ['tabular-nums'],
+  },
+  progressiveBackground: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
   },
 }));
