@@ -56,6 +56,7 @@ import {
 import { BookCoverImage } from '@/components/book-cover-image';
 import { BookDetailNavigation } from '@/components/book-detail-navigation';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
+import { IosTopBarBackground } from '@/components/ios-top-bar-background';
 import { BookHtmlContent } from '@/components/book-html-content';
 import {
   useBookDetail,
@@ -130,7 +131,6 @@ export function BookDetailScreen({
           book={book}
           palette={detailTheme.palette}
           {...(seriesTitle === null ? {} : { seriesTitle })}
-          topBarBackgroundVisible={topBarBackgroundVisible}
         />
         {error ? (
           <BookDetailError
@@ -154,6 +154,7 @@ export function BookDetailScreen({
             shelfError={shelfError}
           />
         )}
+        <IosTopBarBackground visible={topBarBackgroundVisible} />
       </View>
     </PaperProvider>
   );

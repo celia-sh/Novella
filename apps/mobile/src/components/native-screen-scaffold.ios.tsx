@@ -17,14 +17,9 @@ export function NativeScreenScaffold({
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerBackground: () => (
-            <IosTopBarBackground visible={topBarBackgroundVisible} />
-          ),
-        }}
-      />
+      <Stack.Screen options={{ headerBackground: () => null }} />
       {children}
+      <IosTopBarBackground visible={topBarBackgroundVisible} />
       <NativeScrollEdgeMarker
         observesTopBarOverlap={largeTitle}
         onTopBarBackgroundVisibilityChange={setTopBarBackgroundVisible}

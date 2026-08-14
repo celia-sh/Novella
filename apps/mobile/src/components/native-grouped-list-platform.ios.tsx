@@ -34,13 +34,7 @@ export function NativeGroupedListPlatform({
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerBackground: () => (
-            <IosTopBarBackground visible={topBarBackgroundVisible} />
-          ),
-        }}
-      />
+      <Stack.Screen options={{ headerBackground: () => null }} />
       <Host seedColor={colors.accent} style={{ flex: 1, width: '100%' }}>
         <List
           modifiers={[listStyle('insetGrouped'), hiddenTopScrollEdgeEffect]}
@@ -49,6 +43,7 @@ export function NativeGroupedListPlatform({
           {children}
         </List>
       </Host>
+      <IosTopBarBackground visible={topBarBackgroundVisible} />
       <NativeScrollEdgeMarker
         observesTopBarOverlap={largeTitle}
         onTopBarBackgroundVisibilityChange={setTopBarBackgroundVisible}

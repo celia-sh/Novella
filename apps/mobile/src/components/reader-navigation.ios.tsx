@@ -17,7 +17,7 @@ export function ReaderNavigation({
     <>
       <Stack.Screen
         options={{
-          headerBackground: () => <IosTopBarBackground />,
+          headerBackground: () => null,
           headerBlurEffect: 'none',
           headerShadowVisible: false,
           headerTintColor: foregroundColor,
@@ -31,6 +31,7 @@ export function ReaderNavigation({
           title,
         }}
       />
+      <IosTopBarBackground />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel={t('accessibility.chapterList')}

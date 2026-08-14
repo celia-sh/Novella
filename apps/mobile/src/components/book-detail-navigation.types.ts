@@ -6,5 +6,4 @@ export interface BookDetailNavigationProps {
   palette: BookDetailPalette;
   /** Comic series title used by the version-switch flow (falls back to the book title). */
   seriesTitle?: string;
-  topBarBackgroundVisible: boolean;
 }

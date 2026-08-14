@@ -1,8 +1,7 @@
 import Stack from 'expo-router/stack';
-import { createElement, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Platform } from 'react-native';
 
-import { IosTopBarBackground } from '@/components/ios-top-bar-background';
 import { useAppTheme } from '@/theme/app-theme';
 
 type StackScreenOptions = React.ComponentProps<typeof Stack>['screenOptions'];
@@ -15,7 +14,7 @@ export function useSystemScreenStackPreset(): StackScreenOptions {
     headerBackButtonDisplayMode: 'minimal',
     ...(Platform.OS === 'ios'
       ? {
-          headerBackground: () => createElement(IosTopBarBackground, { visible: false }),
+          headerBackground: () => null,
           headerBlurEffect: 'none' as const,
           headerTransparent: true,
           scrollEdgeEffects: { top: 'hidden' as const },

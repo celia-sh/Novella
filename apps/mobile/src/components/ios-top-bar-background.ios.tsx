@@ -2,20 +2,30 @@ import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, type ViewProps } from 'react-native';
 
 import { IosProgressiveBlur } from '@/components/ios-progressive-blur';
+import type { IosProgressiveBlurConfig } from '@/components/ios-progressive-blur-config';
 
 export type IosTopBarBackgroundProps = ViewProps & {
+  blurConfig?: Partial<IosProgressiveBlurConfig>;
+  effectHeight?: number;
+  transitionDurationMs?: number;
   visible?: boolean;
 };
 
-const BACKGROUND_VISIBILITY_DURATION_MS = 140;
-const TOP_BAR_BLUR_INTENSITY = 40;
+// Measured for the standard iPhone 17 Pro collapsed soft scroll edge.
+export const DEFAULT_IOS_TOP_BAR_EFFECT_HEIGHT = 171;
+export const DEFAULT_IOS_TOP_BAR_TRANSITION_DURATION_MS = 140;
 
 /**
- * App-owned iOS top-bar background. The native navigation bar still owns its
- * title and controls; this component only paints the material behind them.
+ * App-owned iOS top-bar overlay. It must be a screen-content sibling rather
+ * than a native headerBackground child, whose collapsed host clips the soft
+ * edge's measured 171pt tail. The native navigation bar still owns the title
+ * and controls above this overlay.
  */
 export function IosTopBarBackground({
+  blurConfig,
+  effectHeight = DEFAULT_IOS_TOP_BAR_EFFECT_HEIGHT,
   style,
+  transitionDurationMs = DEFAULT_IOS_TOP_BAR_TRANSITION_DURATION_MS,
   visible = true,
   ...rest
 }: IosTopBarBackgroundProps) {
@@ -23,26 +33,27 @@ export function IosTopBarBackground({
 
   useEffect(() => {
     Animated.timing(opacity, {
-      duration: BACKGROUND_VISIBILITY_DURATION_MS,
+      duration: transitionDurationMs,
       toValue: visible ? 1 : 0,
       useNativeDriver: true,
     }).start();
-  }, [opacity, visible]);
+  }, [opacity, transitionDurationMs, visible]);
 
   return (
     <Animated.View
       {...rest}
       pointerEvents="none"
-      style={[styles.root, { opacity }, style]}
+      style={[styles.root, { height: effectHeight, opacity }, style]}
     >
       <IosProgressiveBlur
-        intensity={TOP_BAR_BLUR_INTENSITY}
-        style={StyleSheet.absoluteFill}
+        {...blurConfig}
+        style={[styles.progressiveBlur, { height: effectHeight }]}
       />
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  progressiveBlur: { left: 0, position: 'absolute', right: 0, top: 0 },
+  root: { left: 0, position: 'absolute', right: 0, top: 0, zIndex: 1 },
 });
