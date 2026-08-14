@@ -2,6 +2,7 @@ import { Host, RNHostView } from '@expo/ui';
 import { Button, HStack, List, Section, Spacer, Text, VStack } from '@expo/ui/swift-ui';
 import {
   buttonStyle,
+  createModifier,
   disabled as disabledModifier,
   foregroundStyle,
   font,
@@ -16,6 +17,8 @@ import { NativeIcon } from '@/components/native-icon';
 import { NativeScrollEdgeMarker } from '../../modules/novella-ui/src/native-scroll-edge-marker';
 import type { NativeGroupedListProps, NativeGroupedListRowProps } from '@/components/native-grouped-list';
 import { useAppTheme } from '@/theme/app-theme';
+
+const hiddenTopScrollEdgeEffect = createModifier('novellaHiddenTopScrollEdgeEffect');
 
 export function NativeGroupedListPlatform({
   children,
@@ -40,7 +43,7 @@ export function NativeGroupedListPlatform({
       />
       <Host seedColor={colors.accent} style={{ flex: 1, width: '100%' }}>
         <List
-          modifiers={[listStyle('insetGrouped')]}
+          modifiers={[listStyle('insetGrouped'), hiddenTopScrollEdgeEffect]}
           {...(testID ? { testID } : {})}
         >
           {children}

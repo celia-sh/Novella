@@ -37,7 +37,7 @@ final class NovellaScrollEdgeMarkerView: ExpoView {
   func setHidesAllEdgeEffects(_ value: Bool) {
     guard hidesAllEdgeEffects != value else { return }
     if !value {
-      restoreSecondaryEdgeEffects()
+      restoreAllEdgeEffects()
     }
     hidesAllEdgeEffects = value
     bindNearestScrollView()
@@ -125,9 +125,8 @@ final class NovellaScrollEdgeMarkerView: ExpoView {
   }
 
   private func hideSystemEdgeEffects(on scrollView: UIScrollView) {
-    guard #available(iOS 26.0, *) else { return }
+    guard #available(iOS 26.0, *), hidesAllEdgeEffects else { return }
     scrollView.topEdgeEffect.isHidden = true
-    guard hidesAllEdgeEffects else { return }
     scrollView.bottomEdgeEffect.isHidden = true
     scrollView.leftEdgeEffect.isHidden = true
     scrollView.rightEdgeEffect.isHidden = true
@@ -144,13 +143,14 @@ final class NovellaScrollEdgeMarkerView: ExpoView {
     )
   }
 
-  private func restoreSecondaryEdgeEffects() {
+  private func restoreAllEdgeEffects() {
     guard
       #available(iOS 26.0, *),
       hidAllEdgeEffectsOnObservedScrollView,
       let scrollView = observedScrollView,
       let originalEdgeEffectVisibility
     else { return }
+    scrollView.topEdgeEffect.isHidden = originalEdgeEffectVisibility.top
     scrollView.bottomEdgeEffect.isHidden = originalEdgeEffectVisibility.bottom
     scrollView.leftEdgeEffect.isHidden = originalEdgeEffectVisibility.left
     scrollView.rightEdgeEffect.isHidden = originalEdgeEffectVisibility.right
@@ -163,8 +163,8 @@ final class NovellaScrollEdgeMarkerView: ExpoView {
       let scrollView = observedScrollView,
       let originalEdgeEffectVisibility
     {
-      scrollView.topEdgeEffect.isHidden = originalEdgeEffectVisibility.top
       if hidAllEdgeEffectsOnObservedScrollView {
+        scrollView.topEdgeEffect.isHidden = originalEdgeEffectVisibility.top
         scrollView.bottomEdgeEffect.isHidden = originalEdgeEffectVisibility.bottom
         scrollView.leftEdgeEffect.isHidden = originalEdgeEffectVisibility.left
         scrollView.rightEdgeEffect.isHidden = originalEdgeEffectVisibility.right

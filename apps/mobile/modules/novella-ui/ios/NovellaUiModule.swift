@@ -1,8 +1,19 @@
 import ExpoModulesCore
+import ExpoUI
 
 public final class NovellaUiModule: Module {
   public func definition() -> ModuleDefinition {
     Name("NovellaUi")
+
+    OnCreate {
+      ViewModifierRegistry.register("novellaHiddenTopScrollEdgeEffect") { _, _, _ in
+        NovellaHiddenTopScrollEdgeEffectModifier()
+      }
+    }
+
+    OnDestroy {
+      ViewModifierRegistry.unregister("novellaHiddenTopScrollEdgeEffect")
+    }
 
     View(NovellaSearchBarView.self) {
       ViewName("SearchBar")
