@@ -617,7 +617,7 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
           windowSize={5}
         />
       )}
-        <NativeScrollEdgeMarker />
+        <NativeScrollEdgeMarker hidesAllEdgeEffects />
         </>
       )}
       </View>

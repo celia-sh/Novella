@@ -22,6 +22,8 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   private var navigator: EPUBNavigatorViewController?
   private var directionalNavigationAdapter: DirectionalNavigationAdapter?
   private var scrollNavigationObserver: InputObservableToken?
+  private var scrollEdgeEffectObservations: [NSKeyValueObservation] = []
+  private var observedScrollEdgeEffectIds: Set<ObjectIdentifier> = []
   private var openTask: Task<Void, Never>?
   private var isReady = false
 
@@ -62,6 +64,9 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   func setContentInsets(_ value: [String: Double]) {
     contentInsets = value
     navigator?.view.setNeedsLayout()
+    DispatchQueue.main.async { [weak self] in
+      self?.hideSystemScrollEdgeEffects()
+    }
   }
 
   func getCurrentLocator() async -> [String: Any]? {
@@ -90,15 +95,15 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   override func layoutSubviews() {
     super.layoutSubviews()
     navigator?.view.frame = bounds
-    hideTopScrollEdgeEffects()
+    hideSystemScrollEdgeEffects()
   }
 
   override func didMoveToWindow() {
     super.didMoveToWindow()
     guard window != nil else { return }
-    hideTopScrollEdgeEffects()
+    hideSystemScrollEdgeEffects()
     DispatchQueue.main.async { [weak self] in
-      self?.hideTopScrollEdgeEffects()
+      self?.hideSystemScrollEdgeEffects()
     }
   }
 
@@ -178,9 +183,9 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       addSubview(controller.view)
       controller.didMove(toParent: parent)
       controller.view.frame = bounds
-      hideTopScrollEdgeEffects()
+      hideSystemScrollEdgeEffects()
       DispatchQueue.main.async { [weak self] in
-        self?.hideTopScrollEdgeEffects()
+        self?.hideSystemScrollEdgeEffects()
       }
       var installedStatus: [String: Any] = ["stage": "navigatorInstalled"]
       if let href = location?.href.description { installedStatus["href"] = href }
@@ -208,11 +213,38 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     navigator?.submitPreferences(makePreferences())
   }
 
-  private func hideTopScrollEdgeEffects() {
+  private func hideSystemScrollEdgeEffects() {
     guard #available(iOS 26.0, *), let navigator else { return }
-    for scrollView in descendantScrollViews(of: navigator.view) {
-      scrollView.topEdgeEffect.isHidden = true
+    let scrollViews = descendantScrollViews(of: navigator.view)
+    let scrollViewIds = Set(scrollViews.map(ObjectIdentifier.init))
+    if scrollViewIds != observedScrollEdgeEffectIds {
+      scrollEdgeEffectObservations.forEach { $0.invalidate() }
+      scrollEdgeEffectObservations.removeAll()
+      observedScrollEdgeEffectIds = scrollViewIds
+      for scrollView in scrollViews {
+        scrollEdgeEffectObservations.append(
+          scrollView.observe(\.contentOffset, options: [.new]) { [weak self, weak scrollView] _, _ in
+            guard let self, let scrollView else { return }
+            self.hideSystemScrollEdgeEffects(on: scrollView)
+          }
+        )
+        scrollEdgeEffectObservations.append(
+          scrollView.observe(\.adjustedContentInset, options: [.new]) { [weak self, weak scrollView] _, _ in
+            guard let self, let scrollView else { return }
+            self.hideSystemScrollEdgeEffects(on: scrollView)
+          }
+        )
+      }
     }
+    scrollViews.forEach { hideSystemScrollEdgeEffects(on: $0) }
+  }
+
+  private func hideSystemScrollEdgeEffects(on scrollView: UIScrollView) {
+    guard #available(iOS 26.0, *) else { return }
+    scrollView.topEdgeEffect.isHidden = true
+    scrollView.bottomEdgeEffect.isHidden = true
+    scrollView.leftEdgeEffect.isHidden = true
+    scrollView.rightEdgeEffect.isHidden = true
   }
 
   private func descendantScrollViews(of root: UIView) -> [UIScrollView] {
@@ -267,7 +299,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   }
 
   func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
-    hideTopScrollEdgeEffects()
+    hideSystemScrollEdgeEffects()
     if !isReady {
       isReady = true
       onStatus(["stage": "resourceLoaded", "href": locator.href.description])
@@ -285,9 +317,9 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   }
 
   func navigator(_ navigator: VisualNavigator, presentationDidChange presentation: VisualNavigatorPresentation) {
-    hideTopScrollEdgeEffects()
+    hideSystemScrollEdgeEffects()
     DispatchQueue.main.async { [weak self] in
-      self?.hideTopScrollEdgeEffects()
+      self?.hideSystemScrollEdgeEffects()
     }
   }
 
@@ -340,6 +372,9 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   }
 
   private func detachNavigator() {
+    scrollEdgeEffectObservations.forEach { $0.invalidate() }
+    scrollEdgeEffectObservations.removeAll()
+    observedScrollEdgeEffectIds.removeAll()
     directionalNavigationAdapter?.unbind()
     directionalNavigationAdapter = nil
     if let controller = navigator, let scrollNavigationObserver {

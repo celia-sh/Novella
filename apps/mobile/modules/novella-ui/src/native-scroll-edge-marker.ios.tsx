@@ -5,6 +5,7 @@ import type { NativeScrollEdgeMarkerProps } from './native-scroll-edge-marker.ty
 
 type VisibilityChangeEvent = NativeSyntheticEvent<{ visible: boolean }>;
 type NativeViewProps = ViewProps & {
+  hidesAllEdgeEffects?: boolean;
   observesTopBarOverlap?: boolean;
   topBarBackgroundVisibilityChange?: (event: VisibilityChangeEvent) => void;
 };
@@ -12,12 +13,14 @@ type NativeViewProps = ViewProps & {
 const NativeView = requireNativeView<NativeViewProps>('NovellaUi', 'ScrollEdgeMarker');
 
 export function NativeScrollEdgeMarker({
+  hidesAllEdgeEffects = false,
   observesTopBarOverlap = false,
   onTopBarBackgroundVisibilityChange,
 }: NativeScrollEdgeMarkerProps) {
   return (
     <NativeView
       collapsable={false}
+      hidesAllEdgeEffects={hidesAllEdgeEffects}
       observesTopBarOverlap={observesTopBarOverlap}
       {...(onTopBarBackgroundVisibilityChange
         ? {

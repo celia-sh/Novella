@@ -33,6 +33,9 @@ public final class NovellaUiModule: Module {
     View(NovellaScrollEdgeMarkerView.self) {
       ViewName("ScrollEdgeMarker")
 
+      Prop("hidesAllEdgeEffects") { (view: NovellaScrollEdgeMarkerView, value: Bool) in
+        view.setHidesAllEdgeEffects(value)
+      }
       Prop("observesTopBarOverlap") { (view: NovellaScrollEdgeMarkerView, value: Bool) in
         view.setObservesTopBarOverlap(value)
       }

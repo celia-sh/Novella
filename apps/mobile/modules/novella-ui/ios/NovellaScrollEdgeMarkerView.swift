@@ -1,7 +1,14 @@
 import ExpoModulesCore
 import UIKit
 
-/** Locates the hosted content UIScrollView and reports large-title collapse state. */
+private struct ScrollEdgeEffectVisibility {
+  let top: Bool
+  let bottom: Bool
+  let left: Bool
+  let right: Bool
+}
+
+/** Owns system edge suppression and top-bar visibility for one React screen. */
 final class NovellaScrollEdgeMarkerView: ExpoView {
   let topBarBackgroundVisibilityChange = EventDispatcher()
 
@@ -10,6 +17,9 @@ final class NovellaScrollEdgeMarkerView: ExpoView {
   private var contentOffsetObservation: NSKeyValueObservation?
   private var adjustedContentInsetObservation: NSKeyValueObservation?
   private var visibilityEvaluationScheduled = false
+  private var hidesAllEdgeEffects = false
+  private var hidAllEdgeEffectsOnObservedScrollView = false
+  private var originalEdgeEffectVisibility: ScrollEdgeEffectVisibility?
   private var observesTopBarOverlap = false
   private var lastReportedVisibility: Bool?
 
@@ -21,8 +31,16 @@ final class NovellaScrollEdgeMarkerView: ExpoView {
   }
 
   deinit {
-    contentOffsetObservation?.invalidate()
-    adjustedContentInsetObservation?.invalidate()
+    unbindObservedScrollView()
+  }
+
+  func setHidesAllEdgeEffects(_ value: Bool) {
+    guard hidesAllEdgeEffects != value else { return }
+    if !value {
+      restoreSecondaryEdgeEffects()
+    }
+    hidesAllEdgeEffects = value
+    bindNearestScrollView()
   }
 
   func setObservesTopBarOverlap(_ value: Bool) {
@@ -36,11 +54,7 @@ final class NovellaScrollEdgeMarkerView: ExpoView {
     super.didMoveToWindow()
     guard window != nil else {
       scheduledAttempts = 0
-      observedScrollView = nil
-      contentOffsetObservation?.invalidate()
-      contentOffsetObservation = nil
-      adjustedContentInsetObservation?.invalidate()
-      adjustedContentInsetObservation = nil
+      unbindObservedScrollView()
       return
     }
     scheduledAttempts = 0
@@ -66,26 +80,15 @@ final class NovellaScrollEdgeMarkerView: ExpoView {
 
   @discardableResult
   private func bindNearestScrollView() -> Bool {
-    guard let scrollView = nearestScrollView() else { return false }
-
-    if #available(iOS 26.0, *) {
-      scrollView.topEdgeEffect.isHidden = true
-    }
-
-    guard observesTopBarOverlap else {
-      contentOffsetObservation?.invalidate()
-      contentOffsetObservation = nil
-      adjustedContentInsetObservation?.invalidate()
-      adjustedContentInsetObservation = nil
-      observedScrollView = nil
-      reportVisibility(true)
-      return true
+    guard let scrollView = nearestScrollView() else {
+      unbindObservedScrollView()
+      return false
     }
 
     if observedScrollView !== scrollView {
-      contentOffsetObservation?.invalidate()
-      adjustedContentInsetObservation?.invalidate()
+      unbindObservedScrollView()
       observedScrollView = scrollView
+      originalEdgeEffectVisibility = edgeEffectVisibility(of: scrollView)
       contentOffsetObservation = scrollView.observe(
         \.contentOffset,
         options: [.initial, .new]
@@ -98,9 +101,10 @@ final class NovellaScrollEdgeMarkerView: ExpoView {
       ) { [weak self] _, _ in
         self?.scheduleVisibilityEvaluation()
       }
-    } else {
-      scheduleVisibilityEvaluation()
     }
+
+    hideSystemEdgeEffects(on: scrollView)
+    scheduleVisibilityEvaluation()
     return true
   }
 
@@ -110,9 +114,69 @@ final class NovellaScrollEdgeMarkerView: ExpoView {
     DispatchQueue.main.async { [weak self] in
       guard let self else { return }
       self.visibilityEvaluationScheduled = false
-      guard self.observesTopBarOverlap, let scrollView = self.observedScrollView else { return }
-      self.reportVisibility(self.shouldShowBackground(for: scrollView))
+      guard let scrollView = self.observedScrollView else { return }
+      self.hideSystemEdgeEffects(on: scrollView)
+      self.reportVisibility(
+        self.observesTopBarOverlap
+          ? self.shouldShowBackground(for: scrollView)
+          : true
+      )
     }
+  }
+
+  private func hideSystemEdgeEffects(on scrollView: UIScrollView) {
+    guard #available(iOS 26.0, *) else { return }
+    scrollView.topEdgeEffect.isHidden = true
+    guard hidesAllEdgeEffects else { return }
+    scrollView.bottomEdgeEffect.isHidden = true
+    scrollView.leftEdgeEffect.isHidden = true
+    scrollView.rightEdgeEffect.isHidden = true
+    hidAllEdgeEffectsOnObservedScrollView = true
+  }
+
+  private func edgeEffectVisibility(of scrollView: UIScrollView) -> ScrollEdgeEffectVisibility? {
+    guard #available(iOS 26.0, *) else { return nil }
+    return ScrollEdgeEffectVisibility(
+      top: scrollView.topEdgeEffect.isHidden,
+      bottom: scrollView.bottomEdgeEffect.isHidden,
+      left: scrollView.leftEdgeEffect.isHidden,
+      right: scrollView.rightEdgeEffect.isHidden
+    )
+  }
+
+  private func restoreSecondaryEdgeEffects() {
+    guard
+      #available(iOS 26.0, *),
+      hidAllEdgeEffectsOnObservedScrollView,
+      let scrollView = observedScrollView,
+      let originalEdgeEffectVisibility
+    else { return }
+    scrollView.bottomEdgeEffect.isHidden = originalEdgeEffectVisibility.bottom
+    scrollView.leftEdgeEffect.isHidden = originalEdgeEffectVisibility.left
+    scrollView.rightEdgeEffect.isHidden = originalEdgeEffectVisibility.right
+    hidAllEdgeEffectsOnObservedScrollView = false
+  }
+
+  private func unbindObservedScrollView() {
+    if
+      #available(iOS 26.0, *),
+      let scrollView = observedScrollView,
+      let originalEdgeEffectVisibility
+    {
+      scrollView.topEdgeEffect.isHidden = originalEdgeEffectVisibility.top
+      if hidAllEdgeEffectsOnObservedScrollView {
+        scrollView.bottomEdgeEffect.isHidden = originalEdgeEffectVisibility.bottom
+        scrollView.leftEdgeEffect.isHidden = originalEdgeEffectVisibility.left
+        scrollView.rightEdgeEffect.isHidden = originalEdgeEffectVisibility.right
+      }
+    }
+    contentOffsetObservation?.invalidate()
+    contentOffsetObservation = nil
+    adjustedContentInsetObservation?.invalidate()
+    adjustedContentInsetObservation = nil
+    observedScrollView = nil
+    originalEdgeEffectVisibility = nil
+    hidAllEdgeEffectsOnObservedScrollView = false
   }
 
   private func shouldShowBackground(for scrollView: UIScrollView) -> Bool {
@@ -134,6 +198,11 @@ final class NovellaScrollEdgeMarkerView: ExpoView {
     while let current = ancestor {
       if let scrollView = firstScrollView(in: current, excluding: self) {
         return scrollView
+      }
+      // A root view whose next responder is a view controller bounds this
+      // marker to its own React screen during native navigation transitions.
+      if current.next is UIViewController {
+        break
       }
       ancestor = current.superview
     }
