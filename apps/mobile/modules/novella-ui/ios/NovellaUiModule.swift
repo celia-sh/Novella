@@ -30,6 +30,16 @@ public final class NovellaUiModule: Module {
       }
     }
 
+    View(NovellaScrollEdgeMarkerView.self) {
+      ViewName("ScrollEdgeMarker")
+
+      Prop("observesTopBarOverlap") { (view: NovellaScrollEdgeMarkerView, value: Bool) in
+        view.setObservesTopBarOverlap(value)
+      }
+
+      Events("topBarBackgroundVisibilityChange")
+    }
+
     View(NovellaSegmentedControlView.self) {
       ViewName("SegmentedControl")
 

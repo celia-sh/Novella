@@ -1,6 +1,7 @@
 import { Stack, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
+import { IosTopBarBackground } from '@/components/ios-top-bar-background';
 import type { BookDetailNavigationProps } from '@/components/book-detail-navigation.types';
 import { hasSearchableQuickSearchTags } from '@/services/book-quick-search';
 
@@ -11,7 +12,12 @@ const openVersions = (bookId: number, seriesTitle: string) => {
   });
 };
 
-export function BookDetailNavigation({ book, palette, seriesTitle }: BookDetailNavigationProps) {
+export function BookDetailNavigation({
+  book,
+  palette,
+  seriesTitle,
+  topBarBackgroundVisible,
+}: BookDetailNavigationProps) {
   const { t } = useTranslation('book');
   const { t: tCommon } = useTranslation('common');
   const isComic = book?.type === 'Comic';
@@ -20,6 +26,9 @@ export function BookDetailNavigation({ book, palette, seriesTitle }: BookDetailN
       <Stack.Screen
         options={{
           contentStyle: { backgroundColor: palette.surface },
+          headerBackground: () => (
+            <IosTopBarBackground visible={topBarBackgroundVisible} />
+          ),
           headerStyle: { backgroundColor: 'transparent' },
           headerBackVisible: false,
           headerTintColor: palette.primary,

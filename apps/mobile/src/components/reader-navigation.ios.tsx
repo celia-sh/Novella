@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
+import { IosTopBarBackground } from '@/components/ios-top-bar-background';
 import type { ReaderNavigationProps } from '@/components/reader-navigation.types';
 
 export function ReaderNavigation({
@@ -16,13 +17,16 @@ export function ReaderNavigation({
     <>
       <Stack.Screen
         options={{
+          headerBackground: () => <IosTopBarBackground />,
+          headerBlurEffect: 'none',
+          headerShadowVisible: false,
           headerTintColor: foregroundColor,
           headerTransparent: true,
           scrollEdgeEffects: {
             bottom: 'hidden',
             left: 'hidden',
             right: 'hidden',
-            top: 'soft',
+            top: 'hidden',
           },
           title,
         }}

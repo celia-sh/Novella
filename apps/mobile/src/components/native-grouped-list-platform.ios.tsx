@@ -8,23 +8,49 @@ import {
   frame,
   listStyle,
 } from '@expo/ui/swift-ui/modifiers';
-import { isValidElement, type PropsWithChildren, type ReactNode } from 'react';
+import { Stack } from 'expo-router';
+import { isValidElement, useEffect, useState, type PropsWithChildren, type ReactNode } from 'react';
 
+import { IosTopBarBackground } from '@/components/ios-top-bar-background';
 import { NativeIcon } from '@/components/native-icon';
+import { NativeScrollEdgeMarker } from '../../modules/novella-ui/src/native-scroll-edge-marker';
 import type { NativeGroupedListProps, NativeGroupedListRowProps } from '@/components/native-grouped-list';
 import { useAppTheme } from '@/theme/app-theme';
 
-export function NativeGroupedListPlatform({ children, testID }: NativeGroupedListProps) {
+export function NativeGroupedListPlatform({
+  children,
+  largeTitle = false,
+  testID,
+}: NativeGroupedListProps) {
   const { colors } = useAppTheme();
+  const [topBarBackgroundVisible, setTopBarBackgroundVisible] = useState(!largeTitle);
+
+  useEffect(() => {
+    setTopBarBackgroundVisible(!largeTitle);
+  }, [largeTitle]);
+
   return (
-    <Host seedColor={colors.accent} style={{ flex: 1, width: '100%' }}>
-      <List
-        modifiers={[listStyle('insetGrouped')]}
-        {...(testID ? { testID } : {})}
-      >
-        {children}
-      </List>
-    </Host>
+    <>
+      <Stack.Screen
+        options={{
+          headerBackground: () => (
+            <IosTopBarBackground visible={topBarBackgroundVisible} />
+          ),
+        }}
+      />
+      <Host seedColor={colors.accent} style={{ flex: 1, width: '100%' }}>
+        <List
+          modifiers={[listStyle('insetGrouped')]}
+          {...(testID ? { testID } : {})}
+        >
+          {children}
+        </List>
+      </Host>
+      <NativeScrollEdgeMarker
+        observesTopBarOverlap={largeTitle}
+        onTopBarBackgroundVisibilityChange={setTopBarBackgroundVisible}
+      />
+    </>
   );
 }
 
