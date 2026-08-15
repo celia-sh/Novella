@@ -16,10 +16,10 @@ export function CommunityRankingsScreen() {
   const { t } = useTranslation('community');
   const home = useCachedCommunityHome();
 
-  const openThread = (item: { id: number; title: string }) => {
+  const openThread = (item: { id: number }) => {
     router.push({
       pathname: '/thread/[id]',
-      params: { id: String(item.id), initialTitle: item.title },
+      params: { id: String(item.id) },
     });
   };
 

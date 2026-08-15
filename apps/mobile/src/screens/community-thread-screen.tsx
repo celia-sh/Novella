@@ -8,6 +8,7 @@ import {
   IconRefresh,
 } from '@tabler/icons-react-native';
 import { router, Stack, useFocusEffect } from 'expo-router';
+import { ScrollViewMarker } from 'react-native-screens/experimental';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
@@ -50,12 +51,10 @@ import {
 import { createThemedStyles, resolveAccentHex, resolveOnAccentHex, useAppTheme } from '@/theme/app-theme';
 
 export function CommunityThreadScreen({
-  initialTitle,
   parentReplyId,
   replyId,
   threadId,
 }: {
-  initialTitle: string;
   parentReplyId: number | null;
   replyId: number | null;
   threadId: number;
@@ -125,7 +124,6 @@ export function CommunityThreadScreen({
     }
   }, [rows, state.highlightedReplyId]);
   const canReply = Boolean(thread && !thread.locked);
-  const title = thread?.boardName || initialTitle || t('navigation.discussion');
 
   const openReply = useCallback((reply: CommunityThreadReply | null) => {
     if (!canReply) return;
@@ -280,7 +278,7 @@ export function CommunityThreadScreen({
               key={item.id}
               onPress={() => router.replace({
                 pathname: '/thread/[id]',
-                params: { id: String(item.id), initialTitle: item.title },
+                params: { id: String(item.id) },
               })}
             />
           ))}
@@ -292,14 +290,17 @@ export function CommunityThreadScreen({
   return (
     <PaperProvider theme={paperTheme}>
       <>
-        <Stack.Screen options={{ title }} />
+        <Stack.Screen options={{ title: '' }} />
         <NativeScreenScaffold
           largeTitle={false}
           onBackPress={() => router.back()}
           showBackButton
-          title={title}
+          title=""
         >
-          <View style={styles.root}>
+          <ScrollViewMarker
+            scrollEdgeEffects={{ top: 'hidden' }}
+            style={styles.root}
+          >
             <FlatList
               ListEmptyComponent={
                 state.loading ? (
@@ -352,7 +353,7 @@ export function CommunityThreadScreen({
               updateCellsBatchingPeriod={32}
               windowSize={7}
             />
-          </View>
+          </ScrollViewMarker>
         </NativeScreenScaffold>
       </>
     </PaperProvider>

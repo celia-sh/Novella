@@ -165,7 +165,7 @@ function MyThreadCard({ thread }: { thread: CommunityFeedItem }) {
       onPress={() =>
         router.push({
           pathname: "/thread/[id]",
-          params: { id: String(thread.id), initialTitle: thread.title },
+          params: { id: String(thread.id) },
         })
       }
     />
@@ -188,7 +188,6 @@ function MyReplyCard({ reply }: { reply: CommunityMyReplyItem }) {
           pathname: "/thread/[id]",
           params: {
             id: String(reply.threadId),
-            initialTitle: reply.threadTitle,
             replyId: String(reply.id),
           },
         })

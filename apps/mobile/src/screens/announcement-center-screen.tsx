@@ -197,7 +197,6 @@ function AnnouncementCard({ item }: { item: AnnouncementListEntry }) {
         pathname: '/announcement/[source]/[id]',
         params: {
           id: item.id,
-          initialTitle: item.title,
           source: item.source,
         },
       })}

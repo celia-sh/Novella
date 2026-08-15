@@ -53,7 +53,6 @@ export function CommunityNotificationsScreen() {
         // Notifications open the discussion itself, not a specific reply.
         params: {
           id: String(target.id),
-          initialTitle: item.extra.objectTitle,
         },
       });
       return;

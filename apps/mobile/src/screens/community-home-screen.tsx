@@ -86,10 +86,10 @@ export function CommunityHomeScreen() {
   const paperTheme = colorScheme === 'dark' ? MD3DarkTheme : MD3LightTheme;
   const { loadMore, refresh, retry, state, updateQuery } = useCommunityHome();
 
-  const openThread = useCallback((item: { id: number; title: string }) => {
+  const openThread = useCallback((item: { id: number }) => {
     router.push({
       pathname: '/thread/[id]',
-      params: { id: String(item.id), initialTitle: item.title },
+      params: { id: String(item.id) },
     });
   }, []);
 

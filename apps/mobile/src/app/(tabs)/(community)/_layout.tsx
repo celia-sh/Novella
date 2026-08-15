@@ -18,7 +18,7 @@ export default function CommunityStackLayout() {
           title: t('navigation.community'),
         }}
       />
-      <Stack.Screen name="thread/[id]" options={{ headerLargeTitle: false, headerShown: !isAndroid, title: t('navigation.discussion') }} />
+      <Stack.Screen name="thread/[id]" options={{ headerLargeTitle: false, headerShown: !isAndroid, title: '' }} />
       <Stack.Screen
         name="thread/[id]/reply"
         options={{

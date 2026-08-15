@@ -4,6 +4,7 @@ import {
   IconRefresh,
 } from '@tabler/icons-react-native';
 import { router, Stack, useFocusEffect } from 'expo-router';
+import { ScrollViewMarker } from 'react-native-screens/experimental';
 import { Card, Skeleton } from 'heroui-native';
 import { marked } from 'marked';
 import { memo, useCallback, useMemo, useRef } from 'react';
@@ -39,42 +40,25 @@ import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 export function AnnouncementDetailScreen({
   id,
-  initialTitle,
   source,
 }: {
   id: string;
-  initialTitle?: string;
   source: string;
 }) {
   if (source === 'app' && id.trim()) {
-    return (
-      <AppAnnouncementDetail
-        id={id}
-        {...(initialTitle === undefined ? {} : { initialTitle })}
-      />
-    );
+    return <AppAnnouncementDetail id={id} />;
   }
   const serverId = Number(id);
   if (source === 'server' && Number.isSafeInteger(serverId) && serverId > 0) {
-    return (
-      <SiteAnnouncementDetail
-        id={id}
-        {...(initialTitle === undefined ? {} : { initialTitle })}
-      />
-    );
+    return <SiteAnnouncementDetail id={id} />;
   }
-  return (
-    <InvalidAnnouncementDetail
-      {...(initialTitle === undefined ? {} : { initialTitle })}
-    />
-  );
+  return <InvalidAnnouncementDetail />;
 }
 
-function AppAnnouncementDetail({ id, initialTitle }: { id: string; initialTitle?: string }) {
+function AppAnnouncementDetail({ id }: { id: string }) {
   const styles = useAnnouncementDetailStyles();
   const { t } = useTranslation('community');
   const { retry, state } = useAnnouncementDetail('app', id);
-  const title = state.data?.title ?? initialTitle ?? t('announcements.detailTitle');
   const html = useMemo(
     () => state.data?.source === 'app'
       ? marked.parse(state.data.markdown, { async: false }) as string
@@ -87,63 +71,11 @@ function AppAnnouncementDetail({ id, initialTitle }: { id: string; initialTitle?
       largeTitle={false}
       onBackPress={() => router.back()}
       showBackButton
-      title={title}
+      title=""
     >
       <>
-      <Stack.Screen options={{ title }} />
-      <ScrollView
-        contentContainerStyle={styles.detailContent}
-        contentInsetAdjustmentBehavior="automatic"
-        nestedScrollEnabled={process.env.EXPO_OS === 'android'}
-        showsVerticalScrollIndicator={false}
-        style={styles.root}
-      >
-        {state.status === 'loading' ? (
-          <AnnouncementDetailSkeleton />
-        ) : state.status === 'error' ? (
-          <DetailError message={state.error} onRetry={retry} />
-        ) : state.data.source !== 'app' ? (
-          <DetailError message={t('announcements.errors.invalid')} onRetry={retry} />
-        ) : (
-          <AnnouncementArticle
-            html={html}
-            publishedAt={state.data.publishedAt}
-            showHeader={false}
-            source="app"
-            title={state.data.title}
-          />
-        )}
-      </ScrollView>
-      </>
-    </NativeScreenScaffold>
-  );
-}
-
-function SiteAnnouncementDetail({
-  id,
-  initialTitle,
-}: {
-  id: string;
-  initialTitle?: string;
-}) {
-  const styles = useAnnouncementDetailStyles();
-  const { t } = useTranslation('community');
-  const { retry, state } = useAnnouncementDetail('server', id);
-  const title = state.data?.title ?? initialTitle ?? t('announcements.detailTitle');
-
-  if (state.status === 'ready' && state.data.source === 'server') {
-    return <SiteAnnouncementContent detail={state.data} />;
-  }
-
-  return (
-    <NativeScreenScaffold
-      largeTitle={false}
-      onBackPress={() => router.back()}
-      showBackButton
-      title={title}
-    >
-      <>
-        <Stack.Screen options={{ title }} />
+      <Stack.Screen options={{ title: '' }} />
+      <ScrollViewMarker scrollEdgeEffects={{ top: 'hidden' }} style={styles.root}>
         <ScrollView
           contentContainerStyle={styles.detailContent}
           contentInsetAdjustmentBehavior="automatic"
@@ -153,31 +85,118 @@ function SiteAnnouncementDetail({
         >
           {state.status === 'loading' ? (
             <AnnouncementDetailSkeleton />
+          ) : state.status === 'error' ? (
+            <DetailError message={state.error} onRetry={retry} />
+          ) : state.data.source !== 'app' ? (
+            <DetailError message={t('announcements.errors.invalid')} onRetry={retry} />
           ) : (
-            <DetailError
-              message={state.error ?? t('announcements.errors.invalid')}
-              onRetry={retry}
+            <AnnouncementArticle
+              html={html}
+              publishedAt={state.data.publishedAt}
+              source="app"
+              title={state.data.title}
             />
           )}
         </ScrollView>
+      </ScrollViewMarker>
       </>
     </NativeScreenScaffold>
   );
 }
 
-function InvalidAnnouncementDetail({ initialTitle }: { initialTitle?: string }) {
+function SiteAnnouncementDetail({ id }: { id: string }) {
   const styles = useAnnouncementDetailStyles();
   const { t } = useTranslation('community');
-  const title = initialTitle ?? t('announcements.detailTitle');
+  const { retry, state } = useAnnouncementDetail('server', id);
+  const detail = state.status === 'ready' && state.data.source === 'server'
+    ? state.data
+    : null;
+  const serverId = Number(id);
+  const openComposer = useCallback((target?: CommentReplyTarget) => {
+    router.push({
+      pathname: '/announcement/comment-compose',
+      params: {
+        id: String(serverId),
+        ...(target
+          ? {
+              parentId: String(target.parentId),
+              ...(target.replyId === undefined ? {} : { replyId: String(target.replyId) }),
+              userName: target.userName,
+            }
+          : {}),
+      },
+    });
+  }, [serverId]);
+
+  return (
+    <NativeScreenScaffold
+      {...(detail
+        ? {
+            actions: [{
+              accessibilityLabel: t('accessibility.writeComment'),
+              icon: 'pencil' as const,
+              id: 'compose',
+            }],
+            onActionPress: (actionId: string) => {
+              if (actionId === 'compose') openComposer();
+            },
+          }
+        : {})}
+      largeTitle={false}
+      onBackPress={() => router.back()}
+      showBackButton
+      title=""
+    >
+      <>
+        <Stack.Screen options={{ title: '' }} />
+        {detail && process.env.EXPO_OS === 'ios' ? (
+          <Stack.Toolbar placement="right">
+            <Stack.Toolbar.Button
+              accessibilityLabel={t('accessibility.writeComment')}
+              icon="square.and.pencil"
+              onPress={() => openComposer()}
+            />
+          </Stack.Toolbar>
+        ) : null}
+        {detail ? (
+          <SiteAnnouncementContent detail={detail} onOpenComposer={openComposer} />
+        ) : (
+          <ScrollViewMarker scrollEdgeEffects={{ top: 'hidden' }} style={styles.root}>
+            <ScrollView
+              contentContainerStyle={styles.detailContent}
+              contentInsetAdjustmentBehavior="automatic"
+              nestedScrollEnabled={process.env.EXPO_OS === 'android'}
+              showsVerticalScrollIndicator={false}
+              style={styles.root}
+            >
+              {state.status === 'loading' ? (
+                <AnnouncementDetailSkeleton />
+              ) : (
+                <DetailError
+                  message={state.error ?? t('announcements.errors.invalid')}
+                  onRetry={retry}
+                />
+              )}
+            </ScrollView>
+          </ScrollViewMarker>
+        )}
+      </>
+    </NativeScreenScaffold>
+  );
+}
+
+function InvalidAnnouncementDetail() {
+  const styles = useAnnouncementDetailStyles();
+  const { t } = useTranslation('community');
   return (
     <NativeScreenScaffold
       largeTitle={false}
       onBackPress={() => router.back()}
       showBackButton
-      title={title}
+      title=""
     >
       <>
-        <Stack.Screen options={{ title }} />
+        <Stack.Screen options={{ title: '' }} />
         <View style={styles.invalidDetail}>
           <DetailError message={t('announcements.errors.invalid')} />
         </View>
@@ -186,7 +205,13 @@ function InvalidAnnouncementDetail({ initialTitle }: { initialTitle?: string }) 
   );
 }
 
-function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
+function SiteAnnouncementContent({
+  detail,
+  onOpenComposer,
+}: {
+  detail: AnnouncementDetail;
+  onOpenComposer: (target?: CommentReplyTarget) => void;
+}) {
   const serverId = detail.id;
   const styles = useAnnouncementDetailStyles();
   const { colors } = useAppTheme();
@@ -204,7 +229,6 @@ function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
   } = useComments({ type: 'Announcement', id: serverId });
   const hasFocused = useRef(false);
   const rows = useMemo(() => flattenCommentRows(page?.items ?? []), [page?.items]);
-  const title = detail.title;
 
   useFocusEffect(
     useCallback(() => {
@@ -218,22 +242,6 @@ function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
       hasFocused.current = true;
     }, [refreshComments, serverId]),
   );
-
-  const openComposer = useCallback((target?: CommentReplyTarget) => {
-    router.push({
-      pathname: '/announcement/comment-compose',
-      params: {
-        id: String(serverId),
-        ...(target
-          ? {
-              parentId: String(target.parentId),
-              ...(target.replyId === undefined ? {} : { replyId: String(target.replyId) }),
-              userName: target.userName,
-            }
-          : {}),
-      },
-    });
-  }, [serverId]);
 
   const confirmDelete = useCallback((commentId: number) => {
     showAlert(t('comments.deleteTitle'), t('comments.deleteMessage'), [
@@ -250,40 +258,16 @@ function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
     ({ item }: { item: CommentListRow }) => (
       <CommentThreadListItem
         onDelete={confirmDelete}
-        onReply={openComposer}
+        onReply={onOpenComposer}
         palette={commentPalette}
         row={item}
       />
     ),
-    [commentPalette, confirmDelete, openComposer],
+    [commentPalette, confirmDelete, onOpenComposer],
   );
 
   return (
-    <NativeScreenScaffold
-      actions={[{
-        accessibilityLabel: t('accessibility.writeComment'),
-        icon: 'pencil',
-        id: 'compose',
-      }]}
-      largeTitle={false}
-      onActionPress={(actionId) => {
-        if (actionId === 'compose') openComposer();
-      }}
-      onBackPress={() => router.back()}
-      showBackButton
-      title={title}
-    >
-      <>
-      <Stack.Screen options={{ title }} />
-      {process.env.EXPO_OS === 'ios' ? (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Button
-            accessibilityLabel={t('accessibility.writeComment')}
-            icon="square.and.pencil"
-            onPress={() => openComposer()}
-          />
-        </Stack.Toolbar>
-      ) : null}
+    <ScrollViewMarker scrollEdgeEffects={{ top: 'hidden' }} style={styles.root}>
       <FlatList
         contentContainerStyle={styles.commentsContent}
         contentInsetAdjustmentBehavior="automatic"
@@ -324,8 +308,7 @@ function SiteAnnouncementContent({ detail }: { detail: AnnouncementDetail }) {
         windowSize={7}
         style={styles.root}
       />
-      </>
-    </NativeScreenScaffold>
+    </ScrollViewMarker>
   );
 }
 

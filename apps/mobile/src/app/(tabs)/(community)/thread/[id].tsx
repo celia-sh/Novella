@@ -5,18 +5,15 @@ import { CommunityThreadScreen } from '@/screens/community-thread-screen';
 export default function CommunityThreadRoute() {
   const params = useLocalSearchParams<{
     id?: string | string[];
-    initialTitle?: string | string[];
     parentReplyId?: string | string[];
     replyId?: string | string[];
   }>();
   const threadId = parsePositiveInteger(params.id);
   const parentReplyId = parsePositiveInteger(params.parentReplyId);
   const replyId = parsePositiveInteger(params.replyId);
-  const initialTitle = firstParam(params.initialTitle) ?? '';
 
   return (
     <CommunityThreadScreen
-      initialTitle={initialTitle}
       parentReplyId={parentReplyId || null}
       replyId={replyId || null}
       threadId={threadId}

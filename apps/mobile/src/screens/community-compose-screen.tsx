@@ -135,7 +135,7 @@ export function CommunityComposeScreen({
       });
       router.replace({
         pathname: '/thread/[id]',
-        params: { id: String(thread.id), initialTitle: thread.title },
+        params: { id: String(thread.id) },
       });
     } catch (publishError) {
       showAlert(
