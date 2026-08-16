@@ -41,6 +41,10 @@ public final class NovellaUiModule: Module {
       }
     }
 
+    View(NovellaLightAppearanceScopeView.self) {
+      ViewName("LightAppearanceScope")
+    }
+
     View(NovellaScrollEdgeMarkerView.self) {
       ViewName("ScrollEdgeMarker")
 

@@ -108,6 +108,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     icon: './assets/Novella.icon',
     infoPlist: {
       CFBundleAllowMixedLocalizations: true,
+      // Expo StatusBar owns app-wide and route-local icon contrast.
+      UIViewControllerBasedStatusBarAppearance: false,
     },
   },
   android: {

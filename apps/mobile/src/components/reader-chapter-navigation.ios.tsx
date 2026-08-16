@@ -13,7 +13,6 @@ import { createThemedStyles } from '@/theme/app-theme';
 const IOS_BOTTOM_TOOLBAR_HEIGHT = 44;
 
 export function ReaderChapterNavigation({
-  blurAppearance,
   bottomInset,
   current,
   direction = 'ltr',
@@ -37,7 +36,6 @@ export function ReaderChapterNavigation({
   return (
     <>
       <IosProgressiveBlur
-        {...(blurAppearance ? { appearance: blurAppearance } : {})}
         direction="bottom"
         style={[styles.progressiveBackground, { height: backgroundHeight }]}
       />

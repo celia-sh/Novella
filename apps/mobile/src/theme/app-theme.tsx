@@ -26,10 +26,19 @@ interface AppThemeContextValue {
 
 const AppThemeContext = createContext<AppThemeContextValue | null>(null);
 
-export function AppThemeProvider({ children }: PropsWithChildren) {
+export interface AppThemeProviderProps extends PropsWithChildren {
+  colorSchemeOverride?: AppColorScheme;
+  syncGlobalStyleTokens?: boolean;
+}
+
+export function AppThemeProvider({
+  children,
+  colorSchemeOverride,
+  syncGlobalStyleTokens = true,
+}: AppThemeProviderProps) {
   const settings = useAppSettings();
   const systemColorScheme = useColorScheme();
-  const colorScheme = resolveAppColorScheme(settings.theme, systemColorScheme);
+  const colorScheme = colorSchemeOverride ?? resolveAppColorScheme(settings.theme, systemColorScheme);
   const isOledDark = process.env.EXPO_OS === 'android'
     && colorScheme === 'dark'
     && settings.oledBlack;
@@ -41,18 +50,20 @@ export function AppThemeProvider({ children }: PropsWithChildren) {
   });
 
   useLayoutEffect(() => {
+    if (!syncGlobalStyleTokens) return;
     Uniwind.setTheme(settings.theme);
-  }, [settings.theme]);
+  }, [settings.theme, syncGlobalStyleTokens]);
 
   // HeroUI Native derives component states from these semantic roots. Keep
   // them aligned with the same iOS semantic / Android Material palette used
   // by RN screens and native chrome instead of overriding tokens per page.
   useLayoutEffect(() => {
+    if (!syncGlobalStyleTokens) return;
     Uniwind.updateCSSVariables(
       colorScheme === 'dark' ? 'dark' : 'light',
       createHeroUIThemeVariables(colors, colorScheme),
     );
-  }, [colorScheme, colors]);
+  }, [colorScheme, colors, syncGlobalStyleTokens]);
 
   const value = useMemo<AppThemeContextValue>(
     () => ({ colorScheme, colors, isOledDark }),

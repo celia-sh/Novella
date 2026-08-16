@@ -37,3 +37,8 @@ export {
   NativeBottomSheet,
   type NativeBottomSheetProps,
 } from './src/native-bottom-sheet';
+
+export {
+  NativeLightAppearanceScope,
+  type NativeLightAppearanceScopeProps,
+} from './src/native-light-appearance-scope';

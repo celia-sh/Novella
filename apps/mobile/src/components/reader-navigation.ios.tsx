@@ -5,7 +5,7 @@ import { IosTopBarBackground } from '@/components/ios-top-bar-background';
 import type { ReaderNavigationProps } from '@/components/reader-navigation.types';
 
 export function ReaderNavigation({
-  blurAppearance,
+  forceLightAppearance,
   foregroundColor,
   mode,
   onModeChange,
@@ -23,6 +23,13 @@ export function ReaderNavigation({
           headerShadowVisible: false,
           headerTintColor: foregroundColor,
           headerTransparent: true,
+          ...(forceLightAppearance
+            ? {
+                unstable_nativeProps: {
+                  headerConfig: { experimental_userInterfaceStyle: 'light' },
+                },
+              }
+            : {}),
           scrollEdgeEffects: {
             bottom: 'hidden',
             left: 'hidden',
@@ -32,9 +39,7 @@ export function ReaderNavigation({
           title,
         }}
       />
-      <IosTopBarBackground
-        {...(blurAppearance ? { blurConfig: { appearance: blurAppearance } } : {})}
-      />
+      <IosTopBarBackground />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel={t('accessibility.chapterList')}
