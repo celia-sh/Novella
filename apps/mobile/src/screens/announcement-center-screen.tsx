@@ -27,6 +27,7 @@ import { formatDate } from '@/localization/formatters';
 import { useAppLocale } from '@/localization/localization-provider';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
+const ANNOUNCEMENT_CARD_HEIGHT = 122;
 const SKELETON_ROWS = [0, 1, 2, 3, 4];
 
 export function AnnouncementCenterScreen() {
@@ -59,7 +60,7 @@ export function AnnouncementCenterScreen() {
       <FlatList
         contentContainerStyle={[
           styles.content,
-          items.length === 0 && styles.emptyContent,
+          items.length === 0 && !loading && styles.emptyContent,
         ]}
         contentInsetAdjustmentBehavior="automatic"
         data={items}
@@ -216,7 +217,7 @@ function AnnouncementCard({ item }: { item: AnnouncementListEntry }) {
             </View>
             <IconChevronRight color={colors.secondaryLabel as string} size={20} />
           </View>
-          <Text style={styles.metaText}>
+          <Text numberOfLines={1} style={styles.metaText}>
             {t('announcements.sourceMeta', { date, source: sourceLabel })}
           </Text>
         </Card.Body>
@@ -244,7 +245,9 @@ function AnnouncementListSkeleton({ rows = 5 }: { rows?: number }) {
                 <Skeleton style={[styles.skeletonLine, { backgroundColor: colors.card }]} />
                 <Skeleton style={[styles.skeletonShort, { backgroundColor: colors.card }]} />
               </View>
+              <Skeleton style={[styles.skeletonChevron, { backgroundColor: colors.card }]} />
             </View>
+            <Skeleton style={[styles.skeletonMeta, { backgroundColor: colors.card }]} />
           </Card.Body>
         </Card>
       ))}
@@ -311,8 +314,18 @@ function AnnouncementState({
 }
 
 const useAnnouncementCenterStyles = createThemedStyles((colors) => ({
-  card: { borderCurve: 'continuous', borderRadius: 20, overflow: 'hidden' },
-  cardBody: { gap: 12, padding: 14 },
+  card: {
+    borderCurve: 'continuous',
+    borderRadius: 20,
+    height: ANNOUNCEMENT_CARD_HEIGHT,
+    overflow: 'hidden',
+  },
+  cardBody: {
+    flex: 1,
+    gap: 12,
+    justifyContent: 'center',
+    padding: 14,
+  },
   cardCopy: { flex: 1, gap: 5 },
   cardTitle: { color: colors.label, fontSize: 16, fontWeight: '700', lineHeight: 21 },
   cardTopRow: { alignItems: 'center', flexDirection: 'row', gap: 12 },
@@ -333,8 +346,10 @@ const useAnnouncementCenterStyles = createThemedStyles((colors) => ({
   retryAction: { alignItems: 'center', flexDirection: 'row', gap: 4, paddingVertical: 4 },
   retryText: { color: colors.accent, fontSize: 13, fontWeight: '700' },
   root: { flex: 1 },
+  skeletonChevron: { borderRadius: 6, height: 20, width: 20 },
   skeletonIcon: { borderRadius: 13, height: 42, width: 42 },
   skeletonLine: { borderRadius: 6, height: 12, width: '100%' },
+  skeletonMeta: { borderRadius: 6, height: 12, marginLeft: 54, width: '44%' },
   skeletonShort: { borderRadius: 6, height: 12, width: '72%' },
   skeletonStack: { gap: 10 },
   skeletonTitle: { borderRadius: 6, height: 16, width: '58%' },

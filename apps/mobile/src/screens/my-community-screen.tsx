@@ -4,6 +4,7 @@ import { Card, Chip } from "react-native-paper";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -21,7 +22,6 @@ import {
   CommunityErrorState,
   CommunityPaperProvider,
   CommunityThreadCard,
-  CommunityThreadSkeleton,
 } from "@/components/community/community-ui";
 import { NativeScreenScaffold } from "@/components/native-screen-scaffold";
 import {
@@ -108,10 +108,8 @@ export function MyCommunityScreen() {
           </View>
 
           {loading && !overview ? (
-            <View style={styles.list}>
-              <CommunityThreadSkeleton />
-              <CommunityThreadSkeleton />
-              <CommunityThreadSkeleton />
+            <View style={styles.loadingState}>
+              <ActivityIndicator color={colors.accent as string} size="large" />
             </View>
           ) : localizedError && !overview ? (
             <CommunityErrorState
@@ -242,6 +240,7 @@ const useMyCommunityStyles = createThemedStyles((colors) => ({
   },
   content: { gap: 16, paddingBottom: 44, paddingHorizontal: 12, paddingTop: 8 },
   list: { gap: 12 },
+  loadingState: { alignItems: "center", justifyContent: "center", minHeight: 240 },
   metricIcon: { color: colors.secondaryLabel },
   metricLabel: { color: colors.secondaryLabel, fontSize: 12 },
   pressed: { opacity: 0.68 },

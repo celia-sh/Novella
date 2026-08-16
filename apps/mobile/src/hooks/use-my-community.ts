@@ -32,8 +32,8 @@ export function useMyCommunity() {
   }, []);
 
   useFocusEffect(useCallback(() => {
-    // Keep focus reconciliation silent. Only the first load owns the skeleton;
-    // an explicit pull is the only path that drives RefreshControl.
+    // Keep focus reconciliation silent. Only the first load owns the loading
+    // indicator; an explicit pull is the only path that drives RefreshControl.
     void load(hasLoadedRef.current ? 'silent' : 'initial');
   }, [load]));
 
