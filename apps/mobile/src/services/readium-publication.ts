@@ -210,6 +210,7 @@ function buildReadiumPublicationStylesheet(fontRequired: boolean): string {
     '.nv-inline-footnote-content>ol,.nv-inline-footnote-content>ul{margin:0;padding:0;list-style:none;}',
     '.nv-inline-footnote-content p,.nv-inline-footnote-content li{margin:0;}',
     '.nv-inline-footnote-label{flex:none;font-weight:600;}',
+    '.nv-inline-footnote-marker{font-size:.75em;font-weight:600;line-height:0;vertical-align:super;}',
     'img{max-width:100%;height:auto;}',
     'ruby rt{font-size:.5em;}',
   ].join('');
@@ -229,27 +230,38 @@ function inlineFootnotesAfterBlock(
   footnotes: Readonly<Record<string, string>>,
 ): string {
   const noteIds: string[] = [];
+  const markerPattern = /<a\b[^>]*\bdata-reader-footnote-id=(?:"([^"]+)"|'([^']+)')[^>]*>[\s\S]*?<\/a\s*>/giu;
   const withoutMarkers = html.replace(
-    /<a\b[^>]*\bdata-reader-footnote-id=(?:"([^"]+)"|'([^']+)')[^>]*>[\s\S]*?<\/a\s*>/giu,
-    (_match, doubleId: string | undefined, singleId: string | undefined) => {
+    markerPattern,
+    (match, doubleId: string | undefined, singleId: string | undefined) => {
       const id = doubleId ?? singleId;
-      if (id && footnotes[id] !== undefined && !noteIds.includes(id)) noteIds.push(id);
+      if (!id || footnotes[id] === undefined) return match;
+      if (!noteIds.includes(id)) noteIds.push(id);
       return '';
     },
   );
   const visibleText = DomUtils.textContent(
     parseDOM(withoutMarkers, { decodeEntities: true }),
   ).trim();
-  const blockWithoutMarker = noteIds.length > 0 && /^[\s:：;；,，.。·•—–-]*$/u.test(visibleText)
+  const isMarkerOnlyBlock = noteIds.length > 0 && /^[\s:：;；,，.。·•—–-]*$/u.test(visibleText);
+  const blockWithMarkers = isMarkerOnlyBlock
     ? ''
-    : withoutMarkers;
+    : html.replace(
+      /<a\b[^>]*\bdata-reader-footnote-id=(?:"([^"]+)"|'([^']+)')[^>]*>[\s\S]*?<\/a\s*>/giu,
+      (match, doubleId: string | undefined, singleId: string | undefined) => {
+        const id = doubleId ?? singleId;
+        return id && footnotes[id] !== undefined
+          ? '<span class="nv-inline-footnote-marker">*</span>'
+          : match;
+      },
+    );
   const inlineNotes = noteIds.map((id) => (
     `<aside class="nv-inline-footnote" data-footnote-id="${escapeXml(id)}">` +
       '<span class="nv-inline-footnote-label">*</span>' +
       `<div class="nv-inline-footnote-content">${footnotes[id] ?? ''}</div>` +
     '</aside>'
   )).join('');
-  return `${blockWithoutMarker}${inlineNotes}`;
+  return `${blockWithMarkers}${inlineNotes}`;
 }
 
 function buildImagePreviewScript(): string {

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { normalizeNovelBlocks, processNovelFootnotes } from '@novella/reader-engine';
+
 import { createReadiumReaderPreferences, opaqueCssColor } from './readium-preferences.ts';
 import {
   buildReadiumChapterDocument,
@@ -120,6 +122,34 @@ test('chapter HTML is normalized with inline footnotes', () => {
   assert.ok(scriptIndex > 0 && scriptIndex < headEndIndex);
   assert.ok(headEndIndex < bodyStartIndex);
   assert.doesNotMatch(html.slice(bodyStartIndex), /<script\b/);
+});
+
+test('non-anchor Web-Master notes replace marker images and render after their paragraph', () => {
+  const processed = processNovelFootnotes(
+    '<p>正文<sup class="duokan-footnote" href="#n2"><img class="footnote" src="marker.png"></sup>段末。</p>' +
+      '<ol id="n2"><li>注释：原文 QOL</li></ol>' +
+      '<p>下一段。</p>' +
+      '<div><img class="illustration" src="ordinary.png" alt="ordinary"></div>',
+    { markerContent: 'placeholder' },
+  );
+  const html = buildReadiumChapterDocument({
+    blocks: normalizeNovelBlocks(processed.html, undefined, { sanitize: false }),
+    chapterId: 101,
+    footnotes: processed.notesById,
+    imageBaseUrl: 'https://example.test',
+    title: 'First',
+    useBookFont: false,
+  });
+
+  const paragraphIndex = html.indexOf('id="nv-block-0"');
+  const noteIndex = html.indexOf('<aside class="nv-inline-footnote"');
+  const nextParagraphIndex = html.indexOf('id="nv-block-1"');
+  assert.ok(paragraphIndex >= 0 && paragraphIndex < noteIndex && noteIndex < nextParagraphIndex);
+  assert.match(html, /id="nv-block-0">[\s\S]*?<span class="nv-inline-footnote-marker">\*<\/span>/);
+  assert.match(html, /<span class="nv-inline-footnote-label">\*<\/span>/);
+  assert.match(html, /<div class="nv-inline-footnote-content"><li>[^<]*QOL<\/li><\/div>/);
+  assert.match(html, /<img class="illustration" src="https:\/\/example\.test\/ordinary\.png" alt="ordinary"\/>/);
+  assert.doesNotMatch(html, /marker\.png|duokan-footnote|<ol id="n2"/);
 });
 
 test('readiness gates target chapter and required font but not future chapters or images', () => {

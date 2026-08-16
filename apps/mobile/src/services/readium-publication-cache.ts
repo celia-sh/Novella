@@ -104,7 +104,7 @@ export function materializeReadiumChapter(
   useBookFont = Boolean(chapter.fontUrl?.trim()),
 ): NovelFootnoteProcessingResult {
   const footnotes = processNovelFootnotes(chapter.content, {
-    markerContent: 'empty',
+    markerContent: 'placeholder',
   });
   const blocks = normalizeNovelBlocks(footnotes.html, undefined, { sanitize: false });
   const document = buildReadiumChapterDocument({

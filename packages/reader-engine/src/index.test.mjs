@@ -126,6 +126,45 @@ test('can remove source footnote marker content for inline notes', () => {
   assert.doesNotMatch(result.html, /marker\.png|>\*<\/a>|<ol/);
 });
 
+test('extracts Web-Master footnote class markers regardless of their element tag', () => {
+  const result = processNovelFootnotes(
+    '<p>正文<sup class="note duokan-footnote" href="#note-2"><img class="footnote" src="bad-marker.png"></sup>段末。</p>' +
+      '<ul id="note-2"><li>注释：原文 QOL</li></ul>' +
+      '<p><img class="illustration" src="ordinary.png" alt="ordinary"></p>',
+  );
+
+  assert.equal(result.notesById['note-2'], '<li>注释：原文 QOL</li>');
+  assert.match(result.html, /正文<a data-reader-footnote-id="note-2">\*<\/a>段末。/);
+  assert.doesNotMatch(result.html, /bad-marker\.png|<ul id="note-2"/);
+  assert.match(result.html, /<img class="illustration" src="ordinary\.png" alt="ordinary">/);
+});
+
+test('replaces a void image footnote marker without touching ordinary images', () => {
+  const result = processNovelFootnotes(
+    '<p>正文<img class="footnote duokan-footnote" href="#note-3" src="bad-marker.png">。</p>' +
+      '<ol id="note-3"><li>注释内容</li></ol>' +
+      '<img class="footnote" src="unlinked.png">',
+    { markerContent: 'empty' },
+  );
+
+  assert.equal(result.notesById['note-3'], '<li>注释内容</li>');
+  assert.match(result.html, /正文<a data-reader-footnote-id="note-3"><\/a>。/);
+  assert.doesNotMatch(result.html, /bad-marker\.png|<ol id="note-3"/);
+  assert.match(result.html, /<img class="footnote" src="unlinked\.png">/);
+});
+
+test('recognizes the legacy note image shape without a footnote class', () => {
+  const result = processNovelFootnotes(
+    '<p>正文<a href="#note-4"><sup><img src="/img/note.png" class=""></sup></a>段末。</p>' +
+      '<ol id="note-4"><li>注释内容</li></ol>',
+    { markerContent: 'empty' },
+  );
+
+  assert.equal(result.notesById['note-4'], '<li>注释内容</li>');
+  assert.match(result.html, /正文<a data-reader-footnote-id="note-4"><\/a>段末。/);
+  assert.doesNotMatch(result.html, /note\.png|<ol id="note-4"/);
+});
+
 test('restores an inline Web XPath to its nearest reader block ancestor', () => {
   const blocks = normalizeNovelBlocks(
     '<div><p>第一段</p><p><span>第二段</span></p><p>第三段</p></div>',
