@@ -10,7 +10,7 @@ export function ReaderSettingsSheetScreen() {
 
   return (
     <NativeRouteBottomSheet bookId={bookId} snapPoints={['50%', '100%']}>
-      <NativeGroupedListPlatform>
+      <NativeGroupedListPlatform ownsTopBarBackground={false}>
         <ReaderSettingsContent />
       </NativeGroupedListPlatform>
     </NativeRouteBottomSheet>

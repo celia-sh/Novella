@@ -23,6 +23,7 @@ const hiddenTopScrollEdgeEffect = createModifier('novellaHiddenTopScrollEdgeEffe
 export function NativeGroupedListPlatform({
   children,
   largeTitle = false,
+  ownsTopBarBackground = true,
   testID,
 }: NativeGroupedListProps) {
   const { colors } = useAppTheme();
@@ -37,17 +38,24 @@ export function NativeGroupedListPlatform({
       <Stack.Screen options={{ headerBackground: () => null }} />
       <Host seedColor={colors.accent} style={{ flex: 1, width: '100%' }}>
         <List
-          modifiers={[listStyle('insetGrouped'), hiddenTopScrollEdgeEffect]}
+          modifiers={[
+            listStyle('insetGrouped'),
+            ...(ownsTopBarBackground ? [hiddenTopScrollEdgeEffect] : []),
+          ]}
           {...(testID ? { testID } : {})}
         >
           {children}
         </List>
       </Host>
-      <IosTopBarBackground visible={topBarBackgroundVisible} />
-      <NativeScrollEdgeMarker
-        observesTopBarOverlap={largeTitle}
-        onTopBarBackgroundVisibilityChange={setTopBarBackgroundVisible}
-      />
+      {ownsTopBarBackground ? (
+        <>
+          <IosTopBarBackground visible={topBarBackgroundVisible} />
+          <NativeScrollEdgeMarker
+            observesTopBarOverlap={largeTitle}
+            onTopBarBackgroundVisibilityChange={setTopBarBackgroundVisible}
+          />
+        </>
+      ) : null}
     </>
   );
 }

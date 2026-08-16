@@ -15,6 +15,7 @@ export interface NativeGroupedListProps extends PropsWithChildren {
   iconSet?: NativeIconSet;
   largeTitle?: boolean;
   onBackPress?: () => void;
+  ownsTopBarBackground?: boolean;
   showBackButton?: boolean;
   testID?: string;
   title?: string;
@@ -25,6 +26,7 @@ export function NativeGroupedList({
   iconSet = 'tabler',
   largeTitle,
   onBackPress,
+  ownsTopBarBackground,
   showBackButton,
   testID,
   title,
@@ -34,6 +36,7 @@ export function NativeGroupedList({
       <NativeGroupedListPlatform
         {...(largeTitle === undefined ? {} : { largeTitle })}
         {...(onBackPress ? { onBackPress } : {})}
+        {...(ownsTopBarBackground === undefined ? {} : { ownsTopBarBackground })}
         {...(showBackButton === undefined ? {} : { showBackButton })}
         {...(testID ? { testID } : {})}
         {...(title ? { title } : {})}
