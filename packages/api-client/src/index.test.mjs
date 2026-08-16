@@ -276,6 +276,70 @@ test('maps novel and comic search to their Web-Master Hub contracts', async () =
   ]);
 });
 
+test('maps comic comments to the official Web series Hub contract', async () => {
+  const calls = [];
+  const client = new ApiClient(
+    { async request() { throw new Error('not used'); } },
+    {
+      async connect() {},
+      async close() {},
+      async invoke(method, args) {
+        calls.push({ method, args });
+        return {
+          Success: true,
+          Response: method === 'GetComments'
+            ? { Page: 1, TotalPages: 0, Users: {}, Commentaries: {}, Data: [] }
+            : null,
+        };
+      },
+    },
+    null,
+    new RateLimitRequestScheduler(20, 10),
+  );
+  const target = { type: 'Series', id: 0, seriesTitle: 'Comic series' };
+
+  await client.getComments({ ...target, page: 1 });
+  await client.postComment({ ...target, content: 'Root comment' });
+  await client.replyComment({
+    ...target,
+    content: 'Reply',
+    parentId: 7,
+    replyId: 8,
+  });
+
+  assert.deepEqual(calls, [
+    {
+      method: 'GetComments',
+      args: [{
+        Type: 'Series',
+        Id: 0,
+        Page: 1,
+        SeriesTitle: 'Comic series',
+      }, { UseGzip: true }],
+    },
+    {
+      method: 'PostComment',
+      args: [{
+        Type: 'Series',
+        Id: 0,
+        Content: 'Root comment',
+        SeriesTitle: 'Comic series',
+      }, { UseGzip: true }],
+    },
+    {
+      method: 'ReplyComment',
+      args: [{
+        Type: 'Series',
+        Id: 0,
+        Content: 'Reply',
+        SeriesTitle: 'Comic series',
+        ParentId: 7,
+        ReplyId: 8,
+      }, { UseGzip: true }],
+    },
+  ]);
+});
+
 test('maps announcement list and detail to their Web-Master Hub contracts', async () => {
   const calls = [];
   const client = new ApiClient(

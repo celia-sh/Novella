@@ -4,6 +4,6 @@ import type { BookDetailPalette } from '@/theme/book-detail-theme';
 export interface BookDetailNavigationProps {
   book: BookDetail | null;
   palette: BookDetailPalette;
-  /** Comic series title used by the version-switch flow (falls back to the book title). */
+  /** Canonical comic series title used by comments and version switching. */
   seriesTitle?: string;
 }

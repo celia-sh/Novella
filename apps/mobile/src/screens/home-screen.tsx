@@ -400,6 +400,9 @@ function BookGrid({
                   cover: book.coverUrl,
                   id: String(book.id),
                   placeholder: book.coverPlaceholder ?? '',
+                  ...(book.type === 'Comic'
+                    ? { seriesTitle: book.seriesTitle ?? book.title }
+                    : {}),
                   title: book.title,
                   type: book.type,
                 },

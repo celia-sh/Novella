@@ -1,5 +1,5 @@
-import type { CommentTarget } from '@/services/comment-target';
-import { getCommentTargetKey } from '@/services/comment-target';
+import type { CommentTarget } from './comment-target.ts';
+import { getCommentTargetKey } from './comment-target.ts';
 
 /**
  * Cross-screen signals for comments changed in a compose sheet. Signals are

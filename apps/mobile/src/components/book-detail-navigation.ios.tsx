@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { BookDetailNavigationProps } from '@/components/book-detail-navigation.types';
 import { hasSearchableQuickSearchTags } from '@/services/book-quick-search';
+import { toBookCommentRouteParams } from '@/services/comment-target';
 
 const openVersions = (bookId: number, seriesTitle: string) => {
   router.push({
@@ -59,7 +60,14 @@ export function BookDetailNavigation({
             icon="bubble.left"
             tintColor={palette.primary}
             onPress={() =>
-              router.push({ pathname: '/book/[id]/comments', params: { id: String(book.id) } })
+              router.push({
+                pathname: '/book/[id]/comments',
+                params: toBookCommentRouteParams({
+                  bookId: book.id,
+                  bookType: book.type,
+                  ...(seriesTitle === undefined ? {} : { seriesTitle }),
+                }),
+              })
             }
           />
           {isComic ? (

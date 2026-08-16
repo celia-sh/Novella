@@ -38,11 +38,17 @@ type BookDetailState =
       error: null;
       isInShelf: boolean;
       isShelfLoading: boolean;
+      seriesTitle: string | null;
       shelfError: BookUserMessage | null;
     }
   | { status: 'error'; book: null; error: BookUserMessage; requiresAuth: boolean };
 
-export function useBookDetail(bookId: number, type: BookDetailKind = 'Novel') {
+export function useBookDetail(
+  bookId: number,
+  type: BookDetailKind = 'Novel',
+  seriesTitleHint?: string,
+) {
+  const normalizedSeriesTitleHint = seriesTitleHint?.trim() || null;
   const [state, setState] = useState<BookDetailState>({
     status: 'loading',
     book: null,
@@ -63,10 +69,17 @@ export function useBookDetail(bookId: number, type: BookDetailKind = 'Novel') {
       ? current
       : { status: 'loading', book: null, error: null });
     try {
-      const [serverBook, isInShelf, cachedPosition] = await Promise.all([
+      const retainedSeriesTitle = normalizedSeriesTitleHint
+        ?? (stateRef.current.status === 'ready' && stateRef.current.book.id === bookId
+          ? stateRef.current.seriesTitle
+          : null);
+      const [serverBook, isInShelf, cachedPosition, seriesTitle] = await Promise.all([
         (type === 'Comic' ? comicDetails : bookDetails).load(bookId),
         shelf.contains(bookId),
         getCachedReaderPosition(bookId),
+        type === 'Comic'
+          ? retainedSeriesTitle ?? comicDetails.resolveSeriesTitle(bookId).catch(() => null)
+          : Promise.resolve(null),
       ]);
       if (showSkeleton) await waitForMinimumDisplay(startedAt);
       const hasCachedChapter = cachedPosition
@@ -83,6 +96,7 @@ export function useBookDetail(bookId: number, type: BookDetailKind = 'Novel') {
         error: null,
         isInShelf,
         isShelfLoading: false,
+        seriesTitle,
         shelfError: null,
       });
     } catch (error) {
@@ -96,7 +110,7 @@ export function useBookDetail(bookId: number, type: BookDetailKind = 'Novel') {
             requiresAuth: error instanceof ApiError && error.category === 'auth',
           });
     }
-  }, [bookId, type]);
+  }, [bookId, normalizedSeriesTitleHint, type]);
 
   useFocusEffect(useCallback(() => {
     void load();
@@ -150,6 +164,7 @@ export function useBookDetail(bookId: number, type: BookDetailKind = 'Novel') {
     isShelfLoading: state.status === 'ready' && state.isShelfLoading,
     requiresAuth: state.status === 'error' && state.requiresAuth,
     reload: load,
+    seriesTitle: state.status === 'ready' ? state.seriesTitle : normalizedSeriesTitleHint,
     shelfError: state.status === 'ready' ? state.shelfError : null,
     toggleShelf,
   };

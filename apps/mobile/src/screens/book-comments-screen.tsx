@@ -25,17 +25,29 @@ import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { useComments } from '@/hooks/use-comments';
 import { consumeCommentsChanged } from '@/services/comment-events';
 import { flattenCommentRows, type CommentListRow } from '@/services/comment-list-rows';
+import {
+  toCommentTargetRouteParams,
+  type CommentTarget,
+} from '@/services/comment-target';
 import type { BookDetailPalette } from '@/theme/book-detail-theme';
 export interface BookCommentsScreenProps {
   bookId: number;
+  target: CommentTarget;
 }
 
-export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
+export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommentsScreenProps) {
   const { t } = useTranslation('community');
   const { t: tCommon } = useTranslation('common');
   const detailTheme = useBookDetailRouteTheme(bookId, null, null, true);
   const { palette } = detailTheme;
   const commentPalette = useMemo(() => toCommentThreadPalette(palette), [palette]);
+  const stableCommentTarget = useMemo<CommentTarget>(() => ({
+    id: commentTarget.id,
+    type: commentTarget.type,
+    ...(commentTarget.seriesTitle === undefined
+      ? {}
+      : { seriesTitle: commentTarget.seriesTitle }),
+  }), [commentTarget.id, commentTarget.seriesTitle, commentTarget.type]);
   const {
     deleteComment,
     error,
@@ -44,7 +56,7 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
     loadMore,
     page,
     refresh,
-  } = useComments({ type: 'Book', id: bookId });
+  } = useComments(stableCommentTarget);
   const hasFocused = useRef(false);
   const rows = useMemo(() => flattenCommentRows(page?.items ?? []), [page?.items]);
 
@@ -56,29 +68,30 @@ export function BookCommentsScreen({ bookId }: BookCommentsScreenProps) {
       // focus effect re-subscribes on every render and loops (Maximum update depth).
       if (
         hasFocused.current
-        && consumeCommentsChanged({ type: 'Book', id: bookId })
+        && consumeCommentsChanged(stableCommentTarget)
       ) {
         void refresh();
       }
       hasFocused.current = true;
-    }, [bookId, refresh]),
+    }, [refresh, stableCommentTarget]),
   );
 
-  const openComposer = useCallback((target?: CommentReplyTarget) => {
+  const openComposer = useCallback((replyTarget?: CommentReplyTarget) => {
     router.push({
       pathname: '/book/[id]/comment-compose',
       params: {
         id: String(bookId),
-        ...(target
+        ...toCommentTargetRouteParams(stableCommentTarget),
+        ...(replyTarget
           ? {
-              parentId: String(target.parentId),
-              ...(target.replyId === undefined ? {} : { replyId: String(target.replyId) }),
-              userName: target.userName,
+              parentId: String(replyTarget.parentId),
+              ...(replyTarget.replyId === undefined ? {} : { replyId: String(replyTarget.replyId) }),
+              userName: replyTarget.userName,
             }
           : {}),
       },
     });
-  }, [bookId]);
+  }, [bookId, stableCommentTarget]);
 
   const confirmDelete = useCallback((commentId: number) => {
     showAlert(t('comments.deleteTitle'), t('comments.deleteMessage'), [

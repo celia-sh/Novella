@@ -144,6 +144,7 @@ export interface BookDetailUseCase {
 
 export interface ComicDetailUseCase {
   load(bookId: number): Promise<BookDetail>;
+  resolveSeriesTitle(bookId: number): Promise<string>;
 }
 
 export interface BookSearchUseCase {
@@ -603,6 +604,13 @@ export function createComicDetailUseCase(api: ApiClient): ComicDetailUseCase {
       assertValidBookId(bookId);
       return api.getComicInfo(bookId).then(toBookDetail);
     },
+    async resolveSeriesTitle(bookId: number) {
+      assertValidBookId(bookId);
+      const page = await api.getComicSeriesByIds([bookId]);
+      const seriesTitle = page.items[0]?.title.trim();
+      if (!seriesTitle) throw new Error('The comic series title is unavailable.');
+      return seriesTitle;
+    },
   });
 }
 
@@ -753,7 +761,7 @@ export function createCommentsUseCase(api: ApiClient): CommentsUseCase {
       return api.deleteComment(commentId);
     },
     load(request: GetCommentsRequest) {
-      assertPositiveInteger(request.id, 'A valid comment target id is required.');
+      assertCommentTarget(request);
       assertPositiveInteger(request.page, 'A valid comment page is required.');
       return api.getComments(request);
     },
@@ -1332,8 +1340,23 @@ function assertPageSize(value: number): void {
   }
 }
 
-function assertCommentRequest(request: PostCommentRequest): void {
+function assertCommentTarget(
+  request: Pick<GetCommentsRequest, 'id' | 'seriesTitle' | 'type'>,
+): void {
+  if (request.type === 'Series') {
+    if (request.id !== 0) {
+      throw new Error('A series comment target id must be zero.');
+    }
+    if (!request.seriesTitle?.trim()) {
+      throw new Error('A series title is required for series comments.');
+    }
+    return;
+  }
   assertPositiveInteger(request.id, 'A valid comment target id is required.');
+}
+
+function assertCommentRequest(request: PostCommentRequest): void {
+  assertCommentTarget(request);
   if (!request.content.trim()) throw new Error('Comment content is required.');
 }
 

@@ -127,6 +127,7 @@ export function ComicListScreen() {
                     cover: item.coverUrl,
                     id: String(item.id),
                     placeholder: item.coverPlaceholder ?? '',
+                    seriesTitle: item.title,
                     title: item.title,
                     type: item.type ?? 'Comic',
                   },

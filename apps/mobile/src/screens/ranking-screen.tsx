@@ -121,6 +121,9 @@ export function RankingScreen() {
                     cover: item.coverUrl,
                     id: String(item.id),
                     placeholder: item.coverPlaceholder ?? '',
+                    ...(item.type === 'Comic'
+                      ? { seriesTitle: item.seriesTitle ?? item.title }
+                      : {}),
                     title: item.title,
                     type: item.type ?? 'Novel',
                   },

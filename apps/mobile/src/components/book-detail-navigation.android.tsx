@@ -10,6 +10,7 @@ import type { BookDetail } from '@novella/api-client';
 import { NativeSelectionMenu } from '../../modules/novella-ui';
 import type { BookDetailNavigationProps } from '@/components/book-detail-navigation.types';
 import { hasSearchableQuickSearchTags } from '@/services/book-quick-search';
+import { toBookCommentRouteParams } from '@/services/comment-target';
 import { useAppColorScheme } from '@/theme/app-theme';
 
 export function BookDetailNavigation({ book, palette, seriesTitle }: BookDetailNavigationProps) {
@@ -83,7 +84,14 @@ function AndroidHeaderActions({
         color={palette.onSurface}
         icon={IconMessage}
         onPress={() =>
-          router.push({ pathname: '/book/[id]/comments', params: { id: String(book.id) } })
+          router.push({
+            pathname: '/book/[id]/comments',
+            params: toBookCommentRouteParams({
+              bookId: book.id,
+              bookType: book.type,
+              ...(seriesTitle === undefined ? {} : { seriesTitle }),
+            }),
+          })
         }
       />
       {isComic ? (

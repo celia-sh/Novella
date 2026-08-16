@@ -2,12 +2,15 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import { CommentComposeSheet } from '@/components/comment-compose-sheet';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
+import { resolveBookCommentTarget } from '@/services/comment-target';
 
 export default function CommentComposeRoute() {
-  const { id, parentId, replyId, userName } = useLocalSearchParams<{
+  const { commentType, id, parentId, replyId, seriesTitle, userName } = useLocalSearchParams<{
+    commentType?: string;
     id: string;
     parentId?: string;
     replyId?: string;
+    seriesTitle?: string;
     userName?: string;
   }>();
   const bookId = Number(id);
@@ -18,6 +21,11 @@ export default function CommentComposeRoute() {
         ...(replyId ? { replyId: Number(replyId) } : {}),
       }
     : undefined;
+  const target = resolveBookCommentTarget({
+    bookId,
+    ...(commentType === undefined ? {} : { commentType }),
+    ...(seriesTitle === undefined ? {} : { seriesTitle }),
+  });
 
   return (
     <CommentComposeSheet
@@ -33,7 +41,7 @@ export default function CommentComposeRoute() {
         surfaceContainerHighest: palette.surfaceContainerHighest,
       }}
       {...(replyTarget ? { replyTarget } : {})}
-      target={{ type: 'Book', id: bookId }}
+      target={target}
       {...(userName ? { userName } : {})}
     />
   );

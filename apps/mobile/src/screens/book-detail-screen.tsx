@@ -79,6 +79,7 @@ export interface BookDetailScreenProps {
   bookType?: 'Novel' | 'Comic';
   initialCoverPlaceholder?: string;
   initialCoverUrl?: string;
+  initialSeriesTitle?: string;
   initialTitle?: string;
 }
 
@@ -93,6 +94,7 @@ export function BookDetailScreen({
   bookType,
   initialCoverPlaceholder,
   initialCoverUrl,
+  initialSeriesTitle,
   initialTitle,
 }: BookDetailScreenProps) {
   const {
@@ -103,9 +105,14 @@ export function BookDetailScreen({
     isShelfLoading,
     reload,
     requiresAuth,
+    seriesTitle,
     shelfError,
     toggleShelf,
-  } = useBookDetail(bookId, bookType ?? 'Novel');
+  } = useBookDetail(
+    bookId,
+    bookType ?? 'Novel',
+    bookType === 'Comic' ? initialSeriesTitle : undefined,
+  );
   const hintedCoverUrl = initialCoverUrl?.trim()
     ? normalizeCoverUrl(initialCoverUrl)
     : null;
@@ -122,7 +129,6 @@ export function BookDetailScreen({
     coverUrl,
     ...(initialTitle === undefined ? {} : { initialTitle }),
   });
-  const seriesTitle = (initialTitle?.trim() || book?.title) ?? null;
 
   return (
     <PaperProvider theme={detailTheme.paperTheme}>

@@ -94,6 +94,7 @@ export function HistoryScreen() {
         cover: item.coverUrl,
         id: String(item.id),
         placeholder: item.coverPlaceholder ?? '',
+        seriesTitle: item.title,
         title: item.title,
         type: 'Comic',
       },

@@ -5,7 +5,9 @@ import {
   createAnnouncementsUseCase,
   createBookSearchUseCase,
   createClientSessionController,
+  createComicDetailUseCase,
   createCommunityUseCase,
+  createCommentsUseCase,
   createDiscoveryUseCase,
   createHistoryUseCase,
   createNotificationsUseCase,
@@ -258,6 +260,68 @@ test('reader preload marks chapter Hub work as cancellable preload priority', as
     { bookId: 4, sortNum: 2, convert: 't2s' },
     { priority: 'preload', signal: controller.signal },
   ]]);
+});
+
+test('comic detail resolves the canonical series title from a volume id', async () => {
+  const requestedIds = [];
+  let items = [{ title: 'Canonical series' }];
+  const useCase = createComicDetailUseCase({
+    async getComicSeriesByIds(ids) {
+      requestedIds.push(ids);
+      return { page: 1, totalPages: 1, items };
+    },
+  });
+
+  assert.equal(await useCase.resolveSeriesTitle(42), 'Canonical series');
+  assert.deepEqual(requestedIds, [[42]]);
+
+  items = [];
+  await assert.rejects(
+    () => useCase.resolveSeriesTitle(42),
+    /series title is unavailable/i,
+  );
+  await assert.rejects(() => useCase.resolveSeriesTitle(0), /valid book id/i);
+});
+
+test('comments use case accepts the official series target and preserves book validation', async () => {
+  const calls = [];
+  const useCase = createCommentsUseCase({
+    async getComments(request) {
+      calls.push(['load', request]);
+      return { page: request.page, totalPages: 0, items: [] };
+    },
+    async postComment(request) {
+      calls.push(['post', request]);
+    },
+    async replyComment(request) {
+      calls.push(['reply', request]);
+    },
+  });
+  const seriesTarget = { type: 'Series', id: 0, seriesTitle: 'Comic series' };
+
+  await useCase.load({ ...seriesTarget, page: 1 });
+  await useCase.post({ ...seriesTarget, content: 'Root comment' });
+  await useCase.reply({ ...seriesTarget, content: 'Reply', parentId: 7 });
+  await useCase.load({ type: 'Book', id: 12, page: 1 });
+
+  assert.deepEqual(calls, [
+    ['load', { ...seriesTarget, page: 1 }],
+    ['post', { ...seriesTarget, content: 'Root comment' }],
+    ['reply', { ...seriesTarget, content: 'Reply', parentId: 7 }],
+    ['load', { type: 'Book', id: 12, page: 1 }],
+  ]);
+  assert.throws(
+    () => useCase.load({ type: 'Series', id: 1, seriesTitle: 'Comic series', page: 1 }),
+    /must be zero/i,
+  );
+  assert.throws(
+    () => useCase.load({ type: 'Series', id: 0, seriesTitle: ' ', page: 1 }),
+    /series title is required/i,
+  );
+  assert.throws(
+    () => useCase.load({ type: 'Book', id: 0, page: 1 }),
+    /valid comment target id/i,
+  );
 });
 
 test('announcements load paged summaries and detail with validated identifiers', async () => {

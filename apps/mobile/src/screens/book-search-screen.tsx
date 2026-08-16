@@ -233,6 +233,7 @@ export function BookSearchScreen({
                 cover: item.item.coverUrl,
                 id: String(item.item.id),
                 placeholder: item.item.coverPlaceholder ?? '',
+                seriesTitle: item.item.title,
                 title: item.item.title,
                 type: 'Comic',
               },

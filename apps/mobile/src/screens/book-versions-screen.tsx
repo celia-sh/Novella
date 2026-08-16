@@ -53,14 +53,20 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
 
   useEffect(() => { void load(); }, [load]);
 
-  const openVersion = (versionId: number, coverUrl: string, coverPlaceholder: string | null) => {
+  const openVersion = (
+    versionId: number,
+    versionTitle: string,
+    coverUrl: string,
+    coverPlaceholder: string | null,
+  ) => {
     router.replace({
       pathname: '/book/[id]',
       params: {
         cover: coverUrl,
         id: String(versionId),
         placeholder: coverPlaceholder ?? '',
-        title: seriesTitle,
+        seriesTitle,
+        title: versionTitle,
         type: 'Comic',
       },
     });
@@ -126,7 +132,12 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
                   })}
                   accessibilityRole="button"
                   key={version.id}
-                  onPress={() => openVersion(version.id, version.coverUrl, version.coverPlaceholder)}
+                  onPress={() => openVersion(
+                    version.id,
+                    version.title,
+                    version.coverUrl,
+                    version.coverPlaceholder,
+                  )}
                   style={({ pressed }) => [
                     styles.versionRow,
                     { backgroundColor: palette.surfaceContainerHighest },

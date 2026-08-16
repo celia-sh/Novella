@@ -7,12 +7,14 @@ export default function BookDetailRoute() {
     cover: initialCoverUrl,
     id: rawId,
     placeholder: initialCoverPlaceholder,
+    seriesTitle: initialSeriesTitle,
     title: initialTitle,
     type,
   } = useLocalSearchParams<{
     cover?: string;
     id: string;
     placeholder?: string;
+    seriesTitle?: string;
     title?: string;
     type?: string;
   }>();
@@ -26,6 +28,7 @@ export default function BookDetailRoute() {
     <BookDetailScreen
       bookId={Number(rawId)}
       {...initialCover}
+      {...(initialSeriesTitle ? { initialSeriesTitle } : {})}
       {...(bookType === undefined ? {} : { bookType })}
     />
   );
