@@ -10,7 +10,7 @@ import {
   listStyle,
 } from '@expo/ui/swift-ui/modifiers';
 import { Stack } from 'expo-router';
-import { isValidElement, useEffect, useState, type PropsWithChildren, type ReactNode } from 'react';
+import { isValidElement, useState, type PropsWithChildren, type ReactNode } from 'react';
 
 import { IosTopBarBackground } from '@/components/ios-top-bar-background';
 import { NativeIcon } from '@/components/native-icon';
@@ -22,16 +22,11 @@ const hiddenTopScrollEdgeEffect = createModifier('novellaHiddenTopScrollEdgeEffe
 
 export function NativeGroupedListPlatform({
   children,
-  largeTitle = false,
   ownsTopBarBackground = true,
   testID,
 }: NativeGroupedListProps) {
   const { colors } = useAppTheme();
-  const [topBarBackgroundVisible, setTopBarBackgroundVisible] = useState(!largeTitle);
-
-  useEffect(() => {
-    setTopBarBackgroundVisible(!largeTitle);
-  }, [largeTitle]);
+  const [topBarBackgroundVisible, setTopBarBackgroundVisible] = useState(false);
 
   return (
     <>
@@ -51,7 +46,7 @@ export function NativeGroupedListPlatform({
         <>
           <IosTopBarBackground visible={topBarBackgroundVisible} />
           <NativeScrollEdgeMarker
-            observesTopBarOverlap={largeTitle}
+            observesTopBarOverlap
             onTopBarBackgroundVisibilityChange={setTopBarBackgroundVisible}
           />
         </>
