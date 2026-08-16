@@ -5,6 +5,7 @@ import { IosTopBarBackground } from '@/components/ios-top-bar-background';
 import type { ReaderNavigationProps } from '@/components/reader-navigation.types';
 
 export function ReaderNavigation({
+  blurAppearance,
   foregroundColor,
   mode,
   onModeChange,
@@ -31,7 +32,9 @@ export function ReaderNavigation({
           title,
         }}
       />
-      <IosTopBarBackground />
+      <IosTopBarBackground
+        {...(blurAppearance ? { blurConfig: { appearance: blurAppearance } } : {})}
+      />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel={t('accessibility.chapterList')}

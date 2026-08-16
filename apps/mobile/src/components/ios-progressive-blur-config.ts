@@ -1,4 +1,10 @@
+export type IosProgressiveBlurAppearance = 'light' | 'system';
+
+// Matches UIKit's light systemGroupedBackground sampled by the reference blur.
+export const IOS_LIGHT_PROGRESSIVE_BLUR_BACKGROUND = '#F2F2F7';
+
 export interface IosProgressiveBlurConfig {
+  appearance: IosProgressiveBlurAppearance;
   intensity: number;
   maskFadeEnd: number;
   maskFadeStart: number;
@@ -6,7 +12,7 @@ export interface IosProgressiveBlurConfig {
 }
 
 export const DEFAULT_IOS_PROGRESSIVE_BLUR_CONFIG: IosProgressiveBlurConfig = {
-  // Measured dark-material baseline. Light material needs separate validation.
+  appearance: 'system',
   intensity: 9.2,
   maskFadeEnd: 91,
   maskFadeStart: 32,

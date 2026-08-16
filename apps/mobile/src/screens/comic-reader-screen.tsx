@@ -31,6 +31,7 @@ import {
 } from '@/services/comic-reader-layout';
 import { reader } from '@/services/client';
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
+import { IOS_LIGHT_PROGRESSIVE_BLUR_BACKGROUND } from '@/components/ios-progressive-blur-config';
 import { ReaderErrorState, ReaderPreparationState } from '@/components/reader-chrome';
 import { ReaderNavigation } from '@/components/reader-navigation';
 import { NativeScrollEdgeMarker } from '../../modules/novella-ui/src/native-scroll-edge-marker';
@@ -91,6 +92,12 @@ export interface ComicReaderScreenProps {
 export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: ComicReaderScreenProps) {
   const { t } = useTranslation('reader');
   const { colors } = useAppTheme();
+  // Comic pages remain their authored pixels. Only iOS reader whitespace and
+  // its app-owned edge materials opt into the light public fallback.
+  const comicReaderBackground = process.env.EXPO_OS === 'ios'
+    ? IOS_LIGHT_PROGRESSIVE_BLUR_BACKGROUND
+    : colors.background as string;
+  const comicBlurAppearance = process.env.EXPO_OS === 'ios' ? 'light' : undefined;
   const { height: windowHeight, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const readerChromeInsets = createReaderChromeInsets(
@@ -526,7 +533,7 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
 
   return (
     <>
-      <View style={styles.root}>
+      <View style={[styles.root, { backgroundColor: comicReaderBackground }]}>
       {error ? (
         <ReaderErrorState
           message={error.kind === 'raw' ? error.text : t(error.key)}
@@ -622,7 +629,8 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
       )}
       </View>
       <ReaderNavigation
-        backgroundColor={colors.background as string}
+        backgroundColor={comicReaderBackground}
+        {...(comicBlurAppearance ? { blurAppearance: comicBlurAppearance } : {})}
         foregroundColor={colors.label as string}
         mode={mode}
         onModeChange={changeMode}
@@ -634,6 +642,7 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
         title={activeChapter?.chapter.title ?? t('titles.comicReader')}
       />
       <ReaderChapterNavigation
+        {...(comicBlurAppearance ? { blurAppearance: comicBlurAppearance } : {})}
         bottomInset={insets.bottom}
         current={selectedChapterIndex + 1}
         direction={mode === 'paged' ? settings.comicPagedDirection : 'ltr'}

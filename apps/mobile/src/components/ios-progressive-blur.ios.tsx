@@ -4,6 +4,7 @@ import { PlatformColor, StyleSheet, View, type ViewProps } from 'react-native';
 
 import {
   DEFAULT_IOS_PROGRESSIVE_BLUR_CONFIG,
+  IOS_LIGHT_PROGRESSIVE_BLUR_BACKGROUND,
   type IosProgressiveBlurConfig,
 } from '@/components/ios-progressive-blur-config';
 
@@ -75,6 +76,7 @@ export type IosProgressiveBlurProps = ViewProps &
 
 /** Edge-anchored iOS material that fades into transparent content. */
 export function IosProgressiveBlur({
+  appearance = DEFAULT_IOS_PROGRESSIVE_BLUR_CONFIG.appearance,
   direction = 'top',
   intensity = DEFAULT_IOS_PROGRESSIVE_BLUR_CONFIG.intensity,
   maskFadeEnd = DEFAULT_IOS_PROGRESSIVE_BLUR_CONFIG.maskFadeEnd,
@@ -84,6 +86,7 @@ export function IosProgressiveBlur({
   ...rest
 }: IosProgressiveBlurProps) {
   const gradientDirection = direction === 'top' ? 'bottom' : 'top';
+  const usesLightMaterial = appearance === 'light';
   const normalizedMaskStart = clamp(maskFadeStart, 0, 99);
   const normalizedMaskEnd = clamp(maskFadeEnd, normalizedMaskStart + 1, 100);
   const normalizedScrimStrength = clamp(scrimStrength, 0, 2);
@@ -118,13 +121,22 @@ export function IosProgressiveBlur({
       >
         {/* A semantic material responds inside UIKit's appearance transition;
             a JS-selected light/dark effect lags behind that transition. */}
-        <BlurView intensity={intensity} style={StyleSheet.absoluteFill} tint="systemMaterial" />
+        <BlurView
+          intensity={intensity}
+          style={StyleSheet.absoluteFill}
+          tint={usesLightMaterial ? 'systemMaterialLight' : 'systemMaterial'}
+        />
       </MaskedView>
       <MaskedView
         style={StyleSheet.absoluteFill}
         maskElement={<GradientMask direction={gradientDirection} stops={replayMaskStops} />}
       >
-        <View style={[StyleSheet.absoluteFill, styles.systemGroupedReplay]} />
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            usesLightMaterial ? styles.lightGroupedReplay : styles.systemGroupedReplay,
+          ]}
+        />
       </MaskedView>
       {direction === 'top' ? (
         <GradientMask direction={gradientDirection} stops={dimmingStops} />
@@ -191,6 +203,7 @@ function formatStop(value: number) {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  lightGroupedReplay: { backgroundColor: IOS_LIGHT_PROGRESSIVE_BLUR_BACKGROUND },
   // systemGroupedBackground resolves to Apple's sampled #F2F2F7 in light mode
   // and follows the same UIKit trait animation when the app appearance changes.
   systemGroupedReplay: { backgroundColor: PlatformColor('systemGroupedBackground') },
