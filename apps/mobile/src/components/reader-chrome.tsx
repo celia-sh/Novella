@@ -1,17 +1,37 @@
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View, type ColorValue } from 'react-native';
 import { IconRefresh } from '@tabler/icons-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
-export function ReaderPreparationState({ label, progress }: { label: string; progress?: string }) {
+export function ReaderPreparationState({
+  foregroundColor,
+  label,
+  progress,
+}: {
+  foregroundColor?: ColorValue;
+  label: string;
+  progress?: string;
+}) {
   const styles = useReaderChromeStyles();
   const { colors } = useAppTheme();
   return (
     <View style={styles.centered}>
-      <ActivityIndicator color={colors.accent as string} />
-      <Text selectable style={styles.preparationLabel}>{label}</Text>
-      {progress ? <Text selectable style={styles.preparationProgress}>{progress}</Text> : null}
+      <ActivityIndicator color={foregroundColor ?? colors.accent as string} />
+      <Text
+        selectable
+        style={[styles.preparationLabel, foregroundColor ? { color: foregroundColor } : null]}
+      >
+        {label}
+      </Text>
+      {progress ? (
+        <Text
+          selectable
+          style={[styles.preparationProgress, foregroundColor ? { color: foregroundColor } : null]}
+        >
+          {progress}
+        </Text>
+      ) : null}
     </View>
   );
 }

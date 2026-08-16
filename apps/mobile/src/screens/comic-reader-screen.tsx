@@ -67,6 +67,7 @@ const COMIC_SCROLL_VIEWABILITY_CONFIG = {
   waitForInteraction: false,
 } as const;
 const EMPTY_COMIC_SLOTS: readonly ComicPageSlot[] = [];
+const IOS_COMIC_LIGHT_READER_FOREGROUND = '#111827';
 
 interface ComicProgressInput {
   chapterId: number;
@@ -98,6 +99,9 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
     ? IOS_LIGHT_PROGRESSIVE_BLUR_BACKGROUND
     : colors.background as string;
   const comicBlurAppearance = process.env.EXPO_OS === 'ios' ? 'light' : undefined;
+  const comicLoadingForegroundColor = process.env.EXPO_OS === 'ios'
+    ? IOS_COMIC_LIGHT_READER_FOREGROUND
+    : undefined;
   const { height: windowHeight, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const readerChromeInsets = createReaderChromeInsets(
@@ -539,7 +543,14 @@ export function ComicReaderScreen({ bookId, sortNum, openPosition = 'saved' }: C
           message={error.kind === 'raw' ? error.text : t(error.key)}
           onRetry={loadChapter}
         />
-      ) : loading || !activeChapter ? <ReaderPreparationState label={t('states.loadingComic')} /> : (
+      ) : loading || !activeChapter ? (
+        <ReaderPreparationState
+          {...(comicLoadingForegroundColor
+            ? { foregroundColor: comicLoadingForegroundColor }
+            : {})}
+          label={t('states.loadingComic')}
+        />
+      ) : (
         <>
         {mode === 'paged' ? (
         <FlatList
