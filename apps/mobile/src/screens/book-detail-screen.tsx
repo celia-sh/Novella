@@ -9,7 +9,6 @@ import {
   type ComponentType,
   type ReactNode,
 } from 'react';
-import { ScrollViewMarker } from 'react-native-screens/experimental';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Pressable,
@@ -57,6 +56,7 @@ import { BookCoverImage } from '@/components/book-cover-image';
 import { BookDetailNavigation } from '@/components/book-detail-navigation';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { IosTopBarBackground } from '@/components/ios-top-bar-background';
+import { IosScrollViewMarker } from '@/components/ios-scroll-view-marker';
 import { BookHtmlContent } from '@/components/book-html-content';
 import {
   useBookDetail,
@@ -280,10 +280,7 @@ function BookDetailContent({
           scrollOffset={scrollOffset}
         />
       ) : null}
-      <ScrollViewMarker
-        scrollEdgeEffects={{ top: 'hidden' }}
-        style={styles.scrollViewMarker}
-      >
+      <IosScrollViewMarker style={styles.scrollViewMarker}>
         <Animated.ScrollView
           bounces={isIos}
           contentInsetAdjustmentBehavior="never"
@@ -485,7 +482,7 @@ function BookDetailContent({
       )}
           <View style={{ height: 40 + bottomInset }} />
         </Animated.ScrollView>
-      </ScrollViewMarker>
+      </IosScrollViewMarker>
       {usesCollapsibleAppBar ? (
         <CollapsibleBookAppBar
           book={book}

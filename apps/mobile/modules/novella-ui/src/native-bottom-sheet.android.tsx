@@ -22,7 +22,7 @@ export function NativeBottomSheet({
   const { width } = useWindowDimensions();
   const contentWidth = Math.min(width, MATERIAL_SHEET_MAX_WIDTH);
   return (
-    <Host pointerEvents="box-none" style={[styles.host, { width }]}>
+    <Host pointerEvents="none" style={[styles.host, { width }]}>
       <NativeView
         {...props}
         containerColor={containerColor}

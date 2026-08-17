@@ -4,7 +4,6 @@ import {
   IconRefresh,
 } from '@tabler/icons-react-native';
 import { router, Stack, useFocusEffect } from 'expo-router';
-import { ScrollViewMarker } from 'react-native-screens/experimental';
 import { Card, Skeleton } from 'heroui-native';
 import { marked } from 'marked';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
@@ -23,6 +22,7 @@ import {
 
 import { NativeScrollEdgeMarker } from '../../modules/novella-ui/src/native-scroll-edge-marker';
 import { BookHtmlContent } from '@/components/book-html-content';
+import { IosScrollViewMarker } from '@/components/ios-scroll-view-marker';
 import {
   CommentThreadSkeleton,
   type CommentReplyTarget,
@@ -77,7 +77,7 @@ function AppAnnouncementDetail({ id }: { id: string }) {
     >
       <>
       <Stack.Screen options={{ title: '' }} />
-      <ScrollViewMarker scrollEdgeEffects={{ top: 'hidden' }} style={styles.root}>
+      <IosScrollViewMarker style={styles.root}>
         <ScrollView
           contentContainerStyle={styles.detailContent}
           contentInsetAdjustmentBehavior="automatic"
@@ -100,7 +100,7 @@ function AppAnnouncementDetail({ id }: { id: string }) {
             />
           )}
         </ScrollView>
-      </ScrollViewMarker>
+      </IosScrollViewMarker>
       </>
     </NativeScreenScaffold>
   );
@@ -209,7 +209,7 @@ function SiteAnnouncementStateContent({
 
   return (
     <View collapsable={false} style={styles.root}>
-      <ScrollViewMarker scrollEdgeEffects={{ top: 'hidden' }} style={styles.root}>
+      <IosScrollViewMarker style={styles.root}>
         <ScrollView
           contentContainerStyle={styles.detailContent}
           contentInsetAdjustmentBehavior="automatic"
@@ -226,7 +226,7 @@ function SiteAnnouncementStateContent({
             />
           )}
         </ScrollView>
-      </ScrollViewMarker>
+      </IosScrollViewMarker>
       <NativeScrollEdgeMarker
         observesTopBarOverlap
         onTopBarBackgroundVisibilityChange={onTopBarBackgroundVisibilityChange}
@@ -320,7 +320,7 @@ function SiteAnnouncementContent({
 
   return (
     <View collapsable={false} style={styles.root}>
-      <ScrollViewMarker scrollEdgeEffects={{ top: 'hidden' }} style={styles.root}>
+      <IosScrollViewMarker style={styles.root}>
         <FlatList
           contentContainerStyle={styles.commentsContent}
           contentInsetAdjustmentBehavior="automatic"
@@ -361,7 +361,7 @@ function SiteAnnouncementContent({
           windowSize={7}
           style={styles.root}
         />
-      </ScrollViewMarker>
+      </IosScrollViewMarker>
       <NativeScrollEdgeMarker
         observesTopBarOverlap
         onTopBarBackgroundVisibilityChange={onTopBarBackgroundVisibilityChange}

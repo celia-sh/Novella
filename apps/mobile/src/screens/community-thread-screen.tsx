@@ -8,7 +8,6 @@ import {
   IconRefresh,
 } from '@tabler/icons-react-native';
 import { router, Stack, useFocusEffect } from 'expo-router';
-import { ScrollViewMarker } from 'react-native-screens/experimental';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
@@ -31,6 +30,7 @@ import {
 
 import type { CommunityThreadReply } from '@novella/api-client';
 
+import { IosScrollViewMarker } from '@/components/ios-scroll-view-marker';
 import { CommunityHtmlContent } from '@/components/community/community-html-content';
 import {
   CommentThreadRow,
@@ -297,10 +297,7 @@ export function CommunityThreadScreen({
           showBackButton
           title=""
         >
-          <ScrollViewMarker
-            scrollEdgeEffects={{ top: 'hidden' }}
-            style={styles.root}
-          >
+          <IosScrollViewMarker style={styles.root}>
             <FlatList
               ListEmptyComponent={
                 state.loading ? (
@@ -353,7 +350,7 @@ export function CommunityThreadScreen({
               updateCellsBatchingPeriod={32}
               windowSize={7}
             />
-          </ScrollViewMarker>
+          </IosScrollViewMarker>
         </NativeScreenScaffold>
       </>
     </PaperProvider>
