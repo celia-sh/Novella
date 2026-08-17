@@ -170,6 +170,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
         readingOrder: navigatorReadingOrder,
         config: EPUBNavigatorViewController.Configuration(
           preferences: makePreferences(),
+          disablePageTurnsWhileScrolling: true,
           preloadPreviousPositionCount: 0,
           preloadNextPositionCount: 0
         )
@@ -210,7 +211,55 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   }
 
   private func applyPreferences() {
-    navigator?.submitPreferences(makePreferences())
+    guard let navigator else { return }
+    navigator.submitPreferences(makePreferences())
+    enforceScrollModeLayout(navigator.presentation)
+  }
+
+  private func enforceScrollModeLayout(_ presentation: VisualNavigatorPresentation) {
+    guard let navigator else { return }
+    let script: String
+    if presentation.scroll && presentation.axis == .vertical {
+      script = """
+      (function(){
+        var root=document.documentElement;
+        var body=document.body;
+        var scroll=document.scrollingElement||root;
+        if(!root)return false;
+        root.style.setProperty('-webkit-columns','auto auto','important');
+        root.style.setProperty('-moz-columns','auto auto','important');
+        root.style.setProperty('columns','auto auto','important');
+        root.style.setProperty('width','auto','important');
+        root.style.setProperty('height','auto','important');
+        root.style.setProperty('max-width','none','important');
+        root.style.setProperty('max-height','none','important');
+        root.style.setProperty('min-width','0','important');
+        root.style.setProperty('min-height','0','important');
+        root.style.setProperty('overflow-x','hidden','important');
+        if(body)body.style.setProperty('overflow-x','hidden','important');
+        if(scroll) {
+          scroll.style.setProperty('overflow-x','hidden','important');
+          scroll.scrollTo({left:0,top:scroll.scrollTop||0,behavior:'instant'});
+        }
+        return true;
+      })()
+      """
+    } else {
+      script = """
+      (function(){
+        var root=document.documentElement;
+        var body=document.body;
+        var scroll=document.scrollingElement||root;
+        if(!root)return false;
+        ['-webkit-columns','-moz-columns','columns','width','height','max-width','max-height','min-width','min-height','overflow-x'].forEach(function(name){root.style.removeProperty(name)});
+        [body,scroll].forEach(function(element){if(element)element.style.removeProperty('overflow-x')});
+        return true;
+      })()
+      """
+    }
+    Task { [weak navigator] in
+      _ = await navigator?.evaluateJavaScript(script)
+    }
   }
 
   private func hideSystemScrollEdgeEffects() {
@@ -299,6 +348,9 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   }
 
   func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
+    if let epubNavigator = self.navigator {
+      enforceScrollModeLayout(epubNavigator.presentation)
+    }
     hideSystemScrollEdgeEffects()
     if !isReady {
       isReady = true
@@ -317,6 +369,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   }
 
   func navigator(_ navigator: VisualNavigator, presentationDidChange presentation: VisualNavigatorPresentation) {
+    enforceScrollModeLayout(presentation)
     hideSystemScrollEdgeEffects()
     DispatchQueue.main.async { [weak self] in
       self?.hideSystemScrollEdgeEffects()

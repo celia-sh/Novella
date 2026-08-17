@@ -92,6 +92,7 @@ test('image tables retain their authored rows and columns', () => {
   assert.match(publication.resources['EPUB/styles/reader.css'], /table\{width:100%;max-width:100%;table-layout:fixed/);
   assert.match(publication.resources['EPUB/styles/reader.css'], /body>:last-child\{margin-bottom:0!important;\}/);
   assert.match(publication.resources['EPUB/styles/reader.css'], /body>p\{text-indent:var\(--USER__paraIndent\)!important;\}/);
+  assert.match(publication.resources['EPUB/styles/reader.css'], /html\[style\*="readium-scroll-on"\],html\[style\*="readium-scroll-on"\] body\{overflow-x:hidden!important;\}/);
   assert.match(publication.resources['EPUB/styles/reader.css'], /-webkit-user-select:none;user-select:none/);
 });
 

@@ -197,6 +197,7 @@ function buildReadiumPublicationStylesheet(fontRequired: boolean): string {
   return [
     fontFace,
     'html,body{margin:0;padding:0;}',
+    'html[style*="readium-scroll-on"],html[style*="readium-scroll-on"] body{overflow-x:hidden!important;}',
     'body{word-break:break-word;overflow-wrap:break-word;-webkit-user-select:none;user-select:none;}',
     '.nv-book-font{font-family:\'NovellaBookFont\',sans-serif;}',
     'p{margin:0 0 .8em;}',
