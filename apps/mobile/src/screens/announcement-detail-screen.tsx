@@ -352,6 +352,7 @@ function SiteAnnouncementContent({
               ) : null}
             </View>
           }
+          nestedScrollEnabled={process.env.EXPO_OS === 'android'}
           onEndReached={loadMore}
           onEndReachedThreshold={0.35}
           removeClippedSubviews={process.env.EXPO_OS === 'android'}
