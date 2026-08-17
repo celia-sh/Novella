@@ -7,7 +7,7 @@ import {
   IosProgressiveBlur,
 } from '@/components/ios-progressive-blur';
 import type { ReaderChapterNavigationProps } from '@/components/reader-navigation.types';
-import { resolveReaderChapterBarOrder } from '@/services/reader-chrome-layout';
+import { resolveReaderChapterBarOrder, shouldRenderReaderEdgeBlur } from '@/services/reader-chrome-layout';
 import { createThemedStyles } from '@/theme/app-theme';
 
 const IOS_BOTTOM_TOOLBAR_HEIGHT = 44;
@@ -16,6 +16,7 @@ export function ReaderChapterNavigation({
   bottomInset,
   current,
   direction = 'ltr',
+  mode,
   onNext,
   onPrevious,
   total,
@@ -35,10 +36,12 @@ export function ReaderChapterNavigation({
     + IOS_PROGRESSIVE_BLUR_BLEED;
   return (
     <>
-      <IosProgressiveBlur
-        direction="bottom"
-        style={[styles.progressiveBackground, { height: backgroundHeight }]}
-      />
+      {shouldRenderReaderEdgeBlur(mode) ? (
+        <IosProgressiveBlur
+          direction="bottom"
+          style={[styles.progressiveBackground, { height: backgroundHeight }]}
+        />
+      ) : null}
       <Stack.Toolbar placement="bottom">
         <Stack.Toolbar.Button
           accessibilityLabel={labels[order.left]}

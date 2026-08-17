@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { IosTopBarBackground } from '@/components/ios-top-bar-background';
+import { shouldRenderReaderEdgeBlur } from '@/services/reader-chrome-layout';
 import type { ReaderNavigationProps } from '@/components/reader-navigation.types';
 
 export function ReaderNavigation({
@@ -39,7 +40,7 @@ export function ReaderNavigation({
           title,
         }}
       />
-      <IosTopBarBackground />
+      {shouldRenderReaderEdgeBlur(mode) ? <IosTopBarBackground /> : null}
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel={t('accessibility.chapterList')}

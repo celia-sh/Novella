@@ -412,6 +412,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         backgroundColor={readerBackground}
         bottomInset={insets.bottom}
         current={sortNum}
+        mode={mode}
         onNext={nextSortNum === null ? null : () => openChapter(nextSortNum, 'start')}
         onPrevious={previousSortNum === null ? null : () => openChapter(previousSortNum, 'end')}
         total={chapterCount}

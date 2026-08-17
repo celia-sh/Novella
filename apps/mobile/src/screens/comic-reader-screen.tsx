@@ -647,6 +647,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
         bottomInset={insets.bottom}
         current={selectedChapterIndex + 1}
         direction={mode === 'paged' ? settings.comicPagedDirection : 'ltr'}
+        mode={mode}
         onNext={nextChapter ? () => openChapter(nextChapter.sortNum, 'start') : null}
         onPrevious={previousChapter ? () => openChapter(previousChapter.sortNum, 'end') : null}
         total={info?.chapters.length ?? 0}
