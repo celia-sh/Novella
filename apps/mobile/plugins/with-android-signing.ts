@@ -2,26 +2,30 @@ import { withAppBuildGradle } from '@expo/config-plugins';
 import type { ConfigPlugin } from '@expo/config-plugins';
 
 /**
- * Android release 签名控制（行处理 android/app/build.gradle）。
- *
- * - 签名构建（CI 签名 job，ENABLE_ANDROID_SIGNING=1）：
- *   在 signingConfigs 块内补 release 块（storeFile/password 一律用
- *   System.getenv 引用，构建步骤提供实际 secrets，避免密码进 build.gradle
- *   被 Gradle cache 缓存），并把 release buildType 的签名指向 release。
- * - 免签构建（本地开发、PR，无 ENABLE_ANDROID_SIGNING）：
- *   删除 release buildType 的 signingConfig 行，产物为真正未签名的
- *   app-release-unsigned.apk（RN 模板默认用 debug 密钥签 release，必须移除）。
+ * Android release signing control for generated android/app/build.gradle.
+ * Signed CI builds receive a release signing config backed by environment
+ * variables. Local and PR builds remove both that config and any release
+ * build-type reference, leaving a genuinely unsigned release artifact.
  */
-const withAndroidSigning: ConfigPlugin = (config) => {
-  return withAppBuildGradle(config, (cfg) => {
-    const signingEnabled = process.env.ENABLE_ANDROID_SIGNING === '1';
+export function configureAndroidSigning(
+  contents: string,
+  signingEnabled: boolean,
+): string {
+  const lines = contents.split('\n');
+  const signingIndex = lines.findIndex((line) => line.trim() === 'signingConfigs {');
+  let releaseSigningAvailable = false;
 
-    const lines = cfg.modResults.contents.split('\n');
+  if (signingIndex >= 0) {
+    const existingReleaseIndex = findNamedBlock(lines, signingIndex, 'release');
+    if (existingReleaseIndex >= 0) {
+      const existingReleaseEnd = findBlockEnd(lines, existingReleaseIndex);
+      if (existingReleaseEnd >= existingReleaseIndex) {
+        lines.splice(existingReleaseIndex, existingReleaseEnd - existingReleaseIndex + 1);
+      }
+    }
 
-    // 1) signingConfigs 块：签名构建时补 release 块（值来自构建时的环境变量）。
-    const signingIndex = lines.findIndex((line) => line.trim() === 'signingConfigs {');
-    if (signingEnabled && signingIndex >= 0 && !lines.some((line) => line.includes('signingConfigs.release'))) {
-      const indent = (lines[signingIndex] ?? '').match(/^\s*/)?.[0] ?? '';
+    if (signingEnabled) {
+      const indent = lines[signingIndex]?.match(/^\s*/)?.[0] ?? '';
       lines.splice(
         signingIndex + 1,
         0,
@@ -32,39 +36,61 @@ const withAndroidSigning: ConfigPlugin = (config) => {
         `${indent}        keyPassword System.getenv('KEY_PASSWORD')`,
         `${indent}    }`,
       );
+      releaseSigningAvailable = true;
     }
+  }
 
-    // 2) buildTypes 内的 release 块：签名构建指向 release，免签构建移除签名。
-    const buildTypesIndex = lines.findIndex((line) => line.trim() === 'buildTypes {');
-    const releaseIndex =
-      buildTypesIndex >= 0
-        ? lines.findIndex((line, i) => i > buildTypesIndex && /^\s*release\s*\{$/.test(line))
-        : -1;
-    if (releaseIndex >= 0) {
-      if (signingEnabled) {
-        let found = false;
-        for (let i = releaseIndex + 1; i < lines.length; i++) {
-          if ((lines[i] ?? '').includes('signingConfig signingConfigs.')) {
-            lines[i] = (lines[i] ?? '').replace('signingConfig signingConfigs.debug', 'signingConfig signingConfigs.release');
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          const indent = (lines[releaseIndex] ?? '').match(/^\s*/)?.[0] ?? '';
-          lines.splice(releaseIndex + 1, 0, `${indent}    signingConfig signingConfigs.release`);
-        }
-      } else {
-        for (let i = releaseIndex + 1; i < lines.length; i++) {
-          if ((lines[i] ?? '').includes('signingConfig signingConfigs.')) {
-            lines.splice(i, 1);
-            break;
-          }
-        }
+  const buildTypesIndex = lines.findIndex((line) => line.trim() === 'buildTypes {');
+  const releaseBuildTypeIndex = buildTypesIndex >= 0
+    ? findNamedBlock(lines, buildTypesIndex, 'release')
+    : -1;
+  if (releaseBuildTypeIndex >= 0) {
+    const releaseBuildTypeEnd = findBlockEnd(lines, releaseBuildTypeIndex);
+    for (let index = releaseBuildTypeEnd - 1; index > releaseBuildTypeIndex; index -= 1) {
+      if (/^\s*signingConfig\s+signingConfigs\.\w+\s*$/.test(lines[index] ?? '')) {
+        lines.splice(index, 1);
       }
     }
+    if (releaseSigningAvailable) {
+      const indent = lines[releaseBuildTypeIndex]?.match(/^\s*/)?.[0] ?? '';
+      lines.splice(
+        releaseBuildTypeIndex + 1,
+        0,
+        `${indent}    signingConfig signingConfigs.release`,
+      );
+    }
+  }
 
-    cfg.modResults.contents = lines.join('\n');
+  return lines.join('\n');
+}
+
+function findNamedBlock(lines: string[], parentIndex: number, name: string): number {
+  const parentEnd = findBlockEnd(lines, parentIndex);
+  if (parentEnd < 0) return -1;
+  const pattern = new RegExp(`^\\s*${name}\\s*\\{$`);
+  for (let index = parentIndex + 1; index < parentEnd; index += 1) {
+    if (pattern.test(lines[index] ?? '')) return index;
+  }
+  return -1;
+}
+
+function findBlockEnd(lines: string[], startIndex: number): number {
+  let depth = 0;
+  for (let index = startIndex; index < lines.length; index += 1) {
+    const line = lines[index] ?? '';
+    depth += (line.match(/\{/g) ?? []).length;
+    depth -= (line.match(/\}/g) ?? []).length;
+    if (index > startIndex && depth === 0) return index;
+  }
+  return -1;
+}
+
+const withAndroidSigning: ConfigPlugin = (config) => {
+  return withAppBuildGradle(config, (cfg) => {
+    cfg.modResults.contents = configureAndroidSigning(
+      cfg.modResults.contents,
+      process.env.ENABLE_ANDROID_SIGNING === '1',
+    );
     return cfg;
   });
 };
