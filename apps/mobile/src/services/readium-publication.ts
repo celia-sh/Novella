@@ -209,6 +209,7 @@ function buildReadiumPublicationStylesheet(fontRequired: boolean): string {
     '.nv-inline-footnote{display:flex;gap:.35em;margin:0 0 .8em;font-size:.82em;line-height:1.5;opacity:.72;}',
     '.nv-inline-footnote-content{min-width:0;}',
     '.nv-inline-footnote-content>ol,.nv-inline-footnote-content>ul{margin:0;padding:0;list-style:none;}',
+    '.nv-inline-footnote-content>li{display:block;list-style:none;margin:0;padding:0;}',
     '.nv-inline-footnote-content p,.nv-inline-footnote-content li{margin:0;}',
     '.nv-inline-footnote-label{flex:none;font-weight:600;}',
     '.nv-inline-footnote-marker{font-size:.75em;font-weight:600;line-height:0;vertical-align:super;}',

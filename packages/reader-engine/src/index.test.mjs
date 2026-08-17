@@ -165,6 +165,42 @@ test('recognizes the legacy note image shape without a footnote class', () => {
   assert.doesNotMatch(result.html, /note\.png|<ol id="note-4"/);
 });
 
+test('recognizes a data-line list item after a legacy marker', () => {
+  const result = processNovelFootnotes(
+    '<p>正文<a href="#note-6"><sup><img src="/img/note.png"></sup></a>段末。</p>' +
+      '<ol><li data-line="86"><p>注释内容</p></li></ol><p>后文</p>',
+    { markerContent: 'empty' },
+  );
+
+  assert.equal(result.notesById['note-6'], '<li data-line="86"><p>注释内容</p></li>');
+  assert.match(result.html, /正文<a data-reader-footnote-id="note-6"><\/a>段末。/);
+  assert.doesNotMatch(result.html, /data-line="86"|note\.png|注释内容/);
+});
+
+test('does not treat an ordinary list as a footnote target', () => {
+  const result = processNovelFootnotes(
+    '<p>正文<a href="#missing"><sup><img src="/img/note.png"></sup></a>段末。</p>' +
+      '<ol><li>普通列表</li></ol>',
+    { markerContent: 'empty' },
+  );
+
+  assert.equal(result.notesById.missing, undefined);
+  assert.match(result.html, /普通列表/);
+  assert.match(result.html, /<li>普通列表<\/li>/);
+});
+
+test('recognizes named-anchor footnote targets inside legacy list items', () => {
+  const result = processNovelFootnotes(
+    '<p>正文<a href="#note-5"><sup><img src="/img/note.png"></sup></a>段末。</p>' +
+      '<ol><li data-line="86"><a name="note-5"></a><p>注释内容</p></li></ol>',
+    { markerContent: 'empty' },
+  );
+
+  assert.equal(result.notesById['note-5'], '<a name="note-5"></a><p>注释内容</p>');
+  assert.match(result.html, /正文<a data-reader-footnote-id="note-5"><\/a>段末。/);
+  assert.doesNotMatch(result.html, /name="note-5"|data-line="86"|note\.png/);
+});
+
 test('restores an inline Web XPath to its nearest reader block ancestor', () => {
   const blocks = normalizeNovelBlocks(
     '<div><p>第一段</p><p><span>第二段</span></p><p>第三段</p></div>',

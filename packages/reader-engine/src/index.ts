@@ -273,7 +273,7 @@ export function processNovelFootnotes(
     const existingId = readHtmlAttribute(marker.openingTag, 'data-reader-footnote-id')
       ?? readHtmlAttribute(marker.openingTag, 'data-footnote-id');
     const href = readHtmlAttribute(marker.openingTag, 'href');
-    const id = existingId ?? (href?.startsWith('#') ? href.slice(1) : '');
+    const id = existingId ?? footnoteFragmentId(href);
     if (!id) continue;
 
     replacements.push({
@@ -282,10 +282,8 @@ export function processNovelFootnotes(
       value: `<a data-reader-footnote-id="${escapeHtmlAttribute(id)}">${markerContent}</a>`,
     });
 
-    const note = elements.find((element) =>
-      element.start !== marker.start
-      && readHtmlAttribute(element.openingTag, 'id') === id
-    );
+    const note = findFootnoteTarget(elements, id)
+      ?? findFollowingLegacyFootnoteTarget(elements, marker, markers);
     if (!note || removedTargets.has(`${note.start}:${note.end}`)) continue;
     notesById[id] = html.slice(note.openingEnd, note.closingStart);
     removedTargets.add(`${note.start}:${note.end}`);
@@ -293,6 +291,74 @@ export function processNovelFootnotes(
   }
 
   return { html: applyHtmlReplacements(html, replacements), notesById };
+}
+
+function findFootnoteTarget(
+  elements: readonly HtmlElementRange[],
+  id: string,
+): HtmlElementRange | undefined {
+  const target = elements.find((element) => readHtmlAttribute(element.openingTag, 'id') === id);
+  if (target) return target;
+
+  const namedTarget = elements.find((element) =>
+    element.tag === 'a' && readHtmlAttribute(element.openingTag, 'name') === id
+  );
+  if (!namedTarget) return undefined;
+
+  const containingListItem = elements
+    .filter((element) =>
+      element.tag === 'li'
+      && element.start <= namedTarget.start
+      && element.end >= namedTarget.end,
+    )
+    .sort((left, right) => (left.end - left.start) - (right.end - right.start))[0];
+  return containingListItem ?? namedTarget;
+}
+
+function findFollowingLegacyFootnoteTarget(
+  elements: readonly HtmlElementRange[],
+  marker: HtmlElementRange,
+  markers: readonly HtmlElementRange[],
+): HtmlElementRange | undefined {
+  const nextMarkerStart = markers
+    .filter((candidate) => candidate.start > marker.start)
+    .map((candidate) => candidate.start)
+    .sort((left, right) => left - right)[0] ?? Number.POSITIVE_INFINITY;
+  const candidate = elements.find((element) =>
+    element.tag === 'li'
+    && element.start > marker.end
+    && element.start < nextMarkerStart
+    && /^\d+$/u.test(readHtmlAttribute(element.openingTag, 'data-line') ?? ''),
+  );
+  if (!candidate) return undefined;
+
+  const containingList = elements
+    .filter((element) =>
+      (element.tag === 'ol' || element.tag === 'ul')
+      && element.start <= candidate.start
+      && element.end >= candidate.end,
+    )
+    .sort((left, right) => (left.end - left.start) - (right.end - right.start))[0];
+  if (!containingList) return candidate;
+
+  const listItems = elements.filter((element) =>
+    element.tag === 'li'
+    && element.start >= containingList.start
+    && element.end <= containingList.end,
+  );
+  return listItems.length === 1 ? containingList : candidate;
+}
+
+function footnoteFragmentId(href: string | undefined): string {
+  if (!href) return '';
+  const hash = href.indexOf('#');
+  if (hash < 0 || hash === href.length - 1) return '';
+  const fragment = href.slice(hash + 1);
+  try {
+    return decodeURIComponent(fragment);
+  } catch {
+    return fragment;
+  }
 }
 
 interface HtmlElementRange {
