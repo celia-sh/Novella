@@ -70,6 +70,7 @@ export function ShelfFolderGridItem({
       style={[styles.item, { width: tileWidth }]}
     >
       <View
+        pointerEvents="none"
         style={[
           styles.coverFrame,
           { aspectRatio: BOOK_COVER_ASPECT_RATIO, width: tileWidth },
