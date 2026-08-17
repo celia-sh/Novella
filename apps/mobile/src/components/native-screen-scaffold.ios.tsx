@@ -5,18 +5,25 @@ import { NativeScrollEdgeMarker } from '../../modules/novella-ui/src/native-scro
 import { IosTopBarBackground } from '@/components/ios-top-bar-background';
 import type { NativeScreenScaffoldProps } from '@/components/native-screen-scaffold.types';
 
-export function NativeScreenScaffold({ children }: NativeScreenScaffoldProps) {
+export function NativeScreenScaffold({
+  children,
+  ownsTopBarBackground = true,
+}: NativeScreenScaffoldProps) {
   const [topBarBackgroundVisible, setTopBarBackgroundVisible] = useState(false);
 
   return (
     <>
       <Stack.Screen options={{ headerBackground: () => null }} />
       {children}
-      <IosTopBarBackground visible={topBarBackgroundVisible} />
-      <NativeScrollEdgeMarker
-        observesTopBarOverlap
-        onTopBarBackgroundVisibilityChange={setTopBarBackgroundVisible}
-      />
+      {ownsTopBarBackground ? (
+        <>
+          <IosTopBarBackground visible={topBarBackgroundVisible} />
+          <NativeScrollEdgeMarker
+            observesTopBarOverlap
+            onTopBarBackgroundVisibilityChange={setTopBarBackgroundVisible}
+          />
+        </>
+      ) : null}
     </>
   );
 }

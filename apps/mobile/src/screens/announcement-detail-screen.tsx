@@ -7,7 +7,7 @@ import { router, Stack, useFocusEffect } from 'expo-router';
 import { ScrollViewMarker } from 'react-native-screens/experimental';
 import { Card, Skeleton } from 'heroui-native';
 import { marked } from 'marked';
-import { memo, useCallback, useMemo, useRef } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AnnouncementDetail } from '@novella/api-client';
 
@@ -21,6 +21,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
+import { NativeScrollEdgeMarker } from '../../modules/novella-ui/src/native-scroll-edge-marker';
 import { BookHtmlContent } from '@/components/book-html-content';
 import {
   CommentThreadSkeleton,
@@ -28,6 +29,7 @@ import {
 } from '@/components/comment-thread-item';
 import { CommentThreadListItem } from '@/components/comment-thread-list-item';
 import type { CommentThreadPalette } from '@/components/comment-thread';
+import { IosTopBarBackground } from '@/components/ios-top-bar-background';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { showAlert } from '@/components/native-alert-dialog';
 import { useAnnouncementDetail } from '@/hooks/use-announcement-detail';
@@ -104,13 +106,21 @@ function AppAnnouncementDetail({ id }: { id: string }) {
   );
 }
 
+type SiteAnnouncementScrollOwner = 'content' | 'state';
+
 function SiteAnnouncementDetail({ id }: { id: string }) {
-  const styles = useAnnouncementDetailStyles();
   const { t } = useTranslation('community');
   const { retry, state } = useAnnouncementDetail('server', id);
   const detail = state.status === 'ready' && state.data.source === 'server'
     ? state.data
     : null;
+  const activeScrollOwner: SiteAnnouncementScrollOwner = detail ? 'content' : 'state';
+  const [topBarBackgroundState, setTopBarBackgroundState] = useState<{
+    owner: SiteAnnouncementScrollOwner;
+    visible: boolean;
+  }>({ owner: 'state', visible: false });
+  const topBarBackgroundVisible = topBarBackgroundState.owner === activeScrollOwner
+    && topBarBackgroundState.visible;
   const serverId = Number(id);
   const openComposer = useCallback((target?: CommentReplyTarget) => {
     router.push({
@@ -144,6 +154,7 @@ function SiteAnnouncementDetail({ id }: { id: string }) {
         : {})}
       largeTitle={false}
       onBackPress={() => router.back()}
+      ownsTopBarBackground={false}
       showBackButton
       title=""
     >
@@ -159,29 +170,68 @@ function SiteAnnouncementDetail({ id }: { id: string }) {
           </Stack.Toolbar>
         ) : null}
         {detail ? (
-          <SiteAnnouncementContent detail={detail} onOpenComposer={openComposer} />
+          <SiteAnnouncementContent
+            detail={detail}
+            onOpenComposer={openComposer}
+            onTopBarBackgroundVisibilityChange={(visible) => {
+              setTopBarBackgroundState({ owner: 'content', visible });
+            }}
+          />
         ) : (
-          <ScrollViewMarker scrollEdgeEffects={{ top: 'hidden' }} style={styles.root}>
-            <ScrollView
-              contentContainerStyle={styles.detailContent}
-              contentInsetAdjustmentBehavior="automatic"
-              nestedScrollEnabled={process.env.EXPO_OS === 'android'}
-              showsVerticalScrollIndicator={false}
-              style={styles.root}
-            >
-              {state.status === 'loading' ? (
-                <AnnouncementDetailSkeleton />
-              ) : (
-                <DetailError
-                  message={state.error ?? t('announcements.errors.invalid')}
-                  onRetry={retry}
-                />
-              )}
-            </ScrollView>
-          </ScrollViewMarker>
+          <SiteAnnouncementStateContent
+            error={state.error}
+            loading={state.status === 'loading'}
+            onRetry={retry}
+            onTopBarBackgroundVisibilityChange={(visible) => {
+              setTopBarBackgroundState({ owner: 'state', visible });
+            }}
+          />
         )}
+        <IosTopBarBackground visible={topBarBackgroundVisible} />
       </>
     </NativeScreenScaffold>
+  );
+}
+
+function SiteAnnouncementStateContent({
+  error,
+  loading,
+  onRetry,
+  onTopBarBackgroundVisibilityChange,
+}: {
+  error: string | null;
+  loading: boolean;
+  onRetry: () => void;
+  onTopBarBackgroundVisibilityChange: (visible: boolean) => void;
+}) {
+  const styles = useAnnouncementDetailStyles();
+  const { t } = useTranslation('community');
+
+  return (
+    <View collapsable={false} style={styles.root}>
+      <ScrollViewMarker scrollEdgeEffects={{ top: 'hidden' }} style={styles.root}>
+        <ScrollView
+          contentContainerStyle={styles.detailContent}
+          contentInsetAdjustmentBehavior="automatic"
+          nestedScrollEnabled={process.env.EXPO_OS === 'android'}
+          showsVerticalScrollIndicator={false}
+          style={styles.root}
+        >
+          {loading ? (
+            <AnnouncementDetailSkeleton />
+          ) : (
+            <DetailError
+              message={error ?? t('announcements.errors.invalid')}
+              onRetry={onRetry}
+            />
+          )}
+        </ScrollView>
+      </ScrollViewMarker>
+      <NativeScrollEdgeMarker
+        observesTopBarOverlap
+        onTopBarBackgroundVisibilityChange={onTopBarBackgroundVisibilityChange}
+      />
+    </View>
   );
 }
 
@@ -208,9 +258,11 @@ function InvalidAnnouncementDetail() {
 function SiteAnnouncementContent({
   detail,
   onOpenComposer,
+  onTopBarBackgroundVisibilityChange,
 }: {
   detail: AnnouncementDetail;
   onOpenComposer: (target?: CommentReplyTarget) => void;
+  onTopBarBackgroundVisibilityChange: (visible: boolean) => void;
 }) {
   const serverId = detail.id;
   const styles = useAnnouncementDetailStyles();
@@ -267,48 +319,54 @@ function SiteAnnouncementContent({
   );
 
   return (
-    <ScrollViewMarker scrollEdgeEffects={{ top: 'hidden' }} style={styles.root}>
-      <FlatList
-        contentContainerStyle={styles.commentsContent}
-        contentInsetAdjustmentBehavior="automatic"
-        data={rows}
-        initialNumToRender={8}
-        keyExtractor={(item) => item.key}
-        maxToRenderPerBatch={6}
-        ListEmptyComponent={commentsLoading
-          ? <CommentThreadSkeleton palette={commentPalette} />
-          : commentsError
-            ? <CommentsError message={commentsError} onRetry={refreshComments} />
-            : <CommentsEmpty />}
-        ListFooterComponent={isLoadingMore
-          ? <CommentThreadSkeleton palette={commentPalette} rows={1} />
-          : null}
-        ListHeaderComponent={
-          <View style={styles.headerContent}>
-            <AnnouncementArticle
-              html={detail.contentHtml}
-              publishedAt={detail.createdAt}
-              source="server"
-              title={detail.title}
-            />
-            <View style={styles.commentsHeading}>
-              <Text style={styles.commentsTitle}>{t('announcements.comments')}</Text>
+    <View collapsable={false} style={styles.root}>
+      <ScrollViewMarker scrollEdgeEffects={{ top: 'hidden' }} style={styles.root}>
+        <FlatList
+          contentContainerStyle={styles.commentsContent}
+          contentInsetAdjustmentBehavior="automatic"
+          data={rows}
+          initialNumToRender={8}
+          keyExtractor={(item) => item.key}
+          maxToRenderPerBatch={6}
+          ListEmptyComponent={commentsLoading
+            ? <CommentThreadSkeleton palette={commentPalette} />
+            : commentsError
+              ? <CommentsError message={commentsError} onRetry={refreshComments} />
+              : <CommentsEmpty />}
+          ListFooterComponent={isLoadingMore
+            ? <CommentThreadSkeleton palette={commentPalette} rows={1} />
+            : null}
+          ListHeaderComponent={
+            <View style={styles.headerContent}>
+              <AnnouncementArticle
+                html={detail.contentHtml}
+                publishedAt={detail.createdAt}
+                source="server"
+                title={detail.title}
+              />
+              <View style={styles.commentsHeading}>
+                <Text style={styles.commentsTitle}>{t('announcements.comments')}</Text>
+              </View>
+              {commentsError && page ? (
+                <CommentsError message={commentsError} onRetry={refreshComments} />
+              ) : null}
             </View>
-            {commentsError && page ? (
-              <CommentsError message={commentsError} onRetry={refreshComments} />
-            ) : null}
-          </View>
-        }
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.35}
-        removeClippedSubviews={process.env.EXPO_OS === 'android'}
-        renderItem={renderComment}
-        showsVerticalScrollIndicator={false}
-        updateCellsBatchingPeriod={32}
-        windowSize={7}
-        style={styles.root}
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.35}
+          removeClippedSubviews={process.env.EXPO_OS === 'android'}
+          renderItem={renderComment}
+          showsVerticalScrollIndicator={false}
+          updateCellsBatchingPeriod={32}
+          windowSize={7}
+          style={styles.root}
+        />
+      </ScrollViewMarker>
+      <NativeScrollEdgeMarker
+        observesTopBarOverlap
+        onTopBarBackgroundVisibilityChange={onTopBarBackgroundVisibilityChange}
       />
-    </ScrollViewMarker>
+    </View>
   );
 }
 
