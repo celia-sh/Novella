@@ -20,6 +20,7 @@ import {
   bookGridSkeletonCount,
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
+import { IosScrollViewMarker } from '@/components/ios-scroll-view-marker';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
@@ -71,13 +72,13 @@ export function ComicListScreen() {
     <>
       <Stack.Screen options={{ title: t('catalog.allComics') }} />
       <NativeScreenScaffold
-      largeTitle={false}
-      onBackPress={() => router.back()}
-      showBackButton
-      title={t('catalog.allComics')}
-    >
-      <View style={styles.root}>
-        <FlatList
+        largeTitle={false}
+        onBackPress={() => router.back()}
+        showBackButton
+        title={t('catalog.allComics')}
+      >
+        <IosScrollViewMarker style={styles.root}>
+          <FlatList
           ListEmptyComponent={
             error ? (
               <ErrorState error={error} onRetry={retry} />
@@ -127,9 +128,9 @@ export function ComicListScreen() {
             )
           }
           showsVerticalScrollIndicator={false}
-          viewabilityConfig={coverActivation.viewabilityConfig}
-        />
-      </View>
+            viewabilityConfig={coverActivation.viewabilityConfig}
+          />
+        </IosScrollViewMarker>
       </NativeScreenScaffold>
     </>
   );

@@ -21,6 +21,7 @@ import {
 } from '@/components/comment-thread-item';
 import { CommentThreadListItem } from '@/components/comment-thread-list-item';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
+import { IosScrollViewMarker } from '@/components/ios-scroll-view-marker';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { useComments } from '@/hooks/use-comments';
 import { consumeCommentsChanged } from '@/services/comment-events';
@@ -133,7 +134,7 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
         containerColor={palette.surface}
         contentColor={palette.onSurface}
       >
-        <View style={[styles.root, { backgroundColor: palette.surface }]}>
+        <IosScrollViewMarker style={[styles.root, { backgroundColor: palette.surface }]}>
           <FlatList
             contentInsetAdjustmentBehavior="automatic"
             contentContainerStyle={styles.content}
@@ -193,7 +194,7 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
             updateCellsBatchingPeriod={32}
             windowSize={7}
           />
-        </View>
+        </IosScrollViewMarker>
       </NativeScreenScaffold>
     </PaperProvider>
   );

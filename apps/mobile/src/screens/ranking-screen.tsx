@@ -22,6 +22,7 @@ import {
   bookGridSkeletonCount,
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
+import { IosScrollViewMarker } from '@/components/ios-scroll-view-marker';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
@@ -79,13 +80,13 @@ export function RankingScreen() {
     <>
       <Stack.Screen options={{ title: t('ranking.title') }} />
       <NativeScreenScaffold
-      largeTitle={false}
-      onBackPress={() => router.back()}
-      showBackButton
-      title={t('ranking.title')}
-    >
-      <View style={styles.root}>
-        <FlatList
+        largeTitle={false}
+        onBackPress={() => router.back()}
+        showBackButton
+        title={t('ranking.title')}
+      >
+        <IosScrollViewMarker style={styles.root}>
+          <FlatList
           ListEmptyComponent={
             error ? (
               <ErrorState error={error} onRetry={retry} />
@@ -137,9 +138,9 @@ export function RankingScreen() {
             )
           }
           showsVerticalScrollIndicator={false}
-          viewabilityConfig={coverActivation.viewabilityConfig}
-        />
-      </View>
+            viewabilityConfig={coverActivation.viewabilityConfig}
+          />
+        </IosScrollViewMarker>
       </NativeScreenScaffold>
     </>
   );
