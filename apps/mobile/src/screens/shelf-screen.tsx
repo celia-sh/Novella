@@ -506,18 +506,18 @@ function ShelfContent({
 
     const book = booksById.get(item.id);
     // The tile hands back its own book; the route id stays the shelf item id.
-    const handlePress = (book: BookListItem) => {
+    const handlePress = (pressed: BookListItem) => {
       router.push({
         pathname: '/book/[id]',
         params: {
-          cover: book.coverUrl,
+          cover: pressed.coverUrl,
           id: String(item.id),
-          placeholder: book.coverPlaceholder ?? '',
-          ...(book.type === 'Comic'
-            ? { seriesTitle: book.seriesTitle ?? book.title }
+          placeholder: pressed.coverPlaceholder ?? '',
+          ...(pressed.type === 'Comic'
+            ? { seriesTitle: pressed.seriesTitle ?? pressed.title }
             : {}),
-          title: book.title,
-          type: book.type,
+          title: pressed.title,
+          type: pressed.type,
         },
       });
     };

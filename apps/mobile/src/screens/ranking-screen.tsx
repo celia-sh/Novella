@@ -58,8 +58,6 @@ export function RankingScreen() {
     keyForItem: (item) => typeof item === 'number' ? null : rankingCoverKey(item),
     scopeKey: `${period}:${listKey}`,
   });
-  // Hoisted out of renderItem so the memoised tiles keep prop identity when a
-  // cover activates; otherwise every row re-renders on each activation batch.
   const openBook = useCallback((book: BookListItem) => router.push({
     pathname: '/book/[id]',
     params: {
@@ -122,9 +120,9 @@ export function RankingScreen() {
               tintColor={colors.accent as string}
             />
           }
-          // Android keeps every rendered row attached without this; clipping
-          // offscreen tiles cuts draw work and bitmap retention while scrolling.
-          removeClippedSubviews
+          // Android-only, like every other list here: on iOS this prop is known
+          // to blank out cells in multi-column lists.
+          removeClippedSubviews={process.env.EXPO_OS === 'android'}
           renderItem={({ item, index }) =>
             typeof item === 'number' ? (
               <BookCoverSkeletonTile tileWidth={tileWidth} />

@@ -67,9 +67,7 @@ function BookCoverImageLayer({
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<CoverStatus>('loading');
 
-  // A cached cover needs no cross-dissolve; a fresh one fades over the
-  // BlurHash. expo-image runs this on the native view, so covers no longer
-  // drive one Animated node and one extra RN view each.
+  // A cached cover needs no cross-dissolve; a fresh one fades over the BlurHash.
   const fadeDurationMs = wasRevealed && !animateCachedImage ? 0 : COVER_FADE_DURATION_MS;
 
   useEffect(() => () => {

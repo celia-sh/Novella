@@ -412,10 +412,6 @@ function BookGrid({
   );
 }
 
-/**
- * Module scope keeps the handler identity stable for every memoised tile, so
- * activating one cover no longer re-renders the whole grid.
- */
 function openBookDetail(book: BookListItem): void {
   router.push({
     pathname: '/book/[id]',

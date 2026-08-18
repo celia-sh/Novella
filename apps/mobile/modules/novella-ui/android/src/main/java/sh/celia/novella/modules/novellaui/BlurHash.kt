@@ -26,11 +26,7 @@ private object BlurHashBitmaps {
   fun get(blurHash: String, width: Int, height: Int): Bitmap? {
     if (blurHash.isEmpty()) return null
     val key = "$blurHash|$width|$height"
-    cache.get(key)?.let {
-      Trace.beginSection("NovellaBlurHash.cacheHit")
-      Trace.endSection()
-      return it
-    }
+    cache.get(key)?.let { return it }
     Trace.beginSection("NovellaBlurHash.decode")
     val bitmap = try {
       decodeWithExpoImage(blurHash, width, height)
@@ -68,10 +64,6 @@ private object BlurHashBitmaps {
 
 /**
  * Plain View-backed BlurHash placeholder.
- *
- * The previous implementation was a Jetpack Compose `ExpoUIView`, so every
- * cover tile paid for a ComposeView, its own composition and an
- * AndroidComposeView owner — hundreds of them while scrolling a grid.
  *
  * The bitmap is drawn by this view itself rather than by a child ImageView:
  * React Native sizes the exported view but never measures its native children,
