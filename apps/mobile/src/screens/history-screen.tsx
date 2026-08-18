@@ -197,13 +197,15 @@ export function HistoryScreen() {
                 <BookCoverGridItem
                   book={item as BookListItem}
                   networkImageEnabled={coverActivation.activatedKeys.has(historyCoverKey(item, tab))}
-                  onPress={() => openBook(item as BookListItem)}
+                  onPress={openBook}
                   tileWidth={tileWidth}
                 />
               ) : (
                 <BookCoverGridItem
                   book={comicToBookListItem(item as ComicSeriesListItem)}
                   networkImageEnabled={coverActivation.activatedKeys.has(historyCoverKey(item, tab))}
+                  // `openComic` needs the raw ComicSeriesListItem, but the tile
+                  // only hands back the converted book, so this stays inline.
                   onPress={() => openComic(item as ComicSeriesListItem)}
                   tileWidth={tileWidth}
                 />

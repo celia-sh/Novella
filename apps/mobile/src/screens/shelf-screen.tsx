@@ -505,8 +505,8 @@ function ShelfContent({
     }
 
     const book = booksById.get(item.id);
-    const handlePress = () => {
-      if (!book) return;
+    // The tile hands back its own book; the route id stays the shelf item id.
+    const handlePress = (book: BookListItem) => {
       router.push({
         pathname: '/book/[id]',
         params: {
@@ -529,6 +529,7 @@ function ShelfContent({
         interactionState={interactionState}
         key={key}
         networkImageEnabled={coverActivation.activatedKeys.has(key)}
+        // Selection mode reads component state, so this closure cannot be hoisted.
         onPress={interactionMode === 'select' ? () => toggleSelection(key) : handlePress}
         tileWidth={tileWidth}
       />
@@ -537,7 +538,10 @@ function ShelfContent({
         {...reorderProps}
         interactionState={interactionState}
         key={key}
-        onPress={interactionMode === 'select' ? () => toggleSelection(key) : handlePress}
+        // No book to navigate to, so pressing only ever toggles selection.
+        onPress={() => {
+          if (interactionMode === 'select') toggleSelection(key);
+        }}
         tileWidth={tileWidth}
       />
     );

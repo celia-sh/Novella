@@ -61,71 +61,45 @@ function BookCoverImageLayer({
   const placeholder = createBookCoverBlurHashPlaceholder(blurHash);
   const cacheKey = coverCacheKey(source);
   const wasRevealed = source.length > 0 && revealedCoverUrls.has(cacheKey);
-  // A cache hit means decoding can be skipped, not that this native view has
-  // displayed pixels. Keep the placeholder visible until onDisplay fires.
-  const opacity = useRef(new Animated.Value(0)).current;
-  const startedAt = useRef(Date.now());
-  const networkStarted = useRef(networkImageEnabled);
-  const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const revealScheduled = useRef(false);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mounted = useRef(true);
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<CoverStatus>('loading');
 
+  // A cached cover needs no cross-dissolve; a fresh one fades over the
+  // BlurHash. expo-image runs this on the native view, so covers no longer
+  // drive one Animated node and one extra RN view each.
+  const fadeDurationMs = wasRevealed && !animateCachedImage ? 0 : COVER_FADE_DURATION_MS;
+
   useEffect(() => () => {
     mounted.current = false;
-    if (revealTimer.current !== null) clearTimeout(revealTimer.current);
-    if (retryTimer.current !== null) clearTimeout(retryTimer.current);
-    opacity.stopAnimation();
-  }, [opacity]);
+    clearTimeout(settleTimer.current ?? undefined);
+    clearTimeout(retryTimer.current ?? undefined);
+  }, []);
 
-  useLayoutEffect(() => {
-    if (!networkImageEnabled) {
-      if (revealTimer.current !== null) clearTimeout(revealTimer.current);
-      if (retryTimer.current !== null) clearTimeout(retryTimer.current);
-      revealTimer.current = null;
-      retryTimer.current = null;
-      revealScheduled.current = false;
-      networkStarted.current = false;
-      opacity.stopAnimation();
-      opacity.setValue(0);
-      setStatus('loading');
-      return;
-    }
-    if (networkStarted.current) return;
-    networkStarted.current = true;
-    startedAt.current = Date.now();
-  }, [networkImageEnabled, opacity]);
+  useEffect(() => {
+    if (networkImageEnabled) return;
+    clearTimeout(settleTimer.current ?? undefined);
+    clearTimeout(retryTimer.current ?? undefined);
+    settleTimer.current = null;
+    retryTimer.current = null;
+    setStatus('loading');
+  }, [networkImageEnabled]);
 
   const reveal = () => {
-    if (revealScheduled.current || status === 'loaded' || status === 'revealing') return;
-    revealScheduled.current = true;
+    if (status === 'loaded' || settleTimer.current !== null) return;
     rememberRevealedCover(source);
-    if (wasRevealed && !animateCachedImage) {
-      opacity.setValue(1);
+    if (fadeDurationMs === 0) {
       setStatus('loaded');
       return;
     }
-
-    const remaining = Math.max(
-      0,
-      MINIMUM_PLACEHOLDER_DURATION_MS - (Date.now() - startedAt.current),
-    );
-    revealTimer.current = setTimeout(() => {
-      revealTimer.current = null;
-      if (!mounted.current) return;
-      setStatus('revealing');
-      Animated.timing(opacity, {
-        duration: COVER_FADE_DURATION_MS,
-        easing: (value) => 1 - (1 - value) * (1 - value),
-        toValue: 1,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (!finished || !mounted.current) return;
-        setStatus('loaded');
-      });
-    }, remaining);
+    // Keep the placeholder mounted until the native cross-dissolve finishes,
+    // otherwise it disappears mid-fade and the tile flashes.
+    settleTimer.current = setTimeout(() => {
+      settleTimer.current = null;
+      if (mounted.current) setStatus('loaded');
+    }, fadeDurationMs);
   };
 
   const retry = () => {
@@ -133,26 +107,19 @@ function BookCoverImageLayer({
       clearTimeout(retryTimer.current);
       retryTimer.current = null;
     }
-    if (revealTimer.current !== null) {
-      clearTimeout(revealTimer.current);
-      revealTimer.current = null;
+    if (settleTimer.current !== null) {
+      clearTimeout(settleTimer.current);
+      settleTimer.current = null;
     }
-    revealScheduled.current = false;
-    opacity.stopAnimation();
-    opacity.setValue(0);
-    startedAt.current = Date.now();
     setStatus('loading');
     setAttempt((value) => value + 1);
   };
 
   const fail = () => {
-    if (revealTimer.current !== null) {
-      clearTimeout(revealTimer.current);
-      revealTimer.current = null;
+    if (settleTimer.current !== null) {
+      clearTimeout(settleTimer.current);
+      settleTimer.current = null;
     }
-    revealScheduled.current = false;
-    opacity.stopAnimation();
-    opacity.setValue(0);
     setStatus('error');
     if (attempt === 0 && retryTimer.current === null) {
       retryTimer.current = setTimeout(() => {
@@ -164,7 +131,9 @@ function BookCoverImageLayer({
 
   return (
     <View style={styles.root}>
-      {placeholder ? (
+      {/* Once the cover is opaque the placeholder is invisible but still drawn
+          every frame, so it is unmounted instead of stacked underneath. */}
+      {status === 'loaded' ? null : placeholder ? (
         <BookCoverBlurHash placeholder={placeholder} />
       ) : (
         <View accessibilityElementsHidden style={styles.fallback}>
@@ -173,21 +142,21 @@ function BookCoverImageLayer({
       )}
 
       {source && networkImageEnabled ? (
-        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity }]}>
-          <Image
-            accessibilityLabel={accessibilityLabel}
-            allowDownscaling
-            cachePolicy="memory-disk"
-            contentFit="cover"
-            enforceEarlyResizing={process.env.EXPO_OS === 'ios'}
-            key={`${cacheKey}:${attempt}`}
-            onDisplay={reveal}
-            onError={fail}
-            recyclingKey={cacheKey}
-            source={{ cacheKey, uri: source }}
-            style={StyleSheet.absoluteFill}
-          />
-        </Animated.View>
+        <Image
+          accessibilityLabel={accessibilityLabel}
+          allowDownscaling
+          cachePolicy="memory-disk"
+          contentFit="cover"
+          enforceEarlyResizing={process.env.EXPO_OS === 'ios'}
+          key={`${cacheKey}:${attempt}`}
+          onDisplay={reveal}
+          onError={fail}
+          pointerEvents="none"
+          recyclingKey={cacheKey}
+          source={{ cacheKey, uri: source }}
+          style={StyleSheet.absoluteFill}
+          transition={fadeDurationMs === 0 ? null : { duration: fadeDurationMs, effect: 'cross-dissolve' }}
+        />
       ) : null}
 
       {source && networkImageEnabled && showLoading && !wasRevealed && status === 'loading' ? (

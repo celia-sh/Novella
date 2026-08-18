@@ -394,19 +394,7 @@ function BookGrid({
               book={book}
               key={homeBookCoverKey(book)}
               networkImageEnabled={activatedCoverKeys.has(homeBookCoverKey(book))}
-              onPress={() => router.push({
-                pathname: '/book/[id]',
-                params: {
-                  cover: book.coverUrl,
-                  id: String(book.id),
-                  placeholder: book.coverPlaceholder ?? '',
-                  ...(book.type === 'Comic'
-                    ? { seriesTitle: book.seriesTitle ?? book.title }
-                    : {}),
-                  title: book.title,
-                  type: book.type,
-                },
-              })}
+              onPress={openBookDetail}
               tileWidth={tileWidth}
               {...(showRanks
                 ? { rank: rowIndex * columns + columnIndex + 1 }
@@ -422,6 +410,24 @@ function BookGrid({
       ))}
     </View>
   );
+}
+
+/**
+ * Module scope keeps the handler identity stable for every memoised tile, so
+ * activating one cover no longer re-renders the whole grid.
+ */
+function openBookDetail(book: BookListItem): void {
+  router.push({
+    pathname: '/book/[id]',
+    params: {
+      cover: book.coverUrl,
+      id: String(book.id),
+      placeholder: book.coverPlaceholder ?? '',
+      ...(book.type === 'Comic' ? { seriesTitle: book.seriesTitle ?? book.title } : {}),
+      title: book.title,
+      type: book.type,
+    },
+  });
 }
 
 function homeBookCoverKey(book: BookListItem): string {

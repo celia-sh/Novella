@@ -211,33 +211,14 @@ export function BookSearchScreen({
           <BookCoverGridItem
             book={item.item}
             networkImageEnabled={coverActivation.activatedKeys.has(item.key)}
-            onPress={() => router.push({
-              pathname: '/book/[id]',
-              params: {
-                cover: item.item.coverUrl,
-                id: String(item.item.id),
-                placeholder: item.item.coverPlaceholder ?? '',
-                title: item.item.title,
-                type: 'Novel',
-              },
-            })}
+            onPress={openNovelDetail}
             tileWidth={tileWidth}
           />
         ) : (
           <BookCoverGridItem
             book={comicToBookListItem(item.item)}
             networkImageEnabled={coverActivation.activatedKeys.has(item.key)}
-            onPress={() => router.push({
-              pathname: '/book/[id]',
-              params: {
-                cover: item.item.coverUrl,
-                id: String(item.item.id),
-                placeholder: item.item.coverPlaceholder ?? '',
-                seriesTitle: item.item.title,
-                title: item.item.title,
-                type: 'Comic',
-              },
-            })}
+            onPress={openComicDetail}
             tileWidth={tileWidth}
           />
         )}
@@ -246,6 +227,41 @@ export function BookSearchScreen({
       />
     </NativeScreenScaffold>
   );
+}
+
+/**
+ * Module scope keeps the handler identity stable for every memoised tile, so
+ * activating one cover no longer re-renders the whole grid.
+ */
+function openNovelDetail(book: BookListItem): void {
+  router.push({
+    pathname: '/book/[id]',
+    params: {
+      cover: book.coverUrl,
+      id: String(book.id),
+      placeholder: book.coverPlaceholder ?? '',
+      title: book.title,
+      type: 'Novel',
+    },
+  });
+}
+
+/**
+ * Comic tiles render `comicToBookListItem` output, whose `title` carries the
+ * series title (`seriesTitle` is nulled by the conversion).
+ */
+function openComicDetail(book: BookListItem): void {
+  router.push({
+    pathname: '/book/[id]',
+    params: {
+      cover: book.coverUrl,
+      id: String(book.id),
+      placeholder: book.coverPlaceholder ?? '',
+      seriesTitle: book.title,
+      title: book.title,
+      type: 'Comic',
+    },
+  });
 }
 
 function searchItemKey(item: number | SearchResult): string {

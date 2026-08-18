@@ -8,8 +8,14 @@ class NovellaUiModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("NovellaUi")
 
-    ExpoUIView<BlurHashProps>("BlurHash") {
-      Content { props -> BlurHashContent(props) }
+    View(BlurHashView::class) {
+      Name("BlurHash")
+
+      // NOT "width"/"height": those collide with React Native's layout style
+      // props and Yoga would size the view to the decode dimensions.
+      Prop("blurHash") { view: BlurHashView, value: String -> view.setBlurHash(value) }
+      Prop("decodeWidth") { view: BlurHashView, value: Int -> view.setDecodeWidth(value) }
+      Prop("decodeHeight") { view: BlurHashView, value: Int -> view.setDecodeHeight(value) }
     }
 
     ExpoUIView<BottomSheetProps>("BottomSheet") {

@@ -1,4 +1,5 @@
 import { IconCheck, IconGripVertical } from '@tabler/icons-react-native';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Pressable,
@@ -34,14 +35,19 @@ interface BookCoverGridItemProps {
   networkImageEnabled?: boolean;
   onAccessibilityAction?: (event: AccessibilityActionEvent) => void;
   onLongPress?: (event: GestureResponderEvent) => void;
-  onPress?: () => void;
+  /** Receives the rendered book so callers can hoist a stable handler. */
+  onPress?: (book: BookListItem) => void;
   onPressOut?: () => void;
   /** Leaderboard position; renders a gold/silver/bronze badge for ranks 1-3. */
   rank?: number;
   tileWidth: number;
 }
 
-export function BookCoverGridItem({
+/**
+ * Memoised: grids re-render on every cover-activation change, and without this
+ * every tile in the list re-rendered for one newly activated cover.
+ */
+export const BookCoverGridItem = memo(function BookCoverGridItem({
   accessibilityActions,
   animateCachedImage,
   book,
@@ -72,7 +78,7 @@ export function BookCoverGridItem({
       delayLongPress={180}
       onAccessibilityAction={onAccessibilityAction}
       onLongPress={onLongPress}
-      onPress={onPress}
+      onPress={onPress ? () => onPress(book) : undefined}
       onPressOut={onPressOut}
       style={[styles.item, { width: tileWidth }]}
     >
@@ -127,7 +133,7 @@ export function BookCoverGridItem({
       </View>
     </Pressable>
   );
-}
+});
 
 function RankBadge({ rank }: { rank: number }) {
   const styles = useBookCoverGridItemStyles();

@@ -121,17 +121,7 @@ export function ComicListScreen() {
               <BookCoverGridItem
                 book={item}
                 networkImageEnabled={coverActivation.activatedKeys.has(comicListCoverKey(item))}
-                onPress={() => router.push({
-                  pathname: '/book/[id]',
-                  params: {
-                    cover: item.coverUrl,
-                    id: String(item.id),
-                    placeholder: item.coverPlaceholder ?? '',
-                    seriesTitle: item.title,
-                    title: item.title,
-                    type: item.type ?? 'Comic',
-                  },
-                })}
+                onPress={openComicDetail}
                 tileWidth={tileWidth}
               />
             )
@@ -143,6 +133,24 @@ export function ComicListScreen() {
       </NativeScreenScaffold>
     </>
   );
+}
+
+/**
+ * Module scope keeps the handler identity stable for every memoised tile, so
+ * activating one cover no longer re-renders the whole grid.
+ */
+function openComicDetail(book: BookListItem): void {
+  router.push({
+    pathname: '/book/[id]',
+    params: {
+      cover: book.coverUrl,
+      id: String(book.id),
+      placeholder: book.coverPlaceholder ?? '',
+      seriesTitle: book.title,
+      title: book.title,
+      type: book.type ?? 'Comic',
+    },
+  });
 }
 
 function comicListCoverKey(item: BookListItem): string {

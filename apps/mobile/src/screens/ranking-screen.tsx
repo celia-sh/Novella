@@ -1,5 +1,6 @@
 import { router, Stack } from 'expo-router';
 import { IconTrophy } from '@tabler/icons-react-native';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FlatList,
@@ -57,6 +58,19 @@ export function RankingScreen() {
     keyForItem: (item) => typeof item === 'number' ? null : rankingCoverKey(item),
     scopeKey: `${period}:${listKey}`,
   });
+  // Hoisted out of renderItem so the memoised tiles keep prop identity when a
+  // cover activates; otherwise every row re-renders on each activation batch.
+  const openBook = useCallback((book: BookListItem) => router.push({
+    pathname: '/book/[id]',
+    params: {
+      cover: book.coverUrl,
+      id: String(book.id),
+      placeholder: book.coverPlaceholder ?? '',
+      ...(book.type === 'Comic' ? { seriesTitle: book.seriesTitle ?? book.title } : {}),
+      title: book.title,
+      type: book.type ?? 'Novel',
+    },
+  }), []);
   const periodOptions: readonly { label: string; value: RankPeriod }[] = [
     { label: t('ranking.periods.daily'), value: 'daily' },
     { label: t('ranking.periods.weekly'), value: 'weekly' },
@@ -108,6 +122,9 @@ export function RankingScreen() {
               tintColor={colors.accent as string}
             />
           }
+          // Android keeps every rendered row attached without this; clipping
+          // offscreen tiles cuts draw work and bitmap retention while scrolling.
+          removeClippedSubviews
           renderItem={({ item, index }) =>
             typeof item === 'number' ? (
               <BookCoverSkeletonTile tileWidth={tileWidth} />
@@ -115,19 +132,7 @@ export function RankingScreen() {
               <BookCoverGridItem
                 book={item}
                 networkImageEnabled={coverActivation.activatedKeys.has(rankingCoverKey(item))}
-                onPress={() => router.push({
-                  pathname: '/book/[id]',
-                  params: {
-                    cover: item.coverUrl,
-                    id: String(item.id),
-                    placeholder: item.coverPlaceholder ?? '',
-                    ...(item.type === 'Comic'
-                      ? { seriesTitle: item.seriesTitle ?? item.title }
-                      : {}),
-                    title: item.title,
-                    type: item.type ?? 'Novel',
-                  },
-                })}
+                onPress={openBook}
                 rank={index + 1}
                 tileWidth={tileWidth}
               />
