@@ -44,11 +44,15 @@ enum class TopAppBarActionIcon(val value: String) : Enumerable {
   BELL("bell"),
   CHECK("check"),
   DOTS("dots"),
+  EDIT("edit"),
+  FOLDER_MOVE("folderMove"),
   FOLDER_PLUS("folderPlus"),
+  LIST_CHECK("listCheck"),
   PENCIL("pencil"),
   SORT_ASCENDING("sortAscending"),
   TRASH("trash"),
-  USER_CIRCLE("userCircle");
+  USER_CIRCLE("userCircle"),
+  X("x");
 
   val resourceId: Int
     get() = when (this) {
@@ -56,11 +60,15 @@ enum class TopAppBarActionIcon(val value: String) : Enumerable {
       BELL -> R.drawable.ic_tabler_bell_24
       CHECK -> R.drawable.ic_tabler_check_24
       DOTS -> R.drawable.ic_tabler_dots_24
+      EDIT -> R.drawable.ic_tabler_edit_24
+      FOLDER_MOVE -> R.drawable.ic_tabler_folder_symlink_24
       FOLDER_PLUS -> R.drawable.ic_tabler_folder_plus_24
-      PENCIL -> R.drawable.ic_pencil_24
+      LIST_CHECK -> R.drawable.ic_tabler_list_check_24
+      PENCIL -> R.drawable.ic_tabler_pencil_24
       SORT_ASCENDING -> R.drawable.ic_tabler_sort_ascending_24
       TRASH -> R.drawable.ic_tabler_trash_24
       USER_CIRCLE -> R.drawable.ic_tabler_user_circle_24
+      X -> R.drawable.ic_tabler_x_24
     }
 }
 
@@ -167,7 +175,7 @@ private fun TopAppBarActions(
   actions: List<TopAppBarAction>,
   onActionPressed: (TopAppBarActionEvent) -> Unit
 ) {
-  actions.take(3).forEach { action ->
+  actions.take(4).forEach { action ->
     var menuExpanded by remember(action.id) { mutableStateOf(false) }
     Box {
       IconButton(

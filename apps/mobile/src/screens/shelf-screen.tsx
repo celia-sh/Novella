@@ -4,15 +4,12 @@ import {
   IconBook2,
   IconCheck,
   IconFolderOpen,
-  IconGripVertical,
   IconX,
 } from '@tabler/icons-react-native';
-import { router, useNavigation } from 'expo-router';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  ActivityIndicator,
-  Alert,
   BackHandler,
   Pressable,
   RefreshControl,
@@ -26,10 +23,8 @@ import { showAlert } from '@/components/native-alert-dialog';
 
 import type { BookListItem, ShelfItem } from '@novella/api-client';
 import {
-  getShelfFolderPaths,
   getShelfItemsAtPath,
   shelfItemKey,
-  type ShelfDraft,
   type ShelfItemKey,
   type ShelfSnapshot,
 } from '@novella/client-core';
@@ -47,10 +42,8 @@ import {
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
 import { ShelfNavigation } from '@/components/shelf-navigation';
-import {
-  ReorderableShelfGrid,
-  type ReorderableShelfGridItemState,
-} from '@/components/reorderable-shelf-grid';
+import type { ShelfEditInteraction } from '@/components/shelf-navigation.types';
+import { ReorderableShelfGrid } from '@/components/reorderable-shelf-grid';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { SectionCard } from '@/components/section-card';
 import { useBookGridLayout, BOOK_GRID_COLUMN_GAP } from '@/hooks/use-book-grid-layout';
@@ -61,7 +54,11 @@ import {
 } from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
 import { useShelf, type ShelfMode } from '@/hooks/use-shelf';
-import { closeShelfManagementSession, openShelfManagementSession } from '@/services/shelf-management-session';
+import { openShelfActionSession } from '@/services/shelf-action-session';
+import {
+  getShelfMoveDestinations,
+  resolveShelfSelectionActions,
+} from '@/services/shelf-editing';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
@@ -69,36 +66,33 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
   const { t: tCommon } = useTranslation('common');
   const styles = useShelfScreenStyles();
   const { colors } = useAppTheme();
-  const navigation = useNavigation();
   const {
     beginEdit,
-    cancelEdit,
     clearEditorError,
     createFolder,
-    deleteFolder,
+    editorCanRetry,
     editorError,
-    ensureDraft,
     error,
-    isDirty,
+    exitEdit,
     isLoading,
     isRefreshing,
-    isSaving,
     mode,
     moveBooks,
     reload,
     removeItems,
     renameFolder,
     reorderSiblings,
-    saveEdit,
+    retrySave,
     snapshot,
   } = useShelf();
   const [selectedKeys, setSelectedKeys] = useState<Set<ShelfItemKey>>(new Set());
-  const [interactionMode, setInteractionMode] = useState<'browse' | 'drag' | 'select'>('browse');
+  const [editInteraction, setEditInteraction] = useState<ShelfEditInteraction>('select');
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollOffsetRef = useRef(0);
   const viewportHeightRef = useRef(0);
   const coverViewport = useCoverScrollViewport();
   const { columns, contentWidth, listKey, tileWidth } = useBookGridLayout(20);
+  const isFolder = parents.length > 0;
 
   const visibleItems = useMemo(
     () => snapshot ? getShelfItemsAtPath(toDraft(snapshot), parents) : [],
@@ -114,10 +108,25 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
   const selectedFolders = selectedItems.filter(
     (item): item is Extract<ShelfItem, { type: 'FOLDER' }> => item.type === 'FOLDER',
   );
+  const currentFolder = useMemo(() => {
+    const folderId = parents.at(-1);
+    if (!snapshot || !folderId) return null;
+    return snapshot.items.find(
+      (item): item is Extract<ShelfItem, { type: 'FOLDER' }> =>
+        item.type === 'FOLDER' && item.id === folderId,
+    ) ?? null;
+  }, [parents, snapshot]);
   const moveDestinations = useMemo(
-    () => snapshot ? getMoveDestinations(snapshot, parents, t('shelf.shelfRoot')) : [],
+    () => snapshot
+      ? getShelfMoveDestinations(snapshot, parents, t('shelf.shelfRoot'))
+      : [],
     [parents, snapshot, t],
   );
+  const { canDelete, canMove } = resolveShelfSelectionActions({
+    destinationCount: moveDestinations.length,
+    selectedBookCount: selectedBooks.length,
+    selectedFolderCount: selectedFolders.length,
+  });
   const title = getNavigationTitle(
     snapshot,
     parents,
@@ -136,53 +145,34 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
   useEffect(() => {
     if (mode !== 'browse') return;
     setSelectedKeys(new Set());
+    setEditInteraction('select');
   }, [mode]);
 
-  const discardEdit = useCallback(() => {
+  const leaveEdit = useCallback(() => {
     setSelectedKeys(new Set());
-    cancelEdit();
-  }, [cancelEdit]);
-
-  const requestCancelEdit = useCallback(() => {
-    if (!isDirty) {
-      discardEdit();
-      return;
-    }
-    showAlert(
-      t('shelf.discardTitle'),
-      t('shelf.discardDescription'),
-      [
-        { text: t('shelf.keepEditing'), style: 'cancel' },
-        { text: t('shelf.discard'), style: 'destructive', onPress: discardEdit },
-      ],
-    );
-  }, [discardEdit, isDirty, t]);
-
-  usePreventRemove(isDirty, ({ data }) => {
-    showAlert(
-      t('shelf.discardTitle'),
-      t('shelf.discardBeforeLeaving'),
-      [
-        { text: t('shelf.keepEditing'), style: 'cancel' },
-        {
-          text: t('shelf.discard'),
-          style: 'destructive',
-          onPress: () => {
-            discardEdit();
-            requestAnimationFrame(() => navigation.dispatch(data.action));
-          },
-        },
-      ],
-    );
-  });
+    setEditInteraction('select');
+    exitEdit();
+  }, [exitEdit]);
 
   const handleBack = useCallback(() => {
+    if (mode === 'edit') {
+      leaveEdit();
+      return;
+    }
     if (router.canGoBack()) router.back();
     else router.replace('/(tabs)/(shelf)/shelf');
-  }, [mode, requestCancelEdit]);
+  }, [leaveEdit, mode]);
+
+  usePreventRemove(mode === 'edit', () => {
+    leaveEdit();
+  });
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (mode === 'edit') {
+        leaveEdit();
+        return true;
+      }
       if (parents.length > 0) {
         handleBack();
         return true;
@@ -190,7 +180,7 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
       return false;
     });
     return () => subscription.remove();
-  }, [handleBack, mode, parents.length]);
+  }, [handleBack, leaveEdit, mode, parents.length]);
 
   const openFolder = useCallback((folderId: string) => {
     router.push({
@@ -199,18 +189,73 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
     });
   }, [parents]);
 
-  const beginDrag = useCallback(() => interactionMode === 'drag' && ensureDraft(), [ensureDraft, interactionMode]);
+  const enterEdit = useCallback(() => {
+    if (!beginEdit()) return;
+    setSelectedKeys(new Set());
+    setEditInteraction('select');
+  }, [beginEdit]);
 
-  const handleSave = useCallback(async () => {
-    if (await saveEdit()) setSelectedKeys(new Set());
-  }, [saveEdit]);
+  const toggleEditInteraction = useCallback(() => {
+    setSelectedKeys(new Set());
+    setEditInteraction((current) => current === 'select' ? 'reorder' : 'select');
+  }, []);
+
+  const beginDrag = useCallback(
+    () => mode === 'edit' && editInteraction === 'reorder',
+    [editInteraction, mode],
+  );
+
+  const openCreateFolder = useCallback(() => {
+    if (isFolder) return;
+    openShelfActionSession({
+      initialValue: '',
+      kind: 'folderName',
+      onSubmit: (folderTitle) => {
+        createFolder(folderTitle);
+      },
+      placeholder: t('shelf.enterFolderName'),
+      submitLabel: t('shelf.createFolder'),
+      title: t('shelf.newFolder'),
+    });
+    router.push('/shelf/action');
+  }, [createFolder, isFolder, t]);
+
+  const openRenameFolder = useCallback(() => {
+    if (!currentFolder) return;
+    openShelfActionSession({
+      initialValue: currentFolder.title,
+      kind: 'folderName',
+      onSubmit: (folderTitle) => {
+        renameFolder(currentFolder.id, folderTitle);
+      },
+      placeholder: t('shelf.enterFolderName'),
+      submitLabel: t('shelf.confirmRename'),
+      title: t('shelf.renameFolder'),
+    });
+    router.push('/shelf/action');
+  }, [currentFolder, renameFolder, t]);
+
+  const openMoveSheet = useCallback(() => {
+    if (!canMove) return;
+    const bookIds = selectedBooks.map((book) => book.id);
+    openShelfActionSession({
+      destinations: moveDestinations,
+      kind: 'move',
+      onSelect: (destination) => {
+        if (moveBooks(bookIds, destination.path)) setSelectedKeys(new Set());
+      },
+      subtitle: t('shelf.moveSelectedDescription'),
+      title: t('shelf.moveSelectedTitle', { count: bookIds.length }),
+    });
+    router.push('/shelf/action');
+  }, [canMove, moveBooks, moveDestinations, selectedBooks, t]);
 
   const handleDelete = useCallback(() => {
+    if (!canDelete) return;
     const keys = new Set(selectedKeys);
-    const containsFolders = selectedFolders.length > 0;
     showAlert(
       t('shelf.deleteSelectedTitle'),
-      containsFolders
+      selectedFolders.length > 0
         ? t('shelf.deleteSelectedWithFolders')
         : t('shelf.deleteSelectedBooks'),
       [
@@ -219,87 +264,74 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
           text: tCommon('actions.delete'),
           style: 'destructive',
           onPress: () => {
-            if (!ensureDraft()) return;
-            const bookKeys = new Set(
-              [...keys].filter((key) => !selectedFolders.some((folder) => shelfItemKey(folder) === key)),
-            );
-            if (bookKeys.size > 0) removeItems(bookKeys);
-            for (const folder of selectedFolders) deleteFolder(folder.id);
-            setSelectedKeys(new Set());
+            if (removeItems(keys)) setSelectedKeys(new Set());
           },
         },
       ],
     );
-  }, [deleteFolder, ensureDraft, removeItems, selectedFolders, selectedKeys, t, tCommon]);
+  }, [canDelete, removeItems, selectedFolders.length, selectedKeys, t, tCommon]);
 
-  const openManage = useCallback(() => {
-    const commands = [
-      { icon: 'pointer' as const, id: 'browse', label: interactionMode === 'browse' ? t('shelf.browsing') : t('shelf.browseNormally') },
-      { icon: 'pointer' as const, id: 'drag', label: interactionMode === 'drag' ? t('shelf.dragEnabled') : t('shelf.longPressToDrag') },
-      { icon: 'select' as const, id: 'select', label: interactionMode === 'select' ? t('shelf.selectingItems') : t('shelf.selectItems') },
-      { icon: 'folderPlus' as const, id: 'create', label: t('shelf.newFolder') },
-      ...(selectedFolders.length === 1 && selectedBooks.length === 0
-        ? [{ icon: 'select' as const, id: 'rename', label: t('shelf.renameSelectedFolder') }]
-        : []),
-      ...(selectedBooks.length > 0 && selectedFolders.length === 0
-        ? moveDestinations.map((destination, index) => ({
-            icon: 'folderPlus' as const,
-            id: `move:${index}`,
-            label: t('shelf.moveTo', { destination: destination.label }),
-          }))
-        : []),
-      ...(selectedKeys.size > 0
-        ? [{ destructive: true, icon: 'trash' as const, id: 'delete', label: t('shelf.deleteSelectedItems') }]
-        : []),
-      ...(isDirty
+  const androidActions = useMemo<NativeTopAppBarAction[]>(() => {
+    if (mode === 'browse') {
+      return isFolder
         ? [
-            { icon: 'check' as const, id: 'save', label: t('shelf.saveChanges') },
-            { destructive: true, icon: 'x' as const, id: 'discard', label: t('shelf.discardChanges') },
+            { accessibilityLabel: t('shelf.edit'), icon: 'edit', id: 'edit' },
+            { accessibilityLabel: t('shelf.renameFolder'), icon: 'pencil', id: 'rename' },
           ]
-        : []),
-    ];
-
-    openShelfManagementSession({
-      commands,
-      title: t('shelf.manage'),
-      onCommand: (id) => {
-        if (id === 'browse' || id === 'drag' || id === 'select') {
-          setInteractionMode(id);
-          if (id !== 'select') setSelectedKeys(new Set());
-        } else if (id === 'create') {
-          Alert.prompt(t('shelf.newFolder'), t('shelf.enterFolderName'), (title) => {
-            if (title.trim() && ensureDraft()) createFolder(title);
-          });
-        } else if (id === 'rename') {
-          const folder = selectedFolders[0];
-          if (folder) Alert.prompt(t('shelf.renameFolder'), undefined, (title) => {
-            if (title.trim() && ensureDraft()) renameFolder(folder.id, title);
-          }, 'plain-text', folder.title);
-        } else if (id.startsWith('move:')) {
-          const destination = moveDestinations[Number(id.slice(5))];
-          if (destination && ensureDraft()) {
-            moveBooks(selectedBooks.map((book) => book.id), destination.path);
-            setSelectedKeys(new Set());
-          }
-        } else if (id === 'delete') {
-          handleDelete();
-        } else if (id === 'save') {
-          void handleSave();
-        } else if (id === 'discard') {
-          requestCancelEdit();
-        }
+        : [
+            { accessibilityLabel: t('shelf.newFolder'), icon: 'folderPlus', id: 'create' },
+            { accessibilityLabel: t('shelf.edit'), icon: 'edit', id: 'edit' },
+          ];
+    }
+    return [
+      {
+        accessibilityLabel: editInteraction === 'select'
+          ? t('shelf.switchToReorder')
+          : t('shelf.switchToSelection'),
+        icon: editInteraction === 'select' ? 'sortAscending' : 'listCheck',
+        id: 'toggle-interaction',
       },
-    });
-    router.push('/shelf/manage');
-  }, [createFolder, ensureDraft, handleDelete, handleSave, interactionMode, isDirty, moveBooks, moveDestinations, renameFolder, requestCancelEdit, selectedBooks, selectedFolders, selectedKeys.size, t]);
-
-  const androidActions = useMemo<NativeTopAppBarAction[]>(() => [
-    { accessibilityLabel: t('shelf.manage'), icon: 'dots', id: 'manage' },
-  ], [t]);
+      {
+        accessibilityLabel: t('shelf.moveSelectedItems'),
+        enabled: canMove,
+        icon: 'folderMove',
+        id: 'move',
+      },
+      {
+        accessibilityLabel: t('shelf.deleteSelectedItems'),
+        enabled: canDelete,
+        icon: 'trash',
+        id: 'delete',
+      },
+      { accessibilityLabel: t('shelf.exitEdit'), icon: 'x', id: 'exit' },
+    ];
+  }, [canDelete, canMove, editInteraction, isFolder, mode, t]);
 
   const handleAndroidAction = useCallback((id: string) => {
-    if (id === 'manage') openManage();
-  }, [openManage]);
+    switch (id) {
+      case 'create':
+        openCreateFolder();
+        break;
+      case 'delete':
+        handleDelete();
+        break;
+      case 'edit':
+        enterEdit();
+        break;
+      case 'exit':
+        leaveEdit();
+        break;
+      case 'move':
+        openMoveSheet();
+        break;
+      case 'rename':
+        openRenameFolder();
+        break;
+      case 'toggle-interaction':
+        toggleEditInteraction();
+        break;
+    }
+  }, [enterEdit, handleDelete, leaveEdit, openCreateFolder, openMoveSheet, openRenameFolder, toggleEditInteraction]);
 
   return (
     <>
@@ -313,82 +345,92 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
       >
         <ShelfScrollRoot nested={parents.length > 0}>
           <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={styles.content}
-          nestedScrollEnabled
-          onLayout={(event) => {
-            viewportHeightRef.current = event.nativeEvent.layout.height;
-            coverViewport.onLayout(event);
-          }}
-          onScroll={(event) => {
-            scrollOffsetRef.current = event.nativeEvent.contentOffset.y;
-            coverViewport.onScroll(event);
-          }}
-          ref={scrollViewRef}
-          refreshControl={(
-            <RefreshControl
-              enabled={mode === 'browse'}
-              onRefresh={reload}
-              refreshing={isRefreshing}
-              tintColor={colors.accent as string}
-            />
-          )}
-          scrollEventThrottle={16}
-          showsVerticalScrollIndicator={false}
-          style={styles.scrollView}
-        >
-          {parents.length > 1 ? (
-            <Text numberOfLines={2} style={styles.breadcrumb}>
-              {getFolderBreadcrumb(
-                snapshot,
-                parents,
-                t('shelf.unnamedFolder'),
-                t('shelf.unavailableFolder'),
-              )}
-            </Text>
-          ) : null}
+            contentInsetAdjustmentBehavior="automatic"
+            contentContainerStyle={styles.content}
+            nestedScrollEnabled
+            onLayout={(event) => {
+              viewportHeightRef.current = event.nativeEvent.layout.height;
+              coverViewport.onLayout(event);
+            }}
+            onScroll={(event) => {
+              scrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+              coverViewport.onScroll(event);
+            }}
+            ref={scrollViewRef}
+            refreshControl={(
+              <RefreshControl
+                enabled={mode === 'browse'}
+                onRefresh={reload}
+                refreshing={isRefreshing}
+                tintColor={colors.accent as string}
+              />
+            )}
+            scrollEventThrottle={16}
+            showsVerticalScrollIndicator={false}
+            style={styles.scrollView}
+          >
+            {parents.length > 1 ? (
+              <Text numberOfLines={2} style={styles.breadcrumb}>
+                {getFolderBreadcrumb(
+                  snapshot,
+                  parents,
+                  t('shelf.unnamedFolder'),
+                  t('shelf.unavailableFolder'),
+                )}
+              </Text>
+            ) : null}
 
-          {editorError ? (
-            <InlineError error={editorError} onDismiss={clearEditorError} />
-          ) : null}
-          {error ? <ErrorState compact={Boolean(snapshot)} error={error} onRetry={reload} /> : null}
-          {isLoading ? <LoadingState /> : null}
-          {snapshot ? (
-            <ShelfContent
-              beginDrag={beginDrag}
-              columns={columns}
-              contentWidth={contentWidth}
-              coverViewport={coverViewport}
-              interactionMode={interactionMode}
-              listKey={listKey}
-              mode={mode}
-              onOpenFolder={openFolder}
-              onReorder={reorderSiblings}
-              parents={parents}
-              scrollOffsetRef={scrollOffsetRef}
-              scrollViewRef={scrollViewRef}
-              selectedKeys={selectedKeys}
-              setSelectedKeys={setSelectedKeys}
-              snapshot={snapshot}
-              tileWidth={tileWidth}
-              viewportHeightRef={viewportHeightRef}
-              visibleItems={visibleItems}
-            />
-          ) : null}
+            {editorError ? (
+              <InlineError
+                error={editorError}
+                {...(editorCanRetry
+                  ? { onRetry: retrySave }
+                  : { onDismiss: clearEditorError })}
+              />
+            ) : null}
+            {error ? <ErrorState compact={Boolean(snapshot)} error={error} onRetry={reload} /> : null}
+            {isLoading ? <LoadingState /> : null}
+            {snapshot ? (
+              <ShelfContent
+                beginDrag={beginDrag}
+                columns={columns}
+                contentWidth={contentWidth}
+                coverViewport={coverViewport}
+                editInteraction={editInteraction}
+                listKey={listKey}
+                mode={mode}
+                onOpenFolder={openFolder}
+                onReorder={reorderSiblings}
+                parents={parents}
+                scrollOffsetRef={scrollOffsetRef}
+                scrollViewRef={scrollViewRef}
+                selectedKeys={selectedKeys}
+                setSelectedKeys={setSelectedKeys}
+                snapshot={snapshot}
+                tileWidth={tileWidth}
+                viewportHeightRef={viewportHeightRef}
+                visibleItems={visibleItems}
+              />
+            ) : null}
           </ScrollView>
         </ShelfScrollRoot>
       </NativeScreenScaffold>
       <ShelfNavigation
-        isSaving={isSaving}
-        largeTitle={parents.length === 0}
+        canDelete={canDelete}
+        canMove={canMove}
+        editInteraction={editInteraction}
+        isFolder={isFolder}
+        largeTitle={mode === 'browse' && parents.length === 0}
         mode={mode}
-        onBack={handleBack}
-        onManage={openManage}
-        onSave={() => void handleSave()}
-        showBack={parents.length > 0}
+        onCreateFolder={openCreateFolder}
+        onDelete={handleDelete}
+        onEdit={enterEdit}
+        onExitEdit={leaveEdit}
+        onMove={openMoveSheet}
+        onRenameFolder={openRenameFolder}
+        onToggleEditInteraction={toggleEditInteraction}
         title={title}
       />
-
     </>
   );
 }
@@ -409,7 +451,7 @@ function ShelfContent({
   columns,
   contentWidth,
   coverViewport,
-  interactionMode,
+  editInteraction,
   listKey,
   mode,
   onOpenFolder,
@@ -428,7 +470,7 @@ function ShelfContent({
   columns: number;
   contentWidth: number;
   coverViewport: CoverScrollViewportController;
-  interactionMode: 'browse' | 'drag' | 'select';
+  editInteraction: ShelfEditInteraction;
   listKey: string;
   mode: ShelfMode;
   onOpenFolder: (folderId: string) => void;
@@ -467,12 +509,13 @@ function ShelfContent({
     });
   };
 
-  const renderShelfItem = (
-    item: ShelfItem,
-    reorderState?: ReorderableShelfGridItemState,
-  ) => {
+  const selecting = mode === 'edit' && editInteraction === 'select';
+
+  const renderShelfItem = (item: ShelfItem) => {
     const key = shelfItemKey(item);
-    const interactionState = interactionMode === 'select' && selectedKeys.has(key) ? 'selected' as const : 'default' as const;
+    const interactionState = selecting && selectedKeys.has(key)
+      ? 'selected' as const
+      : 'default' as const;
     const reorderProps = {};
     if (item.type === 'FOLDER') {
       const folderParents = [...parents, item.id];
@@ -494,8 +537,8 @@ function ShelfContent({
           key={key}
           networkImageEnabled={coverActivation.activatedKeys.has(key)}
           onPress={() => {
-            if (interactionMode === 'select') toggleSelection(key);
-            else onOpenFolder(item.id);
+            if (selecting) toggleSelection(key);
+            else if (mode === 'browse') onOpenFolder(item.id);
           }}
           previewBooks={previewBooks}
           tileWidth={tileWidth}
@@ -530,7 +573,11 @@ function ShelfContent({
         key={key}
         networkImageEnabled={coverActivation.activatedKeys.has(key)}
         // Selection mode reads component state, so this closure cannot be hoisted.
-        onPress={interactionMode === 'select' ? () => toggleSelection(key) : handlePress}
+        onPress={selecting
+          ? () => toggleSelection(key)
+          : mode === 'browse'
+              ? handlePress
+              : () => undefined}
         tileWidth={tileWidth}
       />
     ) : (
@@ -540,14 +587,14 @@ function ShelfContent({
         key={key}
         // No book to navigate to, so pressing only ever toggles selection.
         onPress={() => {
-          if (interactionMode === 'select') toggleSelection(key);
+          if (selecting) toggleSelection(key);
         }}
         tileWidth={tileWidth}
       />
     );
   };
 
-  if (interactionMode === 'drag') {
+  if (mode === 'edit' && editInteraction === 'reorder') {
     return (
       <ReorderableShelfGrid
         columns={columns}
@@ -583,28 +630,6 @@ function ShelfContent({
           ) : null}
         </View>
       ))}
-    </View>
-  );
-}
-
-function ModeBanner({ isDirty, isSaving, mode }: { isDirty: boolean; isSaving: boolean; mode: ShelfMode }) {
-  const { t } = useTranslation('library');
-  const styles = useShelfScreenStyles();
-  const { colors } = useAppTheme();
-  return (
-    <View style={styles.modeBanner}>
-      {isSaving ? (
-        <ActivityIndicator color={colors.accent as string} size="small" />
-      ) : isDirty ? (
-        <IconCheck color={colors.accent as string} size={20} strokeWidth={2.2} />
-      ) : null}
-      <Text style={styles.modeLabel}>
-        {isSaving
-          ? t('shelf.saving')
-          : isDirty
-              ? t('shelf.unsavedChanges')
-              : t('shelf.selectToManage')}
-      </Text>
     </View>
   );
 }
@@ -673,8 +698,17 @@ function ErrorState({
   );
 }
 
-function InlineError({ error, onDismiss }: { error: LibraryMessage; onDismiss: () => void }) {
+function InlineError({
+  error,
+  onDismiss,
+  onRetry,
+}: {
+  error: LibraryMessage;
+  onDismiss?: () => void;
+  onRetry?: () => void;
+}) {
   const { t } = useTranslation('library');
+  const { t: tCommon } = useTranslation('common');
   const styles = useShelfScreenStyles();
   const { colors } = useAppTheme();
   return (
@@ -683,9 +717,19 @@ function InlineError({ error, onDismiss }: { error: LibraryMessage; onDismiss: (
       <Text style={styles.inlineErrorLabel}>
         {error.kind === 'raw' ? error.text : t(error.key)}
       </Text>
-      <Pressable accessibilityLabel={t('shelf.dismissError')} onPress={onDismiss}>
-        <IconX color={colors.secondaryLabel as string} size={20} strokeWidth={2} />
-      </Pressable>
+      {onRetry ? (
+        <Pressable
+          accessibilityLabel={tCommon('accessibility.retry')}
+          accessibilityRole="button"
+          onPress={onRetry}
+        >
+          <Text style={styles.inlineRetryLabel}>{tCommon('actions.retry')}</Text>
+        </Pressable>
+      ) : onDismiss ? (
+        <Pressable accessibilityLabel={t('shelf.dismissError')} onPress={onDismiss}>
+          <IconX color={colors.secondaryLabel as string} size={20} strokeWidth={2} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -782,24 +826,7 @@ function getFolderBreadcrumb(
   return parents.map((id) => folderTitles.get(id) ?? unavailableFolder).join(' / ');
 }
 
-interface ShelfMoveDestination { label: string; path: string[] }
-
-function getMoveDestinations(
-  snapshot: ShelfSnapshot,
-  parents: string[],
-  shelfRoot: string,
-): ShelfMoveDestination[] {
-  const destinations: ShelfMoveDestination[] = parents.length > 0
-    ? [{ label: shelfRoot, path: [] }]
-    : [];
-  for (const folder of getShelfFolderPaths(toDraft(snapshot))) {
-    if (sameParents(folder.path, parents)) continue;
-    destinations.push({ label: folder.label, path: folder.path });
-  }
-  return destinations;
-}
-
-function toDraft(snapshot: ShelfSnapshot): ShelfDraft {
+function toDraft(snapshot: ShelfSnapshot) {
   return { items: snapshot.items, version: snapshot.version };
 }
 
@@ -824,8 +851,7 @@ const useShelfScreenStyles = createThemedStyles((colors) => ({
   gridRow: { alignItems: 'flex-start', flexDirection: 'row', gap: 10, justifyContent: 'space-between' },
   inlineError: { alignItems: 'center', backgroundColor: colors.card, borderColor: colors.error, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 10, padding: 12 },
   inlineErrorLabel: { color: colors.label, flex: 1, fontSize: 14, lineHeight: 19 },
-  modeBanner: { alignItems: 'center', backgroundColor: colors.card, borderRadius: 14, flexDirection: 'row', gap: 9, paddingHorizontal: 12, paddingVertical: 10 },
-  modeLabel: { color: colors.secondaryLabel, flex: 1, fontSize: 14, lineHeight: 19 },
+  inlineRetryLabel: { color: colors.accent, fontSize: 14, fontWeight: '700' },
   pressed: { opacity: 0.7 },
   retryButton: {
     alignItems: 'center',
@@ -840,7 +866,6 @@ const useShelfScreenStyles = createThemedStyles((colors) => ({
   root: { backgroundColor: colors.background, flex: 1 },
   scrollView: { backgroundColor: colors.background, flex: 1 },
   selectedOverlay: { backgroundColor: 'rgba(217, 71, 93, 0.72)' },
-  sortingOverlay: { backgroundColor: 'rgba(0, 0, 0, 0.48)' },
   unavailableCover: { alignItems: 'center', backgroundColor: colors.card, borderColor: colors.separator, borderRadius: 12, borderWidth: 0.5, justifyContent: 'center', overflow: 'hidden' },
   unavailableItem: { alignItems: 'center' },
   unavailableOverlay: { alignItems: 'center', bottom: 0, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 },

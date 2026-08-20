@@ -22,11 +22,15 @@ export type NativeTopAppBarAction = {
     | 'bell'
     | 'check'
     | 'dots'
+    | 'edit'
+    | 'folderMove'
     | 'folderPlus'
+    | 'listCheck'
     | 'pencil'
     | 'sortAscending'
     | 'trash'
-    | 'userCircle';
+    | 'userCircle'
+    | 'x';
   id: string;
   menuItems?: readonly NativeTopAppBarActionMenuItem[];
 };
