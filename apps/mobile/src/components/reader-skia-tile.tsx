@@ -39,9 +39,10 @@ export function ReaderSkiaTile({ tile, theme, fontFamily, fontMgr, generation }:
       .map(block => {
         const textData = block.text!;
         
-        // Build ParagraphStyle from stored data
+        // Build ParagraphStyle from stored data with line height
         const paragraphStyle = {
           textAlign: getSkiaTextAlign(textData.textAlign),
+          heightMultiplier: textData.lineHeight, // Line height multiplier for the entire paragraph
           textStyle: {
             color: Skia.Color(textData.color),
             fontSize: textData.fontSize,
@@ -49,10 +50,19 @@ export function ReaderSkiaTile({ tile, theme, fontFamily, fontMgr, generation }:
           },
         };
         
-        // Create Paragraph from stored content
-        const paragraph = Skia.ParagraphBuilder.Make(paragraphStyle, mgr)
-          .addText(textData.content)
-          .build();
+        const builder = Skia.ParagraphBuilder.Make(paragraphStyle, mgr);
+        
+        // Apply first-line indent by prepending indent character
+        // Use an em-quad (U+2003) which is exactly 1em wide
+        if (textData.firstLineIndent) {
+          const emQuads = Math.round(textData.firstLineIndent / textData.fontSize);
+          const indent = '\u2003'.repeat(emQuads);
+          builder.addText(indent + textData.content);
+        } else {
+          builder.addText(textData.content);
+        }
+        
+        const paragraph = builder.build();
         
         // Layout with stored width
         paragraph.layout(block.width);

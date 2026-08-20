@@ -364,12 +364,8 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   // Extract tile ID for FlatList keying with generation
   const getTileKey = useCallback((item: any) => `${layoutGeneration}:${item.id}`, [layoutGeneration]);
   
-  // Get tile layout info for FlatList optimization
-  const getTileLayout = useCallback((data: any, index: number) => ({
-    length: data[index]?.height ?? 0,
-    offset: data.slice(0, index).reduce((sum: number, t: any) => sum + t.height, 0),
-    index,
-  }), []);
+  // Remove getItemLayout - let FlatList measure tiles naturally
+  // The previous implementation calculated offsets incorrectly, causing virtualization issues
 
   const rawChapterTitle = content?.chapter.title ?? '';
   const readerTitle = rawChapterTitle
@@ -430,7 +426,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               data={tiles.tiles}
               renderItem={renderTile}
               keyExtractor={getTileKey}
-              getItemLayout={getTileLayout}
               style={styles.reader}
               onScroll={handleScroll}
               scrollEventThrottle={250}

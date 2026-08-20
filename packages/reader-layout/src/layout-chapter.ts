@@ -106,6 +106,7 @@ function layoutBlockPure(
   
   const paragraphStyle = {
     textAlign: getSkiaTextAlign(textAlign),
+    heightMultiplier: lineHeight,
     textStyle: {
       color: Skia.Color(color),
       fontSize,
@@ -113,10 +114,23 @@ function layoutBlockPure(
     },
   };
 
-  // Temporary Paragraph for measurement - NOT stored
-  const tempParagraph = Skia.ParagraphBuilder.Make(paragraphStyle, fontMgr)
-    .addText(parsed.text || ' ')
-    .build();
+  // Calculate first-line indent value
+  const firstLineIndentValue = theme.firstLineIndent && blockType === 'paragraph' ? theme.fontSize * 2 : undefined;
+  
+  // Temporary Paragraph for measurement - must include first-line indent
+  // to get accurate height, otherwise rendered paragraph will be taller
+  const builder = Skia.ParagraphBuilder.Make(paragraphStyle, fontMgr);
+  
+  // Apply first-line indent during measurement too
+  if (firstLineIndentValue) {
+    const emQuads = Math.round(firstLineIndentValue / fontSize);
+    const indent = '\u2003'.repeat(emQuads);
+    builder.addText(indent + (parsed.text || ' '));
+  } else {
+    builder.addText(parsed.text || ' ');
+  }
+  
+  const tempParagraph = builder.build();
 
   // Extract metrics
   tempParagraph.layout(width);
@@ -141,9 +155,9 @@ function layoutBlockPure(
     textAlign,
     fontWeight: style.fontWeight ?? undefined,
     fontStyle: style.fontStyle ?? undefined,
-    firstLineIndent: theme.firstLineIndent && blockType === 'paragraph' ? theme.fontSize : undefined,
+    firstLineIndent: firstLineIndentValue,
     measuredHeight,
-    measuredLongestLine: measuredLongestLine ?? undefined,
+    measuredLongestLine: measuredLongestLine || undefined,
   };
 
   return {
