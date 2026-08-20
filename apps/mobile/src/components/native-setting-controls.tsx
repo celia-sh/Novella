@@ -1,5 +1,5 @@
 import { Switch } from '@expo/ui';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   NativeGroupedListRow,
@@ -50,21 +50,59 @@ export function NativeSliderRow({
   step?: number;
   value: number;
 }) {
+  const [draftValue, setDraftValue] = useState(value);
+  const draftValueRef = useRef(value);
+  const externalValueRef = useRef(value);
+  const isEditingRef = useRef(false);
+  const pendingValueRef = useRef<number | null>(null);
+  externalValueRef.current = value;
+
+  useEffect(() => {
+    const pendingValue = pendingValueRef.current;
+    if (pendingValue !== null) {
+      if (!sliderValuesEqual(value, pendingValue, step)) return;
+      pendingValueRef.current = null;
+    }
+    if (isEditingRef.current) return;
+    draftValueRef.current = value;
+    setDraftValue(value);
+  }, [step, value]);
+
+  const handleDraftChange = useCallback((nextValue: number) => {
+    isEditingRef.current = true;
+    pendingValueRef.current = null;
+    draftValueRef.current = nextValue;
+    setDraftValue(nextValue);
+  }, []);
+
+  const handleSlidingComplete = useCallback(() => {
+    isEditingRef.current = false;
+    const nextValue = draftValueRef.current;
+    if (sliderValuesEqual(nextValue, externalValueRef.current, step)) return;
+    pendingValueRef.current = nextValue;
+    onValueChange(nextValue);
+  }, [onValueChange, step]);
+
   return (
     <NativeGroupedListRow
       {...row}
-      description={`${row.description ?? ''}${row.description ? ' · ' : ''}${formatValue(value)}`}
+      description={`${row.description ?? ''}${row.description ? ' · ' : ''}${formatValue(draftValue)}`}
       trailing={
         <NativeSliderControl
           max={max}
           min={min}
-          onValueChange={onValueChange}
+          onSlidingComplete={handleSlidingComplete}
+          onValueChange={handleDraftChange}
           {...(step === undefined ? {} : { step })}
-          value={value}
+          value={draftValue}
         />
       }
     />
   );
+}
+
+function sliderValuesEqual(left: number, right: number, step: number | undefined): boolean {
+  return Math.abs(left - right) <= Math.max(0.000001, (step ?? 1) * 0.001);
 }
 
 export function NativePickerRow<T extends string | number>({

@@ -3,6 +3,11 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
 import {
+  Canvas,
+  Image as SkiaImage,
+  type SkImage,
+} from '@shopify/react-native-skia';
+import {
   ActivityIndicator,
   Modal,
   Pressable,
@@ -36,6 +41,8 @@ const ACTION_BUTTON_SIZE = 44;
 export interface ReaderImagePreviewSource {
   uri: string;
   alt?: string;
+  /** Already-decoded pixels owned by the mounted Skia reader tile. */
+  skiaImage?: SkImage;
 }
 
 export interface ReaderImagePreviewProps {
@@ -52,7 +59,8 @@ export function ReaderImagePreview({ source, onClose }: ReaderImagePreviewProps)
   // from transient Dynamic Island metrics during the first presentation.
   const { bottom: bottomInset } = useSafeAreaInsets();
   const imageUri = resolveReaderImageUrl(source.uri);
-  const [isLoading, setIsLoading] = useState(true);
+  const warmImage = source.skiaImage;
+  const [isLoading, setIsLoading] = useState(warmImage === undefined);
   const [hasError, setHasError] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -194,6 +202,21 @@ export function ReaderImagePreview({ source, onClose }: ReaderImagePreviewProps)
                 <View style={styles.errorState}>
                   <Text style={styles.errorText}>{t('images.loadFailed')}</Text>
                 </View>
+              ) : warmImage ? (
+                <Canvas
+                  accessibilityLabel={source.alt?.trim() || t('images.illustration')}
+                  accessible
+                  style={styles.image}
+                >
+                  <SkiaImage
+                    fit="contain"
+                    height={height}
+                    image={warmImage}
+                    width={width}
+                    x={0}
+                    y={0}
+                  />
+                </Canvas>
               ) : (
                 <Image
                   accessibilityLabel={source.alt?.trim() || t('images.illustration')}

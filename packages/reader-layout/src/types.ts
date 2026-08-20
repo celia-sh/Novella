@@ -1,3 +1,5 @@
+import type { SkTypefaceFontProvider } from '@shopify/react-native-skia';
+
 /**
  * Pure data structure for a laid-out block.
  * MUST NOT contain SkParagraph or any Skia/JSI runtime object.
@@ -33,13 +35,15 @@ export interface LayoutBlock {
 export interface TextBlockData {
   content: string; // Plain text content
   fontSize: number;
+  /** CSS/Flutter-style line-height multiplier (for example, 1.6). */
   lineHeight: number;
   color: string;
   fontFamily: string;
   textAlign: 'left' | 'center' | 'right';
   fontWeight?: 'normal' | 'bold';
   fontStyle?: 'normal' | 'italic';
-  firstLineIndent?: number;
+  /** Whether rendering prepends exactly two full-width CJK spaces. */
+  firstLineIndent: boolean;
   // Measured metrics from temporary Paragraph
   measuredHeight: number;
   measuredLongestLine?: number;
@@ -56,9 +60,16 @@ export interface LineMetrics {
 
 export interface ImageLayout {
   url: string;
+  alt: string;
+  previewable: boolean;
   width: number;
   height: number;
   aspectRatio: number;
+}
+
+export interface ReaderImageDimensions {
+  width: number;
+  height: number;
 }
 
 export interface RubyLayout {
@@ -103,7 +114,9 @@ export interface LayoutChapterOptions {
   width: number;
   theme: ReaderTheme;
   fontFamily: string;
-  fontMgr?: any; // Custom FontManager with fonts registered
+  fontMgr?: SkTypefaceFontProvider;
+  /** Cached or explicit image geometry keyed by the source URL from chapter HTML. */
+  imageDimensions?: Readonly<Record<string, ReaderImageDimensions>>;
 }
 
 export interface LayoutChapterResult {
@@ -118,6 +131,7 @@ export interface TextStyle {
   fontStyle?: 'normal' | 'italic';
   textAlign?: 'left' | 'center' | 'right';
   textIndent?: number;
+  /** CSS/Flutter-style multiplier, not an absolute pixel value. */
   lineHeight?: number;
   marginTop?: number;
   marginBottom?: number;

@@ -26,6 +26,7 @@ export const zhCNReader = {
     font: '正在加载字体',
     layout: '正在排版',
     publication: '正在准备章节',
+    reflow: '正在应用设置',
   },
   errors: {
     chapterAuth: '请重新登录后阅读本章。',
@@ -101,6 +102,7 @@ export const zhTWReader: TranslationShape<typeof zhCNReader> = {
     font: '正在載入字型',
     layout: '正在排版',
     publication: '正在準備章節',
+    reflow: '正在套用設定',
   },
   errors: {
     chapterAuth: '請重新登入後閱讀本章。',

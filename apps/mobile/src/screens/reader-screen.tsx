@@ -2,16 +2,32 @@ import { router, useNavigation } from 'expo-router';
 import { useRoute } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dimensions, FlatList, StyleSheet, View } from 'react-native';
+import {
+  Dimensions,
+  FlatList,
+  StyleSheet,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
+import type { SkTypefaceFontProvider } from '@shopify/react-native-skia';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  findReaderBlockIndex,
   getAdjacentChapterSortNum,
+  inlineNovelFootnotesAfterBlocks,
   normalizeNovelBlocks,
   processNovelFootnotes,
+  resolveReaderInitialIndex,
   type ReaderMode,
   type ReaderOpenPosition,
 } from '@novella/reader-engine';
-import { layoutChapter, tileChapter } from '@novella/reader-layout';
+import {
+  layoutChapter,
+  pageChapter,
+  tileChapter,
+  type ChapterTile,
+} from '@novella/reader-layout';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
 import { ReaderErrorState } from '@/components/reader-chrome';
@@ -24,16 +40,20 @@ import { createReaderChromeInsets } from '@/services/reader-chrome-layout';
 import { useReaderChapter, type ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
 import { useReaderFont } from '@/hooks/use-reader-font';
+import { useReaderImageDimensions } from '@/hooks/use-reader-image-dimensions';
 import { createFontManager } from '@/services/skia-font-loader';
 import { resolveReaderFontUrl } from '@/services/reader-font-loader';
 import { useReaderPositionSaver } from '@/hooks/use-reader-position-saver';
-import { presentReaderFootnote } from '@/services/reader-footnote-session';
 import { subscribeReaderChapterSelection } from '@/services/reader-chapter-selection';
 import {
   type ReaderProgressCheckpoint,
   stageReaderProgress,
   syncReaderProgress,
 } from '@/services/reader-progress-sync';
+import {
+  findVisibleReaderLayoutBlock,
+  resolveReaderReflowOpenPosition,
+} from '@/services/reader-reflow-position';
 import { updateAppSettings, useAppSettings } from '@/services/settings';
 import { useReaderLifecycleSave } from '@/hooks/use-reader-lifecycle-save';
 import { useAppColorScheme, useAppTheme } from '@/theme/app-theme';
@@ -61,6 +81,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const { colors } = useAppTheme();
   const [mode, setMode] = useState<ReaderMode>(settings.readerViewMode);
   const [previewSource, setPreviewSource] = useState<ReaderImagePreviewSource | null>(null);
+  useEffect(() => setMode(settings.readerViewMode), [settings.readerViewMode]);
   const conversion = settings.convertType === 'none' ? undefined : settings.convertType;
   const { content, error, isLoading, reload } = useReaderChapter(
     bookId,
@@ -78,10 +99,16 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     () => (content ? processNovelFootnotes(chapterHtml) : { html: chapterHtml, notesById: {} }),
     [content, chapterHtml],
   );
-  const sanitizedHtml = footnotes.html;
-  const blocks = useMemo(
+  const sourceBlocks = useMemo(
     () => (content ? normalizeNovelBlocks(footnotes.html, undefined, { sanitize: false }) : []),
     [content, footnotes.html],
+  );
+  const blocks = useMemo(
+    () => inlineNovelFootnotesAfterBlocks(sourceBlocks, footnotes.notesById),
+    [footnotes.notesById, sourceBlocks],
+  );
+  const imageGeometry = useReaderImageDimensions(
+    blocks.map((block) => block.html).join('\n'),
   );
 
   // Calculate colors and insets before layout
@@ -115,17 +142,26 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const screenWidth = Dimensions.get('window').width;
   const screenHeight = Dimensions.get('window').height;
   
-  // Debounce layout-affecting settings to prevent OOM during adjustment
-  // When user adjusts fontSize, lineHeight, or sidePadding rapidly, we defer re-layout
-  // until they stop, preventing simultaneous existence of old + new Skia Paragraphs
+  // Slider rows update their local labels immediately, then commit settings on
+  // release. Keep the expensive Skia work delayed and expose that delay as an
+  // explicit reflow state instead of making the reader appear frozen.
   const [debouncedSettings, setDebouncedSettings] = useState({
     fontSize: settings.fontSize,
     lineHeight: settings.readerLineHeight,
     sidePadding: settings.readerSidePadding,
     firstLineIndent: settings.readerFirstLineIndent,
   });
-  
+  const requestedLayoutGeneration = `${settings.fontSize}-${settings.readerLineHeight}-${settings.readerSidePadding}-${settings.readerFirstLineIndent}`;
+  const layoutGeneration = `${debouncedSettings.fontSize}-${debouncedSettings.lineHeight}-${debouncedSettings.sidePadding}-${debouncedSettings.firstLineIndent}`;
+  const [pendingReflowGeneration, setPendingReflowGeneration] = useState<string | null>(null);
+
   useEffect(() => {
+    if (requestedLayoutGeneration === layoutGeneration) {
+      setPendingReflowGeneration((current) =>
+        current !== null && current !== layoutGeneration ? null : current);
+      return;
+    }
+    setPendingReflowGeneration(requestedLayoutGeneration);
     const timer = setTimeout(() => {
       setDebouncedSettings({
         fontSize: settings.fontSize,
@@ -133,22 +169,20 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         sidePadding: settings.readerSidePadding,
         firstLineIndent: settings.readerFirstLineIndent,
       });
-    }, 300); // 300ms debounce - wait for user to stop adjusting
-    
-    return () => clearTimeout(timer);
-  }, [settings.fontSize, settings.readerLineHeight, settings.readerSidePadding, settings.readerFirstLineIndent]);
+    }, 300);
 
-  // Layout generation for invalidation when settings change
-  // When settings change, generation increments, FlatList tiles are keyed by
-  // ${generation}:${tile.id}, and React unmounts old tiles (releasing their
-  // Paragraphs) before mounting new tiles with new Paragraphs.
-  const layoutGeneration = useMemo(() => {
-    // Generation based on layout-affecting settings
-    return `${debouncedSettings.fontSize}-${debouncedSettings.lineHeight}-${debouncedSettings.sidePadding}-${debouncedSettings.firstLineIndent}`;
-  }, [debouncedSettings]);
+    return () => clearTimeout(timer);
+  }, [
+    layoutGeneration,
+    requestedLayoutGeneration,
+    settings.fontSize,
+    settings.readerFirstLineIndent,
+    settings.readerLineHeight,
+    settings.readerSidePadding,
+  ]);
   
   // Create custom FontManager when custom font is loaded
-  const [fontMgr, setFontMgr] = useState<any>(null);
+  const [fontMgr, setFontMgr] = useState<SkTypefaceFontProvider | null>(null);
   // Initialize fontMgrLoading based on whether we need custom font
   const [fontMgrLoading, setFontMgrLoading] = useState(() => {
     return requiresReaderFont && readerFont.status === 'loaded' && content?.chapter.fontUrl != null;
@@ -218,23 +252,36 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         firstLineIndent: debouncedSettings.firstLineIndent,
       },
       fontFamily: readerFont.family ?? 'System',
+      imageDimensions: imageGeometry.dimensions,
       ...(fontMgr ? { fontMgr } : {}),
     });
-  }, [blocks, screenWidth, debouncedSettings, fontLoading, content, readerFont, readerBackground, readerTextColor, readerChromeInsets, fontMgr, requiresReaderFont, fontMgrLoading]);
+  }, [blocks, screenWidth, debouncedSettings, fontLoading, content, readerFont, readerBackground, readerTextColor, readerChromeInsets, fontMgr, requiresReaderFont, fontMgrLoading, imageGeometry.dimensions]);
 
-  // Tile the chapter for native scrolling
-  // Must depend on fontMgr to re-tile when font changes
-  const tiles = useMemo(() => {
+  useEffect(() => {
+    if (
+      !layout
+      || pendingReflowGeneration === null
+      || pendingReflowGeneration !== layoutGeneration
+    ) return;
+    const frame = requestAnimationFrame(() => {
+      setPendingReflowGeneration((current) =>
+        current === layoutGeneration ? null : current);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [layout, layoutGeneration, pendingReflowGeneration]);
+
+  // Native virtualization owns mounted tile/page lifetime in both modes.
+  const presentation = useMemo(() => {
     if (!layout) return null;
-    // Use 2.5× viewport height per tile to reduce Canvas count and memory pressure
-    // Fewer tiles = fewer Canvas components = less JS object overhead
-    const tileHeight = screenHeight * 2.5;
-    const result = tileChapter(layout, tileHeight);
-    if (__DEV__) {
-      console.log(`[reader-screen] Created ${result.tiles.length} tiles at ${Math.round(tileHeight)}pt each`);
+    if (mode === 'paged') {
+      return pageChapter(layout, {
+        pageHeight: screenHeight,
+        topPadding: readerChromeInsets.top,
+        bottomPadding: readerChromeInsets.bottom,
+      });
     }
-    return result;
-  }, [layout, screenHeight, fontMgr]);
+    return tileChapter(layout, screenHeight * 2.5);
+  }, [layout, mode, readerChromeInsets.bottom, readerChromeInsets.top, screenHeight]);
 
   const stagePosition = useCallback(
     (position: NovelProgressInput) => stageReaderProgress({ bookId, ...position }),
@@ -250,39 +297,102 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     stagePosition,
   );
 
-  // Scroll position management via native FlatList events
-  const flatListRef = useRef<FlatList>(null);
+  // Scroll position management stays on native FlatList events; it never drives rendering.
+  const flatListRef = useRef<FlatList<ChapterTile>>(null);
   const lastPositionRef = useRef<string | null>(null);
   const activeChapterIdRef = useRef<number | null>(null);
-  const lastScrollYRef = useRef(0);
+  const lastScrollOffsetRef = useRef({ x: 0, y: 0 });
   activeChapterIdRef.current = content?.chapter.id ?? null;
 
-  // Track scroll position via native FlatList onScroll
-  const handleScroll = useCallback((event: any) => {
-    const scrollY = event.nativeEvent.contentOffset.y;
-    lastScrollYRef.current = scrollY;
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    lastScrollOffsetRef.current = event.nativeEvent.contentOffset;
   }, []);
 
-  // Save position when scrolling ends
+  const resolveCurrentVisibleBlock = useCallback(() => findVisibleReaderLayoutBlock({
+    layout,
+    mode,
+    offset: lastScrollOffsetRef.current,
+    tiles: presentation?.tiles ?? [],
+    viewportWidth: screenWidth,
+  }), [layout, mode, presentation?.tiles, screenWidth]);
+
   const handleScrollEnd = useCallback(() => {
-    if (!tiles || !content || activeChapterIdRef.current !== content.chapter.id) return;
-    
-    const scrollY = lastScrollYRef.current;
-    const visibleY = scrollY + (Dimensions.get('window').height / 2);
-    
-    // Find current block across all tiles
-    for (const tile of tiles.tiles) {
-      const currentBlock = tile.blocks.find(
-        (block) => block.y <= visibleY && block.y + block.height > visibleY
-      );
-      
-      if (currentBlock) {
-        lastPositionRef.current = currentBlock.locator;
-        schedulePosition({ chapterId: content.chapter.id, position: currentBlock.locator });
-        return;
+    if (!content || activeChapterIdRef.current !== content.chapter.id) return;
+    const currentBlock = resolveCurrentVisibleBlock();
+    if (!currentBlock) return;
+    lastPositionRef.current = currentBlock.locator;
+    schedulePosition({ chapterId: content.chapter.id, position: currentBlock.locator });
+  }, [content, resolveCurrentVisibleBlock, schedulePosition]);
+
+  const restoredPresentationRef = useRef<string | null>(null);
+  const capturedReflowGenerationRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      pendingReflowGeneration === null
+      || capturedReflowGenerationRef.current === pendingReflowGeneration
+    ) return;
+    const currentBlock = resolveCurrentVisibleBlock();
+    if (currentBlock) lastPositionRef.current = currentBlock.locator;
+    // The loading state unmounts FlatList even if the user quickly returns to
+    // the previous setting generation, so every reflow must restore again.
+    restoredPresentationRef.current = null;
+    capturedReflowGenerationRef.current = pendingReflowGeneration;
+  }, [pendingReflowGeneration, resolveCurrentVisibleBlock]);
+
+  useEffect(() => {
+    if (
+      pendingReflowGeneration !== null
+      || !content
+      || !layout
+      || !presentation
+      || blocks.length === 0
+    ) return;
+    const restoreKey = `${content.chapter.id}:${mode}:${layoutGeneration}:${layout.totalHeight}`;
+    if (restoredPresentationRef.current === restoreKey) return;
+
+    const currentLocator = lastPositionRef.current;
+    const savedLocator = currentLocator ?? content.readPosition?.position ?? null;
+    const savedIndex = findReaderBlockIndex(blocks, savedLocator);
+    const sourceIndex = resolveReaderInitialIndex(
+      resolveReaderReflowOpenPosition(openPosition, currentLocator),
+      savedIndex,
+      blocks.length,
+    );
+    const sourceBlock = blocks[sourceIndex];
+    const targetBlock = sourceBlock
+      ? layout.blocks.find((block) =>
+          block.id === sourceBlock.id || block.locator === sourceBlock.locator)
+      : layout.blocks[0];
+    if (!targetBlock) return;
+
+    restoredPresentationRef.current = restoreKey;
+    lastPositionRef.current = targetBlock.locator;
+    const frame = requestAnimationFrame(() => {
+      if (mode === 'paged') {
+        const pageIndex = presentation.tiles.findIndex((page) =>
+          page.blocks.some((block) => block.id === targetBlock.id),
+        );
+        const safeIndex = Math.max(0, pageIndex);
+        lastScrollOffsetRef.current = { x: safeIndex * screenWidth, y: 0 };
+        flatListRef.current?.scrollToIndex({ animated: false, index: safeIndex });
+      } else {
+        const offset = Math.max(0, targetBlock.y - 1);
+        lastScrollOffsetRef.current = { x: 0, y: offset };
+        flatListRef.current?.scrollToOffset({ animated: false, offset });
       }
-    }
-  }, [tiles, content, schedulePosition]);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [
+    blocks,
+    content,
+    layout,
+    layoutGeneration,
+    mode,
+    openPosition,
+    pendingReflowGeneration,
+    presentation,
+    screenWidth,
+  ]);
 
   const saveCurrentPosition = useCallback(async () => {
     const locator = lastPositionRef.current;
@@ -342,10 +452,13 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     });
   }, [bookId, route.key, sortNum]);
 
-  // Render a single tile - called by FlatList
-  const renderTile = useCallback(({ item: tile }: { item: any }) => (
+  const renderTile = useCallback(({ item: tile }: { item: ChapterTile }) => (
     <ReaderSkiaTile
-      tile={tile}
+      fontMgr={fontMgr}
+      generation={layoutGeneration}
+      imageAccessibilityLabel={t('images.illustration')}
+      onOpenImage={setPreviewSource}
+      openImageOnLongPress={settings.readerImagePreviewOpenOnLongPress}
       theme={{
         backgroundColor: readerBackground,
         textColor: readerTextColor,
@@ -356,16 +469,36 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         sidePadding: debouncedSettings.sidePadding,
         firstLineIndent: debouncedSettings.firstLineIndent,
       }}
-      fontFamily={readerFont.family ?? undefined}
-      fontMgr={fontMgr}
+      tile={tile}
+      viewportWidth={screenWidth}
     />
-  ), [readerBackground, readerTextColor, debouncedSettings, readerChromeInsets, readerFont.family, fontMgr]);
-  
-  // Extract tile ID for FlatList keying with generation
-  const getTileKey = useCallback((item: any) => `${layoutGeneration}:${item.id}`, [layoutGeneration]);
-  
-  // Remove getItemLayout - let FlatList measure tiles naturally
-  // The previous implementation calculated offsets incorrectly, causing virtualization issues
+  ), [
+    debouncedSettings,
+    fontMgr,
+    layoutGeneration,
+    readerBackground,
+    readerChromeInsets,
+    readerTextColor,
+    screenWidth,
+    settings.readerImagePreviewOpenOnLongPress,
+    t,
+  ]);
+
+  const getTileKey = useCallback(
+    (item: ChapterTile) => `${layoutGeneration}:${mode}:${item.id}`,
+    [layoutGeneration, mode],
+  );
+  const getItemLayout = useCallback((_: ArrayLike<ChapterTile> | null | undefined, index: number) => {
+    if (mode === 'paged') {
+      return { index, length: screenWidth, offset: screenWidth * index };
+    }
+    const tile = presentation?.tiles[index];
+    return {
+      index,
+      length: tile?.height ?? 1,
+      offset: tile?.y ?? 0,
+    };
+  }, [mode, presentation?.tiles, screenWidth]);
 
   const rawChapterTitle = content?.chapter.title ?? '';
   const readerTitle = rawChapterTitle
@@ -373,18 +506,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       ? simplifyReaderChapterTitle(rawChapterTitle)
       : rawChapterTitle
     : '';
-
-  const openFootnote = useCallback(
-    (id: string, noteContent?: string) => {
-      const content = noteContent ?? footnotes.notesById[id];
-      if (!content) return;
-      presentReaderFootnote({
-        content,
-      });
-      router.push({ pathname: '/reader/[bookId]/footnote', params: { bookId: String(bookId) } });
-    },
-    [bookId, footnotes.notesById],
-  );
 
   const chapterError = error;
   const translateMessage = (message: ReaderUserMessage) =>
@@ -404,7 +525,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
           }} />
         ) : chapterError ? (
           <ReaderErrorState message={translateMessage(chapterError)} onRetry={reload} />
-        ) : isLoading || fontLoading || fontMgrLoading || (content && !layout) ? (
+        ) : isLoading || fontLoading || fontMgrLoading || pendingReflowGeneration !== null || (content && !layout) ? (
           <ReaderLoadingState
             phase={
               fontLoading
@@ -413,29 +534,38 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
                   ? 'font'
                   : isLoading
                     ? 'content'
-                    : 'layout'
+                    : pendingReflowGeneration !== null
+                      ? 'reflow'
+                      : 'layout'
             }
             accentColor={colors.accent as string}
             textColor={readerTextColor}
           />
-        ) : content && tiles ? (
+        ) : content && presentation ? (
           <View style={styles.reader}>
-            {/* Native FlatList with virtualization - tiles mounted/unmounted by platform */}
             <FlatList
               ref={flatListRef}
-              data={tiles.tiles}
-              renderItem={renderTile}
-              keyExtractor={getTileKey}
-              style={styles.reader}
-              onScroll={handleScroll}
-              scrollEventThrottle={250}
-              onScrollEndDrag={handleScrollEnd}
-              onMomentumScrollEnd={handleScrollEnd}
-              removeClippedSubviews={true}
-              windowSize={5}
-              maxToRenderPerBatch={2}
-              updateCellsBatchingPeriod={50}
+              contentInsetAdjustmentBehavior="never"
+              data={presentation.tiles}
+              decelerationRate={mode === 'paged' ? 'fast' : 'normal'}
+              getItemLayout={getItemLayout}
+              horizontal={mode === 'paged'}
               initialNumToRender={3}
+              key={`${content.chapter.id}:${mode}`}
+              keyExtractor={getTileKey}
+              maxToRenderPerBatch={4}
+              onMomentumScrollEnd={handleScrollEnd}
+              onScroll={handleScroll}
+              onScrollEndDrag={handleScrollEnd}
+              pagingEnabled={mode === 'paged'}
+              removeClippedSubviews={false}
+              renderItem={renderTile}
+              scrollEventThrottle={250}
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={mode !== 'paged'}
+              style={styles.reader}
+              updateCellsBatchingPeriod={0}
+              windowSize={5}
             />
           </View>
         ) : null}

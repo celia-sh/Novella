@@ -293,6 +293,58 @@ export function processNovelFootnotes(
   return { html: applyHtmlReplacements(html, replacements), notesById };
 }
 
+/**
+ * Restores extracted footnote bodies to chapter flow immediately after the
+ * block containing their marker. This is the native-reader equivalent of the
+ * former Readium chapter materialization step; it deliberately does not depend
+ * on a React Native sheet or another interaction layer.
+ */
+export function inlineNovelFootnotesAfterBlocks(
+  blocks: readonly NovelReaderBlock[],
+  notesById: Readonly<Record<string, string>>,
+): NovelReaderBlock[] {
+  return blocks.flatMap((block) => {
+    const noteIds: string[] = [];
+    const withoutMarkers = block.html.replace(
+      /<a\b[^>]*\bdata-reader-footnote-id=(?:"([^"]+)"|'([^']+)')[^>]*>[\s\S]*?<\/a\s*>/giu,
+      (match, doubleId: string | undefined, singleId: string | undefined) => {
+        const id = doubleId ?? singleId;
+        if (!id || notesById[id] === undefined) return match;
+        if (!noteIds.includes(id)) noteIds.push(id);
+        return '';
+      },
+    );
+    if (noteIds.length === 0) return [block];
+
+    const visibleText = withoutMarkers
+      .replace(/<[^>]*>/gu, ' ')
+      .replace(/&nbsp;|&#160;/giu, ' ')
+      .replace(/\s+/gu, ' ')
+      .trim();
+    const isMarkerOnlyBlock = /^[\s:：;；,，.。·•—–-]*$/u.test(visibleText);
+    const result: NovelReaderBlock[] = isMarkerOnlyBlock ? [] : [block];
+
+    noteIds.forEach((id) => {
+      const noteHtml = notesById[id];
+      if (noteHtml === undefined) return;
+      const inlineHtml = [
+        `<aside class="nv-inline-footnote" data-footnote-id="${escapeHtmlAttribute(id)}">`,
+        '<span class="nv-inline-footnote-label">*</span>',
+        `<div class="nv-inline-footnote-content">${noteHtml}</div>`,
+        '</aside>',
+      ].join('');
+      const noteBlock = createNovelBlock(block.locator, inlineHtml);
+      result.push({
+        ...noteBlock,
+        id: `${block.id}:footnote:${id}`,
+        locator: block.locator,
+      });
+    });
+
+    return result;
+  });
+}
+
 function findFootnoteTarget(
   elements: readonly HtmlElementRange[],
   id: string,

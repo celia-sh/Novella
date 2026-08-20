@@ -5,7 +5,8 @@ export type ReaderLoadingPhase =
   | 'font'
   | 'content'
   | 'publication'
-  | 'layout';
+  | 'layout'
+  | 'reflow';
 
 export interface ReaderLoadingStateProps {
   phase: ReaderLoadingPhase;
@@ -26,6 +27,8 @@ export function ReaderLoadingState({ phase, accentColor, textColor }: ReaderLoad
         return t('loading.publication');
       case 'layout':
         return t('loading.layout');
+      case 'reflow':
+        return t('loading.reflow');
     }
   };
 

@@ -40,21 +40,24 @@ export class StyleResolver {
   private applyTagStyles(tag: string, style: TextStyle): void {
     switch (tag) {
       case 'h1':
-        style.fontSize = (this.baseStyle.fontSize || 18) * 2;
+        style.fontSize = (this.baseStyle.fontSize || 18) * 1.65;
+        style.lineHeight = 1.2;
         style.fontWeight = 'bold';
         style.marginTop = 24;
         style.marginBottom = 16;
         style.textIndent = 0;
         break;
       case 'h2':
-        style.fontSize = (this.baseStyle.fontSize || 18) * 1.5;
+        style.fontSize = (this.baseStyle.fontSize || 18) * 1.25;
+        style.lineHeight = 1.2;
         style.fontWeight = 'bold';
         style.marginTop = 20;
         style.marginBottom = 12;
         style.textIndent = 0;
         break;
       case 'h3':
-        style.fontSize = (this.baseStyle.fontSize || 18) * 1.3;
+        style.fontSize = (this.baseStyle.fontSize || 18) * 0.95;
+        style.lineHeight = 1.2;
         style.fontWeight = 'bold';
         style.marginTop = 16;
         style.marginBottom = 8;
@@ -85,13 +88,20 @@ export class StyleResolver {
   private applyClassPresets(classes: string[], style: TextStyle): void {
     const baseFontSize = this.baseStyle.fontSize || 18;
 
-    // Heading styles: pius1, pius2, ph4
-    if (classes.includes('pius1') || classes.includes('pius2') || classes.includes('ph4')) {
+    // Heading styles never participate in the reader's first-line indent.
+    // Some sources encode headings as a paragraph/div with one of these
+    // classes instead of using an h1-h6 tag.
+    const hasHeadingPreset = classes.includes('pius1')
+      || classes.includes('pius2')
+      || classes.includes('ph4');
+    if (hasHeadingPreset) {
       style.fontSize = baseFontSize * 1.5;
       style.fontWeight = 'bold';
-      style.textIndent = baseFontSize * 1.333;
       style.marginTop = baseFontSize * 0.5;
       style.marginBottom = baseFontSize * 1;
+    }
+    if (hasHeadingPreset || classes.includes('title') || classes.includes('chapter-title')) {
+      style.textIndent = 0;
     }
 
     // Text alignment
@@ -140,14 +150,22 @@ export class StyleResolver {
 
     if (classes.includes('message') || classes.includes('cut-line')) {
       style.textIndent = 0;
-      style.lineHeight = baseFontSize * 1.2;
+      style.lineHeight = 1.2;
       style.marginTop = baseFontSize * 0.2;
       style.marginBottom = baseFontSize * 0.2;
     }
 
+    if (classes.includes('nv-inline-footnote')) {
+      style.fontSize = baseFontSize * 0.82;
+      style.lineHeight = 1.5;
+      style.textIndent = 0;
+      style.marginTop = 0;
+      style.marginBottom = baseFontSize * 0.8;
+    }
+
     if (classes.includes('meg')) {
       style.fontSize = baseFontSize * 1.3;
-      style.lineHeight = baseFontSize * 1.3;
+      style.lineHeight = 1.3;
       style.marginTop = baseFontSize * 0.5;
       style.marginBottom = 0;
       style.textIndent = 0;
@@ -155,7 +173,7 @@ export class StyleResolver {
 
     // Layout adjustments
     if (classes.includes('lh')) {
-      style.lineHeight = baseFontSize * 1;
+      style.lineHeight = 1;
     }
     if (classes.includes('m0')) {
       style.marginTop = 0;
@@ -230,7 +248,7 @@ export class StyleResolver {
           style.color = value;
           break;
         case 'line-height':
-          style.lineHeight = this.parseSize(value, this.baseStyle.lineHeight ?? 28);
+          style.lineHeight = this.parseLineHeight(value, style.fontSize ?? this.baseStyle.fontSize ?? 18);
           break;
         case 'margin-top':
           style.marginTop = this.parseSize(value, this.baseStyle.fontSize ?? 18);
@@ -240,6 +258,18 @@ export class StyleResolver {
           break;
       }
     }
+  }
+
+  private parseLineHeight(value: string, fontSize: number): number {
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return this.baseStyle.lineHeight ?? 1.6;
+    }
+    if (value.endsWith('px')) return parsed / Math.max(1, fontSize);
+    if (value.endsWith('%')) return parsed / 100;
+    // CSS `em` line-height and unitless values both map directly to the
+    // multiplier consumed by Flutter TextStyle.height and Skia.
+    return parsed;
   }
 
   private parseSize(value: string, base: number): number {

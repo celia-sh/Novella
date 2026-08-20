@@ -8,6 +8,7 @@ import {
   createReaderPositionWriteQueue,
   findReaderBlockIndex,
   getReaderBlockLayout,
+  inlineNovelFootnotesAfterBlocks,
   mergeComicPageBatch,
   normalizeNovelBlocks,
   processNovelFootnotes,
@@ -175,6 +176,42 @@ test('recognizes a data-line list item after a legacy marker', () => {
   assert.equal(result.notesById['note-6'], '<li data-line="86"><p>注释内容</p></li>');
   assert.match(result.html, /正文<a data-reader-footnote-id="note-6"><\/a>段末。/);
   assert.doesNotMatch(result.html, /data-line="86"|note\.png|注释内容/);
+});
+
+test('places extracted footnote content directly after its paragraph', () => {
+  const processed = processNovelFootnotes(
+    '<p>正文<a href="#note-6"><sup><img src="/img/note.png"></sup></a>段末。</p>' +
+      '<ol><li data-line="86"><p>注释内容</p></li></ol><p>后文</p>',
+  );
+  const blocks = inlineNovelFootnotesAfterBlocks(
+    normalizeNovelBlocks(processed.html, undefined, { sanitize: false }),
+    processed.notesById,
+  );
+
+  assert.equal(blocks.length, 3);
+  assert.match(blocks[0].html, /正文<a data-reader-footnote-id="note-6">\*<\/a>段末。/);
+  assert.equal(blocks[1].id, `${blocks[0].id}:footnote:note-6`);
+  assert.equal(blocks[1].locator, blocks[0].locator);
+  assert.match(blocks[1].html, /^<aside class="nv-inline-footnote"/);
+  assert.match(blocks[1].html, /<span class="nv-inline-footnote-label">\*<\/span>/);
+  assert.match(blocks[1].html, /<p>注释内容<\/p>/);
+  assert.match(blocks[2].html, /后文/);
+});
+
+test('collapses a marker-only paragraph but keeps its inline note', () => {
+  const processed = processNovelFootnotes(
+    '<p>：<a class="duokan-footnote" href="#n1"><img class="footnote"></a></p>' +
+      '<ol id="n1"><li>独立注释</li></ol>',
+  );
+  const blocks = inlineNovelFootnotesAfterBlocks(
+    normalizeNovelBlocks(processed.html, undefined, { sanitize: false }),
+    processed.notesById,
+  );
+
+  assert.equal(blocks.length, 1);
+  assert.match(blocks[0].html, /nv-inline-footnote/);
+  assert.match(blocks[0].html, /独立注释/);
+  assert.doesNotMatch(blocks[0].html, /^<p>：/);
 });
 
 test('does not treat an ordinary list as a footnote target', () => {

@@ -109,6 +109,7 @@ const SETTINGS_KEY = 'novella.settings.v1';
 const storage = createExpoStorage();
 const listeners = new Set<() => void>();
 let snapshot: AppSettings = DEFAULT_SETTINGS;
+let hasLoadedSettings = false;
 let loadPromise: Promise<void> | null = null;
 let writePromise = Promise.resolve();
 
@@ -132,6 +133,7 @@ export function getSnapshot(): AppSettings {
 }
 
 export async function loadAppSettings(): Promise<void> {
+  if (hasLoadedSettings) return;
   if (!loadPromise) {
     loadPromise = storage
       .get(SETTINGS_KEY)
@@ -144,7 +146,9 @@ export async function loadAppSettings(): Promise<void> {
           // Invalid local settings should not prevent the app from starting.
         }
       })
+      .catch(() => undefined)
       .finally(() => {
+        hasLoadedSettings = true;
         loadPromise = null;
       });
   }

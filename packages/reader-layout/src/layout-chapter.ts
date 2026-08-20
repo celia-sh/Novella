@@ -1,233 +1,277 @@
-import { Skia, TextAlign } from '@shopify/react-native-skia';
+import { Skia, type SkTypefaceFontProvider } from '@shopify/react-native-skia';
+
+import {
+  extractReaderImages,
+  resolveReaderImageFrame,
+  type ParsedReaderImage,
+} from './image-layout';
+import {
+  createRenderableParagraphText,
+  createSkiaParagraphStyle,
+} from './skia-paragraph';
+import { StyleResolver } from './style-resolver';
 import type {
+  HitRect,
+  LayoutBlock,
   LayoutChapterOptions,
   LayoutChapterResult,
-  LayoutBlock,
+  ReaderImageDimensions,
   TextBlockData,
   TextStyle,
-  HitRect,
 } from './types';
-import { StyleResolver } from './style-resolver';
 import { normalizeText } from './utils';
 
+const BLOCK_GAP = 12;
+
 /**
- * Layout a chapter's HTML blocks into measurable, renderable layout blocks.
- * 
- * ARCHITECTURE: LayoutResult contains ONLY pure serializable data.
- * SkParagraph is created temporarily during measurement to extract accurate
- * metrics (height, longestLine), then those scalars are stored and the
- * Paragraph reference is NOT retained.
- * 
- * Actual rendering Paragraphs are created on-demand in mounted ReaderTile
- * components from the stored TextBlockData.
+ * Layout a chapter into pure serializable blocks. SkParagraph is only used as
+ * a temporary measurement object; mounted tiles recreate their own Paragraphs.
  */
 export function layoutChapter(options: LayoutChapterOptions): LayoutChapterResult {
-  const { blocks, width, theme, fontFamily, fontMgr: customFontMgr } = options;
+  const {
+    blocks,
+    width,
+    theme,
+    fontFamily,
+    fontMgr: customFontMgr,
+    imageDimensions = {},
+  } = options;
   const styleResolver = new StyleResolver(theme);
-  
-  // Use custom font manager if provided, otherwise use system
-  const fontMgr = customFontMgr ?? Skia.FontMgr.System();
-  if (__DEV__) {
-    console.log('[layout-chapter] Using', customFontMgr ? 'custom' : 'system', 'font manager');
-  }
-  
+  const fontMgr = customFontMgr;
   const layoutBlocks: LayoutBlock[] = [];
   const blockHeights: Record<string, number> = {};
   let currentY = theme.topPadding;
 
-  for (const block of blocks) {
-    const parsed = parseBlockHtml(block.html);
+  for (const sourceBlock of blocks) {
+    const sourceStartY = currentY;
+    const parsed = parseBlockHtml(sourceBlock.html);
     const style = styleResolver.resolve(
-      { tag: parsed.tag, classes: parsed.classes, attributes: {}, children: [], text: parsed.text },
-      undefined
+      {
+        tag: parsed.tag,
+        classes: parsed.classes,
+        attributes: parsed.attributes,
+        children: [],
+        text: parsed.text,
+      },
+      undefined,
     );
-
-    const layoutBlock = layoutBlockPure(
-      block,
+    const parts = layoutSourceBlock({
+      sourceBlock,
       parsed,
       style,
-      currentY,
+      y: currentY,
       width,
-      0,
       fontMgr,
-      fontFamily ?? 'System',
-      theme
-    );
+      fontFamily,
+      theme,
+      imageDimensions,
+    });
 
-    layoutBlocks.push(layoutBlock);
-    blockHeights[block.id] = layoutBlock.height;
-    
-    currentY = layoutBlock.y + layoutBlock.height + 12;
+    for (const part of parts) {
+      layoutBlocks.push(part);
+      currentY = part.y + part.height + BLOCK_GAP;
+    }
+
+    if (parts.length === 0) continue;
+    blockHeights[sourceBlock.id] = Math.max(1, currentY - sourceStartY - BLOCK_GAP);
   }
 
-  const totalHeight = currentY + theme.bottomPadding;
+  const contentEnd = layoutBlocks.reduce(
+    (maximum, block) => Math.max(maximum, block.y + block.height),
+    theme.topPadding,
+  );
 
   return {
     blocks: layoutBlocks,
-    totalHeight,
+    totalHeight: contentEnd + theme.bottomPadding,
     blockHeights,
   };
 }
 
-/**
- * Layout a block using pure data only.
- * 
- * For text blocks: creates a temporary SkParagraph to extract accurate metrics,
- * then stores only the text content, style data, and measured scalars.
- * The temporary Paragraph reference is not retained.
- */
-function layoutBlockPure(
-  block: { id: string; locator: string; html: string },
-  parsed: { text: string; classes: string[]; tag: string },
-  style: TextStyle,
-  y: number,
-  width: number,
-  xOffset: number,
-  fontMgr: any,
-  fontFamily: string,
-  theme: any
-): LayoutBlock {
+interface LayoutSourceBlockInput {
+  sourceBlock: LayoutChapterOptions['blocks'][number];
+  parsed: ParsedBlock;
+  style: TextStyle;
+  y: number;
+  width: number;
+  fontMgr: SkTypefaceFontProvider | undefined;
+  fontFamily: string;
+  theme: LayoutChapterOptions['theme'];
+  imageDimensions: Readonly<Record<string, ReaderImageDimensions>>;
+}
+
+function layoutSourceBlock(input: LayoutSourceBlockInput): LayoutBlock[] {
+  const {
+    sourceBlock,
+    parsed,
+    style,
+    width,
+    fontMgr,
+    fontFamily,
+    theme,
+    imageDimensions,
+  } = input;
+  const images = extractReaderImages(sourceBlock.html);
   const blockType = getBlockType(parsed.tag);
 
-  if (blockType === 'image') {
-    return layoutImageBlock(block, parsed, y, width, xOffset);
-  }
-
   if (blockType === 'hr') {
-    return layoutHrBlock(block, y, width, xOffset);
+    return [layoutHrBlock(sourceBlock, input.y, width, 0)];
   }
 
-  // Text blocks (paragraph, heading, blockquote)
-  // Create temporary Paragraph for measurement only
+  const result: LayoutBlock[] = [];
+  let currentY = input.y;
+
+  // Image-only wrappers (for example div.illus) are authored media blocks,
+  // not empty paragraphs. Mixed blocks keep their text and then their images;
+  // this is deterministic and, unlike the previous implementation, never
+  // drops image pixels from the chapter model.
+  if (parsed.text.length > 0 || images.length === 0) {
+    const textBlock = layoutTextBlock({
+      sourceBlock,
+      parsed,
+      style,
+      y: currentY,
+      width,
+      fontMgr,
+      fontFamily,
+      theme,
+    });
+    result.push(textBlock);
+    currentY = textBlock.y + textBlock.height + BLOCK_GAP;
+  }
+
+  images.forEach((image, index) => {
+    const imageBlock = layoutImageBlock({
+      sourceBlock,
+      image,
+      id: result.length === 0 && index === 0
+        ? sourceBlock.id
+        : `${sourceBlock.id}:image:${index}`,
+      y: currentY,
+      width,
+      imageDimensions,
+    });
+    result.push(imageBlock);
+    currentY = imageBlock.y + imageBlock.height + BLOCK_GAP;
+  });
+
+  return result;
+}
+
+interface LayoutTextBlockInput {
+  sourceBlock: LayoutChapterOptions['blocks'][number];
+  parsed: ParsedBlock;
+  style: TextStyle;
+  y: number;
+  width: number;
+  fontMgr: SkTypefaceFontProvider | undefined;
+  fontFamily: string;
+  theme: LayoutChapterOptions['theme'];
+}
+
+function layoutTextBlock(input: LayoutTextBlockInput): LayoutBlock {
+  const { sourceBlock, parsed, style, width, fontMgr, fontFamily, theme } = input;
+  const blockType = getBlockType(parsed.tag);
   const fontSize = style.fontSize ?? theme.fontSize;
   const lineHeight = style.lineHeight ?? theme.lineHeight;
   const color = style.color ?? theme.textColor;
   const textAlign = style.textAlign ?? 'left';
-  
-  const paragraphStyle = {
-    textAlign: getSkiaTextAlign(textAlign),
-    heightMultiplier: lineHeight,
-    textStyle: {
-      color: Skia.Color(color),
-      fontSize,
-      fontFamilies: [fontFamily],
-    },
-  };
+  const firstLineIndent = blockType === 'paragraph'
+    && (style.textIndent ?? 0) > 0
+    && parsed.text.length > 0;
+  const content = parsed.text || ' ';
+  const paragraphText = createRenderableParagraphText(content, firstLineIndent);
+  const paragraphStyle = createSkiaParagraphStyle({
+    color,
+    fontFamily,
+    fontSize,
+    lineHeight,
+    textAlign,
+    ...(style.fontWeight ? { fontWeight: style.fontWeight } : {}),
+    ...(style.fontStyle ? { fontStyle: style.fontStyle } : {}),
+  });
 
-  // Calculate first-line indent value
-  const firstLineIndentValue = theme.firstLineIndent && blockType === 'paragraph' ? theme.fontSize * 2 : undefined;
-  
-  // Temporary Paragraph for measurement - must include first-line indent
-  // to get accurate height, otherwise rendered paragraph will be taller
-  const builder = Skia.ParagraphBuilder.Make(paragraphStyle, fontMgr);
-  
-  // Apply first-line indent during measurement too
-  if (firstLineIndentValue) {
-    const emQuads = Math.round(firstLineIndentValue / fontSize);
-    const indent = '\u2003'.repeat(emQuads);
-    builder.addText(indent + (parsed.text || ' '));
-  } else {
-    builder.addText(parsed.text || ' ');
-  }
-  
-  const tempParagraph = builder.build();
+  const paragraphBuilder = fontMgr
+    ? Skia.ParagraphBuilder.Make(paragraphStyle, fontMgr)
+    : Skia.ParagraphBuilder.Make(paragraphStyle);
+  const paragraph = paragraphBuilder.addText(paragraphText).build();
+  paragraph.layout(width);
+  const measuredHeight = paragraph.getHeight();
+  const measuredLongestLine = paragraph.getLongestLine();
+  const y = input.y + (style.marginTop ?? 0);
 
-  // Extract metrics
-  tempParagraph.layout(width);
-  const measuredHeight = tempParagraph.getHeight();
-  const measuredLongestLine = tempParagraph.getLongestLine();
-  
-  // tempParagraph reference is now eligible for GC - we don't store it
-
-  const marginTop = style.marginTop ?? 0;
-  const marginBottom = style.marginBottom ?? 0;
-  const totalHeight = marginTop + measuredHeight + marginBottom;
-
-  const hitRects = extractHitRects(block.html, y + marginTop, width);
-
-  // Store text data with explicit undefined for optional fields
   const textData: TextBlockData = {
-    content: parsed.text || ' ',
+    content,
     fontSize,
     lineHeight,
     color,
     fontFamily,
     textAlign,
-    fontWeight: style.fontWeight ?? undefined,
-    fontStyle: style.fontStyle ?? undefined,
-    firstLineIndent: firstLineIndentValue,
+    firstLineIndent,
     measuredHeight,
-    measuredLongestLine: measuredLongestLine || undefined,
+    ...(style.fontWeight ? { fontWeight: style.fontWeight } : {}),
+    ...(style.fontStyle ? { fontStyle: style.fontStyle } : {}),
+    ...(measuredLongestLine > 0 ? { measuredLongestLine } : {}),
   };
 
   return {
-    id: block.id,
-    locator: block.locator,
+    id: sourceBlock.id,
+    locator: sourceBlock.locator,
     type: blockType,
-    x: xOffset,
-    y: y + marginTop,
+    x: 0,
+    y,
     width,
-    height: totalHeight,
+    height: measuredHeight + (style.marginBottom ?? 0),
     text: textData,
-    hitRects,
+    hitRects: extractHitRects(sourceBlock.html, y),
   };
 }
 
-function layoutImageBlock(
-  block: { id: string; locator: string; html: string },
-  parsed: { text: string; classes: string[]; tag: string },
-  y: number,
-  width: number,
-  xOffset: number
-): LayoutBlock {
-  const srcMatch = block.html.match(/src=["']([^"']+)["']/);
-  const src = srcMatch?.[1] ?? '';
-  
-  const altMatch = block.html.match(/alt=["']([^"']+)["']/);
-  const alt = altMatch?.[1] ?? '';
+interface LayoutImageBlockInput {
+  sourceBlock: LayoutChapterOptions['blocks'][number];
+  image: ParsedReaderImage;
+  id: string;
+  y: number;
+  width: number;
+  imageDimensions: Readonly<Record<string, ReaderImageDimensions>>;
+}
 
-  const aspectRatio = 16 / 9;
-  const imageHeight = width / aspectRatio;
+function layoutImageBlock(input: LayoutImageBlockInput): LayoutBlock {
+  const { sourceBlock, image, id, y, width, imageDimensions } = input;
+  const frame = resolveReaderImageFrame(image, width, imageDimensions);
 
   return {
-    id: block.id,
-    locator: block.locator,
+    id,
+    locator: sourceBlock.locator,
     type: 'image',
-    x: xOffset,
+    x: frame.x,
     y,
-    width,
-    height: imageHeight,
-    image: {
-      url: src,
-      width,
-      height: imageHeight,
-      aspectRatio,
-    },
-    hitRects: [
-      {
-        x: xOffset,
-        y,
-        width,
-        height: imageHeight,
-        type: 'image',
-        id: src,
-        content: alt,
-      },
-    ],
+    width: frame.image.width,
+    height: frame.image.height,
+    image: frame.image,
+    hitRects: [{
+      x: frame.x,
+      y,
+      width: frame.image.width,
+      height: frame.image.height,
+      type: 'image',
+      id: frame.image.url,
+      ...(frame.image.alt ? { content: frame.image.alt } : {}),
+    }],
   };
 }
 
 function layoutHrBlock(
-  block: { id: string; locator: string },
+  sourceBlock: LayoutChapterOptions['blocks'][number],
   y: number,
   width: number,
-  xOffset: number
+  x: number,
 ): LayoutBlock {
   return {
-    id: block.id,
-    locator: block.locator,
+    id: sourceBlock.id,
+    locator: sourceBlock.locator,
     type: 'hr',
-    x: xOffset,
+    x,
     y,
     width,
     height: 20,
@@ -235,53 +279,53 @@ function layoutHrBlock(
   };
 }
 
-function parseBlockHtml(html: string): { text: string; classes: string[]; tag: string } {
-  const tagMatch = html.match(/<(\w+)[\s>]/);
-  const tag = tagMatch?.[1]?.toLowerCase() ?? 'p';
+interface ParsedBlock {
+  text: string;
+  classes: string[];
+  tag: string;
+  attributes: Record<string, string>;
+}
 
-  const classMatch = html.match(/class=["']([^"']+)["']/);
-  const classes = classMatch?.[1]?.split(/\s+/) ?? [];
-
+function parseBlockHtml(html: string): ParsedBlock {
+  const openingTag = html.match(/<([a-z][\w:-]*)\b[^>]*>/iu)?.[0] ?? '';
+  const tag = /^<([a-z][\w:-]*)/iu.exec(openingTag)?.[1]?.toLowerCase() ?? 'p';
+  const attributes = readHtmlAttributes(openingTag);
+  const classes = attributes.class?.split(/\s+/u).filter(Boolean) ?? [];
   const text = normalizeText(
     html
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&nbsp;|&#160;/gi, ' ')
+      .replace(/<br\s*\/?>/giu, '\n')
+      .replace(/<[^>]+>/gu, ' ')
+      .replace(/&nbsp;|&#160;/giu, ' ')
+      .replace(/&amp;/giu, '&')
+      .replace(/&lt;/giu, '<')
+      .replace(/&gt;/giu, '>'),
   );
 
-  return { text, classes, tag };
+  return { text, classes, tag, attributes };
+}
+
+function readHtmlAttributes(tag: string): Record<string, string> {
+  const attributes: Record<string, string> = {};
+  const pattern = /([:\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gu;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(tag)) !== null) {
+    const name = match[1]?.toLowerCase();
+    if (!name) continue;
+    attributes[name] = match[2] ?? match[3] ?? match[4] ?? '';
+  }
+  return attributes;
 }
 
 function getBlockType(tag: string): LayoutBlock['type'] {
-  if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) {
-    return 'heading';
-  }
-  if (tag === 'img') {
-    return 'image';
-  }
-  if (tag === 'blockquote') {
-    return 'blockquote';
-  }
-  if (tag === 'hr') {
-    return 'hr';
-  }
+  if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) return 'heading';
+  if (tag === 'blockquote') return 'blockquote';
+  if (tag === 'hr') return 'hr';
   return 'paragraph';
 }
 
-function getSkiaTextAlign(align: TextStyle['textAlign']): TextAlign {
-  switch (align) {
-    case 'center':
-      return TextAlign.Center;
-    case 'right':
-      return TextAlign.Right;
-    default:
-      return TextAlign.Left;
-  }
-}
-
-function extractHitRects(html: string, blockY: number, width: number): HitRect[] {
+function extractHitRects(html: string, blockY: number): HitRect[] {
   const hitRects: HitRect[] = [];
-
-  const footnotePattern = /<a[^>]*data-reader-footnote-id=["']([^"']+)["'][^>]*>/g;
+  const footnotePattern = /<a[^>]*data-reader-footnote-id=["']([^"']+)["'][^>]*>/gu;
   let match: RegExpExecArray | null;
   while ((match = footnotePattern.exec(html)) !== null) {
     const id = match[1];
@@ -289,12 +333,11 @@ function extractHitRects(html: string, blockY: number, width: number): HitRect[]
     hitRects.push({
       x: 0,
       y: blockY,
-      width: 20,
-      height: 20,
+      width: 24,
+      height: 24,
       type: 'footnote',
       id,
     });
   }
-
   return hitRects;
 }
