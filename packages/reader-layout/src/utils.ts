@@ -25,7 +25,7 @@ export function parseColor(color: string): string {
   if (color.startsWith('#')) {
     return color;
   }
-  
+
   // Named colors
   const namedColors: Record<string, string> = {
     red: '#ff0000',
@@ -35,7 +35,7 @@ export function parseColor(color: string): string {
     white: '#ffffff',
     transparent: '#00000000',
   };
-  
+
   return namedColors[color.toLowerCase()] || color;
 }
 

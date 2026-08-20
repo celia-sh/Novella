@@ -46,7 +46,7 @@ export function ReaderNavigation({
           title,
         }}
       />
-      {shouldRenderReaderEdgeBlur(displayMode) ? <IosTopBarBackground /> : null}
+      {shouldRenderReaderEdgeBlur(mode) ? <IosTopBarBackground /> : null}
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel={t('accessibility.chapterList')}

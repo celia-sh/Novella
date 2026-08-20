@@ -28,6 +28,7 @@ import {
   tileChapter,
   type ChapterTile,
 } from '@novella/reader-layout';
+import { NativeScrollEdgeMarker } from '../../modules/novella-ui/src/native-scroll-edge-marker';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
 import { ReaderErrorState } from '@/components/reader-chrome';
@@ -162,7 +163,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   // Skia layout and tiling
   const screenWidth = Dimensions.get('window').width;
   const screenHeight = Dimensions.get('window').height;
-  
+
   // Slider rows update their local labels immediately, then commit settings on
   // release. Keep the expensive Skia work delayed and expose that delay as an
   // explicit reflow state instead of making the reader appear frozen.
@@ -217,7 +218,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       reflowOverlayRef.current?.hide();
     }
   }, [pendingMode, pendingReflowGeneration]);
-  
+
   // Create custom FontManager when custom font is loaded
   const [fontMgr, setFontMgr] = useState<SkTypefaceFontProvider | null>(null);
   // Initialize fontMgrLoading based on whether we need custom font
@@ -225,7 +226,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     return requiresReaderFont && readerFont.status === 'loaded' && content?.chapter.fontUrl != null;
   });
   const [fontMgrError, setFontMgrError] = useState<string | null>(null);
-  
+
   useEffect(() => {
     if (!requiresReaderFont || readerFont.status !== 'loaded' || !content?.chapter.fontUrl) {
       if (__DEV__) console.log('[reader-screen] Using system font');
@@ -246,7 +247,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     if (__DEV__) console.log(`[reader-screen] Loading font: ${readerFont.family}`);
     setFontMgrLoading(true);
     setFontMgrError(null);
-    
+
     // Create custom font manager with the loaded font
     createFontManager([
       {
@@ -266,10 +267,10 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         setFontMgrLoading(false);
       });
   }, [requiresReaderFont, readerFont.status, readerFont.family, content?.chapter.fontUrl]);
-  
+
   const layout = useMemo(() => {
     if (!content || fontLoading || blocks.length === 0) return null;
-    
+
     // If custom font is required but font manager is still loading, wait
     if (requiresReaderFont && fontMgrLoading) {
       return null;
@@ -638,6 +639,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               updateCellsBatchingPeriod={0}
               windowSize={5}
             />
+            <NativeScrollEdgeMarker key={`reader-edge:${mode}`} hidesAllEdgeEffects />
           </View>
         ) : null}
         <ReaderReflowOverlayHost

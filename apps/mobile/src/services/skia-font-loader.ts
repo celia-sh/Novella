@@ -3,7 +3,7 @@ import { Skia } from '@shopify/react-native-skia';
 
 /**
  * Font conversion and registration service for Skia renderer.
- * 
+ *
  * Converts WOFF2 fonts to TTF/OTF and registers them with Skia's TypefaceFontProvider.
  */
 
@@ -16,14 +16,14 @@ const fontCache = new Map<string, FontCache>();
 
 /**
  * Load and register a WOFF2 font for use in Skia Paragraph.
- * 
+ *
  * Flow:
  * 1. Fetch WOFF2 from URL
  * 2. Decode WOFF2 → TTF/OTF using woff-lib
  * 3. Create Skia.Data from TTF bytes
  * 4. Create Typeface from Data
  * 5. Register with TypefaceFontProvider
- * 
+ *
  * @param fontUrl - URL to the WOFF2 font file
  * @param familyName - Font family name to register (e.g., 'NovelFont')
  * @returns Typeface instance
@@ -33,7 +33,7 @@ export async function loadAndRegisterFont(
   familyName: string
 ): Promise<ReturnType<typeof Skia.Typeface.MakeFreeTypeFaceFromData> | null> {
   console.log('[font-loader] Starting font load:', { fontUrl, familyName });
-  
+
   // Check cache first
   const cached = fontCache.get(fontUrl);
   if (cached) {
@@ -84,7 +84,7 @@ export async function loadAndRegisterFont(
 
 /**
  * Register a typeface with a TypefaceFontProvider.
- * 
+ *
  * @param fontProvider - Skia TypefaceFontProvider instance
  * @param typeface - Typeface to register
  * @param familyName - Font family name
@@ -95,7 +95,7 @@ export function registerTypefaceWithProvider(
   familyName: string
 ): void {
   console.log('[font-loader] Registering typeface with family name:', familyName);
-  
+
   try {
     // RN Skia's TypefaceFontProvider.registerFont() method
     if (typeof fontProvider.registerFont === 'function') {
@@ -115,7 +115,7 @@ export function registerTypefaceWithProvider(
 /**
  * Create a FontManager with custom fonts registered.
  * This is used by Skia Paragraph for text layout.
- * 
+ *
  * @param customFonts - Array of { fontUrl, familyName } to load and register
  * @returns FontManager instance
  */
