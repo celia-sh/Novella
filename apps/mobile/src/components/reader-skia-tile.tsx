@@ -15,7 +15,9 @@ import {
   type SkTypefaceFontProvider,
 } from '@shopify/react-native-skia';
 import {
+  addTextBlockToParagraphBuilder,
   createRenderableParagraphText,
+  createRubyParagraphStyle,
   createSkiaParagraphStyle,
   type ChapterTile,
   type ImageLayout,
@@ -63,10 +65,11 @@ export function ReaderSkiaTile({
   }, []);
   const paragraphs = useMemo(() => {
     const builders = new Map<string, SkParagraphBuilder>();
-    return tile.blocks.flatMap((block) => {
-      const textData = block.text;
-      if (!textData) return [];
-      const paragraphStyle = createSkiaParagraphStyle(textData);
+    const buildParagraph = (
+      paragraphStyle: ReturnType<typeof createSkiaParagraphStyle>,
+      populate: (builder: SkParagraphBuilder) => void,
+      width: number,
+    ) => {
       const styleKey = JSON.stringify(paragraphStyle);
       let builder = builders.get(styleKey);
       if (!builder) {
@@ -76,26 +79,64 @@ export function ReaderSkiaTile({
         builders.set(styleKey, builder);
       }
       builder.reset();
-      const paragraph = (() => {
-        try {
-          return builder
-            .addText(createRenderableParagraphText(
-              textData.content,
-              textData.firstLineIndent,
-            ))
-            .build();
-        } finally {
-          builder.reset();
-        }
-      })();
-      paragraph.layout(block.width);
+      try {
+        populate(builder);
+        const paragraph = builder.build();
+        paragraph.layout(width);
+        return paragraph;
+      } finally {
+        builder.reset();
+      }
+    };
+
+    return tile.blocks.flatMap((block) => {
+      const textData = block.text;
+      if (!textData) return [];
+      const blockX = sidePadding + block.x;
+      const blockY = contentOffsetY + block.y - tile.y;
+      const paragraph = buildParagraph(
+        createSkiaParagraphStyle(textData),
+        (builder) => addTextBlockToParagraphBuilder(builder, textData),
+        block.width,
+      );
+      const rubyParagraphs = (block.ruby ?? []).flatMap((ruby, index) => {
+        const x = blockX + ruby.x;
+        return [
+          {
+            blockId: `${block.id}:ruby:${index}:rt`,
+            paragraph: buildParagraph(
+              createRubyParagraphStyle(textData, true),
+              (builder) => builder.addText(
+                createRenderableParagraphText(ruby.rtText, false),
+              ),
+              ruby.totalWidth,
+            ),
+            x,
+            y: blockY + ruby.rtY,
+            width: ruby.totalWidth,
+          },
+          {
+            blockId: `${block.id}:ruby:${index}:base`,
+            paragraph: buildParagraph(
+              createRubyParagraphStyle(textData, false),
+              (builder) => builder.addText(
+                createRenderableParagraphText(ruby.baseText, false),
+              ),
+              ruby.totalWidth,
+            ),
+            x,
+            y: blockY + ruby.baseY,
+            width: ruby.totalWidth,
+          },
+        ];
+      });
       return [{
         blockId: block.id,
         paragraph,
-        x: sidePadding + block.x,
-        y: contentOffsetY + block.y - tile.y,
+        x: blockX,
+        y: blockY,
         width: block.width,
-      }];
+      }, ...rubyParagraphs];
     });
   }, [contentOffsetY, fontMgr, generation, sidePadding, tile]);
   const imageBlocks = tile.blocks.flatMap((block) => block.image

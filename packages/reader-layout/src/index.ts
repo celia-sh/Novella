@@ -7,7 +7,11 @@ export {
   type PageChapterOptions,
   type TiledChapterResult,
 } from './tile-chapter';
-export { createSkiaParagraphStyle } from './skia-paragraph';
+export {
+  addTextBlockToParagraphBuilder,
+  createRubyParagraphStyle,
+  createSkiaParagraphStyle,
+} from './skia-paragraph';
 export {
   addPuaLineBreakOpportunities,
   createRenderableParagraphText,

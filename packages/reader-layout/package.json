@@ -10,7 +10,7 @@
     "test": "node --experimental-strip-types --test src/**/*.test.ts"
   },
   "dependencies": {
-    "@shopify/react-native-skia": "^1.5.2",
+    "@shopify/react-native-skia": "2.6.2",
     "htmlparser2": "^9.1.0"
   },
   "devDependencies": {

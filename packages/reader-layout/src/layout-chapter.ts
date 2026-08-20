@@ -10,14 +10,21 @@ import {
   resolveReaderImageFrame,
   type ParsedReaderImage,
 } from './image-layout';
-import { createSkiaParagraphStyle } from './skia-paragraph';
+import { parseReaderRubyContent, type ReaderInlineRun } from './ruby-layout';
+import {
+  addTextBlockToParagraphBuilder,
+  createRubyParagraphStyle,
+  createSkiaParagraphStyle,
+} from './skia-paragraph';
 import { StyleResolver } from './style-resolver';
 import type {
   HitRect,
   LayoutBlock,
   LayoutChapterOptions,
   LayoutChapterResult,
+  ParagraphRun,
   ReaderImageDimensions,
+  RubyLayout,
   TextBlockData,
   TextStyle,
 } from './types';
@@ -28,12 +35,21 @@ import {
 import { normalizeText } from './utils';
 
 const BLOCK_GAP = 12;
+const RUBY_INTRINSIC_WIDTH = 100_000;
 
+interface ParagraphMeasurement {
+  height: number;
+  longestLine: number;
+  baseline: number;
+  placeholders: Array<{ x: number; y: number; width: number; height: number }>;
+}
+
+type PopulateParagraph = (builder: SkParagraphBuilder) => void;
 type MeasureParagraph = (
   style: SkParagraphStyle,
-  text: string,
+  populate: PopulateParagraph,
   width: number,
-) => { height: number; longestLine: number };
+) => ParagraphMeasurement;
 
 /**
  * Layout a chapter into pure serializable blocks. SkParagraph is only used as
@@ -107,7 +123,7 @@ function createParagraphMeasurer(
   // Native Skia 2.6.2 reports 1 MB of memory pressure for every JSI builder.
   // Reuse one builder per paragraph style instead of allocating one per block.
   const builders = new Map<string, SkParagraphBuilder>();
-  return (style, text, width) => {
+  return (style, populate, width) => {
     const styleKey = JSON.stringify(style);
     let builder = builders.get(styleKey);
     if (!builder) {
@@ -119,12 +135,21 @@ function createParagraphMeasurer(
 
     builder.reset();
     try {
-      const paragraph = builder.addText(text).build();
+      populate(builder);
+      const paragraph = builder.build();
       try {
         paragraph.layout(width);
+        const firstLine = paragraph.getLineMetrics()[0];
         return {
           height: paragraph.getHeight(),
           longestLine: paragraph.getLongestLine(),
+          baseline: firstLine?.baseline ?? paragraph.getHeight(),
+          placeholders: paragraph.getRectsForPlaceholders().map(({ rect }) => ({
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+          })),
         };
       } finally {
         paragraph.dispose();
@@ -236,8 +261,7 @@ function layoutTextBlock(input: LayoutTextBlockInput): LayoutBlock {
     && (style.textIndent ?? 0) > 0
     && parsed.text.length > 0;
   const content = parsed.text || ' ';
-  const paragraphText = createRenderableParagraphText(content, firstLineIndent);
-  const paragraphStyle = createSkiaParagraphStyle({
+  const paragraphSpec = {
     color,
     fontFamily,
     fontSize,
@@ -245,15 +269,11 @@ function layoutTextBlock(input: LayoutTextBlockInput): LayoutBlock {
     textAlign,
     ...(style.fontWeight ? { fontWeight: style.fontWeight } : {}),
     ...(style.fontStyle ? { fontStyle: style.fontStyle } : {}),
-  });
-
-  const {
-    height: measuredHeight,
-    longestLine: measuredLongestLine,
-  } = measureParagraph(paragraphStyle, paragraphText, width);
-  const y = input.y + (style.marginTop ?? 0);
-
-  const textData: TextBlockData = {
+  };
+  const measuredRuby = parsed.inlineRuns
+    ? measureRubyRuns(parsed.inlineRuns, paragraphSpec, measureParagraph)
+    : null;
+  const textDraft: TextBlockData = {
     content,
     fontSize,
     lineHeight,
@@ -261,11 +281,28 @@ function layoutTextBlock(input: LayoutTextBlockInput): LayoutBlock {
     fontFamily,
     textAlign,
     firstLineIndent,
-    measuredHeight,
+    measuredHeight: 0,
     ...(style.fontWeight ? { fontWeight: style.fontWeight } : {}),
     ...(style.fontStyle ? { fontStyle: style.fontStyle } : {}),
-    ...(measuredLongestLine > 0 ? { measuredLongestLine } : {}),
+    ...(measuredRuby ? { paragraphRuns: measuredRuby.paragraphRuns } : {}),
   };
+  const paragraphStyle = createSkiaParagraphStyle(paragraphSpec);
+  const measurement = measureParagraph(
+    paragraphStyle,
+    (builder) => addTextBlockToParagraphBuilder(builder, textDraft),
+    width,
+  );
+  const y = input.y + (style.marginTop ?? 0);
+  const textData: TextBlockData = {
+    ...textDraft,
+    measuredHeight: measurement.height,
+    ...(measurement.longestLine > 0
+      ? { measuredLongestLine: measurement.longestLine }
+      : {}),
+  };
+  const ruby = measuredRuby
+    ? positionRubyRuns(measuredRuby.ruby, measurement.placeholders)
+    : [];
 
   return {
     id: sourceBlock.id,
@@ -274,10 +311,95 @@ function layoutTextBlock(input: LayoutTextBlockInput): LayoutBlock {
     x: 0,
     y,
     width,
-    height: measuredHeight + (style.marginBottom ?? 0),
+    height: measurement.height + (style.marginBottom ?? 0),
     text: textData,
+    ...(ruby.length > 0 ? { ruby } : {}),
     hitRects: extractHitRects(sourceBlock.html, y),
   };
+}
+
+interface MeasuredRubyRun extends Omit<RubyLayout, 'x' | 'baseY' | 'rtY'> {
+  baselineOffset: number;
+  baseOffsetY: number;
+}
+
+function measureRubyRuns(
+  runs: readonly ReaderInlineRun[],
+  paragraphSpec: Parameters<typeof createSkiaParagraphStyle>[0],
+  measureParagraph: MeasureParagraph,
+): { paragraphRuns: ParagraphRun[]; ruby: MeasuredRubyRun[] } {
+  const paragraphRuns: ParagraphRun[] = [];
+  const ruby: MeasuredRubyRun[] = [];
+  const baseStyle = createRubyParagraphStyle(paragraphSpec, false);
+  const annotationStyle = createRubyParagraphStyle(paragraphSpec, true);
+
+  for (const run of runs) {
+    if (run.type === 'text') {
+      paragraphRuns.push(run);
+      continue;
+    }
+
+    const base = measureParagraph(
+      baseStyle,
+      (builder) => builder.addText(createRenderableParagraphText(run.baseText, false)),
+      RUBY_INTRINSIC_WIDTH,
+    );
+    const annotation = measureParagraph(
+      annotationStyle,
+      (builder) => builder.addText(createRenderableParagraphText(run.annotationText, false)),
+      RUBY_INTRINSIC_WIDTH,
+    );
+    const totalWidth = Math.ceil(Math.max(1, base.longestLine, annotation.longestLine));
+    const annotationOverlap = Math.min(
+      annotation.height,
+      Math.max(0, (base.height - paragraphSpec.fontSize) / 2),
+    );
+    const baseOffsetY = annotation.height - annotationOverlap;
+    const totalHeight = baseOffsetY + base.height;
+    const baselineOffset = baseOffsetY + base.baseline;
+    paragraphRuns.push({
+      type: 'ruby',
+      width: totalWidth,
+      height: totalHeight,
+      baselineOffset,
+    });
+    ruby.push({
+      baseText: run.baseText,
+      rtText: run.annotationText,
+      baseWidth: base.longestLine,
+      baseHeight: base.height,
+      rtWidth: annotation.longestLine,
+      rtHeight: annotation.height,
+      totalWidth,
+      totalHeight,
+      baselineOffset,
+      baseOffsetY,
+    });
+  }
+  return { paragraphRuns, ruby };
+}
+
+function positionRubyRuns(
+  measured: readonly MeasuredRubyRun[],
+  placeholders: readonly ParagraphMeasurement['placeholders'][number][],
+): RubyLayout[] {
+  return measured.flatMap((ruby, index) => {
+    const placeholder = placeholders[index];
+    if (!placeholder) return [];
+    return [{
+      baseText: ruby.baseText,
+      rtText: ruby.rtText,
+      baseWidth: ruby.baseWidth,
+      baseHeight: ruby.baseHeight,
+      rtWidth: ruby.rtWidth,
+      rtHeight: ruby.rtHeight,
+      totalWidth: ruby.totalWidth,
+      totalHeight: ruby.totalHeight,
+      x: placeholder.x,
+      rtY: placeholder.y,
+      baseY: placeholder.y + ruby.baseOffsetY,
+    }];
+  });
 }
 
 interface LayoutImageBlockInput {
@@ -337,6 +459,7 @@ interface ParsedBlock {
   classes: string[];
   tag: string;
   attributes: Record<string, string>;
+  inlineRuns?: ReaderInlineRun[];
 }
 
 function parseBlockHtml(html: string): ParsedBlock {
@@ -344,13 +467,20 @@ function parseBlockHtml(html: string): ParsedBlock {
   const tag = /^<([a-z][\w:-]*)/iu.exec(openingTag)?.[1]?.toLowerCase() ?? 'p';
   const attributes = readHtmlAttributes(openingTag);
   const classes = attributes.class?.split(/\s+/u).filter(Boolean) ?? [];
-  const text = normalizeText(decodeReaderLayoutTextEntities(
+  const ruby = parseReaderRubyContent(html);
+  const text = ruby?.text ?? normalizeText(decodeReaderLayoutTextEntities(
     html
       .replace(/<br\s*\/?>/giu, '\n')
       .replace(/<[^>]+>/gu, ' '),
   ));
 
-  return { text, classes, tag, attributes };
+  return {
+    text,
+    classes,
+    tag,
+    attributes,
+    ...(ruby ? { inlineRuns: ruby.runs } : {}),
+  };
 }
 
 function readHtmlAttributes(tag: string): Record<string, string> {

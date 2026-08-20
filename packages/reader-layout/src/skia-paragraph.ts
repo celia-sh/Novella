@@ -1,13 +1,24 @@
 import {
   FontSlant,
   FontWeight,
+  PlaceholderAlignment,
   Skia,
   TextAlign,
+  TextBaseline,
+  type SkParagraphBuilder,
   type SkParagraphStyle,
   type SkTextFontStyle,
 } from '@shopify/react-native-skia';
 
+import {
+  addPuaLineBreakOpportunities,
+  createRenderableParagraphText,
+  READER_FIRST_LINE_INDENT,
+} from './text-layout';
 import type { TextBlockData } from './types';
+
+export const READER_RUBY_ANNOTATION_FONT_RATIO = 0.5;
+export const READER_RUBY_ANNOTATION_LINE_HEIGHT = 1.25;
 
 export type ParagraphTextSpec = Pick<
   TextBlockData,
@@ -51,6 +62,52 @@ export function createSkiaParagraphStyle(spec: ParagraphTextSpec): SkParagraphSt
       ...(fontStyle ? { fontStyle } : {}),
     },
   };
+}
+
+export function createRubyParagraphStyle(
+  spec: ParagraphTextSpec,
+  annotation: boolean,
+): SkParagraphStyle {
+  return createSkiaParagraphStyle({
+    ...spec,
+    fontSize: annotation
+      ? Math.max(1, spec.fontSize * READER_RUBY_ANNOTATION_FONT_RATIO)
+      : spec.fontSize,
+    lineHeight: annotation ? READER_RUBY_ANNOTATION_LINE_HEIGHT : spec.lineHeight,
+    textAlign: 'center',
+  });
+}
+
+/** Recreate exactly the text/placeholder stream measured by layoutChapter. */
+export function addTextBlockToParagraphBuilder(
+  builder: SkParagraphBuilder,
+  text: TextBlockData,
+): void {
+  const runs = text.paragraphRuns;
+  if (!runs) {
+    builder.addText(createRenderableParagraphText(text.content, text.firstLineIndent));
+    return;
+  }
+
+  if (
+    text.firstLineIndent
+    && !text.content.startsWith(READER_FIRST_LINE_INDENT)
+  ) {
+    builder.addText(READER_FIRST_LINE_INDENT);
+  }
+  for (const run of runs) {
+    if (run.type === 'text') {
+      builder.addText(addPuaLineBreakOpportunities(run.text));
+      continue;
+    }
+    builder.addPlaceholder(
+      run.width,
+      run.height,
+      PlaceholderAlignment.Baseline,
+      TextBaseline.Alphabetic,
+      run.baselineOffset,
+    );
+  }
 }
 
 function normalizeLineHeightMultiplier(value: number): number {

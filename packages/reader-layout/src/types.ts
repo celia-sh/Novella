@@ -21,8 +21,8 @@ export interface LayoutBlock {
   // Image blocks
   image?: ImageLayout;
 
-  // Ruby blocks
-  ruby?: RubyLayout;
+  // Ruby overlays positioned over inline paragraph placeholders.
+  ruby?: RubyLayout[];
 
   // Interaction areas
   hitRects: HitRect[];
@@ -44,6 +44,8 @@ export interface TextBlockData {
   fontStyle?: 'normal' | 'italic';
   /** Whether rendering prepends exactly two full-width CJK spaces. */
   firstLineIndent: boolean;
+  /** Inline content used to recreate text + ruby placeholders during paint. */
+  paragraphRuns?: ParagraphRun[];
   // Measured metrics from temporary Paragraph
   measuredHeight: number;
   measuredLongestLine?: number;
@@ -72,12 +74,25 @@ export interface ReaderImageDimensions {
   height: number;
 }
 
+export type ParagraphRun =
+  | { type: 'text'; text: string }
+  | {
+      type: 'ruby';
+      width: number;
+      height: number;
+      baselineOffset: number;
+    };
+
 export interface RubyLayout {
   baseText: string;
   rtText: string;
   baseWidth: number;
+  baseHeight: number;
   rtWidth: number;
+  rtHeight: number;
   totalWidth: number;
+  totalHeight: number;
+  x: number;
   baseY: number;
   rtY: number;
 }

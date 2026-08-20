@@ -6,6 +6,7 @@ import {
   parseSystemImageDimensions,
   resolveReaderImageFrame,
 } from '../image-layout.ts';
+import { parseReaderRubyContent } from '../ruby-layout.ts';
 import { StyleResolver } from '../style-resolver.ts';
 import {
   addPuaLineBreakOpportunities,
@@ -106,6 +107,31 @@ test('measurement and paint share PUA wrapping and first-line indent text', () =
     createRenderableParagraphText(`\uE001\uE002`, true),
     `\u3000\u3000\uE001\u200B\uE002`,
   );
+});
+
+test('ruby parser removes rp fallback and keeps annotation above its base token', () => {
+  const parsed = parseReaderRubyContent(
+    '<p>前<ruby>漢<rp>（</rp><rt>かん</rt><rp>）</rp></ruby>後</p>',
+  );
+  assert.deepEqual(parsed, {
+    text: '前漢後',
+    runs: [
+      { type: 'text', text: '前' },
+      { type: 'ruby', baseText: '漢', annotationText: 'かん' },
+      { type: 'text', text: '後' },
+    ],
+  });
+});
+
+test('ruby parser preserves multiple base-annotation pairs as separate wrap units', () => {
+  const parsed = parseReaderRubyContent(
+    '<p><ruby><span>東</span><rt>とう</rt>京<rt>きょう</rt></ruby>へ</p>',
+  );
+  assert.deepEqual(parsed?.runs, [
+    { type: 'ruby', baseText: '東', annotationText: 'とう' },
+    { type: 'ruby', baseText: '京', annotationText: 'きょう' },
+    { type: 'text', text: 'へ' },
+  ]);
 });
 
 test('image layout keeps authored geometry and a stable fallback frame', () => {
