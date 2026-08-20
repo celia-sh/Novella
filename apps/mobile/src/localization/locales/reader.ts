@@ -21,6 +21,12 @@ export const zhCNReader = {
   chapters: {
     pageCount: '{{count}} 页',
   },
+  loading: {
+    content: '正在加载内容',
+    font: '正在加载字体',
+    layout: '正在排版',
+    publication: '正在准备章节',
+  },
   errors: {
     chapterAuth: '请重新登录后阅读本章。',
     chapterLoad: '无法加载本章。',
@@ -89,6 +95,12 @@ export const zhTWReader: TranslationShape<typeof zhCNReader> = {
   },
   chapters: {
     pageCount: '{{count}} 頁',
+  },
+  loading: {
+    content: '正在載入內容',
+    font: '正在載入字型',
+    layout: '正在排版',
+    publication: '正在準備章節',
   },
   errors: {
     chapterAuth: '請重新登入後閱讀本章。',

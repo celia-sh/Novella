@@ -10,7 +10,9 @@
     "@microsoft/signalr": "^9.0.6",
     "@microsoft/signalr-protocol-msgpack": "^9.0.6",
     "@novella/client-core": "0.0.0",
+    "@novella/reader-layout": "file:../../packages/reader-layout",
     "@react-native-masked-view/masked-view": "0.3.2",
+    "@shopify/react-native-skia": "2.6.2",
     "@tabler/icons-react-native": "^3.46.0",
     "expo": "~57.0.9",
     "expo-asset": "~57.0.8",
@@ -56,7 +58,8 @@
     "tailwind-merge": "^3.6.0",
     "tailwind-variants": "^3.3.0",
     "tailwindcss": "^4.3.3",
-    "uniwind": "^1.10.0"
+    "uniwind": "^1.10.0",
+    "woff-lib": "^0.0.3"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",

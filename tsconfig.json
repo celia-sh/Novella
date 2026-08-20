@@ -1,4 +1,8 @@
 {
-  "compilerOptions": {},
+  "compilerOptions": {
+    "paths": {
+      "@novella/*": ["./packages/*/src"]
+    }
+  },
   "extends": "expo/tsconfig.base"
 }
