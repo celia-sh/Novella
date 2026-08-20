@@ -7,9 +7,12 @@ export {
   type PageChapterOptions,
   type TiledChapterResult,
 } from './tile-chapter';
+export { createSkiaParagraphStyle } from './skia-paragraph';
 export {
+  addPuaLineBreakOpportunities,
   createRenderableParagraphText,
-  createSkiaParagraphStyle,
+  decodeReaderLayoutTextEntities,
   READER_FIRST_LINE_INDENT,
-} from './skia-paragraph';
+  READER_LINE_BREAK_OPPORTUNITY,
+} from './text-layout';
 export { StyleResolver } from './style-resolver';

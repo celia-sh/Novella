@@ -9,8 +9,6 @@ import {
 
 import type { TextBlockData } from './types';
 
-export const READER_FIRST_LINE_INDENT = '\u3000\u3000';
-
 export type ParagraphTextSpec = Pick<
   TextBlockData,
   | 'color'
@@ -53,16 +51,6 @@ export function createSkiaParagraphStyle(spec: ParagraphTextSpec): SkParagraphSt
       ...(fontStyle ? { fontStyle } : {}),
     },
   };
-}
-
-export function createRenderableParagraphText(
-  content: string,
-  firstLineIndent: boolean,
-): string {
-  if (!firstLineIndent || content.startsWith(READER_FIRST_LINE_INDENT)) {
-    return content;
-  }
-  return `${READER_FIRST_LINE_INDENT}${content}`;
 }
 
 function normalizeLineHeightMultiplier(value: number): number {

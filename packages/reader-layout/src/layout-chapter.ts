@@ -10,10 +10,7 @@ import {
   resolveReaderImageFrame,
   type ParsedReaderImage,
 } from './image-layout';
-import {
-  createRenderableParagraphText,
-  createSkiaParagraphStyle,
-} from './skia-paragraph';
+import { createSkiaParagraphStyle } from './skia-paragraph';
 import { StyleResolver } from './style-resolver';
 import type {
   HitRect,
@@ -24,6 +21,10 @@ import type {
   TextBlockData,
   TextStyle,
 } from './types';
+import {
+  createRenderableParagraphText,
+  decodeReaderLayoutTextEntities,
+} from './text-layout';
 import { normalizeText } from './utils';
 
 const BLOCK_GAP = 12;
@@ -343,15 +344,11 @@ function parseBlockHtml(html: string): ParsedBlock {
   const tag = /^<([a-z][\w:-]*)/iu.exec(openingTag)?.[1]?.toLowerCase() ?? 'p';
   const attributes = readHtmlAttributes(openingTag);
   const classes = attributes.class?.split(/\s+/u).filter(Boolean) ?? [];
-  const text = normalizeText(
+  const text = normalizeText(decodeReaderLayoutTextEntities(
     html
       .replace(/<br\s*\/?>/giu, '\n')
-      .replace(/<[^>]+>/gu, ' ')
-      .replace(/&nbsp;|&#160;/giu, ' ')
-      .replace(/&amp;/giu, '&')
-      .replace(/&lt;/giu, '<')
-      .replace(/&gt;/giu, '>'),
-  );
+      .replace(/<[^>]+>/gu, ' '),
+  ));
 
   return { text, classes, tag, attributes };
 }

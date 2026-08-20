@@ -6,6 +6,11 @@ import {
   resolveReaderImageFrame,
 } from '../image-layout.ts';
 import { StyleResolver } from '../style-resolver.ts';
+import {
+  addPuaLineBreakOpportunities,
+  createRenderableParagraphText,
+  decodeReaderLayoutTextEntities,
+} from '../text-layout.ts';
 import { pageChapter, tileChapter } from '../tile-chapter.ts';
 import type { LayoutBlock, LayoutChapterResult, ReaderTheme } from '../types.ts';
 
@@ -69,6 +74,37 @@ test('inline footnotes use compact text without first-line indent', () => {
   assert.equal(style.fontSize, theme.fontSize * 0.82);
   assert.equal(style.lineHeight, 1.5);
   assert.equal(style.textIndent, 0);
+});
+
+test('reader text entities materialize private-use codepoints before layout', () => {
+  const supplementaryPua = String.fromCodePoint(0xF0001);
+  assert.equal(
+    decodeReaderLayoutTextEntities(
+      `甲&#57345;&#xE002;&\u200B#\u200BX\u200BE003;&amp;&unknown;&#983041;`,
+    ),
+    `甲\uE001\uE002\uE003&&unknown;${supplementaryPua}`,
+  );
+});
+
+test('PUA glyphs receive layout-only line-break opportunities', () => {
+  const plane15 = String.fromCodePoint(0xF0001);
+  const plane16 = String.fromCodePoint(0x100001);
+  assert.equal(
+    addPuaLineBreakOpportunities(`甲\uE001\uE002乙 ${plane15}${plane16}`),
+    `甲\u200B\uE001\u200B\uE002\u200B乙 ${plane15}\u200B${plane16}`,
+  );
+  assert.equal(
+    addPuaLineBreakOpportunities(`\uE001\u200B\uE002`),
+    `\uE001\u200B\uE002`,
+  );
+  assert.equal(addPuaLineBreakOpportunities('普通汉字 Latin'), '普通汉字 Latin');
+});
+
+test('measurement and paint share PUA wrapping and first-line indent text', () => {
+  assert.equal(
+    createRenderableParagraphText(`\uE001\uE002`, true),
+    `\u3000\u3000\uE001\u200B\uE002`,
+  );
 });
 
 test('image layout keeps authored geometry and a stable fallback frame', () => {
