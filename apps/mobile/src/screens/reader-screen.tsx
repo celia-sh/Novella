@@ -2,9 +2,8 @@ import { router, useNavigation } from 'expo-router';
 import { useRoute } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dimensions, StyleSheet, View } from 'react-native';
+import { Dimensions, FlatList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { useAnimatedRef, useScrollViewOffset } from 'react-native-reanimated';
 import {
   getAdjacentChapterSortNum,
   normalizeNovelBlocks,
@@ -84,11 +83,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     () => (content ? normalizeNovelBlocks(footnotes.html, undefined, { sanitize: false }) : []),
     [content, footnotes.html],
   );
-  const fontDataUrl = useMemo(() => {
-    if (!requiresReaderFont || readerFont.status !== 'loaded') return null;
-    // Font data URL generation removed - using direct font manager instead
-    return null;
-  }, [content?.chapter.fontUrl, readerFont.status, requiresReaderFont]);
 
   // Calculate colors and insets before layout
   const colorScheme = useAppColorScheme();
@@ -143,6 +137,15 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     
     return () => clearTimeout(timer);
   }, [settings.fontSize, settings.readerLineHeight, settings.readerSidePadding, settings.readerFirstLineIndent]);
+
+  // Layout generation for invalidation when settings change
+  // When settings change, generation increments, FlatList tiles are keyed by
+  // ${generation}:${tile.id}, and React unmounts old tiles (releasing their
+  // Paragraphs) before mounting new tiles with new Paragraphs.
+  const layoutGeneration = useMemo(() => {
+    // Generation based on layout-affecting settings
+    return `${debouncedSettings.fontSize}-${debouncedSettings.lineHeight}-${debouncedSettings.sidePadding}-${debouncedSettings.firstLineIndent}`;
+  }, [debouncedSettings]);
   
   // Create custom FontManager when custom font is loaded
   const [fontMgr, setFontMgr] = useState<any>(null);
@@ -247,17 +250,17 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     stagePosition,
   );
 
-  // Scroll position management via native ScrollView events (NOT Worklet → JS)
-  const scrollRef = useRef<Animated.ScrollView>(null);
+  // Scroll position management via native FlatList events
+  const flatListRef = useRef<FlatList>(null);
   const lastPositionRef = useRef<string | null>(null);
   const activeChapterIdRef = useRef<number | null>(null);
   const lastScrollYRef = useRef(0);
   activeChapterIdRef.current = content?.chapter.id ?? null;
 
-  // Track scroll position via native ScrollView events (NOT Worklet → JS)
-  // This runs on JS thread but doesn't drive rendering
+  // Track scroll position via native FlatList onScroll
   const handleScroll = useCallback((event: any) => {
-    lastScrollYRef.current = event.nativeEvent.contentOffset.y;
+    const scrollY = event.nativeEvent.contentOffset.y;
+    lastScrollYRef.current = scrollY;
   }, []);
 
   // Save position when scrolling ends
@@ -339,6 +342,35 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     });
   }, [bookId, route.key, sortNum]);
 
+  // Render a single tile - called by FlatList
+  const renderTile = useCallback(({ item: tile }: { item: any }) => (
+    <ReaderSkiaTile
+      tile={tile}
+      theme={{
+        backgroundColor: readerBackground,
+        textColor: readerTextColor,
+        fontSize: debouncedSettings.fontSize,
+        lineHeight: debouncedSettings.lineHeight,
+        topPadding: readerChromeInsets.top,
+        bottomPadding: readerChromeInsets.bottom,
+        sidePadding: debouncedSettings.sidePadding,
+        firstLineIndent: debouncedSettings.firstLineIndent,
+      }}
+      fontFamily={readerFont.family ?? undefined}
+      fontMgr={fontMgr}
+    />
+  ), [readerBackground, readerTextColor, debouncedSettings, readerChromeInsets, readerFont.family, fontMgr]);
+  
+  // Extract tile ID for FlatList keying with generation
+  const getTileKey = useCallback((item: any) => `${layoutGeneration}:${item.id}`, [layoutGeneration]);
+  
+  // Get tile layout info for FlatList optimization
+  const getTileLayout = useCallback((data: any, index: number) => ({
+    length: data[index]?.height ?? 0,
+    offset: data.slice(0, index).reduce((sum: number, t: any) => sum + t.height, 0),
+    index,
+  }), []);
+
   const rawChapterTitle = content?.chapter.title ?? '';
   const readerTitle = rawChapterTitle
     ? settings.cleanChapterTitleScopes.includes('readerTitle')
@@ -352,11 +384,10 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       if (!content) return;
       presentReaderFootnote({
         content,
-        // TODO: Pass fontDataUrl for footnotes when implemented
       });
       router.push({ pathname: '/reader/[bookId]/footnote', params: { bookId: String(bookId) } });
     },
-    [bookId, fontDataUrl, footnotes.notesById],
+    [bookId, footnotes.notesById],
   );
 
   const chapterError = error;
@@ -393,33 +424,24 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
           />
         ) : content && tiles ? (
           <View style={styles.reader}>
-            {/* Native ScrollView with VIRTUAL Skia tiles - only render visible + buffer */}
-            <Animated.ScrollView
-              ref={scrollRef}
+            {/* Native FlatList with virtualization - tiles mounted/unmounted by platform */}
+            <FlatList
+              ref={flatListRef}
+              data={tiles.tiles}
+              renderItem={renderTile}
+              keyExtractor={getTileKey}
+              getItemLayout={getTileLayout}
               style={styles.reader}
-              scrollEventThrottle={250}
               onScroll={handleScroll}
+              scrollEventThrottle={250}
               onScrollEndDrag={handleScrollEnd}
               onMomentumScrollEnd={handleScrollEnd}
-            >
-              {tiles.tiles.map((tile) => (
-                <ReaderSkiaTile
-                  key={tile.id}
-                  tile={tile}
-                  theme={{
-                    backgroundColor: readerBackground,
-                    textColor: readerTextColor,
-                    fontSize: debouncedSettings.fontSize,
-                    lineHeight: debouncedSettings.lineHeight,
-                    topPadding: readerChromeInsets.top,
-                    bottomPadding: readerChromeInsets.bottom,
-                    sidePadding: debouncedSettings.sidePadding,
-                    firstLineIndent: debouncedSettings.firstLineIndent,
-                  }}
-                  fontFamily={readerFont.family ?? undefined}
-                />
-              ))}
-            </Animated.ScrollView>
+              removeClippedSubviews={true}
+              windowSize={5}
+              maxToRenderPerBatch={2}
+              updateCellsBatchingPeriod={50}
+              initialNumToRender={3}
+            />
           </View>
         ) : null}
       </View>

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
-import { Canvas, Group, Paragraph, Rect, Line, Skia, vec } from '@shopify/react-native-skia';
+import { Canvas, Group, Paragraph, Rect, Line, Skia, vec, TextAlign } from '@shopify/react-native-skia';
 import type { ChapterTile } from '@novella/reader-layout';
 import type { ReaderTheme } from '@novella/reader-layout';
 
@@ -8,39 +8,81 @@ export interface ReaderSkiaTileProps {
   tile: ChapterTile;
   theme: ReaderTheme;
   fontFamily?: string | undefined;
+  fontMgr?: any; // Custom FontManager with fonts registered
+  generation?: number; // For generation-based invalidation
 }
 
 /**
  * A single Skia Canvas tile that renders a subset of chapter blocks.
  * 
- * This component is a regular ScrollView child that UIKit can move.
- * Each tile is viewport-sized or smaller, avoiding Metal texture limits.
+ * ARCHITECTURE: This component creates SkParagraph objects on-demand from
+ * pure TextBlockData stored in LayoutBlock. The Paragraph objects are created
+ * during render via useMemo() and live only as long as this tile is mounted.
  * 
- * The tile's blocks use document coordinates (absolute y positions),
- * but we offset them by the tile's starting y to make them relative to this Canvas.
+ * When settings change, the parent creates a new layout generation,
+ * tiles are keyed by `${generation}:${tile.id}`, and React unmounts old tiles
+ * (releasing their Paragraphs) before mounting new tiles with new Paragraphs.
+ * 
+ * No Paragraph cache survives across layout generations.
+ * No global Paragraph cache - tile lifecycle owns Paragraph lifecycle.
  */
-export function ReaderSkiaTile({ tile, theme, fontFamily }: ReaderSkiaTileProps) {
+export function ReaderSkiaTile({ tile, theme, fontFamily, fontMgr, generation }: ReaderSkiaTileProps) {
   const sidePadding = theme.sidePadding;
+  
+  // Create Paragraphs on-demand from pure TextBlockData
+  // generation dep ensures new Paragraphs when settings change
+  const paragraphs = useMemo(() => {
+    const mgr = fontMgr ?? Skia.FontMgr.System();
+    
+    return tile.blocks
+      .filter(block => block.text)
+      .map(block => {
+        const textData = block.text!;
+        
+        // Build ParagraphStyle from stored data
+        const paragraphStyle = {
+          textAlign: getSkiaTextAlign(textData.textAlign),
+          textStyle: {
+            color: Skia.Color(textData.color),
+            fontSize: textData.fontSize,
+            fontFamilies: [textData.fontFamily],
+          },
+        };
+        
+        // Create Paragraph from stored content
+        const paragraph = Skia.ParagraphBuilder.Make(paragraphStyle, mgr)
+          .addText(textData.content)
+          .build();
+        
+        // Layout with stored width
+        paragraph.layout(block.width);
+        
+        return {
+          blockId: block.id,
+          paragraph,
+          x: sidePadding + block.x,
+          y: block.y - tile.y, // Relative to tile
+          width: block.width,
+        };
+      });
+  }, [tile, fontMgr, generation]);
   
   return (
     <Canvas style={[styles.canvas, { height: tile.height, paddingHorizontal: sidePadding }]}>
       <Group>
+        {paragraphs.map((item) => (
+          <Paragraph
+            key={item.blockId}
+            paragraph={item.paragraph as any}
+            x={item.x}
+            y={item.y}
+            width={item.width}
+          />
+        ))}
+        
         {tile.blocks.map((block) => {
-          // Offset block y to be relative to tile's starting position
           const relativeY = block.y - tile.y;
           
-          if (block.type === 'paragraph' || block.type === 'heading' || block.type === 'blockquote') {
-            return block.paragraph ? (
-              <Paragraph
-                key={block.id}
-                paragraph={block.paragraph as any}
-                x={sidePadding + block.x}
-                y={relativeY}
-                width={block.width}
-              />
-            ) : null;
-          }
-
           if (block.type === 'image' && block.image) {
             const color = Skia.Color('#E0E0E0');
             return (
@@ -75,6 +117,17 @@ export function ReaderSkiaTile({ tile, theme, fontFamily }: ReaderSkiaTileProps)
       </Group>
     </Canvas>
   );
+}
+
+function getSkiaTextAlign(align: 'left' | 'center' | 'right') {
+  switch (align) {
+    case 'center':
+      return TextAlign.Center;
+    case 'right':
+      return TextAlign.Right;
+    default:
+      return TextAlign.Left;
+  }
 }
 
 const styles = StyleSheet.create({

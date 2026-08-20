@@ -1,7 +1,8 @@
-import type { SkParagraph } from '@shopify/react-native-skia';
-
 /**
- * A laid-out block ready for rendering.
+ * Pure data structure for a laid-out block.
+ * MUST NOT contain SkParagraph or any Skia/JSI runtime object.
+ * SkParagraph may be created temporarily during measurement,
+ * but after extracting metrics it MUST NOT be stored here.
  */
 export interface LayoutBlock {
   id: string;
@@ -12,9 +13,8 @@ export interface LayoutBlock {
   width: number;
   height: number;
 
-  // Text blocks
-  paragraph?: SkParagraph;
-  lines?: LineMetrics[];
+  // Text blocks - pure data only, no Skia objects
+  text?: TextBlockData;
 
   // Image blocks
   image?: ImageLayout;
@@ -24,6 +24,25 @@ export interface LayoutBlock {
 
   // Interaction areas
   hitRects: HitRect[];
+}
+
+/**
+ * Pure data needed to recreate a Paragraph during rendering.
+ * This is what gets stored in LayoutBlock instead of the Paragraph itself.
+ */
+export interface TextBlockData {
+  content: string; // Plain text content
+  fontSize: number;
+  lineHeight: number;
+  color: string;
+  fontFamily: string;
+  textAlign: 'left' | 'center' | 'right';
+  fontWeight?: 'normal' | 'bold';
+  fontStyle?: 'normal' | 'italic';
+  firstLineIndent?: number;
+  // Measured metrics from temporary Paragraph
+  measuredHeight: number;
+  measuredLongestLine?: number;
 }
 
 export interface LineMetrics {

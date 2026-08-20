@@ -3,6 +3,7 @@ import type {
   LayoutChapterOptions,
   LayoutChapterResult,
   LayoutBlock,
+  TextBlockData,
   TextStyle,
   HitRect,
 } from './types';
@@ -12,7 +13,13 @@ import { normalizeText } from './utils';
 /**
  * Layout a chapter's HTML blocks into measurable, renderable layout blocks.
  * 
- * This version creates real Skia Paragraph objects for accurate measurement and rendering.
+ * ARCHITECTURE: LayoutResult contains ONLY pure serializable data.
+ * SkParagraph is created temporarily during measurement to extract accurate
+ * metrics (height, longestLine), then those scalars are stored and the
+ * Paragraph reference is NOT retained.
+ * 
+ * Actual rendering Paragraphs are created on-demand in mounted ReaderTile
+ * components from the stored TextBlockData.
  */
 export function layoutChapter(options: LayoutChapterOptions): LayoutChapterResult {
   const { blocks, width, theme, fontFamily, fontMgr: customFontMgr } = options;
@@ -20,7 +27,9 @@ export function layoutChapter(options: LayoutChapterOptions): LayoutChapterResul
   
   // Use custom font manager if provided, otherwise use system
   const fontMgr = customFontMgr ?? Skia.FontMgr.System();
-  console.log('[layout-chapter] Using', customFontMgr ? 'custom' : 'system', 'font manager, family:', fontFamily);
+  if (__DEV__) {
+    console.log('[layout-chapter] Using', customFontMgr ? 'custom' : 'system', 'font manager');
+  }
   
   const layoutBlocks: LayoutBlock[] = [];
   const blockHeights: Record<string, number> = {};
@@ -33,7 +42,7 @@ export function layoutChapter(options: LayoutChapterOptions): LayoutChapterResul
       undefined
     );
 
-    const layoutBlock = layoutBlockWithSkia(
+    const layoutBlock = layoutBlockPure(
       block,
       parsed,
       style,
@@ -41,7 +50,8 @@ export function layoutChapter(options: LayoutChapterOptions): LayoutChapterResul
       width,
       0,
       fontMgr,
-      fontFamily ?? 'System'
+      fontFamily ?? 'System',
+      theme
     );
 
     layoutBlocks.push(layoutBlock);
@@ -59,7 +69,14 @@ export function layoutChapter(options: LayoutChapterOptions): LayoutChapterResul
   };
 }
 
-function layoutBlockWithSkia(
+/**
+ * Layout a block using pure data only.
+ * 
+ * For text blocks: creates a temporary SkParagraph to extract accurate metrics,
+ * then stores only the text content, style data, and measured scalars.
+ * The temporary Paragraph reference is not retained.
+ */
+function layoutBlockPure(
   block: { id: string; locator: string; html: string },
   parsed: { text: string; classes: string[]; tag: string },
   style: TextStyle,
@@ -67,7 +84,8 @@ function layoutBlockWithSkia(
   width: number,
   xOffset: number,
   fontMgr: any,
-  fontFamily: string
+  fontFamily: string,
+  theme: any
 ): LayoutBlock {
   const blockType = getBlockType(parsed.tag);
 
@@ -79,29 +97,54 @@ function layoutBlockWithSkia(
     return layoutHrBlock(block, y, width, xOffset);
   }
 
-  // Text blocks (paragraph, heading, blockquote) - create real Skia Paragraph
+  // Text blocks (paragraph, heading, blockquote)
+  // Create temporary Paragraph for measurement only
+  const fontSize = style.fontSize ?? theme.fontSize;
+  const lineHeight = style.lineHeight ?? theme.lineHeight;
+  const color = style.color ?? theme.textColor;
+  const textAlign = style.textAlign ?? 'left';
+  
   const paragraphStyle = {
-    textAlign: getSkiaTextAlign(style.textAlign),
+    textAlign: getSkiaTextAlign(textAlign),
     textStyle: {
-      color: Skia.Color(style.color ?? '#000000'),
-      fontSize: style.fontSize ?? 18,
+      color: Skia.Color(color),
+      fontSize,
       fontFamilies: [fontFamily],
     },
   };
 
-  const builder = Skia.ParagraphBuilder.Make(paragraphStyle, fontMgr);
-  builder.addText(parsed.text || ' ');
-  const paragraph = builder.build();
+  // Temporary Paragraph for measurement - NOT stored
+  const tempParagraph = Skia.ParagraphBuilder.Make(paragraphStyle, fontMgr)
+    .addText(parsed.text || ' ')
+    .build();
 
-  // Layout and measure
-  paragraph.layout(width);
-  const textHeight = paragraph.getHeight();
+  // Extract metrics
+  tempParagraph.layout(width);
+  const measuredHeight = tempParagraph.getHeight();
+  const measuredLongestLine = tempParagraph.getLongestLine();
+  
+  // tempParagraph reference is now eligible for GC - we don't store it
 
   const marginTop = style.marginTop ?? 0;
   const marginBottom = style.marginBottom ?? 0;
-  const totalHeight = marginTop + textHeight + marginBottom;
+  const totalHeight = marginTop + measuredHeight + marginBottom;
 
   const hitRects = extractHitRects(block.html, y + marginTop, width);
+
+  // Store text data with explicit undefined for optional fields
+  const textData: TextBlockData = {
+    content: parsed.text || ' ',
+    fontSize,
+    lineHeight,
+    color,
+    fontFamily,
+    textAlign,
+    fontWeight: style.fontWeight ?? undefined,
+    fontStyle: style.fontStyle ?? undefined,
+    firstLineIndent: theme.firstLineIndent && blockType === 'paragraph' ? theme.fontSize : undefined,
+    measuredHeight,
+    measuredLongestLine: measuredLongestLine ?? undefined,
+  };
 
   return {
     id: block.id,
@@ -111,7 +154,7 @@ function layoutBlockWithSkia(
     y: y + marginTop,
     width,
     height: totalHeight,
-    paragraph,
+    text: textData,
     hitRects,
   };
 }
