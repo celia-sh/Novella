@@ -127,7 +127,7 @@ function RootLayoutContent() {
             }}
           />
           <Stack.Screen
-            name="shelf/manage"
+            name="shelf/action"
             options={{
               ...(usesComposeBottomSheets
                 ? {

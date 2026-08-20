@@ -618,6 +618,286 @@ test('shelf repository publishes one shared snapshot after load and save', async
   assert.equal(published.length, 2);
 });
 
+test('shelf save synchronously publishes its normalized optimistic projection', async () => {
+  const persistence = deferred();
+  let saveCalls = 0;
+  const useCase = createShelfUseCase({
+    async getBookShelf() {
+      return {
+        version: 'initial',
+        items: [
+          { type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' },
+          { type: 'BOOK', id: 2, index: 1, parents: [], updatedAt: 'a' },
+        ],
+      };
+    },
+    async getBookListByIds(ids) {
+      return ids.map((id) => ({ id, title: `Book ${id}` }));
+    },
+    async saveBookShelf() {
+      saveCalls += 1;
+      await persistence.promise;
+    },
+  });
+  const loaded = await useCase.load();
+  const published = [];
+  useCase.subscribe((snapshot) => published.push(snapshot));
+  const draft = {
+    ...createShelfDraft(loaded),
+    items: [
+      { ...loaded.items[1], index: 8 },
+      { ...loaded.items[0], index: 9 },
+    ],
+  };
+
+  const saving = useCase.save(draft);
+
+  assert.equal(saveCalls, 0);
+  assert.equal(published.length, 1);
+  assert.equal(useCase.getSnapshot(), published[0]);
+  assert.deepEqual(published[0].items.map(shelfItemKey), ['BOOK:2', 'BOOK:1']);
+  assert.deepEqual(published[0].items.map((item) => item.index), [0, 1]);
+
+  await nextTask();
+  assert.equal(saveCalls, 1);
+  persistence.resolve();
+  assert.equal(await saving, published[0]);
+  assert.equal(published.length, 1);
+});
+
+test('rapid shelf saves stay sequential and stale completion cannot replace the newest projection', async () => {
+  const saves = [];
+  const useCase = createShelfUseCase({
+    async getBookShelf() {
+      return {
+        version: 'initial',
+        items: [
+          { type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' },
+          { type: 'BOOK', id: 2, index: 1, parents: [], updatedAt: 'a' },
+        ],
+      };
+    },
+    async getBookListByIds(ids) {
+      return ids.map((id) => ({ id, title: `Book ${id}` }));
+    },
+    async saveBookShelf(draft) {
+      const completion = deferred();
+      saves.push({ completion, draft });
+      await completion.promise;
+    },
+  });
+  const loaded = await useCase.load();
+  const published = [];
+  useCase.subscribe((snapshot) => published.push(snapshot.items.map(shelfItemKey)));
+
+  const reordered = {
+    ...createShelfDraft(loaded),
+    items: [loaded.items[1], loaded.items[0]].map((item, index) => ({ ...item, index })),
+  };
+  const firstSave = useCase.save(reordered);
+  const withFolder = createShelfFolder(createShelfDraft(useCase.getSnapshot()), {
+    id: 'folder',
+    title: 'Folder',
+    now: 'b',
+  });
+  const secondSave = useCase.save(withFolder);
+
+  assert.deepEqual(published, [
+    ['BOOK:2', 'BOOK:1'],
+    ['FOLDER:folder', 'BOOK:2', 'BOOK:1'],
+  ]);
+  assert.equal(saves.length, 0);
+
+  await nextTask();
+  assert.equal(saves.length, 1);
+  saves[0].completion.resolve();
+  await firstSave;
+  await nextTask();
+
+  assert.equal(saves.length, 2);
+  assert.deepEqual(useCase.getSnapshot().items.map(shelfItemKey), [
+    'FOLDER:folder',
+    'BOOK:2',
+    'BOOK:1',
+  ]);
+  assert.equal(published.length, 2);
+
+  saves[1].completion.resolve();
+  await secondSave;
+  assert.deepEqual(saves.map(({ draft }) => draft.items.map(shelfItemKey)), [
+    ['BOOK:2', 'BOOK:1'],
+    ['FOLDER:folder', 'BOOK:2', 'BOOK:1'],
+  ]);
+  assert.equal(published.length, 2);
+});
+
+test('failed latest shelf save protects the optimistic projection from load', async () => {
+  let loadCalls = 0;
+  const useCase = createShelfUseCase({
+    async getBookShelf() {
+      loadCalls += 1;
+      return {
+        version: 'stale-server',
+        items: [{ type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' }],
+      };
+    },
+    async getBookListByIds(ids) {
+      return ids.map((id) => ({ id, title: `Book ${id}` }));
+    },
+    async saveBookShelf() {
+      throw new Error('offline');
+    },
+  });
+  const loaded = await useCase.load();
+  const optimisticDraft = createShelfFolder(createShelfDraft(loaded), {
+    id: 'folder',
+    title: 'Folder',
+    now: 'b',
+  });
+
+  await assert.rejects(useCase.save(optimisticDraft), /offline/);
+  const protectedSnapshot = useCase.getSnapshot();
+  const reloaded = await useCase.load();
+
+  assert.equal(loadCalls, 1);
+  assert.equal(reloaded, protectedSnapshot);
+  assert.deepEqual(reloaded.items.map(shelfItemKey), ['FOLDER:folder', 'BOOK:1']);
+});
+
+test('saving the current complete shelf retries and clears the failed pending barrier', async () => {
+  let loadCalls = 0;
+  let saveCalls = 0;
+  let serverShelf = {
+    version: 'initial',
+    items: [
+      { type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' },
+      { type: 'BOOK', id: 2, index: 1, parents: [], updatedAt: 'a' },
+    ],
+  };
+  const useCase = createShelfUseCase({
+    async getBookShelf() {
+      loadCalls += 1;
+      return structuredClone(serverShelf);
+    },
+    async getBookListByIds(ids) {
+      return ids.map((id) => ({ id, title: `Book ${id}` }));
+    },
+    async saveBookShelf(draft) {
+      saveCalls += 1;
+      if (saveCalls === 1) throw new Error('offline');
+      serverShelf = structuredClone(draft);
+    },
+  });
+  const loaded = await useCase.load();
+  const desired = {
+    ...createShelfDraft(loaded),
+    items: [loaded.items[1], loaded.items[0]].map((item, index) => ({ ...item, index })),
+  };
+
+  await assert.rejects(useCase.save(desired), /offline/);
+  const retry = createShelfDraft(useCase.getSnapshot());
+  await useCase.save(retry);
+  const refreshed = await useCase.load();
+
+  assert.equal(saveCalls, 2);
+  assert.equal(loadCalls, 2);
+  assert.deepEqual(refreshed.items.map(shelfItemKey), ['BOOK:2', 'BOOK:1']);
+});
+
+test('newer successful complete shelf save confirms after an earlier queued failure', async () => {
+  const attempts = [];
+  const useCase = createShelfUseCase({
+    async getBookShelf() {
+      return {
+        version: 'initial',
+        items: [
+          { type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' },
+          { type: 'BOOK', id: 2, index: 1, parents: [], updatedAt: 'a' },
+        ],
+      };
+    },
+    async getBookListByIds(ids) {
+      return ids.map((id) => ({ id, title: `Book ${id}` }));
+    },
+    async saveBookShelf(draft) {
+      const completion = deferred();
+      attempts.push({ completion, draft });
+      await completion.promise;
+    },
+  });
+  const loaded = await useCase.load();
+  const firstDraft = {
+    ...createShelfDraft(loaded),
+    items: [loaded.items[1], loaded.items[0]].map((item, index) => ({ ...item, index })),
+  };
+  const firstSave = useCase.save(firstDraft);
+  const firstFailure = assert.rejects(firstSave, /first failed/);
+  const newestDraft = createShelfFolder(createShelfDraft(useCase.getSnapshot()), {
+    id: 'folder',
+    title: 'Folder',
+    now: 'b',
+  });
+  const newestSave = useCase.save(newestDraft);
+
+  await nextTask();
+  attempts[0].completion.reject(new Error('first failed'));
+  await firstFailure;
+  await nextTask();
+  assert.equal(attempts.length, 2);
+  attempts[1].completion.resolve();
+  await newestSave;
+
+  assert.deepEqual(useCase.getSnapshot().items.map(shelfItemKey), [
+    'FOLDER:folder',
+    'BOOK:2',
+    'BOOK:1',
+  ]);
+});
+
+test('book toggle extends a failed optimistic shelf instead of refetching stale server state', async () => {
+  let loadCalls = 0;
+  let saveCalls = 0;
+  const savedDrafts = [];
+  const useCase = createShelfUseCase({
+    async getBookShelf() {
+      loadCalls += 1;
+      return {
+        version: 'initial',
+        items: [{ type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' }],
+      };
+    },
+    async getBookListByIds(ids) {
+      return ids.map((id) => ({ id, title: `Book ${id}` }));
+    },
+    async saveBookShelf(draft) {
+      saveCalls += 1;
+      savedDrafts.push(structuredClone(draft));
+      if (saveCalls === 1) throw new Error('offline');
+    },
+  });
+  const loaded = await useCase.load();
+  const withFolder = createShelfFolder(createShelfDraft(loaded), {
+    id: 'folder',
+    title: 'Folder',
+    now: 'b',
+  });
+
+  await assert.rejects(useCase.save(withFolder), /offline/);
+  assert.equal(await useCase.toggleBook(2), true);
+
+  assert.equal(loadCalls, 1);
+  assert.deepEqual(savedDrafts[1].items.map(shelfItemKey), [
+    'BOOK:2',
+    'FOLDER:folder',
+    'BOOK:1',
+  ]);
+  assert.deepEqual(useCase.getSnapshot().items.map(shelfItemKey), [
+    'BOOK:2',
+    'FOLDER:folder',
+    'BOOK:1',
+  ]);
+});
+
 test('shelf load cannot publish an older response after save begins', async () => {
   let resolveLoad;
   let shelfCall = 0;
@@ -644,6 +924,8 @@ test('shelf load cannot publish an older response after save begins', async () =
 
   const initial = await useCase.load();
   const staleLoad = useCase.load();
+  await nextTask();
+  assert.equal(typeof resolveLoad, 'function');
   const draft = createShelfDraft(initial);
   draft.items = [draft.items[1], draft.items[0]].map((item, index) => ({ ...item, index }));
   const saved = await useCase.save(draft);

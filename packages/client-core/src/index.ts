@@ -976,12 +976,24 @@ export function createShelfUseCase(api: ApiClient): ShelfUseCase {
   let latest: ShelfSnapshot | null = null;
   let mutationGeneration = 0;
   let saveQueue = Promise.resolve();
+  let pendingSave: { draft: ShelfDraft; generation: number } | null = null;
   const listeners = new Set<(snapshot: ShelfSnapshot) => void>();
 
   function publish(snapshot: ShelfSnapshot): ShelfSnapshot {
     latest = snapshot;
     for (const listener of listeners) listener(snapshot);
     return snapshot;
+  }
+
+  function project(draft: ShelfDraft): ShelfSnapshot {
+    const bookIds = new Set(draft.items.flatMap((item) =>
+      item.type === 'BOOK' ? [item.id] : [],
+    ));
+    return {
+      books: (latest?.books ?? []).filter((book) => bookIds.has(book.id)),
+      items: draft.items,
+      version: draft.version,
+    };
   }
 
   async function hydrate(items: ShelfItem[], version: string | null): Promise<ShelfSnapshot> {
@@ -1001,6 +1013,8 @@ export function createShelfUseCase(api: ApiClient): ShelfUseCase {
       items: normalizeShelfIndexes(draft.items),
       version: draft.version,
     };
+    pendingSave = { draft: normalized, generation };
+
     const operation = saveQueue.then(async () => {
       await api.saveBookShelf(normalized);
       const knownBooks = new Map((latest?.books ?? []).map((book) => [book.id, book]));
@@ -1021,9 +1035,14 @@ export function createShelfUseCase(api: ApiClient): ShelfUseCase {
         items: normalized.items,
         version: normalized.version,
       };
-      return generation === mutationGeneration ? publish(snapshot) : snapshot;
+      if (pendingSave?.generation !== generation) return snapshot;
+
+      pendingSave = null;
+      if (missingIds.length === 0 && latest?.items === normalized.items) return latest;
+      return publish(snapshot);
     });
     saveQueue = operation.then(() => undefined, () => undefined);
+    publish(project(normalized));
     return operation;
   }
 
@@ -1041,10 +1060,12 @@ export function createShelfUseCase(api: ApiClient): ShelfUseCase {
     },
     async load() {
       await saveQueue;
+      if (pendingSave) return latest ?? project(pendingSave.draft);
+
       const generation = mutationGeneration;
       const shelf = await api.getBookShelf();
       const snapshot = await hydrate(shelf.items, shelf.version);
-      if (generation !== mutationGeneration) return latest ?? snapshot;
+      if (generation !== mutationGeneration || pendingSave) return latest ?? snapshot;
       return publish(snapshot);
     },
     save(draft: ShelfDraft) {
@@ -1056,12 +1077,13 @@ export function createShelfUseCase(api: ApiClient): ShelfUseCase {
     },
     async toggleBook(bookId: number) {
       assertValidBookId(bookId);
-      const shelf = await api.getBookShelf();
-      const isInShelf = shelf.items.some(
+      await saveQueue;
+      const current = latest ?? await api.getBookShelf();
+      const isInShelf = current.items.some(
         (item) => item.type === 'BOOK' && item.id === bookId,
       );
       const items = isInShelf
-        ? shelf.items.filter((item) => item.type !== 'BOOK' || item.id !== bookId)
+        ? current.items.filter((item) => item.type !== 'BOOK' || item.id !== bookId)
         : [
             {
               id: bookId,
@@ -1070,9 +1092,9 @@ export function createShelfUseCase(api: ApiClient): ShelfUseCase {
               type: 'BOOK' as const,
               updatedAt: new Date().toISOString(),
             },
-            ...shelf.items,
+            ...current.items,
           ];
-      await enqueueSave({ items, version: shelf.version });
+      await enqueueSave({ items, version: current.version });
       return !isInShelf;
     },
   });
