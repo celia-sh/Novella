@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   extractReaderImages,
+  parseSystemImageDimensions,
   resolveReaderImageFrame,
 } from '../image-layout.ts';
 import { StyleResolver } from '../style-resolver.ts';
@@ -127,6 +128,33 @@ test('image layout keeps authored geometry and a stable fallback frame', () => {
   const fallback = resolveReaderImageFrame(unknown!, 320, {});
   assert.equal(fallback.image.height, 480);
   assert.equal(fallback.image.previewable, false);
+});
+
+test('system image URL metadata prevents greedy full-width placeholders', () => {
+  const [image] = extractReaderImages(
+    '<img src="https://img.example/art.webp?placeholder=hash&amp;size=120x80">',
+  );
+  assert.deepEqual(
+    parseSystemImageDimensions(image!.src),
+    { width: 120, height: 80 },
+  );
+
+  const frame = resolveReaderImageFrame(image!, 320, {
+    [image!.src]: { width: 600, height: 900 },
+  });
+  assert.deepEqual(
+    { width: frame.image.width, height: frame.image.height, x: frame.x },
+    { width: 120, height: 80, x: 100 },
+  );
+  assert.equal(frame.image.aspectRatio, 1.5);
+});
+
+test('system image size requires the complete URL metadata contract', () => {
+  assert.equal(parseSystemImageDimensions('/art.webp?size=120x80'), null);
+  assert.equal(
+    parseSystemImageDimensions('/art.webp?placeholder=hash&size=0x80'),
+    null,
+  );
 });
 
 test('scroll tiles preserve the complete document coordinate range', () => {

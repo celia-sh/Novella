@@ -45,12 +45,13 @@ export function resolveReaderImageFrame(
   imageDimensions: Readonly<Record<string, ReaderImageDimensions>>,
 ): ResolvedReaderImageFrame {
   const decodedSource = decodeHtmlAttribute(image.src);
-  const cachedDimensions = explicitImageDimensions(image)
+  const knownDimensions = explicitImageDimensions(image)
+    ?? parseSystemImageDimensions(decodedSource)
     ?? imageDimensions[image.src]
     ?? imageDimensions[decodedSource];
-  const known = cachedDimensions ?? FALLBACK_IMAGE_DIMENSIONS;
+  const known = knownDimensions ?? FALLBACK_IMAGE_DIMENSIONS;
   const aspectRatio = known.width / known.height;
-  const authoredWidth = image.width ?? cachedDimensions?.width ?? availableWidth;
+  const authoredWidth = image.width ?? knownDimensions?.width ?? availableWidth;
   const width = image.fullWidth
     ? availableWidth
     : Math.min(availableWidth, Math.max(1, authoredWidth));
@@ -67,6 +68,23 @@ export function resolveReaderImageFrame(
       aspectRatio,
     },
   };
+}
+
+export function parseSystemImageDimensions(source: string): ReaderImageDimensions | null {
+  if (!source) return null;
+  try {
+    const url = new URL(decodeHtmlAttribute(source), 'https://reader.invalid/');
+    if (!url.searchParams.get('placeholder')) return null;
+    const match = /^([1-9]\d*)x([1-9]\d*)$/u.exec(url.searchParams.get('size') ?? '');
+    if (!match) return null;
+    const width = Number(match[1]);
+    const height = Number(match[2]);
+    return Number.isSafeInteger(width) && Number.isSafeInteger(height)
+      ? { width, height }
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function explicitImageDimensions(image: ParsedReaderImage): ReaderImageDimensions | null {
