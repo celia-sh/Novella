@@ -1,4 +1,9 @@
-import { Skia, type SkTypefaceFontProvider } from '@shopify/react-native-skia';
+import {
+  Skia,
+  type SkParagraphBuilder,
+  type SkParagraphStyle,
+  type SkTypefaceFontProvider,
+} from '@shopify/react-native-skia';
 
 import {
   extractReaderImages,
@@ -23,6 +28,12 @@ import { normalizeText } from './utils';
 
 const BLOCK_GAP = 12;
 
+type MeasureParagraph = (
+  style: SkParagraphStyle,
+  text: string,
+  width: number,
+) => { height: number; longestLine: number };
+
 /**
  * Layout a chapter into pure serializable blocks. SkParagraph is only used as
  * a temporary measurement object; mounted tiles recreate their own Paragraphs.
@@ -38,6 +49,7 @@ export function layoutChapter(options: LayoutChapterOptions): LayoutChapterResul
   } = options;
   const styleResolver = new StyleResolver(theme);
   const fontMgr = customFontMgr;
+  const measureParagraph = createParagraphMeasurer(fontMgr);
   const layoutBlocks: LayoutBlock[] = [];
   const blockHeights: Record<string, number> = {};
   let currentY = theme.topPadding;
@@ -61,7 +73,7 @@ export function layoutChapter(options: LayoutChapterOptions): LayoutChapterResul
       style,
       y: currentY,
       width,
-      fontMgr,
+      measureParagraph,
       fontFamily,
       theme,
       imageDimensions,
@@ -88,13 +100,48 @@ export function layoutChapter(options: LayoutChapterOptions): LayoutChapterResul
   };
 }
 
+function createParagraphMeasurer(
+  fontMgr: SkTypefaceFontProvider | undefined,
+): MeasureParagraph {
+  // Native Skia 2.6.2 reports 1 MB of memory pressure for every JSI builder.
+  // Reuse one builder per paragraph style instead of allocating one per block.
+  const builders = new Map<string, SkParagraphBuilder>();
+  return (style, text, width) => {
+    const styleKey = JSON.stringify(style);
+    let builder = builders.get(styleKey);
+    if (!builder) {
+      builder = fontMgr
+        ? Skia.ParagraphBuilder.Make(style, fontMgr)
+        : Skia.ParagraphBuilder.Make(style);
+      builders.set(styleKey, builder);
+    }
+
+    builder.reset();
+    try {
+      const paragraph = builder.addText(text).build();
+      try {
+        paragraph.layout(width);
+        return {
+          height: paragraph.getHeight(),
+          longestLine: paragraph.getLongestLine(),
+        };
+      } finally {
+        paragraph.dispose();
+      }
+    } finally {
+      // JsiSkParagraphBuilder exports reset(), not dispose().
+      builder.reset();
+    }
+  };
+}
+
 interface LayoutSourceBlockInput {
   sourceBlock: LayoutChapterOptions['blocks'][number];
   parsed: ParsedBlock;
   style: TextStyle;
   y: number;
   width: number;
-  fontMgr: SkTypefaceFontProvider | undefined;
+  measureParagraph: MeasureParagraph;
   fontFamily: string;
   theme: LayoutChapterOptions['theme'];
   imageDimensions: Readonly<Record<string, ReaderImageDimensions>>;
@@ -106,7 +153,7 @@ function layoutSourceBlock(input: LayoutSourceBlockInput): LayoutBlock[] {
     parsed,
     style,
     width,
-    fontMgr,
+    measureParagraph,
     fontFamily,
     theme,
     imageDimensions,
@@ -132,7 +179,7 @@ function layoutSourceBlock(input: LayoutSourceBlockInput): LayoutBlock[] {
       style,
       y: currentY,
       width,
-      fontMgr,
+      measureParagraph,
       fontFamily,
       theme,
     });
@@ -164,13 +211,21 @@ interface LayoutTextBlockInput {
   style: TextStyle;
   y: number;
   width: number;
-  fontMgr: SkTypefaceFontProvider | undefined;
+  measureParagraph: MeasureParagraph;
   fontFamily: string;
   theme: LayoutChapterOptions['theme'];
 }
 
 function layoutTextBlock(input: LayoutTextBlockInput): LayoutBlock {
-  const { sourceBlock, parsed, style, width, fontMgr, fontFamily, theme } = input;
+  const {
+    sourceBlock,
+    parsed,
+    style,
+    width,
+    measureParagraph,
+    fontFamily,
+    theme,
+  } = input;
   const blockType = getBlockType(parsed.tag);
   const fontSize = style.fontSize ?? theme.fontSize;
   const lineHeight = style.lineHeight ?? theme.lineHeight;
@@ -191,13 +246,10 @@ function layoutTextBlock(input: LayoutTextBlockInput): LayoutBlock {
     ...(style.fontStyle ? { fontStyle: style.fontStyle } : {}),
   });
 
-  const paragraphBuilder = fontMgr
-    ? Skia.ParagraphBuilder.Make(paragraphStyle, fontMgr)
-    : Skia.ParagraphBuilder.Make(paragraphStyle);
-  const paragraph = paragraphBuilder.addText(paragraphText).build();
-  paragraph.layout(width);
-  const measuredHeight = paragraph.getHeight();
-  const measuredLongestLine = paragraph.getLongestLine();
+  const {
+    height: measuredHeight,
+    longestLine: measuredLongestLine,
+  } = measureParagraph(paragraphStyle, paragraphText, width);
   const y = input.y + (style.marginTop ?? 0);
 
   const textData: TextBlockData = {

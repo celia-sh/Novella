@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { ReaderNavigationProps } from '@/components/reader-navigation.types';
+import { useOptimisticReaderMode } from '@/hooks/use-optimistic-reader-mode';
 
 export function ReaderNavigation(props: ReaderNavigationProps) {
   return (
@@ -36,8 +37,12 @@ function ReaderHeaderActions({
   onOpenSettings,
 }: ReaderNavigationProps) {
   const { t } = useTranslation('reader');
-  const ModeIcon = mode === 'scroll' ? IconLayoutRows : IconLayoutList;
-  const nextMode = mode === 'scroll' ? 'paged' : 'scroll';
+  const {
+    displayMode,
+    nextMode,
+    requestModeChange,
+  } = useOptimisticReaderMode(mode, onModeChange);
+  const ModeIcon = displayMode === 'scroll' ? IconLayoutRows : IconLayoutList;
   return (
     <View style={styles.actions}>
       <HeaderAction
@@ -52,7 +57,7 @@ function ReaderHeaderActions({
         })}
         color={foregroundColor}
         icon={ModeIcon}
-        onPress={() => onModeChange(nextMode)}
+        onPress={requestModeChange}
       />
       <HeaderAction
         accessibilityLabel={t('accessibility.readerSettings')}

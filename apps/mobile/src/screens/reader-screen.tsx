@@ -31,8 +31,16 @@ import {
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
 import { ReaderErrorState } from '@/components/reader-chrome';
-import { ReaderLoadingState, type ReaderLoadingPhase } from '@/components/reader-loading-state';
-import { ReaderImagePreview, type ReaderImagePreviewSource } from '@/components/reader-image-preview';
+import {
+  ReaderLoadingState,
+  ReaderReflowOverlayHost,
+  type ReaderReflowOverlayHostHandle,
+} from '@/components/reader-loading-state';
+import {
+  ReaderImagePreviewHost,
+  type ReaderImagePreviewHostHandle,
+  type ReaderImagePreviewSource,
+} from '@/components/reader-image-preview';
 import { ReaderNavigation } from '@/components/reader-navigation';
 import { ReaderSkiaTile } from '@/components/reader-skia-tile';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
@@ -80,8 +88,19 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const route = useRoute();
   const { colors } = useAppTheme();
   const [mode, setMode] = useState<ReaderMode>(settings.readerViewMode);
-  const [previewSource, setPreviewSource] = useState<ReaderImagePreviewSource | null>(null);
-  useEffect(() => setMode(settings.readerViewMode), [settings.readerViewMode]);
+  const [pendingMode, setPendingMode] = useState<ReaderMode | null>(null);
+  const pendingModeRef = useRef<ReaderMode | null>(null);
+  const modeSwitchFrameRef = useRef<number | null>(null);
+  const imagePreviewRef = useRef<ReaderImagePreviewHostHandle>(null);
+  const reflowOverlayRef = useRef<ReaderReflowOverlayHostHandle>(null);
+  const openImagePreview = useCallback((source: ReaderImagePreviewSource) => {
+    imagePreviewRef.current?.open(source);
+  }, []);
+  useEffect(() => () => {
+    if (modeSwitchFrameRef.current !== null) {
+      cancelAnimationFrame(modeSwitchFrameRef.current);
+    }
+  }, []);
   const conversion = settings.convertType === 'none' ? undefined : settings.convertType;
   const { content, error, isLoading, reload } = useReaderChapter(
     bookId,
@@ -107,9 +126,11 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     () => inlineNovelFootnotesAfterBlocks(sourceBlocks, footnotes.notesById),
     [footnotes.notesById, sourceBlocks],
   );
-  const imageGeometry = useReaderImageDimensions(
-    blocks.map((block) => block.html).join('\n'),
+  const imageDimensionHtml = useMemo(
+    () => blocks.map((block) => block.html).join('\n'),
+    [blocks],
   );
+  const imageGeometry = useReaderImageDimensions(imageDimensionHtml);
 
   // Calculate colors and insets before layout
   const colorScheme = useAppColorScheme();
@@ -157,10 +178,15 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
 
   useEffect(() => {
     if (requestedLayoutGeneration === layoutGeneration) {
-      setPendingReflowGeneration((current) =>
-        current !== null && current !== layoutGeneration ? null : current);
+      if (
+        pendingReflowGeneration !== null
+        && pendingReflowGeneration !== layoutGeneration
+      ) {
+        setPendingReflowGeneration(null);
+      }
       return;
     }
+    reflowOverlayRef.current?.show();
     setPendingReflowGeneration(requestedLayoutGeneration);
     const timer = setTimeout(() => {
       setDebouncedSettings({
@@ -174,12 +200,23 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     return () => clearTimeout(timer);
   }, [
     layoutGeneration,
+    pendingReflowGeneration,
     requestedLayoutGeneration,
     settings.fontSize,
     settings.readerFirstLineIndent,
     settings.readerLineHeight,
     settings.readerSidePadding,
   ]);
+
+  useEffect(() => {
+    if (
+      pendingMode === null
+      && pendingReflowGeneration === null
+      && pendingModeRef.current === null
+    ) {
+      reflowOverlayRef.current?.hide();
+    }
+  }, [pendingMode, pendingReflowGeneration]);
   
   // Create custom FontManager when custom font is loaded
   const [fontMgr, setFontMgr] = useState<SkTypefaceFontProvider | null>(null);
@@ -257,19 +294,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     });
   }, [blocks, screenWidth, debouncedSettings, fontLoading, content, readerFont, readerBackground, readerTextColor, readerChromeInsets, fontMgr, requiresReaderFont, fontMgrLoading, imageGeometry.dimensions]);
 
-  useEffect(() => {
-    if (
-      !layout
-      || pendingReflowGeneration === null
-      || pendingReflowGeneration !== layoutGeneration
-    ) return;
-    const frame = requestAnimationFrame(() => {
-      setPendingReflowGeneration((current) =>
-        current === layoutGeneration ? null : current);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [layout, layoutGeneration, pendingReflowGeneration]);
-
   // Native virtualization owns mounted tile/page lifetime in both modes.
   const presentation = useMemo(() => {
     if (!layout) return null;
@@ -316,13 +340,18 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     viewportWidth: screenWidth,
   }), [layout, mode, presentation?.tiles, screenWidth]);
 
+  const captureCurrentVisibleBlock = useCallback(() => {
+    const currentBlock = resolveCurrentVisibleBlock();
+    if (currentBlock) lastPositionRef.current = currentBlock.locator;
+    return currentBlock;
+  }, [resolveCurrentVisibleBlock]);
+
   const handleScrollEnd = useCallback(() => {
     if (!content || activeChapterIdRef.current !== content.chapter.id) return;
-    const currentBlock = resolveCurrentVisibleBlock();
+    const currentBlock = captureCurrentVisibleBlock();
     if (!currentBlock) return;
-    lastPositionRef.current = currentBlock.locator;
     schedulePosition({ chapterId: content.chapter.id, position: currentBlock.locator });
-  }, [content, resolveCurrentVisibleBlock, schedulePosition]);
+  }, [captureCurrentVisibleBlock, content, schedulePosition]);
 
   const restoredPresentationRef = useRef<string | null>(null);
   const capturedReflowGenerationRef = useRef<string | null>(null);
@@ -331,17 +360,20 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       pendingReflowGeneration === null
       || capturedReflowGenerationRef.current === pendingReflowGeneration
     ) return;
-    const currentBlock = resolveCurrentVisibleBlock();
-    if (currentBlock) lastPositionRef.current = currentBlock.locator;
-    // The loading state unmounts FlatList even if the user quickly returns to
-    // the previous setting generation, so every reflow must restore again.
+    captureCurrentVisibleBlock();
+    // Every accepted settings generation replaces tile geometry, so restore
+    // again even if the user quickly returns to a previous value.
     restoredPresentationRef.current = null;
     capturedReflowGenerationRef.current = pendingReflowGeneration;
-  }, [pendingReflowGeneration, resolveCurrentVisibleBlock]);
+  }, [captureCurrentVisibleBlock, pendingReflowGeneration]);
 
   useEffect(() => {
+    const modeTransitionReady = pendingMode === null || pendingMode === mode;
+    const reflowTransitionReady =
+      pendingReflowGeneration === null || pendingReflowGeneration === layoutGeneration;
     if (
-      pendingReflowGeneration !== null
+      !modeTransitionReady
+      || !reflowTransitionReady
       || !content
       || !layout
       || !presentation
@@ -367,6 +399,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
 
     restoredPresentationRef.current = restoreKey;
     lastPositionRef.current = targetBlock.locator;
+    let revealFrame: number | null = null;
     const frame = requestAnimationFrame(() => {
       if (mode === 'paged') {
         const pageIndex = presentation.tiles.findIndex((page) =>
@@ -380,8 +413,23 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         lastScrollOffsetRef.current = { x: 0, y: offset };
         flatListRef.current?.scrollToOffset({ animated: false, offset });
       }
+
+      // Keep the native spinner visible while the new list applies its jump.
+      // The following frame reveals the already-positioned presentation.
+      if (pendingMode === mode || pendingReflowGeneration === layoutGeneration) {
+        revealFrame = requestAnimationFrame(() => {
+          if (pendingMode === mode) pendingModeRef.current = null;
+          setPendingMode((current) => current === mode ? null : current);
+          setPendingReflowGeneration((current) =>
+            current === layoutGeneration ? null : current);
+          reflowOverlayRef.current?.hide();
+        });
+      }
     });
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (revealFrame !== null) cancelAnimationFrame(revealFrame);
+    };
   }, [
     blocks,
     content,
@@ -389,6 +437,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     layoutGeneration,
     mode,
     openPosition,
+    pendingMode,
     pendingReflowGeneration,
     presentation,
     screenWidth,
@@ -434,11 +483,34 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     }
   }), [bookId, openChapter, route.key]);
 
+  const beginModeTransition = useCallback((nextMode: ReaderMode, persist: boolean) => {
+    if (nextMode === mode || pendingModeRef.current !== null) return;
+    captureCurrentVisibleBlock();
+    restoredPresentationRef.current = null;
+    pendingModeRef.current = nextMode;
+    // This host owns its state, so showing it does not reconcile ReaderScreen
+    // or touch mounted Skia tiles. Two frames let that native view paint first.
+    reflowOverlayRef.current?.show();
+    modeSwitchFrameRef.current = requestAnimationFrame(() => {
+      modeSwitchFrameRef.current = requestAnimationFrame(() => {
+        modeSwitchFrameRef.current = null;
+        setPendingMode(nextMode);
+        setMode(nextMode);
+        void saveCurrentPosition();
+        if (persist) void updateAppSettings({ readerViewMode: nextMode });
+      });
+    });
+  }, [captureCurrentVisibleBlock, mode, saveCurrentPosition]);
+
   const changeMode = useCallback((nextMode: ReaderMode) => {
-    void saveCurrentPosition();
-    setMode(nextMode);
-    void updateAppSettings({ readerViewMode: nextMode });
-  }, [saveCurrentPosition]);
+    beginModeTransition(nextMode, true);
+  }, [beginModeTransition]);
+
+  useEffect(() => {
+    if (settings.readerViewMode !== mode && pendingMode === null) {
+      beginModeTransition(settings.readerViewMode, false);
+    }
+  }, [beginModeTransition, mode, pendingMode, settings.readerViewMode]);
 
   const openChapters = useCallback(() => {
     router.push({
@@ -457,7 +529,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       fontMgr={fontMgr}
       generation={layoutGeneration}
       imageAccessibilityLabel={t('images.illustration')}
-      onOpenImage={setPreviewSource}
+      onOpenImage={openImagePreview}
       openImageOnLongPress={settings.readerImagePreviewOpenOnLongPress}
       theme={{
         backgroundColor: readerBackground,
@@ -476,6 +548,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     debouncedSettings,
     fontMgr,
     layoutGeneration,
+    openImagePreview,
     readerBackground,
     readerChromeInsets,
     readerTextColor,
@@ -525,7 +598,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
           }} />
         ) : chapterError ? (
           <ReaderErrorState message={translateMessage(chapterError)} onRetry={reload} />
-        ) : isLoading || fontLoading || fontMgrLoading || pendingReflowGeneration !== null || (content && !layout) ? (
+        ) : isLoading || fontLoading || fontMgrLoading || (content && !layout) ? (
           <ReaderLoadingState
             phase={
               fontLoading
@@ -534,9 +607,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
                   ? 'font'
                   : isLoading
                     ? 'content'
-                    : pendingReflowGeneration !== null
-                      ? 'reflow'
-                      : 'layout'
+                    : 'layout'
             }
             accentColor={colors.accent as string}
             textColor={readerTextColor}
@@ -569,13 +640,14 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
             />
           </View>
         ) : null}
-      </View>
-      {previewSource ? (
-        <ReaderImagePreview
-          onClose={() => setPreviewSource(null)}
-          source={previewSource}
+        <ReaderReflowOverlayHost
+          ref={reflowOverlayRef}
+          accentColor={colors.accent as string}
+          backgroundColor={readerBackground}
+          textColor={readerTextColor}
         />
-      ) : null}
+      </View>
+      <ReaderImagePreviewHost ref={imagePreviewRef} />
       <ReaderNavigation
         backgroundColor={readerBackground}
         foregroundColor={readerTextColor}

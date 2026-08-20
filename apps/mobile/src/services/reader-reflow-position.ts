@@ -44,5 +44,20 @@ export function findVisibleReaderLayoutBlock({
   }
 
   const visibleY = offset.y + 1;
-  return layout?.blocks.find((block) => block.y + block.height > visibleY);
+  const blocks = layout?.blocks ?? [];
+  let low = 0;
+  let high = blocks.length - 1;
+  let visibleBlock: LayoutBlock | undefined;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const block = blocks[middle];
+    if (!block) break;
+    if (block.y + block.height > visibleY) {
+      visibleBlock = block;
+      high = middle - 1;
+    } else {
+      low = middle + 1;
+    }
+  }
+  return visibleBlock;
 }

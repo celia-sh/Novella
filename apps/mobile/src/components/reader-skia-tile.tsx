@@ -11,6 +11,7 @@ import {
   useImage,
   vec,
   type SkImage,
+  type SkParagraphBuilder,
   type SkTypefaceFontProvider,
 } from '@shopify/react-native-skia';
 import {
@@ -61,19 +62,32 @@ export function ReaderSkiaTile({
       : { ...current, [blockId]: image });
   }, []);
   const paragraphs = useMemo(() => {
+    const builders = new Map<string, SkParagraphBuilder>();
     return tile.blocks.flatMap((block) => {
       const textData = block.text;
       if (!textData) return [];
       const paragraphStyle = createSkiaParagraphStyle(textData);
-      const builder = fontMgr
-        ? Skia.ParagraphBuilder.Make(paragraphStyle, fontMgr)
-        : Skia.ParagraphBuilder.Make(paragraphStyle);
-      const paragraph = builder
-        .addText(createRenderableParagraphText(
-          textData.content,
-          textData.firstLineIndent,
-        ))
-        .build();
+      const styleKey = JSON.stringify(paragraphStyle);
+      let builder = builders.get(styleKey);
+      if (!builder) {
+        builder = fontMgr
+          ? Skia.ParagraphBuilder.Make(paragraphStyle, fontMgr)
+          : Skia.ParagraphBuilder.Make(paragraphStyle);
+        builders.set(styleKey, builder);
+      }
+      builder.reset();
+      const paragraph = (() => {
+        try {
+          return builder
+            .addText(createRenderableParagraphText(
+              textData.content,
+              textData.firstLineIndent,
+            ))
+            .build();
+        } finally {
+          builder.reset();
+        }
+      })();
       paragraph.layout(block.width);
       return [{
         blockId: block.id,
