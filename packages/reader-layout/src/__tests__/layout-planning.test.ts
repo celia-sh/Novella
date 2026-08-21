@@ -6,12 +6,14 @@ import {
   parseSystemImageDimensions,
   resolveReaderImageFrame,
 } from '../image-layout.ts';
-import { parseReaderRubyContent } from '../ruby-layout.ts';
+import { parseReaderBlockContent } from '../inline-layout.ts';
 import { StyleResolver } from '../style-resolver.ts';
 import {
+  addBreakAllLineBreakOpportunities,
   addPuaLineBreakOpportunities,
   createRenderableParagraphText,
   decodeReaderLayoutTextEntities,
+  shouldAddLineBreakOpportunityBetween,
 } from '../text-layout.ts';
 import { pageChapter, tileChapter } from '../tile-chapter.ts';
 import type { LayoutBlock, LayoutChapterResult, ReaderTheme } from '../types.ts';
@@ -51,6 +53,30 @@ test('StyleResolver keeps line-height as a multiplier', () => {
   assert.equal(paragraph.lineHeight, 1.6);
   assert.equal(message.lineHeight, 1.2);
   assert.equal(inlinePixels.lineHeight, 2);
+});
+
+test('StyleResolver matches reader heading alignment and authored zero indent', () => {
+  const resolver = new StyleResolver(theme);
+  const heading = resolver.resolve({
+    tag: 'h1',
+    classes: [],
+    attributes: {},
+    children: [],
+  });
+  assert.equal(heading.fontSize, theme.fontSize * 1.65);
+  assert.equal(heading.textAlign, 'center');
+  assert.equal(heading.marginTop, heading.fontSize! * 0.1);
+
+  const paragraph = resolver.resolve({
+    tag: 'p',
+    classes: [],
+    attributes: { align: 'justify', style: 'text-indent: 0; margin: 1em 2em' },
+    children: [],
+  });
+  assert.equal(paragraph.textAlign, 'justify');
+  assert.equal(paragraph.textIndent, 0);
+  assert.equal(paragraph.marginTop, theme.fontSize);
+  assert.equal(paragraph.marginRight, theme.fontSize * 2);
 });
 
 test('heading classes never participate in first-line indent', () => {
@@ -102,6 +128,20 @@ test('PUA glyphs receive layout-only line-break opportunities', () => {
   assert.equal(addPuaLineBreakOpportunities('普通汉字 Latin'), '普通汉字 Latin');
 });
 
+test('dash-break adds layout-only opportunities between every visible glyph', () => {
+  assert.equal(
+    addBreakAllLineBreakOpportunities('AB 中文'),
+    `A\u200BB 中\u200B文`,
+  );
+});
+
+test('styled run boundaries retain PUA and break-all opportunities', () => {
+  assert.equal(shouldAddLineBreakOpportunityBetween('\uE001', '\uE002'), true);
+  assert.equal(shouldAddLineBreakOpportunityBetween('A', 'B'), false);
+  assert.equal(shouldAddLineBreakOpportunityBetween('A', 'B', true), true);
+  assert.equal(shouldAddLineBreakOpportunityBetween('A', ' '), false);
+});
+
 test('measurement and paint share PUA wrapping and first-line indent text', () => {
   assert.equal(
     createRenderableParagraphText(`\uE001\uE002`, true),
@@ -109,29 +149,113 @@ test('measurement and paint share PUA wrapping and first-line indent text', () =
   );
 });
 
-test('ruby parser removes rp fallback and keeps annotation above its base token', () => {
-  const parsed = parseReaderRubyContent(
+test('inline parser removes rp fallback and keeps annotation above its base token', () => {
+  const parsed = parseReaderBlockContent(
     '<p>前<ruby>漢<rp>（</rp><rt>かん</rt><rp>）</rp></ruby>後</p>',
+    new StyleResolver(theme),
   );
-  assert.deepEqual(parsed, {
-    text: '前漢後',
-    runs: [
-      { type: 'text', text: '前' },
-      { type: 'ruby', baseText: '漢', annotationText: 'かん' },
-      { type: 'text', text: '後' },
-    ],
-  });
+  assert.equal(parsed.text, '前漢後');
+  assert.deepEqual(parsed.runs.map(stripRunStyle), [
+    { type: 'text', text: '前' },
+    { type: 'ruby', baseText: '漢', annotationText: 'かん' },
+    { type: 'text', text: '後' },
+  ]);
 });
 
-test('ruby parser preserves multiple base-annotation pairs as separate wrap units', () => {
-  const parsed = parseReaderRubyContent(
+test('inline parser preserves multiple Ruby pairs as separate wrap units', () => {
+  const parsed = parseReaderBlockContent(
     '<p><ruby><span>東</span><rt>とう</rt>京<rt>きょう</rt></ruby>へ</p>',
+    new StyleResolver(theme),
   );
-  assert.deepEqual(parsed?.runs, [
+  assert.deepEqual(parsed.runs.map(stripRunStyle), [
     { type: 'ruby', baseText: '東', annotationText: 'とう' },
     { type: 'ruby', baseText: '京', annotationText: 'きょう' },
     { type: 'text', text: 'へ' },
   ]);
+});
+
+test('inline parser preserves hard breaks, pre whitespace, and nested emphasis', () => {
+  const resolver = new StyleResolver(theme);
+  const paragraph = parseReaderBlockContent(
+    '<p>甲<br><strong>乙</strong><span class="dot">丙</span></p>',
+    resolver,
+  );
+  assert.deepEqual(paragraph.runs.map(stripRunStyle), [
+    { type: 'text', text: '甲' },
+    { type: 'break', kind: 'hard' },
+    { type: 'text', text: '乙' },
+    { type: 'text', text: '丙' },
+  ]);
+  const bold = paragraph.runs.find((run) => run.type === 'text' && run.text === '乙');
+  const dotted = paragraph.runs.find((run) => run.type === 'text' && run.text === '丙');
+  assert.equal(bold?.style.fontWeight, 'bold');
+  assert.equal(dotted?.style.textDecoration, 'underline');
+  assert.equal(dotted?.style.textDecorationStyle, 'dotted');
+
+  const pre = parseReaderBlockContent('<pre>  A\n B</pre>', resolver);
+  assert.equal(pre.text, '  A\n B');
+});
+
+test('inline parser resolves editor underline, strike, subscript and superscript', () => {
+  const parsed = parseReaderBlockContent(
+    '<p><u>甲</u><s>乙</s><sub>2</sub><sup>3</sup></p>',
+    new StyleResolver(theme),
+  );
+  const textRuns = parsed.runs.filter((run) => run.type === 'text');
+  assert.equal(textRuns[0]?.style.textDecoration, 'underline');
+  assert.equal(textRuns[1]?.style.textDecoration, 'line-through');
+  assert.equal(textRuns[2]?.style.verticalAlign, 'sub');
+  assert.equal(textRuns[3]?.style.verticalAlign, 'super');
+  assert.equal(textRuns[2]?.style.fontSize, theme.fontSize * 0.75);
+});
+
+test('inline parser preserves every top-level inline sibling', () => {
+  const parsed = parseReaderBlockContent(
+    '<span class="bold">甲</span> 与 <i>乙</i>',
+    new StyleResolver(theme),
+  );
+  assert.equal(parsed.text, '甲 与 乙');
+  assert.equal(parsed.runs[0]?.style.fontWeight, 'bold');
+  assert.equal(parsed.runs.at(-1)?.style.fontStyle, 'italic');
+});
+
+test('inline parser keeps image order and inherited CSS styles', () => {
+  const parsed = parseReaderBlockContent(
+    '<p align="right">前<img src="/icon.png" width="20" height="10">后</p>',
+    new StyleResolver(theme),
+    { parseImageTag: (tag) => extractReaderImages(tag)[0] ?? null },
+  );
+  assert.equal(parsed.rootStyle.textAlign, 'right');
+  assert.deepEqual(parsed.runs.map(stripRunStyle), [
+    { type: 'text', text: '前' },
+    { type: 'image', image: parsed.runs[1]?.type === 'image' ? parsed.runs[1].image : null },
+    { type: 'text', text: '后' },
+  ]);
+  assert.equal(parsed.runs[1]?.type === 'image' ? parsed.runs[1].image.width : null, 20);
+});
+
+test('inline parser keeps figure images block-sized before their caption', () => {
+  const parsed = parseReaderBlockContent(
+    '<figure><img src="/art.png"><figcaption>说明</figcaption></figure>',
+    new StyleResolver(theme),
+    { parseImageTag: (tag) => extractReaderImages(tag)[0] ?? null },
+  );
+  const image = parsed.runs.find((run) => run.type === 'image');
+  assert.equal(image?.type === 'image' ? image.image.blockDisplay : false, true);
+  assert.equal(parsed.runs.some((run) => run.type === 'break'), true);
+  assert.equal(parsed.text.endsWith('说明'), true);
+});
+
+test('inline parser preserves table rows and cell image order', () => {
+  const parsed = parseReaderBlockContent(
+    '<table><tr><td>甲</td><td><img src="/a.png" width="10" height="20"></td></tr>' +
+      '<tr><td>乙</td><td>丙</td></tr></table>',
+    new StyleResolver(theme),
+    { parseImageTag: (tag) => extractReaderImages(tag)[0] ?? null },
+  );
+  assert.equal(parsed.runs.filter((run) => run.type === 'image').length, 1);
+  assert.equal(parsed.runs.filter((run) => run.type === 'break').length, 1);
+  assert.match(parsed.text, /甲[\s\S]*\n[\s\S]*乙/);
 });
 
 test('image layout keeps authored geometry and a stable fallback frame', () => {
@@ -150,10 +274,27 @@ test('image layout keeps authored geometry and a stable fallback frame', () => {
     { width: 300, height: 450, x: 0 },
   );
 
+  const [floating] = extractReaderImages(
+    '<img src="/float.webp" class="fr" style="width: 50%">',
+  );
+  assert.equal(floating?.float, 'right');
+  assert.equal(floating?.widthFraction, 0.5);
+
   const [unknown] = extractReaderImages('<img src="/unknown.webp" class="no-preview">');
   const fallback = resolveReaderImageFrame(unknown!, 320, {});
   assert.equal(fallback.image.height, 480);
   assert.equal(fallback.image.previewable, false);
+});
+
+test('CSS image dimensions preserve authored percentage geometry', () => {
+  const [image] = extractReaderImages(
+    '<img src="/half.png" style="width: 50%; height: 80px">',
+  );
+  const frame = resolveReaderImageFrame(image!, 320, {});
+  assert.deepEqual(
+    { width: frame.image.width, height: frame.image.height, x: frame.x },
+    { width: 160, height: 80, x: 80 },
+  );
 });
 
 test('system image URL metadata prevents greedy full-width placeholders', () => {
@@ -225,6 +366,13 @@ test('paged plan repeats chrome insets and keeps block order', () => {
   ]);
   assert.equal(result.totalHeight, 660);
 });
+
+function stripRunStyle(
+  run: ReturnType<typeof parseReaderBlockContent>['runs'][number],
+): Omit<typeof run, 'style'> {
+  const { style: _style, ...plain } = run;
+  return plain;
+}
 
 function createLayout(blocks: LayoutBlock[], totalHeight: number): LayoutChapterResult {
   return { blocks, totalHeight, blockHeights: {} };

@@ -170,11 +170,12 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const [debouncedSettings, setDebouncedSettings] = useState({
     fontSize: settings.fontSize,
     lineHeight: settings.readerLineHeight,
+    paragraphSpacing: settings.readerParagraphSpacing,
     sidePadding: settings.readerSidePadding,
     firstLineIndent: settings.readerFirstLineIndent,
   });
-  const requestedLayoutGeneration = `${settings.fontSize}-${settings.readerLineHeight}-${settings.readerSidePadding}-${settings.readerFirstLineIndent}`;
-  const layoutGeneration = `${debouncedSettings.fontSize}-${debouncedSettings.lineHeight}-${debouncedSettings.sidePadding}-${debouncedSettings.firstLineIndent}`;
+  const requestedLayoutGeneration = `${settings.fontSize}-${settings.readerLineHeight}-${settings.readerParagraphSpacing}-${settings.readerSidePadding}-${settings.readerFirstLineIndent}`;
+  const layoutGeneration = `${debouncedSettings.fontSize}-${debouncedSettings.lineHeight}-${debouncedSettings.paragraphSpacing}-${debouncedSettings.sidePadding}-${debouncedSettings.firstLineIndent}`;
   const [pendingReflowGeneration, setPendingReflowGeneration] = useState<string | null>(null);
 
   useEffect(() => {
@@ -193,6 +194,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       setDebouncedSettings({
         fontSize: settings.fontSize,
         lineHeight: settings.readerLineHeight,
+        paragraphSpacing: settings.readerParagraphSpacing,
         sidePadding: settings.readerSidePadding,
         firstLineIndent: settings.readerFirstLineIndent,
       });
@@ -206,6 +208,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     settings.fontSize,
     settings.readerFirstLineIndent,
     settings.readerLineHeight,
+    settings.readerParagraphSpacing,
     settings.readerSidePadding,
   ]);
 
@@ -284,6 +287,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         textColor: readerTextColor,
         fontSize: debouncedSettings.fontSize,
         lineHeight: debouncedSettings.lineHeight,
+        paragraphSpacing: debouncedSettings.paragraphSpacing,
         topPadding: readerChromeInsets.top,
         bottomPadding: readerChromeInsets.bottom,
         sidePadding: debouncedSettings.sidePadding,
@@ -537,6 +541,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         textColor: readerTextColor,
         fontSize: debouncedSettings.fontSize,
         lineHeight: debouncedSettings.lineHeight,
+        paragraphSpacing: debouncedSettings.paragraphSpacing,
         topPadding: readerChromeInsets.top,
         bottomPadding: readerChromeInsets.bottom,
         sidePadding: debouncedSettings.sidePadding,

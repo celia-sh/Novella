@@ -6,7 +6,7 @@ import {
   Image as SkiaImage,
   Line,
   Paragraph,
-  Rect,
+  RoundedRect,
   Skia,
   useImage,
   vec,
@@ -105,9 +105,13 @@ export function ReaderSkiaTile({
           {
             blockId: `${block.id}:ruby:${index}:rt`,
             paragraph: buildParagraph(
-              createRubyParagraphStyle(textData, true),
+              createRubyParagraphStyle(ruby.style, true),
               (builder) => builder.addText(
-                createRenderableParagraphText(ruby.rtText, false),
+                createRenderableParagraphText(
+                  ruby.rtText,
+                  false,
+                  ruby.style.wordBreak ?? 'normal',
+                ),
               ),
               ruby.totalWidth,
             ),
@@ -118,9 +122,13 @@ export function ReaderSkiaTile({
           {
             blockId: `${block.id}:ruby:${index}:base`,
             paragraph: buildParagraph(
-              createRubyParagraphStyle(textData, false),
+              createRubyParagraphStyle(ruby.style, false),
               (builder) => builder.addText(
-                createRenderableParagraphText(ruby.baseText, false),
+                createRenderableParagraphText(
+                  ruby.baseText,
+                  false,
+                  ruby.style.wordBreak ?? 'normal',
+                ),
               ),
               ruby.totalWidth,
             ),
@@ -130,23 +138,48 @@ export function ReaderSkiaTile({
           },
         ];
       });
+      const inlineTextParagraphs = (block.inlineText ?? []).map((item, index) => ({
+        blockId: `${block.id}:inline-text:${index}`,
+        paragraph: buildParagraph(
+          createSkiaParagraphStyle({ ...item.style, textAlign: 'center' }),
+          (builder) => builder.addText(createRenderableParagraphText(
+            item.text,
+            false,
+            item.style.wordBreak ?? 'normal',
+          )),
+          item.width,
+        ),
+        x: blockX + item.x,
+        y: blockY + item.y,
+        width: item.width,
+      }));
       return [{
         blockId: block.id,
         paragraph,
         x: blockX,
         y: blockY,
         width: block.width,
-      }, ...rubyParagraphs];
+      }, ...rubyParagraphs, ...inlineTextParagraphs];
     });
   }, [contentOffsetY, fontMgr, generation, sidePadding, tile]);
-  const imageBlocks = tile.blocks.flatMap((block) => block.image
-    ? [{
+  const imageBlocks = tile.blocks.flatMap((block) => {
+    const blockX = sidePadding + block.x;
+    const blockY = contentOffsetY + block.y - tile.y;
+    return [
+      ...(block.image ? [{
         blockId: block.id,
         image: block.image,
-        x: sidePadding + block.x,
-        y: contentOffsetY + block.y - tile.y,
-      }]
-    : []);
+        x: blockX,
+        y: blockY,
+      }] : []),
+      ...(block.inlineImages ?? []).map((item) => ({
+        blockId: `${block.id}:${item.id}`,
+        image: item.image,
+        x: blockX + item.x,
+        y: blockY + item.y,
+      })),
+    ];
+  });
 
   return (
     <View style={[styles.tile, { height: tile.height }, viewportWidth ? { width: viewportWidth } : null]}>
@@ -245,23 +278,31 @@ function ReaderSkiaImage({ blockId, imageLayout, onImageReady, x, y }: ReaderSki
     });
   }, [blockId, image, onImageReady, uri]);
 
+  const clip = {
+    rect: { x, y, width: imageLayout.width, height: imageLayout.height },
+    rx: 4,
+    ry: 4,
+  };
   if (image) {
     return (
-      <SkiaImage
-        fit="contain"
-        height={imageLayout.height}
-        image={image}
-        width={imageLayout.width}
-        x={x}
-        y={y}
-      />
+      <Group clip={clip}>
+        <SkiaImage
+          fit="contain"
+          height={imageLayout.height}
+          image={image}
+          width={imageLayout.width}
+          x={x}
+          y={y}
+        />
+      </Group>
     );
   }
 
   return (
-    <Rect
+    <RoundedRect
       color={Skia.Color(failed ? '#00000026' : '#80808020')}
       height={imageLayout.height}
+      r={4}
       width={imageLayout.width}
       x={x}
       y={y}

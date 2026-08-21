@@ -63,6 +63,17 @@ export function ReaderSettingsContent() {
           value={settings.readerLineHeight}
         />
         <NativeSliderRow
+          description={t('reader.typography.paragraphSpacingDescription')}
+          formatValue={(value) => t('reader.typography.points', { value: Math.round(value) })}
+          icon="lineHeight"
+          max={32}
+          min={0}
+          onValueChange={(value) => void updateAppSettings({ readerParagraphSpacing: value })}
+          step={1}
+          title={t('reader.typography.paragraphSpacingTitle')}
+          value={settings.readerParagraphSpacing}
+        />
+        <NativeSliderRow
           description={t('reader.typography.sidePaddingDescription')}
           formatValue={(value) => t('reader.typography.points', { value: Math.round(value) })}
           icon="sidePadding"

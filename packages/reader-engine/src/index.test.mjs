@@ -29,6 +29,27 @@ test('normalizes nested novel blocks with server-compatible locators', () => {
   assert.equal(blocks[0].id, 'block://*/div[1]/p[1]');
 });
 
+test('preserves quote/center containers and list marker metadata', () => {
+  const blocks = normalizeNovelBlocks(
+    '<blockquote><p>引用一</p><p>引用二</p></blockquote>' +
+      '<center><p>居中</p></center>' +
+      '<ol start="3"><li>甲</li><li value="8">乙</li></ol>' +
+      '<ul><li>丙</li></ul>',
+  );
+
+  assert.equal(blocks[0].locator, '//*/blockquote[1]');
+  assert.match(blocks[0].html, /^<blockquote>/);
+  assert.equal(blocks[1].locator, '//*/center[1]');
+  assert.deepEqual(
+    blocks.slice(2).map(({ listDepth, listMarker }) => ({ listDepth, listMarker })),
+    [
+      { listDepth: 1, listMarker: '3.' },
+      { listDepth: 1, listMarker: '8.' },
+      { listDepth: 1, listMarker: '•' },
+    ],
+  );
+});
+
 test('preserves standalone illustration containers for native image layout', () => {
   const blocks = normalizeNovelBlocks(
     '<div class="duokan-image-single"><img src="/cover.jpg" width="100" height="160"></div><p>正文</p>',
@@ -38,6 +59,16 @@ test('preserves standalone illustration containers for native image layout', () 
   assert.match(blocks[0].html, /duokan-image-single/);
   assert.equal(blocks[0].imageCount, 1);
   assert.equal(blocks[1].html, '<p>正文</p>');
+});
+
+test('keeps figure captions with their authored image block', () => {
+  const blocks = normalizeNovelBlocks(
+    '<figure><img src="/art.jpg"><figcaption>插图说明</figcaption></figure>',
+  );
+
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].locator, '//*/figure[1]');
+  assert.match(blocks[0].html, /figcaption>插图说明/);
 });
 
 test('keeps multi-image illustration groups as one styled reader block', () => {

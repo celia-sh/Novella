@@ -69,10 +69,36 @@ export function addPuaLineBreakOpportunities(text: string): string {
       previous !== undefined
       && !isTextSeparator(previous)
       && !isTextSeparator(character)
-      && (
-        isPrivateUseCodepoint(previous.codePointAt(0))
-        || isPrivateUseCodepoint(character.codePointAt(0))
-      )
+      && shouldAddLineBreakOpportunityBetween(previous, character)
+    ) {
+      output.push(READER_LINE_BREAK_OPPORTUNITY);
+    }
+    output.push(character);
+  }
+  return output.join('');
+}
+
+export function shouldAddLineBreakOpportunityBetween(
+  left: string | undefined,
+  right: string | undefined,
+  breakAll = false,
+): boolean {
+  if (!left || !right || isTextSeparator(left) || isTextSeparator(right)) return false;
+  return breakAll
+    || isPrivateUseCodepoint(left.codePointAt(0))
+    || isPrivateUseCodepoint(right.codePointAt(0));
+}
+
+export function addBreakAllLineBreakOpportunities(text: string): string {
+  const characters = Array.from(text);
+  const output: string[] = [];
+  for (let index = 0; index < characters.length; index += 1) {
+    const character = characters[index]!;
+    const previous = characters[index - 1];
+    if (
+      previous !== undefined
+      && !isTextSeparator(previous)
+      && !isTextSeparator(character)
     ) {
       output.push(READER_LINE_BREAK_OPPORTUNITY);
     }
@@ -84,8 +110,12 @@ export function addPuaLineBreakOpportunities(text: string): string {
 export function createRenderableParagraphText(
   content: string,
   firstLineIndent: boolean,
+  wordBreak: 'normal' | 'break-all' = 'normal',
 ): string {
-  const renderable = addPuaLineBreakOpportunities(content);
+  const puaRenderable = addPuaLineBreakOpportunities(content);
+  const renderable = wordBreak === 'break-all'
+    ? addBreakAllLineBreakOpportunities(puaRenderable)
+    : puaRenderable;
   if (!firstLineIndent || renderable.startsWith(READER_FIRST_LINE_INDENT)) {
     return renderable;
   }

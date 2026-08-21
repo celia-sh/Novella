@@ -64,6 +64,7 @@ export interface AppSettings {
   readerFirstLineIndent: boolean;
   readerImagePreviewOpenOnLongPress: boolean;
   readerLineHeight: number;
+  readerParagraphSpacing: number;
   comicPagedDirection: 'ltr' | 'rtl';
   readerPreloadWindow: number;
   readerSidePadding: number;
@@ -93,6 +94,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   readerFirstLineIndent: false,
   readerImagePreviewOpenOnLongPress: false,
   readerLineHeight: 1.6,
+  readerParagraphSpacing: 0,
   comicPagedDirection: 'ltr',
   readerPreloadWindow: 3,
   readerSidePadding: 30,
@@ -224,6 +226,10 @@ function decodeSettings(value: unknown): AppSettings {
       : {}),
     ...(typeof candidate.readerLineHeight === 'number'
       ? { readerLineHeight: clamp(candidate.readerLineHeight, 1, 2.5) }
+      : {}),
+    ...(typeof candidate.readerParagraphSpacing === 'number'
+      && Number.isFinite(candidate.readerParagraphSpacing)
+      ? { readerParagraphSpacing: clamp(candidate.readerParagraphSpacing, 0, 32) }
       : {}),
     ...(candidate.comicPagedDirection === 'ltr' || candidate.comicPagedDirection === 'rtl'
       ? { comicPagedDirection: candidate.comicPagedDirection }

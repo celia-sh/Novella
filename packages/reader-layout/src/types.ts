@@ -9,7 +9,7 @@ import type { SkTypefaceFontProvider } from '@shopify/react-native-skia';
 export interface LayoutBlock {
   id: string;
   locator: string;
-  type: 'paragraph' | 'heading' | 'image' | 'ruby' | 'blockquote' | 'hr';
+  type: 'paragraph' | 'heading' | 'list-item' | 'image' | 'ruby' | 'blockquote' | 'hr';
   x: number;
   y: number; // Relative to chapter top
   width: number;
@@ -21,8 +21,10 @@ export interface LayoutBlock {
   // Image blocks
   image?: ImageLayout;
 
-  // Ruby overlays positioned over inline paragraph placeholders.
+  // Inline overlays positioned from SkParagraph placeholder rects.
   ruby?: RubyLayout[];
+  inlineText?: InlineTextLayout[];
+  inlineImages?: PositionedImageLayout[];
 
   // Interaction areas
   hitRects: HitRect[];
@@ -39,7 +41,7 @@ export interface TextBlockData {
   lineHeight: number;
   color: string;
   fontFamily: string;
-  textAlign: 'left' | 'center' | 'right';
+  textAlign: 'left' | 'center' | 'right' | 'justify';
   fontWeight?: 'normal' | 'bold';
   fontStyle?: 'normal' | 'italic';
   /** Whether rendering prepends exactly two full-width CJK spaces. */
@@ -74,14 +76,45 @@ export interface ReaderImageDimensions {
   height: number;
 }
 
+export interface ParagraphRunStyle {
+  color: string;
+  backgroundColor?: string;
+  fontFamily: string;
+  fontSize: number;
+  lineHeight: number;
+  fontWeight?: 'normal' | 'bold';
+  fontStyle?: 'normal' | 'italic';
+  textDecoration?: 'none' | 'underline' | 'line-through';
+  textDecorationStyle?: 'solid' | 'dotted' | 'dashed';
+  letterSpacing?: number;
+  wordBreak?: 'normal' | 'break-all';
+}
+
 export type ParagraphRun =
-  | { type: 'text'; text: string }
+  | { type: 'text'; text: string; style?: ParagraphRunStyle }
   | {
-      type: 'ruby';
+      type: 'placeholder';
       width: number;
       height: number;
       baselineOffset: number;
+      alignment?: 'baseline' | 'top' | 'middle' | 'bottom';
     };
+
+export interface InlineTextLayout {
+  text: string;
+  style: ParagraphRunStyle;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+}
+
+export interface PositionedImageLayout {
+  id: string;
+  image: ImageLayout;
+  x: number;
+  y: number;
+}
 
 export interface RubyLayout {
   baseText: string;
@@ -92,6 +125,7 @@ export interface RubyLayout {
   rtHeight: number;
   totalWidth: number;
   totalHeight: number;
+  style: ParagraphRunStyle;
   x: number;
   baseY: number;
   rtY: number;
@@ -116,6 +150,7 @@ export interface ReaderTheme {
   bottomPadding: number;
   sidePadding: number;
   firstLineIndent: boolean;
+  paragraphSpacing?: number;
 }
 
 export interface LayoutChapterOptions {
@@ -125,6 +160,8 @@ export interface LayoutChapterOptions {
     html: string;
     textLength: number;
     imageCount: number;
+    listMarker?: string;
+    listDepth?: number;
   }>;
   width: number;
   theme: ReaderTheme;
@@ -144,7 +181,7 @@ export interface TextStyle {
   fontSize?: number;
   fontWeight?: 'normal' | 'bold';
   fontStyle?: 'normal' | 'italic';
-  textAlign?: 'left' | 'center' | 'right';
+  textAlign?: 'left' | 'center' | 'right' | 'justify';
   textIndent?: number;
   /** CSS/Flutter-style multiplier, not an absolute pixel value. */
   lineHeight?: number;
@@ -153,6 +190,12 @@ export interface TextStyle {
   marginLeft?: number;
   marginRight?: number;
   color?: string;
+  backgroundColor?: string;
+  letterSpacing?: number;
+  verticalAlign?: 'baseline' | 'super' | 'sub' | 'top' | 'middle' | 'bottom';
+  whiteSpace?: 'normal' | 'pre' | 'pre-wrap';
+  wordBreak?: 'normal' | 'break-all';
+  float?: 'none' | 'left' | 'right';
   textDecoration?: 'none' | 'underline' | 'line-through';
   textDecorationStyle?: 'solid' | 'dotted' | 'dashed';
 }
