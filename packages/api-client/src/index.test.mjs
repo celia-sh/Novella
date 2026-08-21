@@ -534,7 +534,33 @@ test('round-trips the versioned shelf document payload', async () => {
   });
 });
 
-test('decodes comic image batches using server skip and dimensions', () => {
+test('decodes current comic image URL batches using placeholder and size metadata', () => {
+  const placeholder = 'LEHV6nWB2yk8pyo0adR*.7kCMdnj';
+  const url = `https://cdn.example/13.jpg?placeholder=${encodeURIComponent(placeholder)}&size=800x1200`;
+  const content = decodeComicContent({
+    Chapter: {
+      Id: 100,
+      BookId: 12,
+      BookName: 'Series 1',
+      Title: 'Chapter 1',
+      SortNum: 1,
+      Total: 24,
+      Skip: 12,
+      Images: [url],
+    },
+  });
+
+  assert.equal(content.chapter.total, 24);
+  assert.equal(content.chapter.skip, 12);
+  assert.deepEqual(content.chapter.images[0], {
+    url,
+    placeholder,
+    width: 800,
+    height: 1200,
+  });
+});
+
+test('decodes legacy comic image batches using server dimensions', () => {
   const content = decodeComicContent({
     Chapter: {
       Id: 100,
@@ -555,6 +581,27 @@ test('decodes comic image batches using server skip and dimensions', () => {
     placeholder: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
     width: 800,
     height: 1200,
+  });
+});
+
+test('uses stable comic image dimensions when URL metadata is incomplete', () => {
+  const content = decodeComicContent({
+    Chapter: {
+      Id: 100,
+      BookId: 12,
+      Title: 'Chapter 1',
+      SortNum: 1,
+      Total: 1,
+      Skip: 0,
+      Images: ['https://cdn.example/13.jpg?size=800x1200'],
+    },
+  });
+
+  assert.deepEqual(content.chapter.images[0], {
+    url: 'https://cdn.example/13.jpg?size=800x1200',
+    placeholder: '',
+    width: 2,
+    height: 3,
   });
 });
 

@@ -2423,7 +2423,23 @@ function decodeComicChapterSummaries(value: unknown): ComicChapterSummary[] {
   });
 }
 
+const COMIC_IMAGE_FALLBACK_DIMENSIONS = Object.freeze({ width: 2, height: 3 });
+
 function decodeComicImage(value: unknown): ComicImage {
+  if (typeof value === 'string') {
+    const url = asString(value);
+    const dimensions = parseComicImageDimensions(url) ?? COMIC_IMAGE_FALLBACK_DIMENSIONS;
+    return {
+      url,
+      placeholder: extractBlurHashPlaceholder(url) ?? '',
+      width: dimensions.width,
+      height: dimensions.height,
+    };
+  }
+
+  // Keep old object responses readable while the server/cache transition
+  // settles. Current Web-Master responses use a URL string with placeholder
+  // and size query metadata instead.
   const image = asRecord(value, 'comic image');
   return {
     url: asString(image.Url),
@@ -2431,6 +2447,20 @@ function decodeComicImage(value: unknown): ComicImage {
     width: Math.max(1, asNumber(image.Width, 1)),
     height: Math.max(1, asNumber(image.Height, 1)),
   };
+}
+
+function parseComicImageDimensions(
+  source: string,
+): { width: number; height: number } | null {
+  if (!extractRawQueryValue(source, 'placeholder')?.value) return null;
+  const rawSize = extractRawQueryValue(source, 'size')?.value ?? '';
+  const match = /^([1-9]\d*)x([1-9]\d*)$/u.exec(rawSize);
+  if (!match) return null;
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  return Number.isSafeInteger(width) && Number.isSafeInteger(height)
+    ? { width, height }
+    : null;
 }
 
 function decodeBookDetailUser(value: unknown): BookDetailUser | null {
