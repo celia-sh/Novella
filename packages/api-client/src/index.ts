@@ -33,6 +33,11 @@ export const REQUEST_RATE_LIMIT = Object.freeze({
   windowMilliseconds: 5_500,
 });
 
+// GetComments defaults to one root comment when Size is omitted. Keep the
+// protocol page size explicit; the mobile hook loads subsequent batches while
+// scrolling instead of exposing page controls.
+export const COMMENTS_PAGE_SIZE = 10;
+
 export type RequestPriority = 'interactive' | 'preload';
 
 export interface RequestScheduleOptions {
@@ -1103,6 +1108,7 @@ export class ApiClient {
         Type: request.type,
         Id: request.id,
         Page: request.page,
+        Size: COMMENTS_PAGE_SIZE,
         ...(request.seriesTitle === undefined
           ? {}
           : { SeriesTitle: request.seriesTitle }),

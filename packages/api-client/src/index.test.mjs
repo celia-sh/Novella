@@ -315,6 +315,7 @@ test('maps comic comments to the official Web series Hub contract', async () => 
         Type: 'Series',
         Id: 0,
         Page: 1,
+        Size: 10,
         SeriesTitle: 'Comic series',
       }, { UseGzip: true }],
     },
