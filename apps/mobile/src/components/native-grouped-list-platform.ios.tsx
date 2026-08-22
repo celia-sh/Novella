@@ -2,12 +2,14 @@ import { Host, RNHostView } from '@expo/ui';
 import { Button, HStack, List, Section, Spacer, Text, VStack } from '@expo/ui/swift-ui';
 import {
   buttonStyle,
+  contentShape,
   createModifier,
   disabled as disabledModifier,
   foregroundStyle,
   font,
   frame,
   listStyle,
+  shapes,
 } from '@expo/ui/swift-ui/modifiers';
 import { Stack } from 'expo-router';
 import { isValidElement, useState, type PropsWithChildren, type ReactNode } from 'react';
@@ -76,7 +78,11 @@ export function NativeGroupedListRowPlatform({
       {...buttonProps}
       modifiers={modifiers}
     >
-      <HStack spacing={12} alignment="top">
+      <HStack
+        alignment="top"
+        modifiers={[contentShape(shapes.rectangle())]}
+        spacing={12}
+      >
         <HStack spacing={0} modifiers={[frame({ width: 28, height: 28 })]}>
           <NativeIcon color={colors.accent as string} name={icon} />
         </HStack>
