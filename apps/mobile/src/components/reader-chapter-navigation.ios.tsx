@@ -16,6 +16,7 @@ const IOS_BOTTOM_TOOLBAR_HEIGHT = 44;
 
 export function ReaderChapterNavigation({
   bottomInset,
+  chromeHidden,
   direction = 'ltr',
   mode,
   onNext,
@@ -50,6 +51,7 @@ export function ReaderChapterNavigation({
         <Stack.Toolbar.Button
           accessibilityLabel={labels[order.left]}
           disabled={leftAction === null}
+          hidden={chromeHidden}
           icon="chevron.left"
           {...(leftAction ? { onPress: leftAction } : {})}
         />
@@ -57,12 +59,14 @@ export function ReaderChapterNavigation({
         <Stack.Toolbar.Button
           accessibilityLabel={labels[order.right]}
           disabled={rightAction === null}
+          hidden={chromeHidden}
           icon="chevron.right"
           {...(rightAction ? { onPress: rightAction } : {})}
         />
       </Stack.Toolbar>
       <ReaderProgressSlider
         bottomInset={bottomInset}
+        hidden={chromeHidden}
         onValueChange={onPageProgressChange}
         progress={pageProgress}
         visible={pageTotal > 1}
@@ -72,7 +76,7 @@ export function ReaderChapterNavigation({
         style={[styles.pageCounter, { bottom: bottomInset }]}
       >
         <Text style={styles.pageCounterText}>
-          {pageTotal > 1 ? '' : pageTotal > 0 ? `${pageCurrent} / ${pageTotal}` : ''}
+          {chromeHidden || pageTotal > 1 ? '' : pageTotal > 0 ? `${pageCurrent} / ${pageTotal}` : ''}
         </Text>
       </View>
     </>

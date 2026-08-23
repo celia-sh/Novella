@@ -14,6 +14,7 @@ export function ReaderNavigation({
   onOpenChapters,
   onOpenSettings,
   title,
+  chromeHidden,
 }: ReaderNavigationProps) {
   const { t } = useTranslation('reader');
   const {
@@ -29,6 +30,7 @@ export function ReaderNavigation({
           headerBlurEffect: 'none',
           headerShadowVisible: false,
           headerTintColor: foregroundColor,
+          headerShown: !chromeHidden,
           headerTransparent: true,
           ...(forceLightAppearance
             ? {
@@ -50,6 +52,7 @@ export function ReaderNavigation({
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel={t('accessibility.chapterList')}
+          hidden={chromeHidden}
           icon="list.bullet"
           onPress={onOpenChapters}
           tintColor={foregroundColor}
@@ -58,12 +61,14 @@ export function ReaderNavigation({
           accessibilityLabel={t('accessibility.switchMode', {
             mode: t(`modes.${nextMode}`),
           })}
+          hidden={chromeHidden}
           icon={displayMode === 'scroll' ? 'rectangle.split.1x2' : 'text.justify.left'}
           onPress={requestModeChange}
           tintColor={foregroundColor}
         />
         <Stack.Toolbar.Button
           accessibilityLabel={t('accessibility.readerSettings')}
+          hidden={chromeHidden}
           icon="gearshape"
           onPress={onOpenSettings}
           tintColor={foregroundColor}

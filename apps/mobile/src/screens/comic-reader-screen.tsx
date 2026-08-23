@@ -36,7 +36,6 @@ import {
   type ComicReadingDirection,
 } from '@/services/comic-reader-layout';
 import { reader } from '@/services/client';
-import { ComicReaderAppearanceScope } from '@/components/comic-reader-appearance-scope';
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
 import { ReaderErrorState, ReaderPreparationState } from '@/components/reader-chrome';
 import { ReaderNavigation } from '@/components/reader-navigation';
@@ -52,6 +51,7 @@ import {
   syncReaderProgress,
 } from '@/services/reader-progress-sync';
 import type { ReaderMessageKey, ReaderUserMessage } from '@/hooks/use-reader-chapter';
+import { useReaderChromeVisibility } from '@/hooks/use-reader-chrome-visibility';
 import { useReaderLifecycleSave } from '@/hooks/use-reader-lifecycle-save';
 import { useReaderPositionSaver } from '@/hooks/use-reader-position-saver';
 import { updateAppSettings, useAppSettings } from '@/services/settings';
@@ -97,11 +97,7 @@ export interface ComicReaderScreenProps {
 }
 
 export function ComicReaderScreen(props: ComicReaderScreenProps) {
-  return (
-    <ComicReaderAppearanceScope>
-      <ComicReaderScreenContent {...props} />
-    </ComicReaderAppearanceScope>
-  );
+  return <ComicReaderScreenContent {...props} />;
 }
 
 function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: ComicReaderScreenProps) {
@@ -126,6 +122,13 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   }>();
   const route = useRoute();
   const [mode, setMode] = useState<ReaderMode>(settings.comicReaderViewMode);
+  const {
+    hidden: chromeHidden,
+    onTouchCancel,
+    onTouchEnd,
+    onTouchMove,
+    onTouchStart,
+  } = useReaderChromeVisibility();
   const useDoublePage = mode === 'paged' && shouldUseReaderDoublePage(width, windowHeight);
   const [modeRestoreTarget, setModeRestoreTarget] = useState<{
     chapterId: number;
@@ -596,6 +599,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
         <>
         {mode === 'paged' ? (
         <FlatList
+          {...{ onTouchCancel, onTouchEnd, onTouchMove, onTouchStart }}
           ref={pagedListRef}
           contentInsetAdjustmentBehavior="never"
           contentContainerStyle={{ paddingBottom: readerBottomInset, paddingTop: readerTopInset }}
@@ -642,6 +646,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
         />
       ) : (
         <FlatList
+          {...{ onTouchCancel, onTouchEnd, onTouchMove, onTouchStart }}
           ref={scrollListRef}
           contentInsetAdjustmentBehavior="never"
           data={activeSlots}
@@ -688,7 +693,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       </View>
       <ReaderNavigation
         backgroundColor={colors.background as string}
-        {...(process.env.EXPO_OS === 'ios' ? { forceLightAppearance: true } : {})}
+        chromeHidden={chromeHidden}
         foregroundColor={colors.label as string}
         mode={mode}
         onModeChange={changeMode}
@@ -701,6 +706,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       />
       <ReaderChapterNavigation
         bottomInset={insets.bottom}
+        chromeHidden={chromeHidden}
         pageCurrent={pageProgress.current}
         pageTotal={pageProgress.total}
         direction={mode === 'paged' ? settings.comicPagedDirection : 'ltr'}

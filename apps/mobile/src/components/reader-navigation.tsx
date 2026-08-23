@@ -4,6 +4,7 @@ import type { ReaderNavigationProps } from '@/components/reader-navigation.types
 
 export function ReaderNavigation({
   backgroundColor,
+  chromeHidden,
   foregroundColor,
   title,
 }: ReaderNavigationProps) {
@@ -11,6 +12,7 @@ export function ReaderNavigation({
     <Stack.Screen
       options={{
         contentStyle: { backgroundColor },
+        headerShown: !chromeHidden,
         headerBackButtonDisplayMode: 'minimal',
         headerShadowVisible: false,
         headerStyle: { backgroundColor },

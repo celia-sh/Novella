@@ -19,7 +19,7 @@ export function ReaderNavigation(props: ReaderNavigationProps) {
         headerBackButtonDisplayMode: 'minimal',
         headerRight: () => <ReaderHeaderActions {...props} />,
         headerShadowVisible: false,
-        headerShown: true,
+        headerShown: !props.chromeHidden,
         headerStyle: { backgroundColor: props.backgroundColor },
         headerTintColor: props.foregroundColor,
         headerTransparent: true,

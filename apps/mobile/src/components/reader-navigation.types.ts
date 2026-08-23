@@ -11,6 +11,7 @@ export interface ReaderNavigationProps {
   onOpenChapters: () => void;
   onOpenSettings: () => void;
   title: string;
+  chromeHidden: boolean;
 }
 
 export interface ReaderChapterNavigationProps {
@@ -24,4 +25,5 @@ export interface ReaderChapterNavigationProps {
   pageCurrent: number;
   pageProgress: number;
   pageTotal: number;
+  chromeHidden: boolean;
 }

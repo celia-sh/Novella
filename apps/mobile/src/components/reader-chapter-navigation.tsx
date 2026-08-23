@@ -16,6 +16,7 @@ import { NativeBottomAppBar } from '../../modules/novella-ui';
  */
 export function ReaderChapterNavigation({
   backgroundColor,
+  chromeHidden,
   direction = 'ltr',
   mode,
   onNext,
@@ -38,7 +39,12 @@ export function ReaderChapterNavigation({
   const rightAction = actions[order.right];
   return (
     <>
-      <Host colorScheme={colorScheme} matchContents={{ vertical: true }} style={styles.host}>
+      <Host
+        colorScheme={colorScheme}
+        matchContents={{ vertical: true }}
+        pointerEvents={chromeHidden ? 'none' : 'auto'}
+        style={[styles.host, chromeHidden ? styles.hidden : null]}
+      >
         <NativeBottomAppBar
           {...(backgroundColor ? { containerColor: backgroundColor } : {})}
           height={56}
@@ -54,6 +60,7 @@ export function ReaderChapterNavigation({
       </Host>
       <ReaderProgressSlider
         bottomInset={0}
+        hidden={chromeHidden}
         onValueChange={onPageProgressChange}
         progress={pageProgress}
         visible={pageTotal > 1}
@@ -63,6 +70,7 @@ export function ReaderChapterNavigation({
 }
 
 const styles = StyleSheet.create({
+  hidden: { opacity: 0 },
   host: {
     bottom: 0,
     left: 0,

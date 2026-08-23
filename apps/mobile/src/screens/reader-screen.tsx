@@ -50,6 +50,7 @@ import { shouldUseReaderDoublePage } from '@/services/reader-display-layout';
 import { resolveNovelPageProgress } from '@/services/reader-page-progress';
 import { useReaderChapter, type ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
+import { useReaderChromeVisibility } from '@/hooks/use-reader-chrome-visibility';
 import { useReaderFont } from '@/hooks/use-reader-font';
 import { useReaderImageDimensions } from '@/hooks/use-reader-image-dimensions';
 import { createFontManager } from '@/services/skia-font-loader';
@@ -91,6 +92,13 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const route = useRoute();
   const { colors } = useAppTheme();
   const [mode, setMode] = useState<ReaderMode>(settings.novelReaderViewMode);
+  const {
+    hidden: chromeHidden,
+    onTouchCancel,
+    onTouchEnd,
+    onTouchMove,
+    onTouchStart,
+  } = useReaderChromeVisibility();
   const [pendingMode, setPendingMode] = useState<ReaderMode | null>(null);
   const pendingModeRef = useRef<ReaderMode | null>(null);
   const modeSwitchFrameRef = useRef<number | null>(null);
@@ -689,6 +697,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         ) : content && presentation ? (
           <View style={styles.reader}>
             <FlatList
+              {...{ onTouchCancel, onTouchEnd, onTouchMove, onTouchStart }}
               ref={flatListRef}
               contentInsetAdjustmentBehavior="never"
               data={presentation.tiles}
@@ -725,6 +734,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       <ReaderImagePreviewHost ref={imagePreviewRef} />
       <ReaderNavigation
         backgroundColor={readerBackground}
+        chromeHidden={chromeHidden}
         foregroundColor={readerTextColor}
         mode={mode}
         onModeChange={changeMode}
@@ -738,6 +748,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       <ReaderChapterNavigation
         backgroundColor={readerBackground}
         bottomInset={insets.bottom}
+        chromeHidden={chromeHidden}
         pageCurrent={pageProgress.current}
         pageTotal={pageProgress.total}
         mode={mode}
