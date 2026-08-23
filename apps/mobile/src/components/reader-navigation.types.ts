@@ -19,7 +19,9 @@ export interface ReaderChapterNavigationProps {
   direction?: ReaderChapterBarDirection;
   mode: ReaderMode;
   onNext: (() => void) | null;
+  onPageProgressChange: (progress: number) => void;
   onPrevious: (() => void) | null;
   pageCurrent: number;
+  pageProgress: number;
   pageTotal: number;
 }

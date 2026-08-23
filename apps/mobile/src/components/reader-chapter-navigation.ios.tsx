@@ -2,6 +2,8 @@ import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
+import { ReaderProgressSlider } from '@/components/reader-progress-slider';
+
 import {
   IOS_PROGRESSIVE_BLUR_BLEED,
   IosProgressiveBlur,
@@ -17,8 +19,10 @@ export function ReaderChapterNavigation({
   direction = 'ltr',
   mode,
   onNext,
+  onPageProgressChange,
   onPrevious,
   pageCurrent,
+  pageProgress,
   pageTotal,
 }: ReaderChapterNavigationProps) {
   const { t } = useTranslation('reader');
@@ -57,15 +61,18 @@ export function ReaderChapterNavigation({
           {...(rightAction ? { onPress: rightAction } : {})}
         />
       </Stack.Toolbar>
-      {/* The page counter is drawn by the screen layer instead of the native
-          toolbar so it stays exactly centered no matter the toolbar item
-          widths or disabled states. */}
+      <ReaderProgressSlider
+        bottomInset={bottomInset}
+        onValueChange={onPageProgressChange}
+        progress={pageProgress}
+        visible={pageTotal > 1}
+      />
       <View
         pointerEvents="none"
         style={[styles.pageCounter, { bottom: bottomInset }]}
       >
         <Text style={styles.pageCounterText}>
-          {pageTotal > 0 ? `${pageCurrent} / ${pageTotal}` : ''}
+          {pageTotal > 1 ? '' : pageTotal > 0 ? `${pageCurrent} / ${pageTotal}` : ''}
         </Text>
       </View>
     </>

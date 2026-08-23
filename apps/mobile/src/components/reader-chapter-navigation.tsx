@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 
 import type { ReaderChapterNavigationProps } from '@/components/reader-navigation.types';
+import { ReaderProgressSlider } from '@/components/reader-progress-slider';
 import { resolveReaderChapterBarOrder } from '@/services/reader-chrome-layout';
 import { useAppColorScheme } from '@/theme/app-theme';
 import { NativeBottomAppBar } from '../../modules/novella-ui';
@@ -18,8 +19,10 @@ export function ReaderChapterNavigation({
   direction = 'ltr',
   mode,
   onNext,
+  onPageProgressChange,
   onPrevious,
   pageCurrent,
+  pageProgress,
   pageTotal,
 }: ReaderChapterNavigationProps) {
   const { t } = useTranslation('reader');
@@ -34,20 +37,28 @@ export function ReaderChapterNavigation({
   const leftAction = actions[order.left];
   const rightAction = actions[order.right];
   return (
-    <Host colorScheme={colorScheme} matchContents={{ vertical: true }} style={styles.host}>
-      <NativeBottomAppBar
-        {...(backgroundColor ? { containerColor: backgroundColor } : {})}
-        height={56}
-        contentColor={contentColor}
-        counterText={pageTotal > 0 ? `${pageCurrent} / ${pageTotal}` : ''}
-        nextAccessibilityLabel={labels[order.right]}
-        nextEnabled={rightAction !== null}
-        {...(rightAction ? { onNextPress: rightAction } : {})}
-        {...(leftAction ? { onPreviousPress: leftAction } : {})}
-        previousAccessibilityLabel={labels[order.left]}
-        previousEnabled={leftAction !== null}
+    <>
+      <Host colorScheme={colorScheme} matchContents={{ vertical: true }} style={styles.host}>
+        <NativeBottomAppBar
+          {...(backgroundColor ? { containerColor: backgroundColor } : {})}
+          height={56}
+          contentColor={contentColor}
+          counterText={pageTotal > 1 ? '' : pageTotal > 0 ? `${pageCurrent} / ${pageTotal}` : ''}
+          nextAccessibilityLabel={labels[order.right]}
+          nextEnabled={rightAction !== null}
+          {...(rightAction ? { onNextPress: rightAction } : {})}
+          {...(leftAction ? { onPreviousPress: leftAction } : {})}
+          previousAccessibilityLabel={labels[order.left]}
+          previousEnabled={leftAction !== null}
+        />
+      </Host>
+      <ReaderProgressSlider
+        bottomInset={0}
+        onValueChange={onPageProgressChange}
+        progress={pageProgress}
+        visible={pageTotal > 1}
       />
-    </Host>
+    </>
   );
 }
 

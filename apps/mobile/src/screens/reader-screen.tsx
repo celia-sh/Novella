@@ -392,6 +392,31 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     schedulePosition({ chapterId: content.chapter.id, position: currentBlock.locator });
   }, [captureCurrentVisibleBlock, content, schedulePosition]);
 
+  const jumpToProgress = useCallback((value: number) => {
+    if (!presentation || !layout) return;
+    const progress = Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
+    if (mode === 'paged') {
+      const index = Math.round(progress * Math.max(0, presentation.tiles.length - 1));
+      lastScrollOffsetRef.current = { x: index * screenWidth, y: 0 };
+      setVisiblePageIndex(index);
+      flatListRef.current?.scrollToIndex({ animated: false, index });
+    } else {
+      const maximumOffset = Math.max(0, layout.totalHeight - screenHeight);
+      const offset = progress * maximumOffset;
+      lastScrollOffsetRef.current = { x: 0, y: offset };
+      setVisiblePageIndex(resolveNovelPageProgress({
+        mode: 'scroll',
+        offset: { x: 0, y: offset },
+        pagedPageCount: presentation.tiles.length,
+        totalHeight: layout.totalHeight,
+        viewportHeight: screenHeight,
+        viewportWidth: screenWidth,
+      }).current - 1);
+      flatListRef.current?.scrollToOffset({ animated: false, offset });
+    }
+    requestAnimationFrame(handleScrollEnd);
+  }, [handleScrollEnd, layout, mode, presentation, screenHeight, screenWidth]);
+
   const restoredPresentationRef = useRef<string | null>(null);
   const capturedReflowGenerationRef = useRef<string | null>(null);
   useEffect(() => {
@@ -717,7 +742,9 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         pageTotal={pageProgress.total}
         mode={mode}
         onNext={nextSortNum === null ? null : () => openChapter(nextSortNum, 'start')}
+        onPageProgressChange={jumpToProgress}
         onPrevious={previousSortNum === null ? null : () => openChapter(previousSortNum, 'end')}
+        pageProgress={pageProgress.progress}
       />
     </>
   );

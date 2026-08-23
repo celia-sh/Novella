@@ -446,6 +446,30 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   }, [activeChapter, activeSlots.length, loadBatch, scheduleActivePosition]);
   const recordVisiblePageRef = useRef(recordVisiblePage);
   recordVisiblePageRef.current = recordVisiblePage;
+  const pageProgress = useMemo(
+    () => resolveComicPageProgress(visiblePage, activeSlots.length),
+    [activeSlots.length, visiblePage],
+  );
+  const jumpToProgress = useCallback((value: number) => {
+    if (activeSlots.length === 0) return;
+    const progress = Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
+    if (mode === 'paged') {
+      const targetDisplay = Math.min(
+        Math.max(0, Math.round(progress * Math.max(0, pagedDisplaySlots.length - 1))),
+        Math.max(0, pagedDisplaySlots.length - 1),
+      );
+      const targetSlot = pagedDisplaySlots[targetDisplay];
+      const targetPage = targetSlot?.pages.at(-1);
+      if (!targetSlot || !targetPage) return;
+      pagedTapTargetRef.current = targetDisplay;
+      pagedListRef.current?.scrollToIndex({ animated: false, index: targetDisplay });
+      recordVisiblePage(targetPage.index, targetSlot.pages.map((page) => page.index));
+      return;
+    }
+    const targetIndex = Math.round(progress * Math.max(0, activeSlots.length - 1));
+    scrollListRef.current?.scrollToIndex({ animated: false, index: targetIndex });
+    recordVisiblePage(targetIndex);
+  }, [activeSlots.length, mode, pagedDisplaySlots, recordVisiblePage]);
   const onPagedViewableItemsChanged = useCallback(({
     viewableItems,
   }: {
@@ -677,12 +701,14 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       />
       <ReaderChapterNavigation
         bottomInset={insets.bottom}
-        pageCurrent={resolveComicPageProgress(visiblePage, activeSlots.length).current}
-        pageTotal={resolveComicPageProgress(visiblePage, activeSlots.length).total}
+        pageCurrent={pageProgress.current}
+        pageTotal={pageProgress.total}
         direction={mode === 'paged' ? settings.comicPagedDirection : 'ltr'}
         mode={mode}
         onNext={nextChapter ? () => openChapter(nextChapter.sortNum, 'start') : null}
+        onPageProgressChange={jumpToProgress}
         onPrevious={previousChapter ? () => openChapter(previousChapter.sortNum, 'end') : null}
+        pageProgress={pageProgress.progress}
       />
     </>
   );
