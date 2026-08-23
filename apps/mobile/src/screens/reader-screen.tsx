@@ -46,6 +46,7 @@ import { ReaderNavigation } from '@/components/reader-navigation';
 import { ReaderSkiaTile } from '@/components/reader-skia-tile';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
 import { createReaderChromeInsets } from '@/services/reader-chrome-layout';
+import { resolveNovelPageProgress } from '@/services/reader-page-progress';
 import { useReaderChapter, type ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
 import { useReaderFont } from '@/hooks/use-reader-font';
@@ -331,11 +332,38 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const lastPositionRef = useRef<string | null>(null);
   const activeChapterIdRef = useRef<number | null>(null);
   const lastScrollOffsetRef = useRef({ x: 0, y: 0 });
+  const [visiblePageIndex, setVisiblePageIndex] = useState(0);
   activeChapterIdRef.current = content?.chapter.id ?? null;
 
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    lastScrollOffsetRef.current = event.nativeEvent.contentOffset;
-  }, []);
+    const offset = event.nativeEvent.contentOffset;
+    lastScrollOffsetRef.current = offset;
+    const nextPageIndex = resolveNovelPageProgress({
+      mode,
+      offset,
+      pagedPageCount: presentation?.tiles.length ?? 0,
+      totalHeight: layout?.totalHeight ?? 0,
+      viewportHeight: screenHeight,
+      viewportWidth: screenWidth,
+    }).current - 1;
+    setVisiblePageIndex((current) => current === nextPageIndex ? current : nextPageIndex);
+  }, [layout?.totalHeight, mode, presentation?.tiles.length, screenHeight, screenWidth]);
+
+  const pageProgress = useMemo(() => resolveNovelPageProgress({
+    mode,
+    offset: lastScrollOffsetRef.current,
+    pagedPageCount: presentation?.tiles.length ?? 0,
+    totalHeight: layout?.totalHeight ?? 0,
+    viewportHeight: screenHeight,
+    viewportWidth: screenWidth,
+  }), [
+    layout?.totalHeight,
+    mode,
+    presentation?.tiles.length,
+    screenHeight,
+    screenWidth,
+    visiblePageIndex,
+  ]);
 
   const resolveCurrentVisibleBlock = useCallback(() => findVisibleReaderLayoutBlock({
     layout,
@@ -412,10 +440,19 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         );
         const safeIndex = Math.max(0, pageIndex);
         lastScrollOffsetRef.current = { x: safeIndex * screenWidth, y: 0 };
+        setVisiblePageIndex(safeIndex);
         flatListRef.current?.scrollToIndex({ animated: false, index: safeIndex });
       } else {
         const offset = Math.max(0, targetBlock.y - 1);
         lastScrollOffsetRef.current = { x: 0, y: offset };
+        setVisiblePageIndex(resolveNovelPageProgress({
+          mode: 'scroll',
+          offset: { x: 0, y: offset },
+          pagedPageCount: presentation.tiles.length,
+          totalHeight: layout.totalHeight,
+          viewportHeight: screenHeight,
+          viewportWidth: screenWidth,
+        }).current - 1);
         flatListRef.current?.scrollToOffset({ animated: false, offset });
       }
 
@@ -670,11 +707,11 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       <ReaderChapterNavigation
         backgroundColor={readerBackground}
         bottomInset={insets.bottom}
-        current={sortNum}
+        pageCurrent={pageProgress.current}
+        pageTotal={pageProgress.total}
         mode={mode}
         onNext={nextSortNum === null ? null : () => openChapter(nextSortNum, 'start')}
         onPrevious={previousSortNum === null ? null : () => openChapter(previousSortNum, 'end')}
-        total={chapterCount}
       />
     </>
   );

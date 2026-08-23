@@ -14,12 +14,12 @@ const IOS_BOTTOM_TOOLBAR_HEIGHT = 44;
 
 export function ReaderChapterNavigation({
   bottomInset,
-  current,
   direction = 'ltr',
   mode,
   onNext,
   onPrevious,
-  total,
+  pageCurrent,
+  pageTotal,
 }: ReaderChapterNavigationProps) {
   const { t } = useTranslation('reader');
   const styles = useReaderChapterNavigationStyles();
@@ -65,7 +65,7 @@ export function ReaderChapterNavigation({
         style={[styles.pageCounter, { bottom: bottomInset }]}
       >
         <Text style={styles.pageCounterText}>
-          {total > 0 ? `${current} / ${total}` : ''}
+          {pageTotal > 0 ? `${pageCurrent} / ${pageTotal}` : ''}
         </Text>
       </View>
     </>

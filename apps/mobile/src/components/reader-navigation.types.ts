@@ -16,10 +16,10 @@ export interface ReaderNavigationProps {
 export interface ReaderChapterNavigationProps {
   backgroundColor?: string;
   bottomInset: number;
-  current: number;
   direction?: ReaderChapterBarDirection;
   mode: ReaderMode;
   onNext: (() => void) | null;
   onPrevious: (() => void) | null;
-  total: number;
+  pageCurrent: number;
+  pageTotal: number;
 }

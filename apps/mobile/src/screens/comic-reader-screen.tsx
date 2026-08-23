@@ -49,6 +49,7 @@ import type { ReaderMessageKey, ReaderUserMessage } from '@/hooks/use-reader-cha
 import { useReaderLifecycleSave } from '@/hooks/use-reader-lifecycle-save';
 import { useReaderPositionSaver } from '@/hooks/use-reader-position-saver';
 import { updateAppSettings, useAppSettings } from '@/services/settings';
+import { resolveComicPageProgress } from '@/services/reader-page-progress';
 import { useAppTheme } from '@/theme/app-theme';
 
 const PAGE_BATCH = 12;
@@ -645,12 +646,12 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       />
       <ReaderChapterNavigation
         bottomInset={insets.bottom}
-        current={selectedChapterIndex + 1}
+        pageCurrent={resolveComicPageProgress(visiblePage, activeSlots.length).current}
+        pageTotal={resolveComicPageProgress(visiblePage, activeSlots.length).total}
         direction={mode === 'paged' ? settings.comicPagedDirection : 'ltr'}
         mode={mode}
         onNext={nextChapter ? () => openChapter(nextChapter.sortNum, 'start') : null}
         onPrevious={previousChapter ? () => openChapter(previousChapter.sortNum, 'end') : null}
-        total={info?.chapters.length ?? 0}
       />
     </>
   );

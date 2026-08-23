@@ -15,11 +15,12 @@ import { NativeBottomAppBar } from '../../modules/novella-ui';
  */
 export function ReaderChapterNavigation({
   backgroundColor,
-  current,
   direction = 'ltr',
+  mode,
   onNext,
   onPrevious,
-  total,
+  pageCurrent,
+  pageTotal,
 }: ReaderChapterNavigationProps) {
   const { t } = useTranslation('reader');
   const colorScheme = useAppColorScheme();
@@ -38,7 +39,7 @@ export function ReaderChapterNavigation({
         {...(backgroundColor ? { containerColor: backgroundColor } : {})}
         height={56}
         contentColor={contentColor}
-        counterText={total > 0 ? `${current} / ${total}` : ''}
+        counterText={pageTotal > 0 ? `${pageCurrent} / ${pageTotal}` : ''}
         nextAccessibilityLabel={labels[order.right]}
         nextEnabled={rightAction !== null}
         {...(rightAction ? { onNextPress: rightAction } : {})}
