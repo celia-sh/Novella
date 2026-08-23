@@ -30,6 +30,10 @@ final class NovellaSearchBarView: ExpoView, UISearchBarDelegate {
   }
 
   func setQuery(_ query: String) {
+    // Native owns the active IME composition. A delayed JS prop update can be
+    // older than the text currently held by UIKit; assigning it here would
+    // clear markedTextRange and commit partial CJK pinyin (for example, "nih").
+    guard searchBar.searchTextField.markedTextRange == nil else { return }
     guard searchBar.text != query else { return }
     searchBar.text = query
   }

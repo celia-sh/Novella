@@ -18,6 +18,7 @@ export {
 
 export {
   NativeSearchBar,
+  type NativeSearchBarHandle,
   type NativeSearchBarProps,
 } from './src/native-search-bar';
 

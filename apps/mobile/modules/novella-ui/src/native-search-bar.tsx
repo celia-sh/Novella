@@ -1,4 +1,9 @@
 import type { PrimitiveBaseProps } from '@expo/ui/jetpack-compose';
+import { forwardRef, useImperativeHandle } from 'react';
+
+export interface NativeSearchBarHandle {
+  setQuery(query: string): Promise<void>;
+}
 
 export interface NativeSearchBarProps extends PrimitiveBaseProps {
   clearAccessibilityLabel?: string;
@@ -6,9 +11,15 @@ export interface NativeSearchBarProps extends PrimitiveBaseProps {
   onQueryChange?: (query: string) => void;
   onSearch?: (query: string) => void;
   placeholder?: string;
-  query: string;
+  query?: string;
 }
 
-export function NativeSearchBar(_props: NativeSearchBarProps): null {
+export const NativeSearchBar = forwardRef<NativeSearchBarHandle, NativeSearchBarProps>(function NativeSearchBar(
+  _props,
+  ref,
+) {
+  useImperativeHandle(ref, () => ({
+    setQuery: async () => {},
+  }), []);
   return null;
-}
+});

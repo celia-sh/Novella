@@ -1,20 +1,35 @@
 import { Host } from '@expo/ui';
 import { useTranslation } from 'react-i18next';
+import { forwardRef, useImperativeHandle } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { NativeSearchBar } from '../../modules/novella-ui';
 
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
-import type { NativeSearchControlsProps } from '@/components/native-search-controls.types';
+import {
+  type NativeSearchControlsHandle,
+  type NativeSearchControlsProps,
+} from '@/components/native-search-controls.types';
 import { useAppColorScheme } from '@/theme/app-theme';
 
-export function NativeSearchControls({
-  format,
-  onFormatChange,
-  onQueryChange,
-  onSubmit,
-  query,
-}: NativeSearchControlsProps) {
+export const NativeSearchControls = forwardRef<
+  NativeSearchControlsHandle,
+  NativeSearchControlsProps
+>(function NativeSearchControls(
+  {
+    format,
+    onFormatChange,
+    onQueryChange,
+    onSubmit,
+    query,
+  },
+  ref,
+) {
+  useImperativeHandle(ref, () => ({
+    // Android remains controlled by its Compose text field prop. The screen
+    // still calls this handle for platform-neutral programmatic updates.
+    setQuery: () => {},
+  }), []);
   const { t } = useTranslation('library');
   const { t: tCommon } = useTranslation('common');
   const colorScheme = useAppColorScheme();
@@ -42,7 +57,7 @@ export function NativeSearchControls({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: { gap: 12 },

@@ -19,9 +19,6 @@ public final class NovellaUiModule: Module {
     View(NovellaSearchBarView.self) {
       ViewName("SearchBar")
 
-      Prop("query") { (view: NovellaSearchBarView, query: String) in
-        view.setQuery(query)
-      }
       Prop("placeholder") { (view: NovellaSearchBarView, placeholder: String?) in
         view.setPlaceholder(placeholder)
       }
@@ -39,6 +36,9 @@ public final class NovellaUiModule: Module {
       }
       AsyncFunction("clear") { (view: NovellaSearchBarView) in
         view.clear()
+      }
+      AsyncFunction("setQuery") { (view: NovellaSearchBarView, query: String) in
+        view.setQuery(query)
       }
     }
 

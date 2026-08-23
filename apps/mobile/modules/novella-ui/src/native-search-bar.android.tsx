@@ -8,7 +8,7 @@ export interface NativeSearchBarProps extends PrimitiveBaseProps {
   onQueryChange?: (query: string) => void;
   onSearch?: (query: string) => void;
   placeholder?: string;
-  query: string;
+  query?: string;
 }
 
 type NativeViewProps = Omit<NativeSearchBarProps, 'onQueryChange' | 'onSearch'> &
