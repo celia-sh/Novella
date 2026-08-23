@@ -5,13 +5,12 @@ import { useTranslation } from 'react-i18next';
 import {
   FlatList,
   StyleSheet,
-  useWindowDimensions,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
 import type { SkTypefaceFontProvider } from '@shopify/react-native-skia';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   findReaderBlockIndex,
   getAdjacentChapterSortNum,
@@ -62,6 +61,7 @@ import {
 } from '@/hooks/use-reader-chrome-visibility';
 import { useReaderFont } from '@/hooks/use-reader-font';
 import { useReaderImageDimensions } from '@/hooks/use-reader-image-dimensions';
+import { useReaderWindowDimensions } from '@/hooks/use-reader-window-dimensions';
 import { createFontManager } from '@/services/skia-font-loader';
 import { resolveReaderFontUrl } from '@/services/reader-font-loader';
 import { useReaderPositionSaver } from '@/hooks/use-reader-position-saver';
@@ -167,15 +167,30 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     readerTextColor = resolvedReaderColors.textColor;
   }
 
+  // Skia layout and tiling
+  const {
+    height: screenHeight,
+    revision: viewportRevision,
+    width: screenWidth,
+  } = useReaderWindowDimensions();
+  const safeAreaFrame = useSafeAreaFrame();
+  const stableSafeArea = useMemo(
+    () => ({ bottom: insets.bottom, top: insets.top }),
+    [safeAreaFrame.height, safeAreaFrame.width, safeAreaFrame.x, safeAreaFrame.y],
+  );
+  const useDoublePage = mode === 'paged' && shouldUseReaderDoublePage(screenWidth, screenHeight);
   const readerChromeInsets = createReaderChromeInsets(
     process.env.EXPO_OS,
-    insets.top,
-    insets.bottom,
+    stableSafeArea.top,
+    stableSafeArea.bottom,
   );
-
-  // Skia layout and tiling
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const useDoublePage = mode === 'paged' && shouldUseReaderDoublePage(screenWidth, screenHeight);
+  const readerViewportKey = [
+    screenWidth,
+    screenHeight,
+    readerChromeInsets.top,
+    readerChromeInsets.bottom,
+    useDoublePage,
+  ].join(':');
 
   // Slider rows update their local labels immediately, then commit settings on
   // release. Keep the expensive Skia work delayed and expose that delay as an
@@ -190,6 +205,14 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const requestedLayoutGeneration = `${settings.fontSize}-${settings.readerLineHeight}-${settings.readerParagraphSpacing}-${settings.readerSidePadding}-${settings.readerFirstLineIndent}`;
   const layoutGeneration = `${debouncedSettings.fontSize}-${debouncedSettings.lineHeight}-${debouncedSettings.paragraphSpacing}-${debouncedSettings.sidePadding}-${debouncedSettings.firstLineIndent}`;
   const [pendingReflowGeneration, setPendingReflowGeneration] = useState<string | null>(null);
+  const [pendingViewportReflowKey, setPendingViewportReflowKey] = useState<string | null>(null);
+  const viewportSignatureRef = useRef<{
+    chapterId: number;
+    key: string;
+    mode: ReaderMode;
+  } | null>(null);
+  const handledViewportRevisionRef = useRef(-1);
+  const viewportReflowPendingRef = useRef(false);
 
   useEffect(() => {
     if (requestedLayoutGeneration === layoutGeneration) {
@@ -229,11 +252,12 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     if (
       pendingMode === null
       && pendingReflowGeneration === null
+      && pendingViewportReflowKey === null
       && pendingModeRef.current === null
     ) {
       reflowOverlayRef.current?.hide();
     }
-  }, [pendingMode, pendingReflowGeneration]);
+  }, [pendingMode, pendingReflowGeneration, pendingViewportReflowKey]);
 
   // Create custom FontManager when custom font is loaded
   const [fontMgr, setFontMgr] = useState<SkTypefaceFontProvider | null>(null);
@@ -330,6 +354,18 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     return tileChapter(layout, screenHeight * 2.5);
   }, [layout, mode, readerChromeInsets.bottom, readerChromeInsets.top, screenHeight, screenWidth, useDoublePage]);
 
+  const previousViewportSignature = viewportSignatureRef.current;
+  const viewportChangePendingBeforeCommit = Boolean(
+    viewportRevision !== handledViewportRevisionRef.current
+    && content
+    && previousViewportSignature
+    && previousViewportSignature.chapterId === content.chapter.id
+    && previousViewportSignature.mode === mode
+    && previousViewportSignature.key !== readerViewportKey
+  );
+  const viewportTransitionVisible = viewportChangePendingBeforeCommit
+    || pendingViewportReflowKey !== null;
+
   const stagePosition = useCallback(
     (position: NovelProgressInput) => stageReaderProgress({ bookId, ...position }),
     [bookId],
@@ -355,6 +391,14 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offset = event.nativeEvent.contentOffset;
     lastScrollOffsetRef.current = offset;
+    const currentBlock = findVisibleReaderLayoutBlock({
+      layout,
+      mode,
+      offset,
+      tiles: presentation?.tiles ?? [],
+      viewportWidth: screenWidth,
+    });
+    if (currentBlock) lastPositionRef.current = currentBlock.locator;
     const nextPageIndex = resolveNovelPageProgress({
       mode,
       offset,
@@ -364,7 +408,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       viewportWidth: screenWidth,
     }).current - 1;
     setVisiblePageIndex((current) => current === nextPageIndex ? current : nextPageIndex);
-  }, [layout?.totalHeight, mode, presentation?.tiles.length, screenHeight, screenWidth]);
+  }, [layout, mode, presentation?.tiles, screenHeight, screenWidth]);
 
   const pageProgress = useMemo(() => resolveNovelPageProgress({
     mode,
@@ -395,6 +439,36 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     if (currentBlock) lastPositionRef.current = currentBlock.locator;
     return currentBlock;
   }, [resolveCurrentVisibleBlock]);
+
+  // A real viewport/frame change invalidates paragraph/page geometry. Cover
+  // that reflow with the same overlay used for settings changes; status-bar
+  // visibility alone never changes readerViewportKey.
+  useEffect(() => {
+    const chapterId = content?.chapter.id;
+    if (!chapterId || !layout || !presentation) {
+      handledViewportRevisionRef.current = viewportRevision;
+      viewportSignatureRef.current = null;
+      viewportReflowPendingRef.current = false;
+      setPendingViewportReflowKey(null);
+      reflowOverlayRef.current?.hide();
+      return;
+    }
+
+    const nextSignature = { chapterId, key: readerViewportKey, mode };
+    const previousSignature = viewportSignatureRef.current;
+    handledViewportRevisionRef.current = viewportRevision;
+    viewportSignatureRef.current = nextSignature;
+    if (
+      !previousSignature
+      || previousSignature.chapterId !== chapterId
+      || previousSignature.mode !== mode
+      || previousSignature.key === readerViewportKey
+    ) return;
+
+    viewportReflowPendingRef.current = true;
+    reflowOverlayRef.current?.show();
+    setPendingViewportReflowKey(readerViewportKey);
+  }, [content?.chapter.id, layout, mode, presentation, readerViewportKey, viewportRevision]);
 
   const handleScrollEnd = useCallback(() => {
     if (!content || activeChapterIdRef.current !== content.chapter.id) return;
@@ -467,15 +541,21 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     const modeTransitionReady = pendingMode === null || pendingMode === mode;
     const reflowTransitionReady =
       pendingReflowGeneration === null || pendingReflowGeneration === layoutGeneration;
+    const viewportTransitionReady = !viewportChangePendingBeforeCommit
+      && (
+        !viewportReflowPendingRef.current
+        || pendingViewportReflowKey === readerViewportKey
+      );
     if (
       !modeTransitionReady
       || !reflowTransitionReady
+      || !viewportTransitionReady
       || !content
       || !layout
       || !presentation
       || blocks.length === 0
     ) return;
-    const restoreKey = `${content.chapter.id}:${mode}:${layoutGeneration}:${layout.totalHeight}`;
+    const restoreKey = `${content.chapter.id}:${mode}:${layoutGeneration}:${layout.totalHeight}:${readerViewportKey}`;
     if (restoredPresentationRef.current === restoreKey) return;
 
     const currentLocator = lastPositionRef.current;
@@ -524,12 +604,23 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
 
       // Keep the native spinner visible while the new list applies its jump.
       // The following frame reveals the already-positioned presentation.
-      if (pendingMode === mode || pendingReflowGeneration === layoutGeneration) {
+      const viewportReflowReady = viewportReflowPendingRef.current
+        && pendingViewportReflowKey === readerViewportKey;
+      if (
+        pendingMode === mode
+        || pendingReflowGeneration === layoutGeneration
+        || viewportReflowReady
+      ) {
         revealFrame = requestAnimationFrame(() => {
           if (pendingMode === mode) pendingModeRef.current = null;
           setPendingMode((current) => current === mode ? null : current);
           setPendingReflowGeneration((current) =>
             current === layoutGeneration ? null : current);
+          if (viewportReflowReady) {
+            viewportReflowPendingRef.current = false;
+            setPendingViewportReflowKey((current) =>
+              current === readerViewportKey ? null : current);
+          }
           reflowOverlayRef.current?.hide();
         });
       }
@@ -547,8 +638,13 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     openPosition,
     pendingMode,
     pendingReflowGeneration,
+    pendingViewportReflowKey,
     presentation,
+    readerViewportKey,
+    screenHeight,
     screenWidth,
+    viewportChangePendingBeforeCommit,
+    viewportRevision,
   ]);
 
   const saveCurrentPosition = useCallback(async () => {
@@ -857,6 +953,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
           ref={reflowOverlayRef}
           accentColor={colors.accent as string}
           backgroundColor={readerBackground}
+          forceVisible={viewportTransitionVisible}
           textColor={readerTextColor}
         />
       </View>

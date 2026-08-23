@@ -27,6 +27,7 @@ export interface ReaderReflowOverlayHostHandle {
 interface ReaderReflowOverlayHostProps {
   accentColor: string;
   backgroundColor: string;
+  forceVisible?: boolean;
   textColor: string;
 }
 
@@ -34,14 +35,19 @@ interface ReaderReflowOverlayHostProps {
 export const ReaderReflowOverlayHost = forwardRef<
   ReaderReflowOverlayHostHandle,
   ReaderReflowOverlayHostProps
->(function ReaderReflowOverlayHost({ accentColor, backgroundColor, textColor }, ref) {
-  const [visible, setVisible] = useState(false);
+>(function ReaderReflowOverlayHost({
+  accentColor,
+  backgroundColor,
+  forceVisible = false,
+  textColor,
+}, ref) {
+  const [imperativeVisible, setImperativeVisible] = useState(false);
   useImperativeHandle(ref, () => ({
-    hide: () => setVisible(false),
-    show: () => setVisible(true),
+    hide: () => setImperativeVisible(false),
+    show: () => setImperativeVisible(true),
   }), []);
 
-  if (!visible) return null;
+  if (!forceVisible && !imperativeVisible) return null;
   return (
     <View
       accessibilityViewIsModal
