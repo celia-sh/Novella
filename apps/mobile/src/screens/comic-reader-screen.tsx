@@ -691,6 +691,11 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     onTouchStart,
   } = useReaderChromeVisibility(handlePagedTap, handlePageSwipe);
 
+  const topBarBlurContentReady = !loading
+    && activeChapter !== null
+    && activeSlots.length > 0
+    && error === null;
+
   const openChapters = useCallback(() => {
     router.push({
       pathname: '/reader/[bookId]/chapters',
@@ -825,6 +830,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
         })}
         title={activeChapter?.chapter.title ?? t('titles.comicReader')}
         topBarBlurAppearance="light"
+        topBarBlurContentReady={topBarBlurContentReady}
       />
       <ReaderChapterNavigation
         chromeHidden={chromeHidden}

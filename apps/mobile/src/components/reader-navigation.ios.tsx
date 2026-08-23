@@ -16,6 +16,7 @@ export function ReaderNavigation({
   title,
   chromeHidden,
   topBarBlurAppearance,
+  topBarBlurContentReady = true,
 }: ReaderNavigationProps) {
   const { t } = useTranslation('reader');
   const {
@@ -50,7 +51,7 @@ export function ReaderNavigation({
           title,
         }}
       />
-      {shouldRenderReaderEdgeBlur(mode) ? (
+      {shouldRenderReaderEdgeBlur(mode, topBarBlurContentReady) ? (
         <IosTopBarBackground
           {...(topBarBlurAppearance
             ? { blurConfig: { appearance: topBarBlurAppearance } }

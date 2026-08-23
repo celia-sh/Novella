@@ -29,8 +29,11 @@ export function resolveReaderChapterBarOrder(
     : { left: 'previous', right: 'next' };
 }
 
-export function shouldRenderReaderEdgeBlur(mode: ReaderMode): boolean {
-  return mode === 'scroll';
+export function shouldRenderReaderEdgeBlur(
+  mode: ReaderMode,
+  contentReady = true,
+): boolean {
+  return mode === 'scroll' && contentReady;
 }
 
 export function createReaderChromeInsets(

@@ -18,9 +18,11 @@ test('reader chapter bar follows physical reading direction', () => {
   });
 });
 
-test('reader edge blur stays on for scroll mode and off for paged mode', () => {
+test('reader edge blur stays on for ready scroll content and off for paged or loading content', () => {
   assert.equal(shouldRenderReaderEdgeBlur('scroll'), true);
+  assert.equal(shouldRenderReaderEdgeBlur('scroll', false), false);
   assert.equal(shouldRenderReaderEdgeBlur('paged'), false);
+  assert.equal(shouldRenderReaderEdgeBlur('paged', true), false);
 });
 
 test('reader chrome insets include overlay controls and safe areas', () => {
