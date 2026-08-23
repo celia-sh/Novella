@@ -15,6 +15,7 @@ export function ReaderNavigation({
   onOpenSettings,
   title,
   chromeHidden,
+  topBarBlurAppearance,
 }: ReaderNavigationProps) {
   const { t } = useTranslation('reader');
   const {
@@ -49,7 +50,13 @@ export function ReaderNavigation({
           title,
         }}
       />
-      {shouldRenderReaderEdgeBlur(mode) && !chromeHidden ? <IosTopBarBackground /> : null}
+      {shouldRenderReaderEdgeBlur(mode) ? (
+        <IosTopBarBackground
+          {...(topBarBlurAppearance
+            ? { blurConfig: { appearance: topBarBlurAppearance } }
+            : {})}
+        />
+      ) : null}
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel={t('accessibility.chapterList')}

@@ -21,6 +21,13 @@ export function resolveReaderReflowOpenPosition(
   return currentLocator === null ? initialOpenPosition : 'saved';
 }
 
+export function resolveReaderScrollRestoreOffset(
+  blockY: number,
+  topInset: number,
+): number {
+  return Math.max(0, blockY - Math.max(0, topInset));
+}
+
 /** Resolve the block currently anchored by the native list before reflow. */
 export function findVisibleReaderLayoutBlock({
   layout,

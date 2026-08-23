@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   resolveReaderBoundaryAxis,
   resolveReaderBoundaryChapterAction,
+  resolveReaderPagedBoundaryChapterAction,
 } from './reader-boundary-gesture.ts';
 
 test('boundary gestures require an outward release at the chapter edge', () => {
@@ -27,6 +28,52 @@ test('short content never turns a boundary swipe into a chapter change', () => {
     offset: 0,
     velocity: -1,
     viewportExtent: 800,
+  }), null);
+});
+
+test('paged boundary gestures reverse physical direction in RTL', () => {
+  const base = {
+    displayCount: 5,
+    threshold: 24,
+  };
+  assert.equal(resolveReaderPagedBoundaryChapterAction({
+    ...base,
+    deltaX: -80,
+    direction: 'ltr',
+    displayIndex: 0,
+  }), null);
+  assert.equal(resolveReaderPagedBoundaryChapterAction({
+    ...base,
+    deltaX: -80,
+    direction: 'ltr',
+    displayIndex: 4,
+  }), 'next');
+  assert.equal(resolveReaderPagedBoundaryChapterAction({
+    ...base,
+    deltaX: -80,
+    direction: 'rtl',
+    displayIndex: 0,
+  }), 'previous');
+  assert.equal(resolveReaderPagedBoundaryChapterAction({
+    ...base,
+    deltaX: 80,
+    direction: 'rtl',
+    displayIndex: 4,
+  }), 'next');
+});
+
+test('paged boundary gestures ignore swipes away from the matching edge', () => {
+  assert.equal(resolveReaderPagedBoundaryChapterAction({
+    deltaX: 80,
+    direction: 'ltr',
+    displayCount: 5,
+    displayIndex: 4,
+  }), null);
+  assert.equal(resolveReaderPagedBoundaryChapterAction({
+    deltaX: -80,
+    direction: 'rtl',
+    displayCount: 5,
+    displayIndex: 4,
   }), null);
 });
 

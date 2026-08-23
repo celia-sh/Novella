@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   findVisibleReaderLayoutBlock,
   resolveReaderReflowOpenPosition,
+  resolveReaderScrollRestoreOffset,
 } from './reader-reflow-position.ts';
 
 const blocks = [
@@ -18,6 +19,10 @@ test('reflow uses the live locator instead of replaying chapter-start intent', (
   assert.equal(resolveReaderReflowOpenPosition('start', null), 'start');
 });
 
+test('scroll restore keeps the block below the top chrome inset', () => {
+  assert.equal(resolveReaderScrollRestoreOffset(119, 119), 0);
+  assert.equal(resolveReaderScrollRestoreOffset(319, 119), 200);
+});
 test('scroll reflow captures the top block with visible content', () => {
   const block = findVisibleReaderLayoutBlock({
     layout: { blocks },

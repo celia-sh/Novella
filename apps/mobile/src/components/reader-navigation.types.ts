@@ -1,3 +1,4 @@
+import type { IosProgressiveBlurAppearance } from '@/components/ios-progressive-blur-config';
 import type { ReaderMode } from '@novella/reader-engine';
 
 export interface ReaderNavigationProps {
@@ -10,6 +11,7 @@ export interface ReaderNavigationProps {
   onOpenSettings: () => void;
   title: string;
   chromeHidden: boolean;
+  topBarBlurAppearance?: IosProgressiveBlurAppearance;
 }
 
 export interface ReaderChapterNavigationProps {

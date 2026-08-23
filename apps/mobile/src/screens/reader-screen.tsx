@@ -43,16 +43,23 @@ import {
   type ReaderImagePreviewSource,
 } from '@/components/reader-image-preview';
 import { ReaderNavigation } from '@/components/reader-navigation';
-import { ReaderPageTapOverlay } from '@/components/reader-page-tap-overlay';
 import { ReaderSkiaTile } from '@/components/reader-skia-tile';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
 import { createReaderChromeInsets } from '@/services/reader-chrome-layout';
-import { resolveReaderBoundaryAxis, resolveReaderBoundaryChapterAction } from '@/services/reader-boundary-gesture';
+import {
+  resolveReaderBoundaryAxis,
+  resolveReaderBoundaryChapterAction,
+  resolveReaderPagedBoundaryChapterAction,
+} from '@/services/reader-boundary-gesture';
 import { shouldUseReaderDoublePage } from '@/services/reader-display-layout';
 import { resolveNovelPageProgress } from '@/services/reader-page-progress';
 import { useReaderChapter, type ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
-import { useReaderChromeVisibility } from '@/hooks/use-reader-chrome-visibility';
+import {
+  useReaderChromeVisibility,
+  type ReaderPageSwipeHandler,
+  type ReaderPageTapHandler,
+} from '@/hooks/use-reader-chrome-visibility';
 import { useReaderFont } from '@/hooks/use-reader-font';
 import { useReaderImageDimensions } from '@/hooks/use-reader-image-dimensions';
 import { createFontManager } from '@/services/skia-font-loader';
@@ -67,6 +74,7 @@ import {
 import {
   findVisibleReaderLayoutBlock,
   resolveReaderReflowOpenPosition,
+  resolveReaderScrollRestoreOffset,
 } from '@/services/reader-reflow-position';
 import { updateAppSettings, useAppSettings } from '@/services/settings';
 import { useReaderLifecycleSave } from '@/hooks/use-reader-lifecycle-save';
@@ -94,13 +102,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const route = useRoute();
   const { colors } = useAppTheme();
   const [mode, setMode] = useState<ReaderMode>(settings.novelReaderViewMode);
-  const {
-    hidden: chromeHidden,
-    onTouchCancel,
-    onTouchEnd,
-    onTouchMove,
-    onTouchStart,
-  } = useReaderChromeVisibility();
   const [pendingMode, setPendingMode] = useState<ReaderMode | null>(null);
   const pendingModeRef = useRef<ReaderMode | null>(null);
   const modeSwitchFrameRef = useRef<number | null>(null);
@@ -505,7 +506,10 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         setVisiblePageIndex(safeIndex);
         flatListRef.current?.scrollToIndex({ animated: false, index: safeIndex });
       } else {
-        const offset = Math.max(0, targetBlock.y - 1);
+        const offset = resolveReaderScrollRestoreOffset(
+          targetBlock.y,
+          readerChromeInsets.top,
+        );
         lastScrollOffsetRef.current = { x: 0, y: offset };
         setVisiblePageIndex(resolveNovelPageProgress({
           mode: 'scroll',
@@ -582,16 +586,15 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   }, [navigation, saveCurrentPosition]);
 
   const handleScrollEndDrag = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (mode === 'paged') return;
     if (settings.readerChapterSwipeNavigation) {
       const nativeEvent = event.nativeEvent;
       const action = resolveReaderBoundaryChapterAction({
         axis: resolveReaderBoundaryAxis(mode),
-        contentExtent: mode === 'paged' ? nativeEvent.contentSize.width : nativeEvent.contentSize.height,
-        offset: mode === 'paged' ? nativeEvent.contentOffset.x : nativeEvent.contentOffset.y,
-        velocity: mode === 'paged' ? nativeEvent.velocity?.x ?? 0 : nativeEvent.velocity?.y ?? 0,
-        viewportExtent: mode === 'paged'
-          ? nativeEvent.layoutMeasurement.width
-          : nativeEvent.layoutMeasurement.height,
+        contentExtent: nativeEvent.contentSize.height,
+        offset: nativeEvent.contentOffset.y,
+        velocity: nativeEvent.velocity?.y ?? 0,
+        viewportExtent: nativeEvent.layoutMeasurement.height,
       });
       if (action === 'previous' && previousSortNum !== null) {
         openChapter(previousSortNum, 'end');
@@ -604,6 +607,91 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     }
     handleScrollEnd();
   }, [handleScrollEnd, mode, nextSortNum, openChapter, previousSortNum, settings.readerChapterSwipeNavigation]);
+
+  const handlePageTap = useCallback<ReaderPageTapHandler>((event, isChromeHidden) => {
+    if (isChromeHidden || mode !== 'paged' || !settings.readerPagedTapNavigation || !presentation) {
+      return false;
+    }
+    const x = event.nativeEvent.pageX;
+    const direction = x <= screenWidth * 0.3
+      ? -1
+      : x >= screenWidth * 0.7
+        ? 1
+        : null;
+    if (direction === null) return false;
+
+    const currentIndex = resolveNovelPageProgress({
+      mode,
+      offset: lastScrollOffsetRef.current,
+      pagedPageCount: presentation.tiles.length,
+      totalHeight: layout?.totalHeight ?? 0,
+      viewportHeight: screenHeight,
+      viewportWidth: screenWidth,
+    }).current - 1;
+    const targetIndex = Math.min(
+      Math.max(0, currentIndex + direction),
+      Math.max(0, presentation.tiles.length - 1),
+    );
+    if (targetIndex !== currentIndex) {
+      turnNovelPage(direction);
+      return true;
+    }
+
+    if (settings.readerChapterSwipeNavigation) {
+      if (direction < 0 && previousSortNum !== null) {
+        openChapter(previousSortNum, 'end');
+      } else if (direction > 0 && nextSortNum !== null) {
+        openChapter(nextSortNum, 'start');
+      }
+    }
+    return true;
+  }, [
+    layout?.totalHeight,
+    mode,
+    nextSortNum,
+    openChapter,
+    presentation,
+    previousSortNum,
+    screenHeight,
+    screenWidth,
+    settings.readerChapterSwipeNavigation,
+    settings.readerPagedTapNavigation,
+    turnNovelPage,
+  ]);
+  const handlePageSwipe = useCallback<ReaderPageSwipeHandler>((_event, deltaX, deltaY) => {
+    if (
+      mode !== 'paged'
+      || !settings.readerChapterSwipeNavigation
+      || Math.abs(deltaX) <= Math.abs(deltaY)
+      || !presentation
+    ) return;
+    const action = resolveReaderPagedBoundaryChapterAction({
+      deltaX,
+      direction: 'ltr',
+      displayCount: presentation.tiles.length,
+      displayIndex: visiblePageIndex,
+    });
+    if (action === 'previous' && previousSortNum !== null) {
+      openChapter(previousSortNum, 'end');
+    } else if (action === 'next' && nextSortNum !== null) {
+      openChapter(nextSortNum, 'start');
+    }
+  }, [
+    mode,
+    nextSortNum,
+    openChapter,
+    presentation,
+    previousSortNum,
+    settings.readerChapterSwipeNavigation,
+    visiblePageIndex,
+  ]);
+  const {
+    hidden: chromeHidden,
+    onTouchCancel,
+    onTouchEnd,
+    onTouchMove,
+    onTouchStart,
+  } = useReaderChromeVisibility(handlePageTap, handlePageSwipe);
 
   const beginModeTransition = useCallback((nextMode: ReaderMode, persist: boolean) => {
     if (nextMode === mode || pendingModeRef.current !== null) return;
@@ -761,15 +849,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               style={styles.reader}
               updateCellsBatchingPeriod={0}
               windowSize={5}
-            />
-            <ReaderPageTapOverlay
-              disabled={
-                mode !== 'paged'
-                || !settings.readerPagedTapNavigation
-                || chromeHidden
-              }
-              onLeft={() => turnNovelPage(-1)}
-              onRight={() => turnNovelPage(1)}
             />
             <NativeScrollEdgeMarker key={`reader-edge:${mode}`} hidesAllEdgeEffects />
           </View>
