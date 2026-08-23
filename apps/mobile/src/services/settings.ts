@@ -63,10 +63,8 @@ export interface AppSettings {
   oledBlack: boolean;
   novelReaderViewMode: ReaderViewMode;
   comicReaderViewMode: ReaderViewMode;
-  novelReaderChapterSwipeNavigation: boolean;
-  comicReaderChapterSwipeNavigation: boolean;
-  novelReaderPagedTapNavigation: boolean;
-  comicReaderPagedTapNavigation: boolean;
+  readerChapterSwipeNavigation: boolean;
+  readerPagedTapNavigation: boolean;
   readerFirstLineIndent: boolean;
   readerImagePreviewOpenOnLongPress: boolean;
   readerLineHeight: number;
@@ -104,10 +102,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   readerPreloadWindow: 3,
   novelReaderViewMode: 'paged',
   comicReaderViewMode: 'paged',
-  novelReaderChapterSwipeNavigation: false,
-  comicReaderChapterSwipeNavigation: false,
-  novelReaderPagedTapNavigation: false,
-  comicReaderPagedTapNavigation: true,
+  readerChapterSwipeNavigation: false,
+  readerPagedTapNavigation: true,
   readerSidePadding: 30,
   seedColorValue: DEFAULT_THEME_SEED,
   seriesSearchMode: 'system',
@@ -194,6 +190,20 @@ function decodeSettings(value: unknown): AppSettings {
   const comicReaderViewMode = isReaderViewMode(candidate.comicReaderViewMode)
     ? candidate.comicReaderViewMode
     : legacyReaderViewMode ?? DEFAULT_SETTINGS.comicReaderViewMode;
+  const readerChapterSwipeNavigation = typeof candidate.readerChapterSwipeNavigation === 'boolean'
+    ? candidate.readerChapterSwipeNavigation
+    : typeof candidate.novelReaderChapterSwipeNavigation === 'boolean'
+      || typeof candidate.comicReaderChapterSwipeNavigation === 'boolean'
+      ? candidate.novelReaderChapterSwipeNavigation === true
+        || candidate.comicReaderChapterSwipeNavigation === true
+      : DEFAULT_SETTINGS.readerChapterSwipeNavigation;
+  const readerPagedTapNavigation = typeof candidate.readerPagedTapNavigation === 'boolean'
+    ? candidate.readerPagedTapNavigation
+    : typeof candidate.novelReaderPagedTapNavigation === 'boolean'
+      || typeof candidate.comicReaderPagedTapNavigation === 'boolean'
+      ? candidate.novelReaderPagedTapNavigation === true
+        || candidate.comicReaderPagedTapNavigation === true
+      : DEFAULT_SETTINGS.readerPagedTapNavigation;
   return {
     ...DEFAULT_SETTINGS,
     ...(typeof candidate.bookDetailCacheEnabled === 'boolean'
@@ -242,18 +252,8 @@ function decodeSettings(value: unknown): AppSettings {
       : {}),
     novelReaderViewMode,
     comicReaderViewMode,
-    ...(typeof candidate.novelReaderChapterSwipeNavigation === 'boolean'
-      ? { novelReaderChapterSwipeNavigation: candidate.novelReaderChapterSwipeNavigation }
-      : {}),
-    ...(typeof candidate.comicReaderChapterSwipeNavigation === 'boolean'
-      ? { comicReaderChapterSwipeNavigation: candidate.comicReaderChapterSwipeNavigation }
-      : {}),
-    ...(typeof candidate.novelReaderPagedTapNavigation === 'boolean'
-      ? { novelReaderPagedTapNavigation: candidate.novelReaderPagedTapNavigation }
-      : {}),
-    ...(typeof candidate.comicReaderPagedTapNavigation === 'boolean'
-      ? { comicReaderPagedTapNavigation: candidate.comicReaderPagedTapNavigation }
-      : {}),
+    readerChapterSwipeNavigation,
+    readerPagedTapNavigation,
     ...(typeof candidate.readerImagePreviewOpenOnLongPress === 'boolean'
       ? { readerImagePreviewOpenOnLongPress: candidate.readerImagePreviewOpenOnLongPress }
       : {}),

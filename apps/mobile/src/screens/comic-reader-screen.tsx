@@ -546,7 +546,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   }, [activeChapter]);
   const isPagedRtl = settings.comicPagedDirection === 'rtl';
   const handleBoundaryChapterGesture = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (!settings.comicReaderChapterSwipeNavigation) return;
+    if (!settings.readerChapterSwipeNavigation) return;
     const nativeEvent = event.nativeEvent;
     const rawAction = resolveReaderBoundaryChapterAction({
       axis: resolveReaderBoundaryAxis(mode),
@@ -565,7 +565,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     } else if (action === 'next' && nextChapter) {
       openChapter(nextChapter.sortNum, 'start');
     }
-  }, [isPagedRtl, mode, nextChapter, openChapter, previousChapter, settings.comicReaderChapterSwipeNavigation]);
+  }, [isPagedRtl, mode, nextChapter, openChapter, previousChapter, settings.readerChapterSwipeNavigation]);
   const turnComicPage = useCallback((direction: -1 | 1) => {
     if (mode !== 'paged' || activeSlots.length === 0) return;
     const currentDisplay = pagedTapTargetRef.current
@@ -677,7 +677,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           windowSize={COMIC_PAGED_WINDOW_SIZE}
         />
         <ReaderPageTapOverlay
-          disabled={!settings.comicReaderPagedTapNavigation || chromeHidden}
+          disabled={!settings.readerPagedTapNavigation || chromeHidden}
           onLeft={() => turnComicPage(isPagedRtl ? 1 : -1)}
           onRight={() => turnComicPage(isPagedRtl ? -1 : 1)}
         />

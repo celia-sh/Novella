@@ -312,7 +312,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       imageDimensions: imageGeometry.dimensions,
       ...(fontMgr ? { fontMgr } : {}),
     });
-  }, [blocks, screenWidth, useDoublePage, debouncedSettings, fontLoading, content, readerFont, readerBackground, readerTextColor, readerChromeInsets, fontMgr, requiresReaderFont, fontMgrLoading, imageGeometry.dimensions]);
+  }, [blocks, screenWidth, useDoublePage, debouncedSettings, fontLoading, content, readerFont.family, readerBackground, readerTextColor, readerChromeInsets.bottom, readerChromeInsets.top, fontMgr, requiresReaderFont, fontMgrLoading, imageGeometry.dimensions]);
 
   // Native virtualization owns mounted tile/page lifetime in both modes.
   const presentation = useMemo(() => {
@@ -582,7 +582,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   }, [navigation, saveCurrentPosition]);
 
   const handleScrollEndDrag = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (settings.novelReaderChapterSwipeNavigation) {
+    if (settings.readerChapterSwipeNavigation) {
       const nativeEvent = event.nativeEvent;
       const action = resolveReaderBoundaryChapterAction({
         axis: resolveReaderBoundaryAxis(mode),
@@ -603,7 +603,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       }
     }
     handleScrollEnd();
-  }, [handleScrollEnd, mode, nextSortNum, openChapter, previousSortNum, settings.novelReaderChapterSwipeNavigation]);
+  }, [handleScrollEnd, mode, nextSortNum, openChapter, previousSortNum, settings.readerChapterSwipeNavigation]);
 
   const beginModeTransition = useCallback((nextMode: ReaderMode, persist: boolean) => {
     if (nextMode === mode || pendingModeRef.current !== null) return;
@@ -765,7 +765,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
             <ReaderPageTapOverlay
               disabled={
                 mode !== 'paged'
-                || !settings.novelReaderPagedTapNavigation
+                || !settings.readerPagedTapNavigation
                 || chromeHidden
               }
               onLeft={() => turnNovelPage(-1)}

@@ -129,7 +129,7 @@ export function ReaderSettingsContent() {
         />
         <NativePickerRow
           description={t('reader.behavior.novelModeDescription')}
-          icon="readingMode"
+          icon="reader"
           onValueChange={(value) => void updateAppSettings({ novelReaderViewMode: value })}
           options={[
             { label: t('reader.behavior.modeOptions.paged'), value: 'paged' },
@@ -140,7 +140,7 @@ export function ReaderSettingsContent() {
         />
         <NativePickerRow
           description={t('reader.behavior.comicModeDescription')}
-          icon="readingMode"
+          icon="books"
           onValueChange={(value) => void updateAppSettings({ comicReaderViewMode: value })}
           options={[
             { label: t('reader.behavior.modeOptions.paged'), value: 'paged' },
@@ -150,32 +150,18 @@ export function ReaderSettingsContent() {
           title={t('reader.behavior.comicModeTitle')}
         />
         <NativeToggleRow
-          description={t('reader.behavior.novelChapterSwipeDescription')}
+          description={t('reader.behavior.chapterSwipeDescription')}
           icon="progress"
-          onValueChange={(value) => void updateAppSettings({ novelReaderChapterSwipeNavigation: value })}
-          title={t('reader.behavior.novelChapterSwipeTitle')}
-          value={settings.novelReaderChapterSwipeNavigation}
+          onValueChange={(value) => void updateAppSettings({ readerChapterSwipeNavigation: value })}
+          title={t('reader.behavior.chapterSwipeTitle')}
+          value={settings.readerChapterSwipeNavigation}
         />
         <NativeToggleRow
-          description={t('reader.behavior.comicChapterSwipeDescription')}
-          icon="progress"
-          onValueChange={(value) => void updateAppSettings({ comicReaderChapterSwipeNavigation: value })}
-          title={t('reader.behavior.comicChapterSwipeTitle')}
-          value={settings.comicReaderChapterSwipeNavigation}
-        />
-        <NativeToggleRow
-          description={t('reader.behavior.novelPagedTapDescription')}
+          description={t('reader.behavior.pagedTapDescription')}
           icon="readingMode"
-          onValueChange={(value) => void updateAppSettings({ novelReaderPagedTapNavigation: value })}
-          title={t('reader.behavior.novelPagedTapTitle')}
-          value={settings.novelReaderPagedTapNavigation}
-        />
-        <NativeToggleRow
-          description={t('reader.behavior.comicPagedTapDescription')}
-          icon="readingMode"
-          onValueChange={(value) => void updateAppSettings({ comicReaderPagedTapNavigation: value })}
-          title={t('reader.behavior.comicPagedTapTitle')}
-          value={settings.comicReaderPagedTapNavigation}
+          onValueChange={(value) => void updateAppSettings({ readerPagedTapNavigation: value })}
+          title={t('reader.behavior.pagedTapTitle')}
+          value={settings.readerPagedTapNavigation}
         />
         <NativeSliderRow
           description={t('reader.behavior.preloadDescription')}
