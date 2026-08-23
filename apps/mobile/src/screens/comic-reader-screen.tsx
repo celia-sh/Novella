@@ -10,6 +10,8 @@ import {
   Text,
   useWindowDimensions,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   type ViewToken,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -55,6 +57,7 @@ import { useReaderChromeVisibility } from '@/hooks/use-reader-chrome-visibility'
 import { useReaderLifecycleSave } from '@/hooks/use-reader-lifecycle-save';
 import { useReaderPositionSaver } from '@/hooks/use-reader-position-saver';
 import { updateAppSettings, useAppSettings } from '@/services/settings';
+import { resolveReaderBoundaryAxis, resolveReaderBoundaryChapterAction } from '@/services/reader-boundary-gesture';
 import { resolveComicPageProgress } from '@/services/reader-page-progress';
 import { useAppTheme } from '@/theme/app-theme';
 
@@ -541,6 +544,27 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     void updateAppSettings({ comicReaderViewMode: nextMode });
   }, [activeChapter]);
   const isPagedRtl = settings.comicPagedDirection === 'rtl';
+  const handleBoundaryChapterGesture = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!settings.comicReaderChapterSwipeNavigation) return;
+    const nativeEvent = event.nativeEvent;
+    const rawAction = resolveReaderBoundaryChapterAction({
+      axis: resolveReaderBoundaryAxis(mode),
+      contentExtent: mode === 'paged' ? nativeEvent.contentSize.width : nativeEvent.contentSize.height,
+      offset: mode === 'paged' ? nativeEvent.contentOffset.x : nativeEvent.contentOffset.y,
+      velocity: mode === 'paged' ? nativeEvent.velocity?.x ?? 0 : nativeEvent.velocity?.y ?? 0,
+      viewportExtent: mode === 'paged'
+        ? nativeEvent.layoutMeasurement.width
+        : nativeEvent.layoutMeasurement.height,
+    });
+    const action = mode === 'paged' && isPagedRtl
+      ? rawAction === 'previous' ? 'next' : rawAction === 'next' ? 'previous' : null
+      : rawAction;
+    if (action === 'previous' && previousChapter) {
+      openChapter(previousChapter.sortNum, 'end');
+    } else if (action === 'next' && nextChapter) {
+      openChapter(nextChapter.sortNum, 'start');
+    }
+  }, [isPagedRtl, mode, nextChapter, openChapter, previousChapter, settings.comicReaderChapterSwipeNavigation]);
   const handleContentTap = useCallback((x: number, y: number) => {
     let direction = resolveComicTapDirection(mode, x, y, width, windowHeight);
     if (mode === 'paged' && isPagedRtl && direction !== null) direction = direction === 1 ? -1 : 1;
@@ -639,6 +663,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
               recordVisiblePage(page.index, display.pages.map((item) => item.index));
             }
           }}
+          onScrollEndDrag={handleBoundaryChapterGesture}
           onViewableItemsChanged={onPagedViewableItemsChanged}
           updateCellsBatchingPeriod={0}
           viewabilityConfig={COMIC_PAGED_VIEWABILITY_CONFIG}
@@ -681,6 +706,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           onMomentumScrollEnd={() => {
             scrollTapTargetRef.current = null;
           }}
+          onScrollEndDrag={handleBoundaryChapterGesture}
           onViewableItemsChanged={onScrollViewableItemsChanged}
           updateCellsBatchingPeriod={32}
           viewabilityConfig={COMIC_SCROLL_VIEWABILITY_CONFIG}

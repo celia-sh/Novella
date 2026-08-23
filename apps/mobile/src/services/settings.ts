@@ -63,6 +63,8 @@ export interface AppSettings {
   oledBlack: boolean;
   novelReaderViewMode: ReaderViewMode;
   comicReaderViewMode: ReaderViewMode;
+  novelReaderChapterSwipeNavigation: boolean;
+  comicReaderChapterSwipeNavigation: boolean;
   readerFirstLineIndent: boolean;
   readerImagePreviewOpenOnLongPress: boolean;
   readerLineHeight: number;
@@ -100,6 +102,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   readerPreloadWindow: 3,
   novelReaderViewMode: 'paged',
   comicReaderViewMode: 'paged',
+  novelReaderChapterSwipeNavigation: false,
+  comicReaderChapterSwipeNavigation: false,
   readerSidePadding: 30,
   seedColorValue: DEFAULT_THEME_SEED,
   seriesSearchMode: 'system',
@@ -234,6 +238,12 @@ function decodeSettings(value: unknown): AppSettings {
       : {}),
     novelReaderViewMode,
     comicReaderViewMode,
+    ...(typeof candidate.novelReaderChapterSwipeNavigation === 'boolean'
+      ? { novelReaderChapterSwipeNavigation: candidate.novelReaderChapterSwipeNavigation }
+      : {}),
+    ...(typeof candidate.comicReaderChapterSwipeNavigation === 'boolean'
+      ? { comicReaderChapterSwipeNavigation: candidate.comicReaderChapterSwipeNavigation }
+      : {}),
     ...(typeof candidate.readerImagePreviewOpenOnLongPress === 'boolean'
       ? { readerImagePreviewOpenOnLongPress: candidate.readerImagePreviewOpenOnLongPress }
       : {}),

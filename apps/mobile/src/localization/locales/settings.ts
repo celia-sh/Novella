@@ -146,6 +146,10 @@ export const zhCNSettings = {
       novelModeDescription: '单独保存小说阅读器的滚动或分页选择',
       comicModeTitle: '漫画阅读模式',
       comicModeDescription: '单独保存漫画阅读器的滚动或分页选择',
+      novelChapterSwipeTitle: '小说章节切换手势',
+      novelChapterSwipeDescription: '在章节开头或结尾向外滑动切换章节',
+      comicChapterSwipeTitle: '漫画章节切换手势',
+      comicChapterSwipeDescription: '在章节开头或结尾向外滑动切换章节',
       modeOptions: {
         paged: '翻页',
         scroll: '滚动',
@@ -473,6 +477,10 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
       novelModeDescription: '單獨保存小說閱讀器的捲動或分頁選擇',
       comicModeTitle: '漫畫閱讀模式',
       comicModeDescription: '單獨保存漫畫閱讀器的捲動或分頁選擇',
+      novelChapterSwipeTitle: '小說章節切換手勢',
+      novelChapterSwipeDescription: '在章節開頭或結尾向外滑動切換章節',
+      comicChapterSwipeTitle: '漫畫章節切換手勢',
+      comicChapterSwipeDescription: '在章節開頭或結尾向外滑動切換章節',
       modeOptions: {
         paged: '翻頁',
         scroll: '捲動',

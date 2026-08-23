@@ -149,6 +149,20 @@ export function ReaderSettingsContent() {
           selectedValue={settings.comicReaderViewMode}
           title={t('reader.behavior.comicModeTitle')}
         />
+        <NativeToggleRow
+          description={t('reader.behavior.novelChapterSwipeDescription')}
+          icon="progress"
+          onValueChange={(value) => void updateAppSettings({ novelReaderChapterSwipeNavigation: value })}
+          title={t('reader.behavior.novelChapterSwipeTitle')}
+          value={settings.novelReaderChapterSwipeNavigation}
+        />
+        <NativeToggleRow
+          description={t('reader.behavior.comicChapterSwipeDescription')}
+          icon="progress"
+          onValueChange={(value) => void updateAppSettings({ comicReaderChapterSwipeNavigation: value })}
+          title={t('reader.behavior.comicChapterSwipeTitle')}
+          value={settings.comicReaderChapterSwipeNavigation}
+        />
         <NativeSliderRow
           description={t('reader.behavior.preloadDescription')}
           formatValue={(value) => {
