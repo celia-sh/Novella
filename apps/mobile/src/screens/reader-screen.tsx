@@ -608,8 +608,8 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     handleScrollEnd();
   }, [handleScrollEnd, mode, nextSortNum, openChapter, previousSortNum, settings.readerChapterSwipeNavigation]);
 
-  const handlePageTap = useCallback<ReaderPageTapHandler>((event, isChromeHidden) => {
-    if (isChromeHidden || mode !== 'paged' || !settings.readerPagedTapNavigation || !presentation) {
+  const handlePageTap = useCallback<ReaderPageTapHandler>((event) => {
+    if (mode !== 'paged' || !settings.readerPagedTapNavigation || !presentation) {
       return false;
     }
     const x = event.nativeEvent.pageX;

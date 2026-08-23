@@ -590,8 +590,8 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       scrollTapTargetRef.current = null;
     });
   }, [activeSlots.length, comicViewportHeight, isPagedRtl, mode, pagedColumns, pagedDisplaySlots, recordVisiblePage, turnComicPage, width, windowHeight]);
-  const handlePagedTap = useCallback<ReaderPageTapHandler>((event, isChromeHidden) => {
-    if (isChromeHidden || mode !== 'paged' || !settings.readerPagedTapNavigation) {
+  const handlePagedTap = useCallback<ReaderPageTapHandler>((event) => {
+    if (mode !== 'paged' || !settings.readerPagedTapNavigation) {
       return false;
     }
     const rawDirection = resolveComicTapDirection(

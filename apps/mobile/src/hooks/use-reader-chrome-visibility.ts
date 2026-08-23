@@ -4,10 +4,12 @@ import type { NativeSyntheticEvent, NativeTouchEvent } from 'react-native';
 const TAP_MOVE_THRESHOLD = 10;
 
 type ReaderTouchEvent = NativeSyntheticEvent<NativeTouchEvent>;
-export type ReaderPageTapHandler = (
-  event: ReaderTouchEvent,
-  chromeHidden: boolean,
-) => boolean;
+/**
+ * Return true when the tap was consumed by page navigation. A page tap must
+ * remain eligible while chrome is hidden; returning false is reserved for
+ * taps that should reveal chrome (for example, the center zone).
+ */
+export type ReaderPageTapHandler = (event: ReaderTouchEvent) => boolean;
 export type ReaderPageSwipeHandler = (
   event: ReaderTouchEvent,
   deltaX: number,
@@ -43,7 +45,7 @@ export function useReaderChromeVisibility(
     const deltaX = start ? event.nativeEvent.pageX - start.pageX : 0;
     const deltaY = start ? event.nativeEvent.pageY - start.pageY : 0;
     const isTap = start !== null && !movedRef.current;
-    const pageTapHandled = isTap && onPageTap?.(event, hidden) === true;
+    const pageTapHandled = isTap && onPageTap?.(event) === true;
     if (isTap && !pageTapHandled) {
       setHidden((current) => !current);
     } else if (start !== null && movedRef.current) {
@@ -51,7 +53,7 @@ export function useReaderChromeVisibility(
     }
     touchStartRef.current = null;
     movedRef.current = false;
-  }, [hidden, onPageSwipe, onPageTap]);
+  }, [onPageSwipe, onPageTap]);
 
   const onTouchCancel = useCallback(() => {
     touchStartRef.current = null;
