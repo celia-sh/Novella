@@ -160,30 +160,12 @@ function translateLayoutBlock(
 ): LayoutBlock {
   return {
     ...block,
+    // Inline overlays are relative to the block origin. Move the origin once;
+    // ReaderSkiaTile adds block.x/block.y before applying ruby and inline
+    // overlay coordinates. Hit rects use document coordinates and therefore
+    // still need the spread translation below.
     x: block.x + offsetX,
     y: block.y + offsetY,
-    ...(block.ruby
-      ? { ruby: block.ruby.map((ruby) => ({
-          ...ruby,
-          x: ruby.x + offsetX,
-          baseY: ruby.baseY + offsetY,
-          rtY: ruby.rtY + offsetY,
-        })) }
-      : {}),
-    ...(block.inlineText
-      ? { inlineText: block.inlineText.map((item) => ({
-          ...item,
-          x: item.x + offsetX,
-          y: item.y + offsetY,
-        })) }
-      : {}),
-    ...(block.inlineImages
-      ? { inlineImages: block.inlineImages.map((item) => ({
-          ...item,
-          x: item.x + offsetX,
-          y: item.y + offsetY,
-        })) }
-      : {}),
     hitRects: block.hitRects.map((rect) => ({
       ...rect,
       x: rect.x + offsetX,

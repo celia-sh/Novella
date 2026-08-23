@@ -392,6 +392,78 @@ test('paged plan combines two pages into one translated spread', () => {
   assert.equal(result.totalHeight, 440);
 });
 
+test('translated spreads move inline ruby once with the block origin', () => {
+  const rubyStyle = {
+    color: '#111827',
+    fontFamily: 'System',
+    fontSize: 20,
+    lineHeight: 1.6,
+  };
+  const layout = createLayout([
+    createBlock('a', 20, 100),
+    {
+      ...createBlock('b', 132, 100),
+      hitRects: [{
+        height: 10,
+        id: 'note',
+        type: 'footnote',
+        width: 10,
+        x: 3,
+        y: 132,
+      }],
+      ruby: [{
+        annotationText: 'かん',
+        baseHeight: 20,
+        baseText: '漢',
+        baseWidth: 20,
+        baseY: 8,
+        rtHeight: 10,
+        rtText: 'かん',
+        rtWidth: 20,
+        rtY: 0,
+        style: rubyStyle,
+        totalHeight: 30,
+        totalWidth: 20,
+        x: 12,
+      }],
+    },
+  ], 244);
+  const result = pageChapter(layout, {
+    columnWidth: 200,
+    columns: 2,
+    pageHeight: 220,
+    topPadding: 40,
+    bottomPadding: 40,
+  });
+  const translated = result.tiles[0]?.blocks[1];
+
+  assert.equal(translated?.x, 200);
+  assert.equal(translated?.y, 20);
+  assert.deepEqual(translated?.ruby?.[0], {
+    annotationText: 'かん',
+    baseHeight: 20,
+    baseText: '漢',
+    baseWidth: 20,
+    baseY: 8,
+    rtHeight: 10,
+    rtText: 'かん',
+    rtWidth: 20,
+    rtY: 0,
+    style: rubyStyle,
+    totalHeight: 30,
+    totalWidth: 20,
+    x: 12,
+  });
+  assert.deepEqual(translated?.hitRects[0], {
+    height: 10,
+    id: 'note',
+    type: 'footnote',
+    width: 10,
+    x: 203,
+    y: 20,
+  });
+});
+
 function stripRunStyle(
   run: ReturnType<typeof parseReaderBlockContent>['runs'][number],
 ): Omit<typeof run, 'style'> {
