@@ -25,7 +25,8 @@ export function resolveNovelPageProgress(
   options: NovelPageProgressOptions,
 ): ReaderPageProgress {
   if (options.mode === 'paged') {
-    const total = Math.max(1, Math.trunc(options.pagedPageCount));
+    const total = Math.max(0, Math.trunc(options.pagedPageCount));
+    if (total === 0) return { current: 0, progress: 0, total: 0 };
     const index = clampIndex(
       Math.round(safeNumber(options.offset.x) / positiveDimension(options.viewportWidth, 1)),
       total,
@@ -37,6 +38,7 @@ export function resolveNovelPageProgress(
     };
   }
 
+  if (options.totalHeight <= 0) return { current: 0, progress: 0, total: 0 };
   const total = estimateNovelPageCount(options.totalHeight, options.viewportHeight);
   const maximumOffset = Math.max(
     0,
@@ -50,7 +52,8 @@ export function resolveNovelPageProgress(
 }
 
 export function resolveComicPageProgress(index: number, total: number): ReaderPageProgress {
-  const safeTotal = Math.max(1, Math.trunc(total));
+  const safeTotal = Math.max(0, Math.trunc(total));
+  if (safeTotal === 0) return { current: 0, progress: 0, total: 0 };
   const safeIndex = clampIndex(index, safeTotal);
   return {
     current: safeIndex + 1,

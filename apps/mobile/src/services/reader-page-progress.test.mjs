@@ -37,8 +37,8 @@ test('comic progress clamps to the available image range', () => {
     total: 5,
   });
   assert.deepEqual(resolveComicPageProgress(-1, 0), {
-    current: 1,
+    current: 0,
     progress: 0,
-    total: 1,
+    total: 0,
   });
 });

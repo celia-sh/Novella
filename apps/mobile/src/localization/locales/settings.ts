@@ -150,6 +150,10 @@ export const zhCNSettings = {
       novelChapterSwipeDescription: '在章节开头或结尾向外滑动切换章节',
       comicChapterSwipeTitle: '漫画章节切换手势',
       comicChapterSwipeDescription: '在章节开头或结尾向外滑动切换章节',
+      novelPagedTapTitle: '小说边缘点击翻页',
+      novelPagedTapDescription: '在分页模式点击屏幕左右边缘翻页',
+      comicPagedTapTitle: '漫画边缘点击翻页',
+      comicPagedTapDescription: '在分页模式点击屏幕左右边缘翻页',
       modeOptions: {
         paged: '翻页',
         scroll: '滚动',
@@ -481,6 +485,10 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
       novelChapterSwipeDescription: '在章節開頭或結尾向外滑動切換章節',
       comicChapterSwipeTitle: '漫畫章節切換手勢',
       comicChapterSwipeDescription: '在章節開頭或結尾向外滑動切換章節',
+      novelPagedTapTitle: '小說邊緣點選翻頁',
+      novelPagedTapDescription: '在分頁模式點選螢幕左右邊緣翻頁',
+      comicPagedTapTitle: '漫畫邊緣點選翻頁',
+      comicPagedTapDescription: '在分頁模式點選螢幕左右邊緣翻頁',
       modeOptions: {
         paged: '翻頁',
         scroll: '捲動',

@@ -43,6 +43,7 @@ import {
   type ReaderImagePreviewSource,
 } from '@/components/reader-image-preview';
 import { ReaderNavigation } from '@/components/reader-navigation';
+import { ReaderPageTapOverlay } from '@/components/reader-page-tap-overlay';
 import { ReaderSkiaTile } from '@/components/reader-skia-tile';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
 import { createReaderChromeInsets } from '@/services/reader-chrome-layout';
@@ -401,6 +402,27 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     schedulePosition({ chapterId: content.chapter.id, position: currentBlock.locator });
   }, [captureCurrentVisibleBlock, content, schedulePosition]);
 
+  const turnNovelPage = useCallback((delta: -1 | 1) => {
+    if (mode !== 'paged' || !presentation) return;
+    const currentIndex = resolveNovelPageProgress({
+      mode,
+      offset: lastScrollOffsetRef.current,
+      pagedPageCount: presentation.tiles.length,
+      totalHeight: layout?.totalHeight ?? 0,
+      viewportHeight: screenHeight,
+      viewportWidth: screenWidth,
+    }).current - 1;
+    const targetIndex = Math.min(
+      Math.max(0, currentIndex + delta),
+      Math.max(0, presentation.tiles.length - 1),
+    );
+    if (targetIndex === currentIndex) return;
+    lastScrollOffsetRef.current = { x: targetIndex * screenWidth, y: 0 };
+    setVisiblePageIndex(targetIndex);
+    flatListRef.current?.scrollToIndex({ animated: false, index: targetIndex });
+    requestAnimationFrame(handleScrollEnd);
+  }, [handleScrollEnd, layout?.totalHeight, mode, presentation, screenHeight, screenWidth]);
+
   const jumpToProgress = useCallback((value: number) => {
     if (!presentation || !layout) return;
     const progress = Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
@@ -739,6 +761,15 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               style={styles.reader}
               updateCellsBatchingPeriod={0}
               windowSize={5}
+            />
+            <ReaderPageTapOverlay
+              disabled={
+                mode !== 'paged'
+                || !settings.novelReaderPagedTapNavigation
+                || chromeHidden
+              }
+              onLeft={() => turnNovelPage(-1)}
+              onRight={() => turnNovelPage(1)}
             />
             <NativeScrollEdgeMarker key={`reader-edge:${mode}`} hidesAllEdgeEffects />
           </View>

@@ -41,6 +41,7 @@ import { reader } from '@/services/client';
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
 import { ReaderErrorState, ReaderPreparationState } from '@/components/reader-chrome';
 import { ReaderNavigation } from '@/components/reader-navigation';
+import { ReaderPageTapOverlay } from '@/components/reader-page-tap-overlay';
 import { NativeScrollEdgeMarker } from '../../modules/novella-ui/src/native-scroll-edge-marker';
 import { subscribeReaderChapterSelection } from '@/services/reader-chapter-selection';
 import {
@@ -565,23 +566,28 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       openChapter(nextChapter.sortNum, 'start');
     }
   }, [isPagedRtl, mode, nextChapter, openChapter, previousChapter, settings.comicReaderChapterSwipeNavigation]);
+  const turnComicPage = useCallback((direction: -1 | 1) => {
+    if (mode !== 'paged' || activeSlots.length === 0) return;
+    const currentDisplay = pagedTapTargetRef.current
+      ?? resolveComicDisplayIndex(lastVisiblePageRef.current, activeSlots.length, pagedColumns);
+    const targetDisplay = Math.min(
+      Math.max(0, currentDisplay + direction),
+      Math.max(0, pagedDisplaySlots.length - 1),
+    );
+    const targetSlot = pagedDisplaySlots[targetDisplay];
+    const targetPage = targetSlot?.pages.at(-1);
+    if (!targetSlot || targetDisplay === currentDisplay || !targetPage) return;
+    pagedTapTargetRef.current = targetDisplay;
+    pagedListRef.current?.scrollToIndex({ animated: false, index: targetDisplay });
+    recordVisiblePage(targetPage.index, targetSlot.pages.map((page) => page.index));
+  }, [activeSlots.length, mode, pagedColumns, pagedDisplaySlots, recordVisiblePage]);
+
   const handleContentTap = useCallback((x: number, y: number) => {
     let direction = resolveComicTapDirection(mode, x, y, width, windowHeight);
     if (mode === 'paged' && isPagedRtl && direction !== null) direction = direction === 1 ? -1 : 1;
     if (direction === null || activeSlots.length === 0) return;
     if (mode === 'paged') {
-      const currentDisplay = pagedTapTargetRef.current
-        ?? resolveComicDisplayIndex(lastVisiblePageRef.current, activeSlots.length, pagedColumns);
-      const targetDisplay = Math.min(
-        Math.max(0, currentDisplay + direction),
-        Math.max(0, pagedDisplaySlots.length - 1),
-      );
-      const targetSlot = pagedDisplaySlots[targetDisplay];
-      const targetPage = targetSlot?.pages.at(-1);
-      if (!targetSlot || targetDisplay === currentDisplay || !targetPage) return;
-      pagedTapTargetRef.current = targetDisplay;
-      pagedListRef.current?.scrollToIndex({ animated: false, index: targetDisplay });
-      recordVisiblePage(targetPage.index, targetSlot.pages.map((page) => page.index));
+      turnComicPage(direction);
       return;
     }
     const metrics = scrollMetricsRef.current;
@@ -598,7 +604,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     requestAnimationFrame(() => {
       scrollTapTargetRef.current = null;
     });
-  }, [activeSlots.length, availablePageHeight, isPagedRtl, mode, pagedColumns, pagedDisplaySlots, recordVisiblePage, width, windowHeight]);
+  }, [activeSlots.length, availablePageHeight, isPagedRtl, mode, pagedColumns, pagedDisplaySlots, recordVisiblePage, turnComicPage, width, windowHeight]);
   const openChapters = useCallback(() => {
     router.push({
       pathname: '/reader/[bookId]/chapters',
@@ -622,6 +628,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       ) : loading || !activeChapter ? <ReaderPreparationState label={t('states.loadingComic')} /> : (
         <>
         {mode === 'paged' ? (
+        <>
         <FlatList
           {...{ onTouchCancel, onTouchEnd, onTouchMove, onTouchStart }}
           ref={pagedListRef}
@@ -643,7 +650,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
               batchFailed={(page) => failedBatches.has(getComicPageBatchStart(page.index, activeSlots.length, PAGE_BATCH))}
               contentWidth={pageWidth}
               maxHeight={availablePageHeight}
-              onPress={handleContentTap}
+              {...(mode === 'paged' ? {} : { onPress: handleContentTap })}
               onRetryBatch={(page) => { void loadBatch(page.index, true); }}
               priority={(page) => Math.abs(page.index - visiblePage) <= 1 ? 'high' : 'normal'}
               slot={item}
@@ -669,6 +676,12 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           viewabilityConfig={COMIC_PAGED_VIEWABILITY_CONFIG}
           windowSize={COMIC_PAGED_WINDOW_SIZE}
         />
+        <ReaderPageTapOverlay
+          disabled={!settings.comicReaderPagedTapNavigation || chromeHidden}
+          onLeft={() => turnComicPage(isPagedRtl ? 1 : -1)}
+          onRight={() => turnComicPage(isPagedRtl ? -1 : 1)}
+        />
+        </>
       ) : (
         <FlatList
           {...{ onTouchCancel, onTouchEnd, onTouchMove, onTouchStart }}
@@ -750,7 +763,7 @@ interface ComicPageSpreadProps {
   batchFailed: (page: ComicPageSlot) => boolean;
   contentWidth: number;
   maxHeight: number;
-  onPress: (x: number, y: number) => void;
+  onPress?: (x: number, y: number) => void;
   onRetryBatch: (page: ComicPageSlot) => void;
   priority: (page: ComicPageSlot) => 'high' | 'normal';
   readingDirection: 'ltr' | 'rtl';
@@ -779,7 +792,7 @@ function ComicPageSpread({
           batchFailed={batchFailed(page)}
           contentWidth={columnWidth}
           maxHeight={maxHeight}
-          onPress={onPress}
+          {...(onPress ? { onPress } : {})}
           onRetryBatch={() => onRetryBatch(page)}
           priority={priority(page)}
           slot={page}
@@ -794,7 +807,7 @@ interface ComicPageProps {
   batchFailed: boolean;
   contentWidth: number;
   maxHeight?: number;
-  onPress: (x: number, y: number) => void;
+  onPress?: (x: number, y: number) => void;
   onRetryBatch: () => void;
   priority: 'high' | 'normal';
   slot: ComicPageSlot;
@@ -844,7 +857,9 @@ function ComicPage({
 
   return (
     <Pressable
-      onPress={(event) => onPress(event.nativeEvent.pageX, event.nativeEvent.pageY)}
+      onPress={onPress
+        ? (event) => onPress(event.nativeEvent.pageX, event.nativeEvent.pageY)
+        : undefined}
       style={[
         styles.pageRow,
         { width: viewportWidth },
