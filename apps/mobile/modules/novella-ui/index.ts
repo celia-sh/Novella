@@ -29,6 +29,11 @@ export {
 } from './src/native-selection-menu';
 
 export {
+  NativeReaderProgressBar,
+  type NativeReaderProgressBarProps,
+} from './src/native-reader-progress-bar';
+
+export {
   NativeBottomAppBar,
   type NativeBottomAppBarProps,
 } from './src/native-bottom-app-bar';

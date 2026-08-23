@@ -13,6 +13,7 @@ export function ReaderNavigation({
       options={{
         contentStyle: { backgroundColor },
         headerShown: !chromeHidden,
+        gestureEnabled: false,
         headerBackButtonDisplayMode: 'minimal',
         headerShadowVisible: false,
         headerStyle: { backgroundColor },

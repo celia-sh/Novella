@@ -797,14 +797,11 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       />
       <ReaderChapterNavigation
         backgroundColor={readerBackground}
-        bottomInset={insets.bottom}
         chromeHidden={chromeHidden}
+        direction="ltr"
         pageCurrent={pageProgress.current}
         pageTotal={pageProgress.total}
-        mode={mode}
-        onNext={nextSortNum === null ? null : () => openChapter(nextSortNum, 'start')}
         onPageProgressChange={jumpToProgress}
-        onPrevious={previousSortNum === null ? null : () => openChapter(previousSortNum, 'end')}
         pageProgress={pageProgress.progress}
       />
     </>

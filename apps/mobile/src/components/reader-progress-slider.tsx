@@ -1,68 +1,44 @@
-import { Host } from '@expo/ui';
-import { useEffect, useRef, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
-import { NativeSliderControl } from '@/components/native-slider-control';
-import { useAppColorScheme } from '@/theme/app-theme';
+import { ReaderNativeProgressBar } from '@/components/reader-progress-bar';
 
 export interface ReaderProgressSliderProps {
-  bottomInset: number;
+  direction?: 'ltr' | 'rtl';
   hidden?: boolean;
   onValueChange: (value: number) => void;
+  pageCurrent: number;
+  pageTotal: number;
   progress: number;
   visible: boolean;
 }
 
-const SLIDER_WIDTH = 168;
+export const READER_PROGRESS_BAR_HEIGHT = 40;
 
 export function ReaderProgressSlider({
-  bottomInset,
+  direction = 'ltr',
   hidden = false,
   onValueChange,
+  pageCurrent,
+  pageTotal,
   progress,
   visible,
 }: ReaderProgressSliderProps) {
-  const colorScheme = useAppColorScheme();
-  const [draft, setDraft] = useState(progress);
-  const editingRef = useRef(false);
-
-  useEffect(() => {
-    if (!editingRef.current) setDraft(progress);
-  }, [progress]);
-
+  const { t } = useTranslation('reader');
   if (hidden || !visible) return null;
 
+  const pagesRemaining = Math.max(0, pageTotal - pageCurrent);
+  const remainingText = pagesRemaining > 0
+    ? t('progress.remainingPages', { count: pagesRemaining })
+    : '';
+
   return (
-    <Host
-      colorScheme={colorScheme}
-      matchContents={{ vertical: true }}
-      style={[styles.host, { bottom: Math.max(0, bottomInset) }]}
-    >
-      <NativeSliderControl
-        max={1}
-        min={0}
-        onSlidingComplete={() => {
-          editingRef.current = false;
-          setDraft(progress);
-        }}
-        onValueChange={(value) => {
-          editingRef.current = true;
-          setDraft(value);
-          onValueChange(value);
-        }}
-        value={draft}
-      />
-    </Host>
+    <ReaderNativeProgressBar
+      direction={direction}
+      onProgressChange={onValueChange}
+      pageCurrent={pageCurrent}
+      pageTotal={pageTotal}
+      progress={progress}
+      remainingText={remainingText}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  host: {
-    height: 44,
-    left: '50%',
-    marginLeft: -SLIDER_WIDTH / 2,
-    position: 'absolute',
-    width: SLIDER_WIDTH,
-    zIndex: 2,
-  },
-});

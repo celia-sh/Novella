@@ -67,6 +67,9 @@ export const zhCNReader = {
     paged: '分页',
     scroll: '滚动',
   },
+  progress: {
+    remainingPages: '剩余 {{count}} 页',
+  },
   states: {
     loadingComic: '正在加载漫画',
   },
@@ -144,6 +147,9 @@ export const zhTWReader: TranslationShape<typeof zhCNReader> = {
   modes: {
     paged: '分頁',
     scroll: '捲動',
+  },
+  progress: {
+    remainingPages: '剩餘 {{count}} 頁',
   },
   states: {
     loadingComic: '正在載入漫畫',

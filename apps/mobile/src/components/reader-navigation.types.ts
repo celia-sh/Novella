@@ -1,7 +1,5 @@
 import type { ReaderMode } from '@novella/reader-engine';
 
-import type { ReaderChapterBarDirection } from '@/services/reader-chrome-layout';
-
 export interface ReaderNavigationProps {
   backgroundColor: string;
   forceLightAppearance?: boolean;
@@ -16,12 +14,8 @@ export interface ReaderNavigationProps {
 
 export interface ReaderChapterNavigationProps {
   backgroundColor?: string;
-  bottomInset: number;
-  direction?: ReaderChapterBarDirection;
-  mode: ReaderMode;
-  onNext: (() => void) | null;
+  direction?: 'ltr' | 'rtl';
   onPageProgressChange: (progress: number) => void;
-  onPrevious: (() => void) | null;
   pageCurrent: number;
   pageProgress: number;
   pageTotal: number;

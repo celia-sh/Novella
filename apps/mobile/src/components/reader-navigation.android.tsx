@@ -20,6 +20,7 @@ export function ReaderNavigation(props: ReaderNavigationProps) {
         headerRight: () => <ReaderHeaderActions {...props} />,
         headerShadowVisible: false,
         headerShown: !props.chromeHidden,
+        gestureEnabled: false,
         headerStyle: { backgroundColor: props.backgroundColor },
         headerTintColor: props.foregroundColor,
         headerTransparent: true,

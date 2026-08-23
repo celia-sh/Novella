@@ -31,6 +31,7 @@ export function ReaderNavigation({
           headerShadowVisible: false,
           headerTintColor: foregroundColor,
           headerShown: !chromeHidden,
+          gestureEnabled: false,
           headerTransparent: true,
           ...(forceLightAppearance
             ? {
@@ -48,7 +49,7 @@ export function ReaderNavigation({
           title,
         }}
       />
-      {shouldRenderReaderEdgeBlur(mode) ? <IosTopBarBackground /> : null}
+      {shouldRenderReaderEdgeBlur(mode) && !chromeHidden ? <IosTopBarBackground /> : null}
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel={t('accessibility.chapterList')}

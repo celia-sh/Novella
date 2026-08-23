@@ -744,15 +744,11 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
         title={activeChapter?.chapter.title ?? t('titles.comicReader')}
       />
       <ReaderChapterNavigation
-        bottomInset={insets.bottom}
         chromeHidden={chromeHidden}
+        direction={mode === 'paged' ? settings.comicPagedDirection : 'ltr'}
         pageCurrent={pageProgress.current}
         pageTotal={pageProgress.total}
-        direction={mode === 'paged' ? settings.comicPagedDirection : 'ltr'}
-        mode={mode}
-        onNext={nextChapter ? () => openChapter(nextChapter.sortNum, 'start') : null}
         onPageProgressChange={jumpToProgress}
-        onPrevious={previousChapter ? () => openChapter(previousChapter.sortNum, 'end') : null}
         pageProgress={pageProgress.progress}
       />
     </>
