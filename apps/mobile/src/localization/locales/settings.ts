@@ -142,6 +142,10 @@ export const zhCNSettings = {
       },
       modeTitle: '阅读模式',
       modeDescription: '选择滚动或逐页阅读',
+      novelModeTitle: '小说阅读模式',
+      novelModeDescription: '单独保存小说阅读器的滚动或分页选择',
+      comicModeTitle: '漫画阅读模式',
+      comicModeDescription: '单独保存漫画阅读器的滚动或分页选择',
       modeOptions: {
         paged: '翻页',
         scroll: '滚动',
@@ -465,6 +469,10 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
       },
       modeTitle: '閱讀模式',
       modeDescription: '選擇捲動或逐頁閱讀',
+      novelModeTitle: '小說閱讀模式',
+      novelModeDescription: '單獨保存小說閱讀器的捲動或分頁選擇',
+      comicModeTitle: '漫畫閱讀模式',
+      comicModeDescription: '單獨保存漫畫閱讀器的捲動或分頁選擇',
       modeOptions: {
         paged: '翻頁',
         scroll: '捲動',

@@ -90,7 +90,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   }>();
   const route = useRoute();
   const { colors } = useAppTheme();
-  const [mode, setMode] = useState<ReaderMode>(settings.readerViewMode);
+  const [mode, setMode] = useState<ReaderMode>(settings.novelReaderViewMode);
   const [pendingMode, setPendingMode] = useState<ReaderMode | null>(null);
   const pendingModeRef = useRef<ReaderMode | null>(null);
   const modeSwitchFrameRef = useRef<number | null>(null);
@@ -545,7 +545,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         setPendingMode(nextMode);
         setMode(nextMode);
         void saveCurrentPosition();
-        if (persist) void updateAppSettings({ readerViewMode: nextMode });
+        if (persist) void updateAppSettings({ novelReaderViewMode: nextMode });
       });
     });
   }, [captureCurrentVisibleBlock, mode, saveCurrentPosition]);
@@ -555,10 +555,10 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   }, [beginModeTransition]);
 
   useEffect(() => {
-    if (settings.readerViewMode !== mode && pendingMode === null) {
-      beginModeTransition(settings.readerViewMode, false);
+    if (settings.novelReaderViewMode !== mode && pendingMode === null) {
+      beginModeTransition(settings.novelReaderViewMode, false);
     }
-  }, [beginModeTransition, mode, pendingMode, settings.readerViewMode]);
+  }, [beginModeTransition, mode, pendingMode, settings.novelReaderViewMode]);
 
   const openChapters = useCallback(() => {
     router.push({

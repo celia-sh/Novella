@@ -128,15 +128,26 @@ export function ReaderSettingsContent() {
           title={t('reader.behavior.directionTitle')}
         />
         <NativePickerRow
-          description={t('reader.behavior.modeDescription')}
+          description={t('reader.behavior.novelModeDescription')}
           icon="readingMode"
-          onValueChange={(value) => void updateAppSettings({ readerViewMode: value })}
+          onValueChange={(value) => void updateAppSettings({ novelReaderViewMode: value })}
           options={[
             { label: t('reader.behavior.modeOptions.paged'), value: 'paged' },
             { label: t('reader.behavior.modeOptions.scroll'), value: 'scroll' },
           ] as const}
-          selectedValue={settings.readerViewMode}
-          title={t('reader.behavior.modeTitle')}
+          selectedValue={settings.novelReaderViewMode}
+          title={t('reader.behavior.novelModeTitle')}
+        />
+        <NativePickerRow
+          description={t('reader.behavior.comicModeDescription')}
+          icon="readingMode"
+          onValueChange={(value) => void updateAppSettings({ comicReaderViewMode: value })}
+          options={[
+            { label: t('reader.behavior.modeOptions.paged'), value: 'paged' },
+            { label: t('reader.behavior.modeOptions.scroll'), value: 'scroll' },
+          ] as const}
+          selectedValue={settings.comicReaderViewMode}
+          title={t('reader.behavior.comicModeTitle')}
         />
         <NativeSliderRow
           description={t('reader.behavior.preloadDescription')}

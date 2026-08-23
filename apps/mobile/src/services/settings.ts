@@ -61,6 +61,8 @@ export interface AppSettings {
   ignoreJapanese: boolean;
   ignoreLevel6: boolean;
   oledBlack: boolean;
+  novelReaderViewMode: ReaderViewMode;
+  comicReaderViewMode: ReaderViewMode;
   readerFirstLineIndent: boolean;
   readerImagePreviewOpenOnLongPress: boolean;
   readerLineHeight: number;
@@ -68,7 +70,6 @@ export interface AppSettings {
   comicPagedDirection: 'ltr' | 'rtl';
   readerPreloadWindow: number;
   readerSidePadding: number;
-  readerViewMode: ReaderViewMode;
   seedColorValue: string;
   seriesSearchMode: SeriesSearchMode;
   theme: ThemeMode;
@@ -97,8 +98,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   readerParagraphSpacing: 0,
   comicPagedDirection: 'ltr',
   readerPreloadWindow: 3,
+  novelReaderViewMode: 'paged',
+  comicReaderViewMode: 'paged',
   readerSidePadding: 30,
-  readerViewMode: 'paged',
   seedColorValue: DEFAULT_THEME_SEED,
   seriesSearchMode: 'system',
   theme: 'system',
@@ -175,6 +177,15 @@ function publish(): void {
 function decodeSettings(value: unknown): AppSettings {
   if (!value || typeof value !== 'object') return DEFAULT_SETTINGS;
   const candidate = value as Record<string, unknown>;
+  const legacyReaderViewMode = isReaderViewMode(candidate.readerViewMode)
+    ? candidate.readerViewMode
+    : null;
+  const novelReaderViewMode = isReaderViewMode(candidate.novelReaderViewMode)
+    ? candidate.novelReaderViewMode
+    : legacyReaderViewMode ?? DEFAULT_SETTINGS.novelReaderViewMode;
+  const comicReaderViewMode = isReaderViewMode(candidate.comicReaderViewMode)
+    ? candidate.comicReaderViewMode
+    : legacyReaderViewMode ?? DEFAULT_SETTINGS.comicReaderViewMode;
   return {
     ...DEFAULT_SETTINGS,
     ...(typeof candidate.bookDetailCacheEnabled === 'boolean'
@@ -221,6 +232,8 @@ function decodeSettings(value: unknown): AppSettings {
     ...(typeof candidate.readerFirstLineIndent === 'boolean'
       ? { readerFirstLineIndent: candidate.readerFirstLineIndent }
       : {}),
+    novelReaderViewMode,
+    comicReaderViewMode,
     ...(typeof candidate.readerImagePreviewOpenOnLongPress === 'boolean'
       ? { readerImagePreviewOpenOnLongPress: candidate.readerImagePreviewOpenOnLongPress }
       : {}),
@@ -247,9 +260,6 @@ function decodeSettings(value: unknown): AppSettings {
     ...(typeof candidate.readerSidePadding === 'number'
       ? { readerSidePadding: clamp(candidate.readerSidePadding, 12, 64) }
       : {}),
-    ...(candidate.readerViewMode === 'paged' || candidate.readerViewMode === 'scroll'
-      ? { readerViewMode: candidate.readerViewMode }
-      : {}),
     seriesSearchMode: decodeSeriesSearchMode(candidate.seriesSearchMode),
     ...(isThemeSeed(candidate.seedColorValue)
       ? { seedColorValue: candidate.seedColorValue.toUpperCase() }
@@ -267,6 +277,10 @@ function decodeSettings(value: unknown): AppSettings {
       ? { autoCheckUpdate: candidate.autoCheckUpdate }
       : {}),
   };
+}
+
+function isReaderViewMode(value: unknown): value is ReaderViewMode {
+  return value === 'paged' || value === 'scroll';
 }
 
 function clamp(value: number, min: number, max: number): number {

@@ -125,7 +125,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     setParams(params: { position: ReaderOpenPosition; sortNum: string; type: 'Comic' }): void;
   }>();
   const route = useRoute();
-  const [mode, setMode] = useState<ReaderMode>(settings.readerViewMode);
+  const [mode, setMode] = useState<ReaderMode>(settings.comicReaderViewMode);
   const useDoublePage = mode === 'paged' && shouldUseReaderDoublePage(width, windowHeight);
   const [modeRestoreTarget, setModeRestoreTarget] = useState<{
     chapterId: number;
@@ -284,7 +284,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       failedBatchesRef.current.clear();
     };
   }, [loadChapter]);
-  useEffect(() => setMode(settings.readerViewMode), [settings.readerViewMode]);
+  useEffect(() => setMode(settings.comicReaderViewMode), [settings.comicReaderViewMode]);
 
   const loadBatch = useCallback(async (pageIndex: number, retry = false) => {
     if (!chapter || pageIndex < 0 || pageIndex >= chapter.chapter.total) return;
@@ -511,7 +511,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       });
     }
     setMode(nextMode);
-    void updateAppSettings({ readerViewMode: nextMode });
+    void updateAppSettings({ comicReaderViewMode: nextMode });
   }, [activeChapter]);
   const isPagedRtl = settings.comicPagedDirection === 'rtl';
   const handleContentTap = useCallback((x: number, y: number) => {
