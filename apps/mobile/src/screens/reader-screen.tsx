@@ -3,9 +3,9 @@ import { useRoute } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Dimensions,
   FlatList,
   StyleSheet,
+  useWindowDimensions,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -46,6 +46,7 @@ import { ReaderNavigation } from '@/components/reader-navigation';
 import { ReaderSkiaTile } from '@/components/reader-skia-tile';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
 import { createReaderChromeInsets } from '@/services/reader-chrome-layout';
+import { shouldUseReaderDoublePage } from '@/services/reader-display-layout';
 import { resolveNovelPageProgress } from '@/services/reader-page-progress';
 import { useReaderChapter, type ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
@@ -162,8 +163,8 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   );
 
   // Skia layout and tiling
-  const screenWidth = Dimensions.get('window').width;
-  const screenHeight = Dimensions.get('window').height;
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const useDoublePage = mode === 'paged' && shouldUseReaderDoublePage(screenWidth, screenHeight);
 
   // Slider rows update their local labels immediately, then commit settings on
   // release. Keep the expensive Skia work delayed and expose that delay as an
@@ -282,7 +283,10 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
 
     return layoutChapter({
       blocks,
-      width: screenWidth - debouncedSettings.sidePadding * 2,
+      width: Math.max(
+        1,
+        (useDoublePage ? screenWidth / 2 : screenWidth) - debouncedSettings.sidePadding * 2,
+      ),
       theme: {
         backgroundColor: readerBackground,
         textColor: readerTextColor,
@@ -298,20 +302,22 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       imageDimensions: imageGeometry.dimensions,
       ...(fontMgr ? { fontMgr } : {}),
     });
-  }, [blocks, screenWidth, debouncedSettings, fontLoading, content, readerFont, readerBackground, readerTextColor, readerChromeInsets, fontMgr, requiresReaderFont, fontMgrLoading, imageGeometry.dimensions]);
+  }, [blocks, screenWidth, useDoublePage, debouncedSettings, fontLoading, content, readerFont, readerBackground, readerTextColor, readerChromeInsets, fontMgr, requiresReaderFont, fontMgrLoading, imageGeometry.dimensions]);
 
   // Native virtualization owns mounted tile/page lifetime in both modes.
   const presentation = useMemo(() => {
     if (!layout) return null;
     if (mode === 'paged') {
       return pageChapter(layout, {
+        columns: useDoublePage ? 2 : 1,
+        columnWidth: screenWidth / (useDoublePage ? 2 : 1),
         pageHeight: screenHeight,
         topPadding: readerChromeInsets.top,
         bottomPadding: readerChromeInsets.bottom,
       });
     }
     return tileChapter(layout, screenHeight * 2.5);
-  }, [layout, mode, readerChromeInsets.bottom, readerChromeInsets.top, screenHeight]);
+  }, [layout, mode, readerChromeInsets.bottom, readerChromeInsets.top, screenHeight, screenWidth, useDoublePage]);
 
   const stagePosition = useCallback(
     (position: NovelProgressInput) => stageReaderProgress({ bookId, ...position }),

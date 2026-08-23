@@ -367,6 +367,31 @@ test('paged plan repeats chrome insets and keeps block order', () => {
   assert.equal(result.totalHeight, 660);
 });
 
+test('paged plan combines two pages into one translated spread', () => {
+  const layout = createLayout([
+    createBlock('a', 20, 100),
+    createBlock('b', 132, 100),
+    createBlock('c', 244, 100),
+  ], 380);
+  const result = pageChapter(layout, {
+    columnWidth: 200,
+    columns: 2,
+    pageHeight: 220,
+    topPadding: 40,
+    bottomPadding: 40,
+  });
+
+  assert.deepEqual(result.tiles.map((page) => ({
+    ids: page.blocks.map((block) => block.id),
+    x: page.blocks.map((block) => block.x),
+    y: page.blocks.map((block) => block.y),
+  })), [
+    { ids: ['a', 'b'], x: [0, 200], y: [20, 20] },
+    { ids: ['c'], x: [0], y: [244] },
+  ]);
+  assert.equal(result.totalHeight, 440);
+});
+
 function stripRunStyle(
   run: ReturnType<typeof parseReaderBlockContent>['runs'][number],
 ): Omit<typeof run, 'style'> {
