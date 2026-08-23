@@ -10,6 +10,11 @@ export interface ComicPageDisplaySize {
   width: number;
 }
 
+export interface ComicViewportRestoreTarget {
+  displayIndex: number;
+  pageIndex: number;
+}
+
 export function shouldUseReaderDoublePage(width: number, height: number): boolean {
   const safeWidth = positiveDimension(width, 1);
   const safeHeight = positiveDimension(height, 1);
@@ -52,6 +57,23 @@ export function fitComicPageSpread(
     height: size.height * scale,
     width: size.width * scale,
   }));
+}
+
+export function resolveComicViewportRestoreTarget(
+  pageIndex: number,
+  totalPages: number,
+  columns: number,
+): ComicViewportRestoreTarget {
+  const safeTotal = Math.max(0, Math.trunc(totalPages));
+  if (safeTotal === 0) return { displayIndex: 0, pageIndex: 0 };
+  const safePage = Math.min(
+    safeTotal - 1,
+    Math.max(0, Number.isFinite(pageIndex) ? Math.trunc(pageIndex) : 0),
+  );
+  return {
+    displayIndex: resolveComicDisplayIndex(safePage, safeTotal, columns),
+    pageIndex: safePage,
+  };
 }
 
 export function resolveComicDisplayIndex(

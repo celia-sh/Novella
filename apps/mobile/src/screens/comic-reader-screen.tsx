@@ -22,6 +22,7 @@ import {
   createComicPageDisplaySlots,
   fitComicPageSpread,
   resolveComicDisplayIndex,
+  resolveComicViewportRestoreTarget,
   shouldUseReaderDoublePage,
   type ComicPageDisplaySize,
   type ComicPageDisplaySlot,
@@ -91,6 +92,14 @@ interface ComicProgressInput {
   index: number;
 }
 
+interface ComicViewportSignature {
+  chapterId: number;
+  columns: number;
+  height: number;
+  mode: ReaderMode;
+  width: number;
+}
+
 class ComicReaderKnownError extends Error {
   readonly messageKey: ReaderMessageKey;
 
@@ -146,6 +155,8 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   const pagedTapTargetRef = useRef<number | null>(null);
   const scrollTapTargetRef = useRef<number | null>(null);
   const scrollMetricsRef = useRef({ contentHeight: 0, offset: 0, viewportHeight: comicViewportHeight });
+  const viewportSignatureRef = useRef<ComicViewportSignature | null>(null);
+  const viewportRestoreFrameRef = useRef<number | null>(null);
   const requestVersion = useRef(0);
 
   const setBatchFailed = useCallback((batchStart: number, failed: boolean) => {
@@ -443,6 +454,82 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   }, [activeChapter, activeSlots.length, loadBatch, scheduleActivePosition]);
   const recordVisiblePageRef = useRef(recordVisiblePage);
   recordVisiblePageRef.current = recordVisiblePage;
+
+  // FlatList preserves a pixel offset when the window changes size. That is
+  // not a stable comic position because every page's height/width changes and
+  // a landscape rotation can also change the number of pages in a spread.
+  // Re-anchor to the live page index after the new viewport has been laid out.
+  useEffect(() => {
+    if (!activeChapter || activeSlots.length === 0) {
+      viewportSignatureRef.current = null;
+      return;
+    }
+
+    const nextSignature: ComicViewportSignature = {
+      chapterId: activeChapter.chapter.id,
+      columns: pagedColumns,
+      height: windowHeight,
+      mode,
+      width,
+    };
+    const previousSignature = viewportSignatureRef.current;
+    viewportSignatureRef.current = nextSignature;
+
+    if (
+      !previousSignature
+      || previousSignature.chapterId !== nextSignature.chapterId
+      || previousSignature.mode !== nextSignature.mode
+      || (
+        previousSignature.width === nextSignature.width
+        && previousSignature.height === nextSignature.height
+        && previousSignature.columns === nextSignature.columns
+      )
+    ) return;
+
+    const restoreTarget = resolveComicViewportRestoreTarget(
+      lastVisiblePageRef.current,
+      activeSlots.length,
+      pagedColumns,
+    );
+    const { displayIndex, pageIndex } = restoreTarget;
+    restoreTargetRef.current = null;
+    pagedTapTargetRef.current = mode === 'paged' ? displayIndex : null;
+    scrollTapTargetRef.current = null;
+    lastVisiblePageRef.current = pageIndex;
+    setVisiblePage(pageIndex);
+
+    if (viewportRestoreFrameRef.current !== null) {
+      cancelAnimationFrame(viewportRestoreFrameRef.current);
+    }
+    viewportRestoreFrameRef.current = requestAnimationFrame(() => {
+      viewportRestoreFrameRef.current = null;
+      if (mode === 'paged') {
+        const display = pagedDisplaySlots[displayIndex];
+        const page = display?.pages.at(-1);
+        if (!display || !page) return;
+        recordVisiblePageRef.current(page.index, display.pages.map((item) => item.index));
+        pagedListRef.current?.scrollToIndex({ animated: false, index: displayIndex });
+      } else {
+        recordVisiblePageRef.current(pageIndex);
+        scrollListRef.current?.scrollToIndex({ animated: false, index: pageIndex });
+      }
+    });
+
+    return () => {
+      if (viewportRestoreFrameRef.current !== null) {
+        cancelAnimationFrame(viewportRestoreFrameRef.current);
+        viewportRestoreFrameRef.current = null;
+      }
+    };
+  }, [
+    activeChapter,
+    activeSlots.length,
+    mode,
+    pagedColumns,
+    width,
+    windowHeight,
+  ]);
+
   const pageProgress = useMemo(
     () => resolveComicPageProgress(visiblePage, activeSlots.length),
     [activeSlots.length, visiblePage],

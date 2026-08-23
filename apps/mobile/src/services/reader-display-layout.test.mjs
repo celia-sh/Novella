@@ -5,6 +5,7 @@ import {
   createComicPageDisplaySlots,
   fitComicPageSpread,
   resolveComicDisplayIndex,
+  resolveComicViewportRestoreTarget,
   shouldUseReaderDoublePage,
 } from './reader-display-layout.ts';
 
@@ -30,6 +31,21 @@ test('comic double-page sizing fills height without adding a center gap', () => 
   ], 1000, 1000);
   assert.ok(Math.abs(constrained[0].width + constrained[1].width - 1000) < 1);
   assert.equal(constrained[0].height, 750);
+});
+
+test('comic viewport restore keeps the live page while changing spread columns', () => {
+  assert.deepEqual(resolveComicViewportRestoreTarget(5, 12, 1), {
+    displayIndex: 5,
+    pageIndex: 5,
+  });
+  assert.deepEqual(resolveComicViewportRestoreTarget(5, 12, 2), {
+    displayIndex: 2,
+    pageIndex: 5,
+  });
+  assert.deepEqual(resolveComicViewportRestoreTarget(999, 3, 2), {
+    displayIndex: 1,
+    pageIndex: 2,
+  });
 });
 
 test('comic display slots group adjacent pages without changing page indexes', () => {
