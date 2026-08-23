@@ -392,6 +392,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   );
   const lastVisiblePageRef = useRef(initialPageIndex);
   const visibleDisplayIndexRef = useRef<number | null>(null);
+  const visibleSegmentIndexRef = useRef(0);
   const initialDisplayIndexRef = useRef(initialDisplayIndex);
   initialDisplayIndexRef.current = initialDisplayIndex;
   const restoreTargetRef = useRef<{ chapterId: number; index: number } | null>(null);
@@ -400,6 +401,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     setReadingDirection(1);
     lastVisiblePageRef.current = initialPageIndex;
     visibleDisplayIndexRef.current = initialDisplayIndexRef.current;
+    visibleSegmentIndexRef.current = 0;
     pagedTapTargetRef.current = null;
     scrollTapTargetRef.current = null;
     restoreTargetRef.current = activeChapter
@@ -463,6 +465,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     index: number,
     visibleIndexes: readonly number[] = [],
     displayIndex?: number,
+    segmentIndex?: number,
   ) => {
     if (!activeChapter || activeSlots.length === 0) return;
     let nextIndex = clampComicPageIndex(index, activeSlots.length);
@@ -479,6 +482,9 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     lastVisiblePageRef.current = nextIndex;
     if (displayIndex !== undefined && displayIndex >= 0) {
       visibleDisplayIndexRef.current = displayIndex;
+      visibleSegmentIndexRef.current = segmentIndex !== undefined
+        ? Math.max(0, Math.trunc(segmentIndex))
+        : 0;
     }
     setVisiblePage(nextIndex);
     void loadBatch(nextIndex);
@@ -520,13 +526,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       )
     ) return;
 
-    const currentDisplayIndex = visibleDisplayIndexRef.current;
-    const currentDisplay = currentDisplayIndex === null
-      ? undefined
-      : pagedDisplaySlots[currentDisplayIndex];
-    const currentSegmentIndex = currentDisplay?.items.find(
-      (item) => item.page.index === lastVisiblePageRef.current,
-    )?.segmentIndex ?? 0;
+    const currentSegmentIndex = visibleSegmentIndexRef.current;
     const restoreTarget = resolveComicViewportRestoreTarget(
       lastVisiblePageRef.current,
       activeSlots.length,
@@ -536,10 +536,14 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     );
 
     const { displayIndex, pageIndex } = restoreTarget;
+    const restoredSegmentIndex = pagedDisplaySlots[displayIndex]?.items.find(
+      (item) => item.page.index === pageIndex,
+    )?.segmentIndex ?? 0;
     restoreTargetRef.current = null;
     pagedTapTargetRef.current = mode === 'paged' ? displayIndex : null;
     scrollTapTargetRef.current = null;
     visibleDisplayIndexRef.current = displayIndex;
+    visibleSegmentIndexRef.current = mode === 'paged' ? restoredSegmentIndex : 0;
     lastVisiblePageRef.current = pageIndex;
     setVisiblePage(pageIndex);
 
@@ -555,6 +559,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           pageIndex,
           display.pages.map((item) => item.index),
           displayIndex,
+          restoredSegmentIndex,
         );
         pagedListRef.current?.scrollToIndex({ animated: false, index: displayIndex });
       } else {
@@ -596,6 +601,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       const targetSlot = pagedDisplaySlots[targetDisplay];
       const targetPage = targetSlot?.pages.find((page) => page.index === targetPageIndex)
         ?? targetSlot?.pages.at(-1);
+      const targetItem = targetSlot?.items.find((item) => item.page.index === targetPage?.index);
       if (!targetSlot || !targetPage) return;
       pagedTapTargetRef.current = targetDisplay;
       visibleDisplayIndexRef.current = targetDisplay;
@@ -604,6 +610,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
         targetPage.index,
         targetSlot.pages.map((page) => page.index),
         targetDisplay,
+        targetItem?.segmentIndex,
       );
       return;
     }
@@ -620,11 +627,13 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     const visible = viewableItems.find((token) => token.isViewable);
     const pages = visible?.item?.pages ?? [];
     const index = pages.at(-1)?.index;
+    const item = visible?.item?.items.find((entry) => entry.page.index === index);
     if (index !== undefined) {
       recordVisiblePageRef.current(
         index,
         pages.map((page) => page.index),
         visible?.index ?? undefined,
+        item?.segmentIndex,
       );
     }
   }, []);
@@ -710,6 +719,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     );
     const targetSlot = pagedDisplaySlots[targetDisplay];
     const targetPage = targetSlot?.pages.at(-1);
+    const targetItem = targetSlot?.items.find((item) => item.page.index === targetPage?.index);
     if (!targetSlot || targetDisplay === currentDisplay || !targetPage) return;
     pagedTapTargetRef.current = targetDisplay;
     visibleDisplayIndexRef.current = targetDisplay;
@@ -718,6 +728,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       targetPage.index,
       targetSlot.pages.map((page) => page.index),
       targetDisplay,
+      targetItem?.segmentIndex,
     );
   }, [activeSlots.length, mode, pagedDisplaySlots, recordVisiblePage]);
 
@@ -903,10 +914,12 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
             const page = display?.pages.at(-1);
             pagedTapTargetRef.current = null;
             if (display && page) {
+              const item = display.items.find((entry) => entry.page.index === page.index);
               recordVisiblePage(
                 page.index,
-                display.pages.map((item) => item.index),
+                display.pages.map((entry) => entry.index),
                 index,
+                item?.segmentIndex,
               );
             }
           }}
