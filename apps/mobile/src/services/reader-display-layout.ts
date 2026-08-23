@@ -5,6 +5,11 @@ export interface ComicPageDisplaySlot {
   pages: ComicPageSlot[];
 }
 
+export interface ComicPageDisplaySize {
+  height: number;
+  width: number;
+}
+
 export function shouldUseReaderDoublePage(width: number, height: number): boolean {
   const safeWidth = positiveDimension(width, 1);
   const safeHeight = positiveDimension(height, 1);
@@ -24,6 +29,29 @@ export function createComicPageDisplaySlots(
     });
   }
   return displays;
+}
+
+export function fitComicPageSpread(
+  pages: readonly ComicPageSlot[],
+  maximumWidth: number,
+  maximumHeight: number,
+): ComicPageDisplaySize[] {
+  const widthLimit = positiveDimension(maximumWidth, 1);
+  const heightLimit = positiveDimension(maximumHeight, 1);
+  const naturalSizes = pages.map((page) => {
+    const sourceWidth = positiveDimension(page.image?.width ?? 2, 2);
+    const sourceHeight = positiveDimension(page.image?.height ?? 3, 3);
+    return {
+      height: heightLimit,
+      width: heightLimit * sourceWidth / sourceHeight,
+    };
+  });
+  const totalWidth = naturalSizes.reduce((sum, size) => sum + size.width, 0);
+  const scale = totalWidth > widthLimit ? widthLimit / totalWidth : 1;
+  return naturalSizes.map((size) => ({
+    height: size.height * scale,
+    width: size.width * scale,
+  }));
 }
 
 export function resolveComicDisplayIndex(

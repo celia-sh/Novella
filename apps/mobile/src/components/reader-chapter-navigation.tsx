@@ -12,19 +12,20 @@ export function ReaderChapterNavigation({
   pageProgress,
   pageTotal,
 }: ReaderChapterNavigationProps) {
+  if (chromeHidden || pageTotal === 0) return null;
   return (
     <Stack.Toolbar
       placement="bottom"
       {...(backgroundColor ? { backgroundColor } : {})}
     >
-      <Stack.Toolbar.View hidden={chromeHidden || pageTotal === 0}>
+      <Stack.Toolbar.View>
         <ReaderProgressSlider
           direction={direction}
           onValueChange={onPageProgressChange}
           pageCurrent={pageCurrent}
           pageTotal={pageTotal}
           progress={pageProgress}
-          visible={pageTotal > 0}
+          visible
         />
       </Stack.Toolbar.View>
     </Stack.Toolbar>

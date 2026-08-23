@@ -6,27 +6,31 @@ import {
   IconSettings,
 } from '@tabler/icons-react-native';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StatusBar, StyleSheet, View } from 'react-native';
 
 import type { ReaderNavigationProps } from '@/components/reader-navigation.types';
 import { useOptimisticReaderMode } from '@/hooks/use-optimistic-reader-mode';
 
 export function ReaderNavigation(props: ReaderNavigationProps) {
   return (
-    <Stack.Screen
-      options={{
-        contentStyle: { backgroundColor: props.backgroundColor },
-        headerBackButtonDisplayMode: 'minimal',
-        headerRight: () => <ReaderHeaderActions {...props} />,
-        headerShadowVisible: false,
-        headerShown: !props.chromeHidden,
-        gestureEnabled: false,
-        headerStyle: { backgroundColor: props.backgroundColor },
-        headerTintColor: props.foregroundColor,
-        headerTransparent: true,
-        title: props.title,
-      }}
-    />
+    <>
+      <Stack.Screen
+        options={{
+          contentStyle: { backgroundColor: props.backgroundColor },
+          headerBackButtonDisplayMode: 'minimal',
+          headerRight: () => <ReaderHeaderActions {...props} />,
+          headerLargeTitle: false,
+          headerShadowVisible: false,
+          headerShown: !props.chromeHidden,
+          gestureEnabled: false,
+          headerStyle: { backgroundColor: props.backgroundColor },
+          headerTintColor: props.foregroundColor,
+          headerTransparent: true,
+          title: props.title,
+        }}
+      />
+      <StatusBar animated hidden={props.chromeHidden} showHideTransition="fade" />
+    </>
   );
 }
 

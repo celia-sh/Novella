@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { StatusBar } from 'react-native';
 
 import { IosTopBarBackground } from '@/components/ios-top-bar-background';
 import { shouldRenderReaderEdgeBlur } from '@/services/reader-chrome-layout';
@@ -17,6 +18,7 @@ export function ReaderNavigation({
   chromeHidden,
   topBarBlurAppearance,
   topBarBlurContentReady = true,
+  topBarBlurInPagedMode = false,
 }: ReaderNavigationProps) {
   const { t } = useTranslation('reader');
   const {
@@ -30,6 +32,7 @@ export function ReaderNavigation({
         options={{
           headerBackground: () => null,
           headerBlurEffect: 'none',
+          headerLargeTitle: false,
           headerShadowVisible: false,
           headerTintColor: foregroundColor,
           headerShown: !chromeHidden,
@@ -51,38 +54,45 @@ export function ReaderNavigation({
           title,
         }}
       />
-      {shouldRenderReaderEdgeBlur(mode, topBarBlurContentReady) ? (
+      <StatusBar animated hidden={chromeHidden} showHideTransition="fade" />
+      {shouldRenderReaderEdgeBlur(
+        mode,
+        topBarBlurContentReady && !chromeHidden,
+        topBarBlurInPagedMode,
+      ) ? (
         <IosTopBarBackground
           {...(topBarBlurAppearance
             ? { blurConfig: { appearance: topBarBlurAppearance } }
             : {})}
         />
       ) : null}
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          accessibilityLabel={t('accessibility.chapterList')}
-          hidden={chromeHidden}
-          icon="list.bullet"
-          onPress={onOpenChapters}
-          tintColor={foregroundColor}
-        />
-        <Stack.Toolbar.Button
-          accessibilityLabel={t('accessibility.switchMode', {
-            mode: t(`modes.${nextMode}`),
-          })}
-          hidden={chromeHidden}
-          icon={displayMode === 'scroll' ? 'rectangle.split.1x2' : 'text.justify.left'}
-          onPress={requestModeChange}
-          tintColor={foregroundColor}
-        />
-        <Stack.Toolbar.Button
-          accessibilityLabel={t('accessibility.readerSettings')}
-          hidden={chromeHidden}
-          icon="gearshape"
-          onPress={onOpenSettings}
-          tintColor={foregroundColor}
-        />
-      </Stack.Toolbar>
+      {!chromeHidden ? (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button
+            accessibilityLabel={t('accessibility.chapterList')}
+            hidden={chromeHidden}
+            icon="list.bullet"
+            onPress={onOpenChapters}
+            tintColor={foregroundColor}
+          />
+          <Stack.Toolbar.Button
+            accessibilityLabel={t('accessibility.switchMode', {
+              mode: t(`modes.${nextMode}`),
+            })}
+            hidden={chromeHidden}
+            icon={displayMode === 'scroll' ? 'rectangle.split.1x2' : 'text.justify.left'}
+            onPress={requestModeChange}
+            tintColor={foregroundColor}
+          />
+          <Stack.Toolbar.Button
+            accessibilityLabel={t('accessibility.readerSettings')}
+            hidden={chromeHidden}
+            icon="gearshape"
+            onPress={onOpenSettings}
+            tintColor={foregroundColor}
+          />
+        </Stack.Toolbar>
+      ) : null}
     </>
   );
 }

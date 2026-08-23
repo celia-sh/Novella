@@ -18,11 +18,12 @@ test('reader chapter bar follows physical reading direction', () => {
   });
 });
 
-test('reader edge blur stays on for ready scroll content and off for paged or loading content', () => {
+test('reader edge blur supports comic pagination while remaining gated by content readiness', () => {
   assert.equal(shouldRenderReaderEdgeBlur('scroll'), true);
   assert.equal(shouldRenderReaderEdgeBlur('scroll', false), false);
   assert.equal(shouldRenderReaderEdgeBlur('paged'), false);
-  assert.equal(shouldRenderReaderEdgeBlur('paged', true), false);
+  assert.equal(shouldRenderReaderEdgeBlur('paged', true, true), true);
+  assert.equal(shouldRenderReaderEdgeBlur('paged', false, true), false);
 });
 
 test('reader chrome insets include overlay controls and safe areas', () => {

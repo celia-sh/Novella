@@ -13,6 +13,7 @@ export interface ReaderNavigationProps {
   chromeHidden: boolean;
   topBarBlurAppearance?: IosProgressiveBlurAppearance;
   topBarBlurContentReady?: boolean;
+  topBarBlurInPagedMode?: boolean;
 }
 
 export interface ReaderChapterNavigationProps {
