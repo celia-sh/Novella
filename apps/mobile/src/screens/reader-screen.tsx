@@ -282,7 +282,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
 
   useEffect(() => {
     if (!requiresReaderFont || readerFont.status !== 'loaded' || !content?.chapter.fontUrl) {
-      if (__DEV__) console.log('[reader-screen] Using system font');
       setFontMgr(null);
       setFontMgrLoading(false);
       setFontMgrError(null);
@@ -291,13 +290,11 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
 
     const resolvedFontUrl = resolveReaderFontUrl(content.chapter.fontUrl);
     if (!resolvedFontUrl) {
-      if (__DEV__) console.error('[reader-screen] Failed to resolve font URL');
       setFontMgrError('Failed to resolve font URL');
       setFontMgrLoading(false);
       return;
     }
 
-    if (__DEV__) console.log(`[reader-screen] Loading font: ${readerFont.family}`);
     setFontMgrLoading(true);
     setFontMgrError(null);
 
@@ -309,12 +306,10 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       }
     ])
       .then((mgr) => {
-        if (__DEV__) console.log('[reader-screen] Font loaded');
         setFontMgr(mgr);
         setFontMgrLoading(false);
       })
       .catch((error) => {
-        console.error('[reader-screen] Failed to create font manager:', error);
         setFontMgrError(error?.message || 'Failed to create font manager');
         setFontMgr(null);
         setFontMgrLoading(false);

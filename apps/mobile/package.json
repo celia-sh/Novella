@@ -59,8 +59,7 @@
     "tailwind-merge": "^3.6.0",
     "tailwind-variants": "^3.3.0",
     "tailwindcss": "^4.3.3",
-    "uniwind": "^1.10.0",
-    "woff-lib": "^0.0.3"
+    "uniwind": "^1.10.0"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
