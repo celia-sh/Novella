@@ -5,6 +5,7 @@ import {
   NativeGroupedList,
   NativeGroupedListSection,
 } from '@/components/native-grouped-list';
+import { ReaderBackgroundColorSettings } from '@/components/reader-background-color-settings';
 import {
   NativePickerRow,
   NativeSliderRow,
@@ -16,6 +17,8 @@ import {
   updateAppSettings,
   useAppSettings,
 } from '@/services/settings';
+import { useAppColorScheme } from '@/theme/app-theme';
+import { resolveNovelReaderBackgroundColor } from '@/theme/reader-theme';
 
 export function ReaderSettingsScreen() {
   const { t } = useTranslation('settings');
@@ -35,7 +38,12 @@ export function ReaderSettingsScreen() {
 /** Shared settings rows, also rendered inside the reader settings sheet. */
 export function ReaderSettingsContent() {
   const settings = useAppSettings();
+  const colorScheme = useAppColorScheme();
   const { t } = useTranslation('settings');
+  const novelReaderBackgroundColor = resolveNovelReaderBackgroundColor(
+    settings.novelReaderBackgroundColor,
+    colorScheme,
+  );
 
   return (
     <>
@@ -85,6 +93,14 @@ export function ReaderSettingsContent() {
           value={settings.readerSidePadding}
         />
       </NativeGroupedListSection>
+
+      <ReaderBackgroundColorSettings
+        backgroundColor={novelReaderBackgroundColor}
+        description={t('reader.appearance.backgroundDescription')}
+        onValueChange={(value) => void updateAppSettings({ novelReaderBackgroundColor: value })}
+        sectionTitle={t('reader.appearance.section')}
+        title={t('reader.appearance.backgroundTitle')}
+      />
 
       <NativeGroupedListSection title={t('reader.chapterTitles.section')}>
         <NativeToggleRow

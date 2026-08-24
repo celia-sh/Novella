@@ -125,6 +125,11 @@ export const zhCNSettings = {
       points: '{{value}} 点',
       multiplier: '{{value}} 倍',
     },
+    appearance: {
+      section: '阅读器外观',
+      backgroundTitle: '小说背景色',
+      backgroundDescription: '选择小说正文页面的背景色',
+    },
     chapterTitles: {
       section: '章节标题',
       continueTitle: '继续阅读按钮',
@@ -453,6 +458,11 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
       sidePaddingDescription: '閱讀內容左右兩側的水平留白',
       points: '{{value}} 點',
       multiplier: '{{value}} 倍',
+    },
+    appearance: {
+      section: '閱讀器外觀',
+      backgroundTitle: '小說背景色',
+      backgroundDescription: '選擇小說正文頁面的背景色',
     },
     chapterTitles: {
       section: '章節標題',

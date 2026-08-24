@@ -78,6 +78,10 @@ import {
 import { updateAppSettings, useAppSettings } from '@/services/settings';
 import { useReaderLifecycleSave } from '@/hooks/use-reader-lifecycle-save';
 import { useAppColorScheme, useAppTheme } from '@/theme/app-theme';
+import {
+  resolveNovelReaderBackgroundColor,
+  resolveNovelReaderTextColor,
+} from '@/theme/reader-theme';
 import { resolveReaderColors } from '@/theme/theme-mode';
 
 interface NovelProgressInput {
@@ -153,8 +157,15 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   let readerBackground: string;
   let readerTextColor: string;
   if (process.env.EXPO_OS === 'ios') {
-    readerBackground = isDarkReader ? '#000000' : '#F2F2F7';
-    readerTextColor = isDarkReader ? '#FFFFFF' : '#111827';
+    readerBackground = resolveNovelReaderBackgroundColor(
+      settings.novelReaderBackgroundColor,
+      colorScheme,
+    );
+    readerTextColor = settings.novelReaderBackgroundColor
+      ? resolveNovelReaderTextColor(readerBackground)
+      : isDarkReader
+        ? '#FFFFFF'
+        : '#111827';
   } else {
     const resolvedReaderColors = resolveReaderColors({
       backgroundColor: useCoverPalette ? detailTheme.palette.surface : colors.surface as string,

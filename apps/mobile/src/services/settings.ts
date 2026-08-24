@@ -15,6 +15,7 @@ import {
   isThemeSeed,
   type MaterialSchemeVariant,
 } from '@/theme/material-theme';
+import { normalizeReaderBackgroundColor } from '@/theme/reader-theme';
 
 export type ReaderViewMode = 'paged' | 'scroll';
 export type ThemeMode = 'system' | 'light' | 'dark';
@@ -61,6 +62,7 @@ export interface AppSettings {
   ignoreJapanese: boolean;
   ignoreLevel6: boolean;
   oledBlack: boolean;
+  novelReaderBackgroundColor: string | null;
   novelReaderViewMode: ReaderViewMode;
   comicReaderViewMode: ReaderViewMode;
   readerPagedTapNavigation: boolean;
@@ -99,6 +101,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   readerParagraphSpacing: 0,
   comicPagedDirection: 'ltr',
   readerPreloadWindow: 3,
+  novelReaderBackgroundColor: null,
   novelReaderViewMode: 'paged',
   comicReaderViewMode: 'paged',
   readerPagedTapNavigation: true,
@@ -241,6 +244,9 @@ function decodeSettings(value: unknown): AppSettings {
     ...(typeof candidate.readerFirstLineIndent === 'boolean'
       ? { readerFirstLineIndent: candidate.readerFirstLineIndent }
       : {}),
+    novelReaderBackgroundColor: normalizeReaderBackgroundColor(
+      candidate.novelReaderBackgroundColor,
+    ),
     novelReaderViewMode,
     comicReaderViewMode,
     readerPagedTapNavigation,
