@@ -22,6 +22,7 @@ import {
   createComicPageDisplaySlots,
   fitComicPageSpread,
   resolveComicDisplaySlotIndex,
+  resolveComicSourceSegmentIndex,
   resolveComicViewportRestoreTarget,
   shouldSplitLongComicPages,
   shouldUseReaderDoublePage,
@@ -363,9 +364,13 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       .map((slot) => slot.items
         .map((item) => [
           item.page.index,
+          item.segmentAxis,
           item.segmentIndex,
           item.segmentCount,
           item.segmentOffset,
+          item.segmentWidth,
+          item.segmentHeight,
+          item.renderedImageWidth,
           item.renderedImageHeight,
         ].join(':'))
         .join(','))
@@ -1038,8 +1043,14 @@ function ComicPageSpread({
       {items.map((item, index) => {
         const page = item.page;
         const displaySize = item.segmentCount > 1
-          ? { height: maxHeight, width: viewportWidth }
+          ? { height: item.segmentHeight, width: item.segmentWidth }
           : displaySizes[index];
+        const sourceSegmentIndex = resolveComicSourceSegmentIndex(
+          item.segmentIndex,
+          item.segmentCount,
+          item.segmentAxis,
+          readingDirection,
+        );
         if (!displaySize) return null;
         return (
           <ComicPage
@@ -1049,6 +1060,7 @@ function ComicPageSpread({
             displayItem={item}
             displaySize={displaySize}
             maxHeight={maxHeight}
+            sourceSegmentIndex={sourceSegmentIndex}
             {...(onPress ? { onPress } : {})}
             onRetryBatch={() => onRetryBatch(page)}
             priority={priority(page)}
@@ -1071,6 +1083,7 @@ interface ComicPageProps {
   onRetryBatch: () => void;
   priority: 'high' | 'normal';
   slot: ComicPageSlot;
+  sourceSegmentIndex?: number;
   viewportWidth: number;
 }
 
@@ -1084,6 +1097,7 @@ function ComicPage({
   onRetryBatch,
   priority,
   slot,
+  sourceSegmentIndex,
   viewportWidth,
 }: ComicPageProps) {
   const { t } = useTranslation('reader');
@@ -1092,14 +1106,17 @@ function ComicPage({
   const [failedImageUri, setFailedImageUri] = useState<string | null>(null);
   const [retryAttempt, setRetryAttempt] = useState(0);
   const image = slot.image;
-  const isLongPageSegment = displayItem !== undefined
+  const isPageSegment = displayItem !== undefined
     && displayItem.segmentCount > 1
     && maxHeight !== undefined;
   const ratio = image && image.width > 0 && image.height > 0
     ? image.height / image.width
     : 1.5;
-  const imageSize = isLongPageSegment
-    ? { height: maxHeight ?? 1, width: viewportWidth }
+  const imageSize = isPageSegment
+    ? {
+      height: displayItem?.segmentHeight ?? maxHeight ?? 1,
+      width: displayItem?.segmentWidth ?? viewportWidth,
+    }
     : displaySize ?? (maxHeight === undefined
     ? { height: contentWidth * ratio, width: contentWidth }
     : fitComicPage(
@@ -1122,7 +1139,12 @@ function ComicPage({
     }
   };
   const imageInstanceKey = `${image?.url ?? 'missing'}:${displayItem?.segmentIndex ?? 0}:${retryAttempt}`;
-  const segment = isLongPageSegment ? displayItem : null;
+  const segment = isPageSegment ? displayItem : null;
+  const segmentOffset = segment && sourceSegmentIndex !== undefined
+    ? segment.segmentAxis === 'horizontal'
+      ? sourceSegmentIndex * segment.segmentWidth
+      : sourceSegmentIndex * segment.segmentHeight
+    : segment?.segmentOffset ?? 0;
   const renderedImage = image ? (
     <Image
       key={imageInstanceKey}
@@ -1140,10 +1162,10 @@ function ComicPage({
       style={segment ? {
         backgroundColor: colors.surfaceContainerHighest,
         height: segment.renderedImageHeight,
-        left: 0,
+        left: segment.segmentAxis === 'horizontal' ? -segmentOffset : 0,
         position: 'absolute' as const,
-        top: -segment.segmentOffset,
-        width: imageSize.width,
+        top: segment.segmentAxis === 'vertical' ? -segmentOffset : 0,
+        width: segment.renderedImageWidth,
       } : {
         backgroundColor: colors.surfaceContainerHighest,
         height: imageSize.height,

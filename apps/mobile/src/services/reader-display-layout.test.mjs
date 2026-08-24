@@ -8,6 +8,7 @@ import {
   resolveComicDisplayIndex,
   resolveComicDisplayItemIndex,
   resolveComicDisplaySlotIndex,
+  resolveComicSourceSegmentIndex,
   resolveComicViewportRestoreTarget,
   shouldSplitLongComicPages,
   shouldUseReaderDoublePage,
@@ -88,6 +89,32 @@ test('comic viewport restore uses metadata-aware display slots', () => {
     displayIndex: 2,
     pageIndex: 3,
   });
+});
+
+test('phone paged mode splits a known wide spread into horizontal segments', () => {
+  const wideSpread = {
+    index: 0,
+    image: { width: 1854, height: 1500, placeholder: '', url: 'spread' },
+  };
+  const slots = createComicPageDisplaySlots([wideSpread], 1, {
+    splitLongPages: true,
+    viewportHeight: 844,
+    viewportWidth: 390,
+  });
+  assert.deepEqual(slots.map((slot) => slot.pages.map((page) => page.index)), [[0], [0]]);
+  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentAxis), ['horizontal', 'horizontal']);
+  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentIndex), [0, 1]);
+  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentCount), [2, 2]);
+  assert.equal(slots[0]?.items[0]?.segmentWidth, 390);
+  assert.ok(Math.abs((slots[0]?.items[0]?.segmentHeight ?? 0) - 631.067) < 0.01);
+  assert.equal(slots[0]?.items[0]?.renderedImageWidth, 780);
+  assert.equal(slots[0]?.items[0]?.segmentOffset, 0);
+  assert.equal(slots[1]?.items[0]?.segmentOffset, 390);
+  assert.equal(resolveComicDisplayItemIndex(0, slots, 1), 1);
+  assert.equal(resolveComicSourceSegmentIndex(0, 2, 'horizontal', 'ltr'), 0);
+  assert.equal(resolveComicSourceSegmentIndex(0, 2, 'horizontal', 'rtl'), 1);
+  assert.equal(resolveComicSourceSegmentIndex(1, 2, 'horizontal', 'rtl'), 0);
+  assert.equal(resolveComicSourceSegmentIndex(1, 2, 'vertical', 'rtl'), 1);
 });
 
 test('phone paged mode splits a known very tall page into virtual segments', () => {

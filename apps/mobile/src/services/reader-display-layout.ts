@@ -1,14 +1,24 @@
 import type { ComicPageSlot } from '@novella/reader-engine';
 
+export type ComicPageSegmentAxis = 'horizontal' | 'vertical';
+
 export interface ComicPageDisplayItem {
   page: ComicPageSlot;
   /** Zero-based segment number for a virtual long-page segment. */
   segmentIndex: number;
   /** Number of virtual segments for the logical page. */
   segmentCount: number;
-  /** Vertical offset of the source image in viewport points. */
+  /** Axis along which the source image is clipped, or null for a full page. */
+  segmentAxis: ComicPageSegmentAxis | null;
+  /** Offset of the source image in viewport points along segmentAxis. */
   segmentOffset: number;
-  /** Full source-image height when rendered at the viewport width. */
+  /** Visible frame width of one virtual segment. */
+  segmentWidth: number;
+  /** Visible frame height of one virtual segment. */
+  segmentHeight: number;
+  /** Full source-image width when rendered for the segment. */
+  renderedImageWidth: number;
+  /** Full source-image height when rendered for the segment. */
   renderedImageHeight: number;
 }
 
@@ -125,9 +135,10 @@ export function isComicPagePairable(page: ComicPageSlot): boolean {
 }
 
 /**
- * Phone-sized viewports use virtual vertical windows for very tall source
- * images. This keeps the feature scoped to the single-page mobile reader;
- * tablet double-page presentation continues to use source pages unchanged.
+ * Phone-sized viewports use virtual windows for source pages that need a
+ * different presentation: landscape spreads are split left/right, while very
+ * tall portrait images are split top/bottom. Tablet double-page presentation
+ * continues to use source pages unchanged.
  */
 export function shouldSplitLongComicPages(
   width: number,
@@ -137,6 +148,22 @@ export function shouldSplitLongComicPages(
   const safeWidth = positiveDimension(width, 1);
   const safeHeight = positiveDimension(height, 1);
   return columns < 2 && Math.min(safeWidth, safeHeight) < 600;
+}
+
+export function resolveComicSourceSegmentIndex(
+  segmentIndex: number,
+  segmentCount: number,
+  axis: ComicPageSegmentAxis | null,
+  direction: 'ltr' | 'rtl',
+): number {
+  const safeCount = Math.max(1, Math.trunc(segmentCount));
+  const safeIndex = Math.min(
+    safeCount - 1,
+    Math.max(0, Number.isFinite(segmentIndex) ? Math.trunc(segmentIndex) : 0),
+  );
+  return axis === 'horizontal' && direction === 'rtl'
+    ? safeCount - 1 - safeIndex
+    : safeIndex;
 }
 
 export function fitComicPageSpread(
@@ -254,9 +281,13 @@ function createComicPageDisplayItems(
   const normalItem: ComicPageDisplayItem = {
     page,
     renderedImageHeight: 0,
+    renderedImageWidth: 0,
+    segmentAxis: null,
     segmentCount: 1,
+    segmentHeight: 0,
     segmentIndex: 0,
     segmentOffset: 0,
+    segmentWidth: 0,
   };
   if (!splitLongPages || !viewportWidth || !viewportHeight) return [normalItem];
 
@@ -266,6 +297,26 @@ function createComicPageDisplayItems(
     || !hasPositiveDimension(image.width)
     || !hasPositiveDimension(image.height)
   ) return [normalItem];
+
+  if (image.width > image.height) {
+    const halfSize = fitImageToViewport(
+      image.width / 2,
+      image.height,
+      viewportWidth,
+      viewportHeight,
+    );
+    return Array.from({ length: 2 }, (_, segmentIndex) => ({
+      page,
+      renderedImageHeight: halfSize.height,
+      renderedImageWidth: halfSize.width * 2,
+      segmentAxis: 'horizontal' as const,
+      segmentCount: 2,
+      segmentHeight: halfSize.height,
+      segmentIndex,
+      segmentOffset: segmentIndex * halfSize.width,
+      segmentWidth: halfSize.width,
+    }));
+  }
 
   const aspectRatio = image.height / image.width;
   const renderedImageHeight = viewportWidth * aspectRatio;
@@ -278,10 +329,29 @@ function createComicPageDisplayItems(
   return Array.from({ length: segmentCount }, (_, segmentIndex) => ({
     page,
     renderedImageHeight,
+    renderedImageWidth: viewportWidth,
+    segmentAxis: 'vertical' as const,
     segmentCount,
+    segmentHeight: viewportHeight,
     segmentIndex,
     segmentOffset: segmentIndex * viewportHeight,
+    segmentWidth: viewportWidth,
   }));
+}
+
+function fitImageToViewport(
+  sourceWidth: number,
+  sourceHeight: number,
+  maximumWidth: number,
+  maximumHeight: number,
+): ComicPageDisplaySize {
+  const width = positiveDimension(sourceWidth, 1);
+  const height = positiveDimension(sourceHeight, 1);
+  const scale = Math.min(maximumWidth / width, maximumHeight / height);
+  return {
+    height: height * scale,
+    width: width * scale,
+  };
 }
 
 function hasPositiveDimension(value: number | undefined): boolean {
