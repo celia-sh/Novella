@@ -63,6 +63,7 @@ import { useReaderImageDimensions } from '@/hooks/use-reader-image-dimensions';
 import { useReaderWindowDimensions } from '@/hooks/use-reader-window-dimensions';
 import { createFontManager } from '@/services/skia-font-loader';
 import { resolveReaderFontUrl } from '@/services/reader-font-loader';
+import { ReaderSkiaImagePool } from '@/services/reader-skia-image-pool';
 import { useReaderPositionSaver } from '@/hooks/use-reader-position-saver';
 import { subscribeReaderChapterSelection } from '@/services/reader-chapter-selection';
 import {
@@ -369,6 +370,11 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     }
     return tileChapter(layout, screenHeight * 2.5);
   }, [layout, mode, readerChromeInsets.bottom, readerChromeInsets.top, screenHeight, screenWidth, useDoublePage]);
+  const imagePool = useMemo(
+    () => new ReaderSkiaImagePool(),
+    [content?.chapter.id],
+  );
+  useEffect(() => () => imagePool.dispose(), [imagePool]);
 
   const previousViewportSignature = viewportSignatureRef.current;
   const viewportChangePendingBeforeCommit = Boolean(
@@ -923,12 +929,14 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         sidePadding: debouncedSettings.sidePadding,
         firstLineIndent: debouncedSettings.firstLineIndent,
       }}
+      imagePool={imagePool}
       tile={tile}
       viewportWidth={screenWidth}
     />
   ), [
     debouncedSettings,
     fontMgr,
+    imagePool,
     layoutGeneration,
     openImagePreview,
     readerBackground,
@@ -1004,10 +1012,12 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               decelerationRate={mode === 'paged' ? 'fast' : 'normal'}
               getItemLayout={getItemLayout}
               horizontal={mode === 'paged'}
-              initialNumToRender={3}
+              // Scroll mode keeps fewer Skia tiles alive because every tile
+              // can own paragraphs and decoded image leases.
+              initialNumToRender={mode === 'paged' ? 3 : 2}
               key={`${content.chapter.id}:${mode}`}
               keyExtractor={getTileKey}
-              maxToRenderPerBatch={4}
+              maxToRenderPerBatch={mode === 'paged' ? 4 : 2}
               onMomentumScrollEnd={handleScrollEnd}
               onScroll={handleScroll}
               onScrollEndDrag={handleScrollEndDrag}
@@ -1019,7 +1029,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               showsVerticalScrollIndicator={mode !== 'paged'}
               style={styles.reader}
               updateCellsBatchingPeriod={0}
-              windowSize={5}
+              windowSize={mode === 'paged' ? 5 : 3}
             />
           </View>
         ) : null}
