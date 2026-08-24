@@ -26,6 +26,9 @@ export default function BookDetailRoute() {
   const bookType = type === 'Comic' ? 'Comic' : type === 'Novel' ? 'Novel' : undefined;
   return (
     <BookDetailScreen
+      // Version switching updates this route's params in place. Reset the
+      // book-scoped screen state when its logical book changes.
+      key={`${type ?? 'unknown'}:${rawId}`}
       bookId={Number(rawId)}
       {...initialCover}
       {...(initialSeriesTitle ? { initialSeriesTitle } : {})}

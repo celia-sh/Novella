@@ -15,7 +15,7 @@
     "start": "npm run dev:mobile",
     "android": "npm run android --workspace @novella/mobile",
     "ios": "npm run ios --workspace @novella/mobile",
-    "test:client": "npm run test --workspace @novella/client-core && npm run test --workspace @novella/api-client && npm run test --workspace @novella/reader-engine && npm run test:shelf --workspace @novella/mobile && npm run test:community --workspace @novella/mobile",
+    "test:client": "npm run test --workspace @novella/client-core && npm run test --workspace @novella/api-client && npm run test --workspace @novella/reader-engine && npm run test:navigation --workspace @novella/mobile && npm run test:shelf --workspace @novella/mobile && npm run test:community --workspace @novella/mobile",
     "test:reader": "npm run test --workspace @novella/reader-engine && npm run test --workspace @novella/reader-layout && npm run test --workspace @novella/api-client && npm run test:reader --workspace @novella/mobile",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },

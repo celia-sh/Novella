@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -21,7 +21,11 @@ import type { ComicSeriesDetail } from '@novella/api-client';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import type { BookUserMessage } from '@/hooks/use-book-detail';
 import { reader } from '@/services/client';
-import type { BookDetailPalette } from '@/theme/book-detail-theme';
+import {
+  createComicBookDetailParams,
+  updateComicVersionInDetail,
+  type RootStackNavigation,
+} from '@/services/book-version-navigation';
 
 export interface BookVersionsScreenProps {
   /** Id of the version currently open in the detail page below. */
@@ -32,6 +36,7 @@ export interface BookVersionsScreenProps {
 export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenProps) {
   const { t } = useTranslation('book');
   const { t: tCommon } = useTranslation('common');
+  const navigation = useNavigation<RootStackNavigation>('/');
   const { palette } = useBookDetailRouteTheme(bookId, null, null, true);
   const [detail, setDetail] = useState<ComicSeriesDetail | null>(null);
   const [error, setError] = useState<BookUserMessage | null>(null);
@@ -59,17 +64,18 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
     coverUrl: string,
     coverPlaceholder: string | null,
   ) => {
-    router.replace({
-      pathname: '/book/[id]',
-      params: {
-        cover: coverUrl,
-        id: String(versionId),
-        placeholder: coverPlaceholder ?? '',
-        seriesTitle,
-        title: versionTitle,
-        type: 'Comic',
-      },
+    const params = createComicBookDetailParams({
+      coverPlaceholder,
+      coverUrl,
+      seriesTitle,
+      title: versionTitle,
+      versionId,
     });
+    // The version picker is presented above the detail route. Update that
+    // existing route before dismissing the picker so changing versions does
+    // not add a second detail page to the back stack.
+    if (updateComicVersionInDetail(navigation, params)) return;
+    router.replace({ pathname: '/book/[id]', params });
   };
 
   return (
