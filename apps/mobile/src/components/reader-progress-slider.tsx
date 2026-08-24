@@ -1,6 +1,10 @@
 import { useTranslation } from 'react-i18next';
 
 import { ReaderNativeProgressBar } from '@/components/reader-progress-bar';
+import {
+  readerProgressStep,
+  snapReaderProgress,
+} from '@/services/reader-page-progress';
 
 export interface ReaderProgressSliderProps {
   direction?: 'ltr' | 'rtl';
@@ -31,15 +35,19 @@ export function ReaderProgressSlider({
     ? t('progress.remainingPages', { count: pagesRemaining })
     : '';
   const disabled = pageTotal <= 1;
+  const handleProgressChange = (value: number) => {
+    onValueChange(snapReaderProgress(value, pageTotal));
+  };
 
   return (
     <ReaderNativeProgressBar
       direction={direction}
       disabled={disabled}
-      onProgressChange={disabled ? () => undefined : onValueChange}
+      onProgressChange={disabled ? () => undefined : handleProgressChange}
       pageCurrent={pageCurrent}
       pageTotal={pageTotal}
       progress={disabled ? 1 : progress}
+      step={readerProgressStep(pageTotal)}
       remainingText={remainingText}
     />
   );

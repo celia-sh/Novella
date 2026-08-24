@@ -412,16 +412,17 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const activeChapterIdRef = useRef<number | null>(null);
   const lastScrollOffsetRef = useRef({ x: 0, y: 0 });
   const [visiblePageIndex, setVisiblePageIndex] = useState(0);
+  const [scrollProgressRevision, setScrollProgressRevision] = useState(0);
   activeChapterIdRef.current = content?.chapter.id ?? null;
 
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offset = event.nativeEvent.contentOffset;
+    lastScrollOffsetRef.current = offset;
     if (
       !content
       || !positionCaptureReadyRef.current
       || positionCaptureKeyRef.current !== readerChapterKey
     ) return;
-    const offset = event.nativeEvent.contentOffset;
-    lastScrollOffsetRef.current = offset;
     const currentBlock = findVisibleReaderLayoutBlock({
       layout,
       mode,
@@ -459,6 +460,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     presentation?.tiles.length,
     screenHeight,
     screenWidth,
+    scrollProgressRevision,
     visiblePageIndex,
   ]);
 
@@ -517,13 +519,16 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     setPendingViewportReflowKey(readerViewportKey);
   }, [content?.chapter.id, layout, mode, presentation, readerViewportKey, viewportRevision]);
 
-  const handleScrollEnd = useCallback(() => {
+  const handleScrollEnd = useCallback((event?: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (!content || activeChapterIdRef.current !== content.chapter.id) return;
+    if (event) {
+      lastScrollOffsetRef.current = event.nativeEvent.contentOffset;
+      setScrollProgressRevision((current) => current + 1);
+    }
     const currentBlock = captureCurrentVisibleBlock();
     if (!currentBlock) return;
     schedulePosition({ chapterId: content.chapter.id, position: currentBlock.locator });
   }, [captureCurrentVisibleBlock, content, schedulePosition]);
-
   const turnNovelPage = useCallback((delta: -1 | 1) => {
     if (mode !== 'paged' || !presentation) return;
     const currentIndex = resolveNovelPageProgress({
@@ -542,7 +547,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     lastScrollOffsetRef.current = { x: targetIndex * screenWidth, y: 0 };
     setVisiblePageIndex(targetIndex);
     flatListRef.current?.scrollToIndex({ animated: false, index: targetIndex });
-    requestAnimationFrame(handleScrollEnd);
+    requestAnimationFrame(() => handleScrollEnd());
   }, [handleScrollEnd, layout?.totalHeight, mode, presentation, screenHeight, screenWidth]);
 
   const jumpToProgress = useCallback((value: number) => {
@@ -567,7 +572,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       }).current - 1);
       flatListRef.current?.scrollToOffset({ animated: false, offset });
     }
-    requestAnimationFrame(handleScrollEnd);
+    requestAnimationFrame(() => handleScrollEnd());
   }, [handleScrollEnd, layout, mode, presentation, screenHeight, screenWidth]);
 
   const restoredPresentationRef = useRef<string | null>(null);
@@ -769,7 +774,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       openChapter(nextSortNum, 'start');
       return;
     }
-    handleScrollEnd();
+    handleScrollEnd(event);
   }, [handleScrollEnd, mode, nextSortNum, openChapter, previousSortNum]);
 
   const handlePageTap = useCallback<ReaderPageTapHandler>((event) => {

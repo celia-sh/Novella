@@ -59,7 +59,6 @@ export function resolveReaderBoundaryChapterAction({
   const safeThreshold = Math.max(0, threshold);
   const safeVelocityThreshold = Math.max(0, velocityThreshold);
 
-  if (maximumOffset <= safeThreshold) return null;
   if (safeOffset <= safeThreshold && safeVelocity < -safeVelocityThreshold) return 'previous';
   if (
     safeOffset >= maximumOffset - safeThreshold

@@ -82,7 +82,15 @@ final class NovellaReaderProgressBarView: ExpoView {
   @objc
   private func handleProgressChange() {
     guard !isProgressDisabled else { return }
-    onProgressChange(["value": Double(slider.value)])
+    let snapped = snappedProgress(slider.value)
+    slider.setValue(snapped, animated: false)
+    onProgressChange(["value": Double(snapped)])
+  }
+
+  private func snappedProgress(_ value: Float) -> Float {
+    guard totalPages > 1 else { return totalPages == 1 ? 1 : value }
+    let step = 1 / Float(totalPages - 1)
+    return min(max(round(value / step) * step, 0), 1)
   }
 
   private func updatePageLabels() {

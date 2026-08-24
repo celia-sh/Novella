@@ -21,14 +21,16 @@ test('boundary gestures require an outward release at the chapter edge', () => {
   assert.equal(resolveReaderBoundaryChapterAction({ ...base, offset: 800, velocity: 0.8 }), null);
 });
 
-test('short content never turns a boundary swipe into a chapter change', () => {
-  assert.equal(resolveReaderBoundaryChapterAction({
-    axis: 'horizontal',
+test('short scroll content still accepts outward boundary gestures', () => {
+  const base = {
+    axis: 'vertical',
     contentExtent: 400,
     offset: 0,
-    velocity: -1,
     viewportExtent: 800,
-  }), null);
+  };
+  assert.equal(resolveReaderBoundaryChapterAction({ ...base, velocity: -1 }), 'previous');
+  assert.equal(resolveReaderBoundaryChapterAction({ ...base, velocity: 1 }), 'next');
+  assert.equal(resolveReaderBoundaryChapterAction({ ...base, velocity: 0.1 }), null);
 });
 
 test('paged boundary gestures reverse physical direction in RTL', () => {

@@ -3,8 +3,10 @@ import test from 'node:test';
 
 import {
   estimateNovelPageCount,
+  readerProgressStep,
   resolveComicPageProgress,
   resolveNovelPageProgress,
+  snapReaderProgress,
 } from './reader-page-progress.ts';
 
 test('novel scroll progress estimates pages from chapter height', () => {
@@ -17,6 +19,25 @@ test('novel scroll progress estimates pages from chapter height', () => {
     viewportHeight: 800,
     viewportWidth: 400,
   }), { current: 2, progress: 0.5, total: 3 });
+});
+
+test('novel scroll progress is complete at the final viewport offset', () => {
+  assert.deepEqual(resolveNovelPageProgress({
+    mode: 'scroll',
+    offset: { x: 0, y: 1600 },
+    pagedPageCount: 1,
+    totalHeight: 2400,
+    viewportHeight: 800,
+    viewportWidth: 400,
+  }), { current: 3, progress: 1, total: 3 });
+});
+
+test('reader progress snaps to page positions', () => {
+  assert.equal(readerProgressStep(5), 0.25);
+  assert.equal(snapReaderProgress(0.12, 5), 0);
+  assert.equal(snapReaderProgress(0.14, 5), 0.25);
+  assert.equal(snapReaderProgress(0.94, 5), 1);
+  assert.equal(snapReaderProgress(0.5, 1), 1);
 });
 
 test('novel paged progress uses measured page tiles', () => {

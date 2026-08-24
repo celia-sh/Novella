@@ -6,4 +6,5 @@ export interface ReaderNativeProgressBarProps {
   pageTotal: number;
   progress: number;
   remainingText: string;
+  step: number;
 }

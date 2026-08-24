@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import type { ReaderNativeProgressBarProps } from '@/components/reader-progress-bar.types';
+import { snapReaderProgress } from '@/services/reader-page-progress';
 import { useAppTheme } from '@/theme/app-theme';
 
 export function ReaderNativeProgressBar({
@@ -13,6 +14,7 @@ export function ReaderNativeProgressBar({
   pageTotal,
   progress,
   remainingText,
+  step,
 }: ReaderNativeProgressBarProps) {
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
@@ -26,8 +28,9 @@ export function ReaderNativeProgressBar({
     if (disabled) return;
     const displayed = typeof value === 'number' ? value : value[0] ?? 0;
     const next = isReversed ? 1 - displayed : displayed;
-    setDraft(next);
-    onProgressChange(next);
+    const snapped = snapReaderProgress(next, pageTotal);
+    setDraft(snapped);
+    onProgressChange(snapped);
   };
 
   return (
@@ -38,7 +41,7 @@ export function ReaderNativeProgressBar({
         maxValue={1}
         minValue={0}
         onChange={handleChange}
-        step={0.001}
+        step={step}
         style={styles.slider}
         value={displayedProgress}
       >
