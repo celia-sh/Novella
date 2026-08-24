@@ -169,6 +169,8 @@ export interface LayoutChapterOptions {
   fontMgr?: SkTypefaceFontProvider;
   /** Cached or explicit image geometry keyed by the source URL from chapter HTML. */
   imageDimensions?: Readonly<Record<string, ReaderImageDimensions>>;
+  /** Optional page-mode cap that keeps block images inside the visible page. */
+  maxImageHeight?: number;
 }
 
 export interface LayoutChapterResult {

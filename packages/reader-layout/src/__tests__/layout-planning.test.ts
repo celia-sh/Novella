@@ -297,6 +297,21 @@ test('CSS image dimensions preserve authored percentage geometry', () => {
   );
 });
 
+test('paged image frames fit the visible page height on large viewports', () => {
+  const [image] = extractReaderImages(
+    '<img src="/cover.png" width="600" height="900">',
+  );
+  const frame = resolveReaderImageFrame(image!, 600, {}, 400);
+  assert.deepEqual(
+    {
+      height: Math.round(frame.image.height),
+      width: Math.round(frame.image.width),
+      x: Math.round(frame.x),
+    },
+    { height: 400, width: 267, x: 167 },
+  );
+});
+
 test('system image URL metadata prevents greedy full-width placeholders', () => {
   const [image] = extractReaderImages(
     '<img src="https://img.example/art.webp?placeholder=hash&amp;size=120x80">',

@@ -334,9 +334,17 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       },
       fontFamily: readerFont.family ?? 'System',
       imageDimensions: imageGeometry.dimensions,
+      ...(mode === 'paged'
+        ? {
+            maxImageHeight: Math.max(
+              1,
+              screenHeight - readerChromeInsets.top - readerChromeInsets.bottom,
+            ),
+          }
+        : {}),
       ...(fontMgr ? { fontMgr } : {}),
     });
-  }, [blocks, screenWidth, useDoublePage, debouncedSettings, fontLoading, content, readerFont.family, readerBackground, readerTextColor, readerChromeInsets.bottom, readerChromeInsets.top, fontMgr, requiresReaderFont, fontMgrLoading, imageGeometry.dimensions]);
+  }, [blocks, mode, screenHeight, screenWidth, useDoublePage, debouncedSettings, fontLoading, content, readerFont.family, readerBackground, readerTextColor, readerChromeInsets.bottom, readerChromeInsets.top, fontMgr, requiresReaderFont, fontMgrLoading, imageGeometry.dimensions]);
 
   // Native virtualization owns mounted tile/page lifetime in both modes.
   const presentation = useMemo(() => {

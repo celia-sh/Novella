@@ -64,6 +64,7 @@ export function resolveReaderImageFrame(
   image: ParsedReaderImage,
   availableWidth: number,
   imageDimensions: Readonly<Record<string, ReaderImageDimensions>>,
+  maximumHeight?: number,
 ): ResolvedReaderImageFrame {
   const decodedSource = decodeHtmlAttribute(image.src);
   const knownDimensions = explicitImageDimensions(image)
@@ -77,19 +78,20 @@ export function resolveReaderImageFrame(
     ?? (image.widthFraction ? availableWidth * image.widthFraction : undefined)
     ?? knownDimensions?.width
     ?? availableWidth;
-  const width = image.fullWidth
+  const requestedWidth = image.fullWidth
     ? availableWidth
     : Math.min(availableWidth, Math.max(1, authoredWidth));
-  const height = width / aspectRatio;
+  const requestedHeight = requestedWidth / aspectRatio;
+  const size = fitImageHeight(requestedWidth, requestedHeight, maximumHeight);
 
   return {
-    x: Math.max(0, (availableWidth - width) / 2),
+    x: Math.max(0, (availableWidth - size.width) / 2),
     image: {
       url: decodedSource,
       alt: image.alt,
       previewable: image.previewable,
-      width,
-      height,
+      width: size.width,
+      height: size.height,
       aspectRatio,
     },
   };
@@ -99,6 +101,7 @@ export function resolveReaderInlineImageFrame(
   image: ParsedReaderImage,
   availableWidth: number,
   imageDimensions: Readonly<Record<string, ReaderImageDimensions>>,
+  maximumHeight?: number,
 ): ResolvedReaderImageFrame {
   const decodedSource = decodeHtmlAttribute(image.src);
   const knownDimensions = explicitImageDimensions(image)
@@ -121,16 +124,33 @@ export function resolveReaderInlineImageFrame(
   const height = image.height && !image.width
     ? image.height
     : width / Math.max(0.001, aspectRatio);
+  const size = fitImageHeight(width, Math.max(1, height), maximumHeight);
   return {
     x: 0,
     image: {
       url: decodedSource,
       alt: image.alt,
       previewable: image.previewable,
-      width,
-      height: Math.max(1, height),
+      width: size.width,
+      height: size.height,
       aspectRatio,
     },
+  };
+}
+
+function fitImageHeight(
+  width: number,
+  height: number,
+  maximumHeight: number | undefined,
+): { height: number; width: number } {
+  if (typeof maximumHeight !== 'number' || !Number.isFinite(maximumHeight) || maximumHeight <= 0) {
+    return { height, width };
+  }
+  if (height <= maximumHeight) return { height, width };
+  const scale = maximumHeight / height;
+  return {
+    height: maximumHeight,
+    width: width * scale,
   };
 }
 

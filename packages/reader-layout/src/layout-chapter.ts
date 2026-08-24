@@ -74,6 +74,7 @@ export function layoutChapter(options: LayoutChapterOptions): LayoutChapterResul
     fontFamily,
     fontMgr: customFontMgr,
     imageDimensions = {},
+    maxImageHeight,
   } = options;
   const styleResolver = new StyleResolver(theme);
   const measureParagraph = createParagraphMeasurer(customFontMgr);
@@ -98,6 +99,7 @@ export function layoutChapter(options: LayoutChapterOptions): LayoutChapterResul
       fontFamily,
       theme,
       imageDimensions,
+      maxImageHeight,
     });
     if (parts.length === 0) continue;
 
@@ -176,10 +178,11 @@ interface LayoutSourceBlockInput {
   fontFamily: string;
   theme: LayoutChapterOptions['theme'];
   imageDimensions: Readonly<Record<string, ReaderImageDimensions>>;
+  maxImageHeight: number | undefined;
 }
 
 function layoutSourceBlock(input: LayoutSourceBlockInput): LayoutBlock[] {
-  const { sourceBlock, parsed, style, width, imageDimensions } = input;
+  const { sourceBlock, parsed, style, width, imageDimensions, maxImageHeight } = input;
   const blockType = getBlockType(parsed.tag);
 
   if (blockType === 'hr') {
@@ -200,6 +203,7 @@ function layoutSourceBlock(input: LayoutSourceBlockInput): LayoutBlock[] {
       y: input.y,
       width,
       imageDimensions,
+      maxImageHeight,
     });
   }
 
@@ -218,6 +222,7 @@ function layoutTextBlock(input: LayoutTextBlockInput): LayoutBlock {
     fontFamily,
     theme,
     imageDimensions,
+    maxImageHeight,
   } = input;
   const blockType = getBlockType(parsed.tag);
   const fontSize = style.fontSize ?? theme.fontSize;
@@ -265,6 +270,7 @@ function layoutTextBlock(input: LayoutTextBlockInput): LayoutBlock {
     measureParagraph,
     availableWidth: blockWidth,
     imageDimensions,
+    maxImageHeight,
   });
   const textDraft: TextBlockData = {
     content,
@@ -332,6 +338,7 @@ interface MeasureInlineRunsInput {
   measureParagraph: MeasureParagraph;
   availableWidth: number;
   imageDimensions: Readonly<Record<string, ReaderImageDimensions>>;
+  maxImageHeight: number | undefined;
 }
 
 type MeasuredInlinePlaceholder =
@@ -356,6 +363,7 @@ function measureInlineRuns(
     measureParagraph,
     availableWidth,
     imageDimensions,
+    maxImageHeight,
   } = input;
   const paragraphRuns: ParagraphRun[] = [];
   const placeholders: MeasuredInlinePlaceholder[] = [];
@@ -416,8 +424,8 @@ function measureInlineRuns(
     }
 
     const frame = run.image.blockDisplay
-      ? resolveReaderImageFrame(run.image, availableWidth, imageDimensions)
-      : resolveReaderInlineImageFrame(run.image, availableWidth, imageDimensions);
+      ? resolveReaderImageFrame(run.image, availableWidth, imageDimensions, maxImageHeight)
+      : resolveReaderInlineImageFrame(run.image, availableWidth, imageDimensions, maxImageHeight);
     const blockAligned = run.image.blockDisplay === true
       || run.image.float !== undefined
       || run.image.alignment !== undefined;
@@ -607,11 +615,17 @@ interface LayoutImageGroupInput {
   y: number;
   width: number;
   imageDimensions: Readonly<Record<string, ReaderImageDimensions>>;
+  maxImageHeight: number | undefined;
 }
 
 function layoutImageGroup(input: LayoutImageGroupInput): LayoutBlock[] {
-  const { sourceBlock, images, style, y, width, imageDimensions } = input;
-  const frames = images.map((image) => resolveReaderImageFrame(image, width, imageDimensions));
+  const { sourceBlock, images, style, y, width, imageDimensions, maxImageHeight } = input;
+  const frames = images.map((image) => resolveReaderImageFrame(
+    image,
+    width,
+    imageDimensions,
+    maxImageHeight,
+  ));
   const rows: ResolvedReaderImageFrame[][] = [];
   let row: ResolvedReaderImageFrame[] = [];
   let rowWidth = 0;
