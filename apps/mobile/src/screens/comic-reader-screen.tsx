@@ -32,7 +32,6 @@ import {
 } from '@/services/reader-display-layout';
 import {
   clampComicPageIndex,
-  clampComicScrollOffset,
   createComicPrefetchPlan,
   doesComicBatchContainPage,
   fitComicPage,
@@ -157,7 +156,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   const pagedListRef = useRef<FlatList<ComicPageDisplaySlot> | null>(null);
   const scrollListRef = useRef<FlatList<ComicPageDisplayItem> | null>(null);
   const pagedTapTargetRef = useRef<number | null>(null);
-  const scrollTapTargetRef = useRef<number | null>(null);
   const scrollMetricsRef = useRef({ contentHeight: 0, offset: 0, viewportHeight: comicViewportHeight });
   const viewportSignatureRef = useRef<ComicViewportSignature | null>(null);
   const viewportRestoreFrameRef = useRef<number | null>(null);
@@ -414,7 +412,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     visibleDisplayIndexRef.current = initialDisplayIndexRef.current;
     visibleSegmentIndexRef.current = 0;
     pagedTapTargetRef.current = null;
-    scrollTapTargetRef.current = null;
     restoreTargetRef.current = activeChapter
       ? { chapterId: activeChapter.chapter.id, index: initialPageIndex }
       : null;
@@ -553,7 +550,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     )?.segmentIndex ?? 0;
     restoreTargetRef.current = null;
     pagedTapTargetRef.current = mode === 'paged' ? displayIndex : null;
-    scrollTapTargetRef.current = null;
     if (mode === 'paged') visibleDisplayIndexRef.current = displayIndex;
     visibleSegmentIndexRef.current = restoredSegmentIndex;
     lastVisiblePageRef.current = pageIndex;
@@ -760,29 +756,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     );
   }, [activeSlots.length, mode, pagedDisplaySlots, recordVisiblePage]);
 
-  const handleContentTap = useCallback((x: number, y: number) => {
-    let direction = resolveComicTapDirection(mode, x, y, width, windowHeight);
-    if (mode === 'paged' && isPagedRtl && direction !== null) direction = direction === 1 ? -1 : 1;
-    if (direction === null || activeSlots.length === 0) return;
-    if (mode === 'paged') {
-      turnComicPage(direction);
-      return;
-    }
-    const metrics = scrollMetricsRef.current;
-    const currentTarget = scrollTapTargetRef.current ?? metrics.offset;
-    const target = clampComicScrollOffset(
-      currentTarget,
-      direction * comicViewportHeight,
-      metrics.contentHeight,
-      metrics.viewportHeight,
-    );
-    if (target === currentTarget) return;
-    scrollTapTargetRef.current = target;
-    scrollListRef.current?.scrollToOffset({ animated: false, offset: target });
-    requestAnimationFrame(() => {
-      scrollTapTargetRef.current = null;
-    });
-  }, [activeSlots.length, comicViewportHeight, isPagedRtl, mode, pagedColumns, pagedDisplaySlots, recordVisiblePage, turnComicPage, width, windowHeight]);
   const handlePagedTap = useCallback<ReaderPageTapHandler>((event) => {
     if (mode !== 'paged' || !settings.readerPagedTapNavigation) {
       return false;
@@ -925,7 +898,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
               batchFailed={(page) => failedBatches.has(getComicPageBatchStart(page.index, activeSlots.length, PAGE_BATCH))}
               contentWidth={pageWidth}
               maxHeight={pagedPageHeight}
-              {...(mode === 'paged' ? {} : { onPress: handleContentTap })}
               onRetryBatch={(page) => { void loadBatch(page.index, true); }}
               priority={(page) => Math.abs(page.index - visiblePage) <= 1 ? 'high' : 'normal'}
               slot={item}
@@ -985,7 +957,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
               <ComicPage
                 batchFailed={failedBatches.has(getComicPageBatchStart(item.page.index, activeSlots.length, PAGE_BATCH))}
                 contentWidth={displaySize?.width ?? continuousContentWidth}
-                onPress={handleContentTap}
                 displayItem={item}
                 {...(displaySize ? { displaySize } : {})}
                 onRetryBatch={() => { void loadBatch(item.page.index, true); }}
@@ -1007,9 +978,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
             scrollMetricsRef.current.viewportHeight = event.nativeEvent.layoutMeasurement.height;
           }}
           scrollEventThrottle={16}
-          onMomentumScrollEnd={() => {
-            scrollTapTargetRef.current = null;
-          }}
           onScrollEndDrag={handleBoundaryChapterGesture}
           onViewableItemsChanged={onScrollViewableItemsChanged}
           updateCellsBatchingPeriod={32}
@@ -1053,7 +1021,6 @@ interface ComicPageSpreadProps {
   batchFailed: (page: ComicPageSlot) => boolean;
   contentWidth: number;
   maxHeight: number;
-  onPress?: (x: number, y: number) => void;
   onRetryBatch: (page: ComicPageSlot) => void;
   priority: (page: ComicPageSlot) => 'high' | 'normal';
   readingDirection: 'ltr' | 'rtl';
@@ -1065,7 +1032,6 @@ function ComicPageSpread({
   batchFailed,
   contentWidth,
   maxHeight,
-  onPress,
   onRetryBatch,
   priority,
   readingDirection,
@@ -1098,7 +1064,6 @@ function ComicPageSpread({
             displaySize={displaySize}
             maxHeight={maxHeight}
             sourceSegmentIndex={sourceSegmentIndex}
-            {...(onPress ? { onPress } : {})}
             onRetryBatch={() => onRetryBatch(page)}
             priority={priority(page)}
             slot={page}
@@ -1116,7 +1081,6 @@ interface ComicPageProps {
   displayItem?: ComicPageDisplayItem;
   displaySize?: ComicPageDisplaySize;
   maxHeight?: number;
-  onPress?: (x: number, y: number) => void;
   onRetryBatch: () => void;
   priority: 'high' | 'normal';
   slot: ComicPageSlot;
@@ -1130,7 +1094,6 @@ function ComicPage({
   displayItem,
   displaySize,
   maxHeight,
-  onPress,
   onRetryBatch,
   priority,
   slot,
@@ -1213,9 +1176,6 @@ function ComicPage({
 
   return (
     <Pressable
-      onPress={onPress
-        ? (event) => onPress(event.nativeEvent.pageX, event.nativeEvent.pageY)
-        : undefined}
       style={[
         styles.pageRow,
         { width: viewportWidth },
