@@ -173,6 +173,7 @@ function CoverTrack({
                 accessibilityLabel={t('accessibility.bookCover', { title: book.title })}
                 animateCachedImage
                 blurHash={book.coverPlaceholder}
+                displayHeight={cardHeight}
                 showLoading={false}
                 source={book.coverUrl}
               />

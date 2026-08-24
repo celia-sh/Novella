@@ -753,6 +753,7 @@ function BookHeroContent({
               <BookCoverImage
                 accessibilityLabel={t('cover.accessibility', { title: book.title })}
                 blurHash={coverPlaceholder}
+                displayHeight={150}
                 source={coverUrl}
               />
             ) : (

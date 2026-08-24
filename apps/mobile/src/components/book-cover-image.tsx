@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Animated,
+  PixelRatio,
   Pressable,
   StyleSheet,
   View,
@@ -14,6 +15,8 @@ import { normalizeCoverUrl } from '@novella/api-client';
 
 import { BookCoverBlurHash } from '@/components/book-cover-blur-hash';
 import { createBookCoverBlurHashPlaceholder } from '@/services/blurhash';
+import { coverImageCacheKey, coverImageRecyclingKey } from '@/services/cover-image-keys';
+import { sizedImageUrl } from '@/services/image-sizing';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 const MINIMUM_PLACEHOLDER_DURATION_MS = 120;
@@ -28,6 +31,10 @@ export interface BookCoverImageProps {
   accessibilityLabel: string;
   animateCachedImage?: boolean;
   blurHash?: string | null;
+  /** Height occupied by the cover in logical points; used for CDN sizing. */
+  displayHeight: number;
+  /** Disable the height variant for images that do not belong to Novella's CDN. */
+  requestSizedVariant?: boolean;
   /** Mount the URI-backed image. BlurHash/fallback rendering is independent. */
   networkImageEnabled?: boolean;
   source: string;
@@ -44,7 +51,16 @@ export interface BookCoverImageProps {
  */
 export function BookCoverImage(props: BookCoverImageProps) {
   const source = normalizeCoverUrl(props.source);
-  return <BookCoverImageLayer key={source} {...props} source={source} />;
+  const imageSource = props.requestSizedVariant === false
+    ? source
+    : sizedImageUrl(source, {
+        devicePixelRatio: PixelRatio.get(),
+        logicalHeight: props.displayHeight,
+      });
+
+  // The bucket is part of the key. A split view or rotation can change the
+  // requested variant while the logical cover URL stays unchanged.
+  return <BookCoverImageLayer key={imageSource} {...props} source={imageSource} />;
 }
 
 function BookCoverImageLayer({
@@ -59,7 +75,8 @@ function BookCoverImageLayer({
   const styles = useBookCoverImageStyles();
   const { colors } = useAppTheme();
   const placeholder = createBookCoverBlurHashPlaceholder(blurHash);
-  const cacheKey = coverCacheKey(source);
+  const cacheKey = coverImageCacheKey(source);
+  const recyclingKey = coverImageRecyclingKey(source);
   const wasRevealed = source.length > 0 && revealedCoverUrls.has(cacheKey);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -146,11 +163,11 @@ function BookCoverImageLayer({
           cachePolicy="memory-disk"
           contentFit="cover"
           enforceEarlyResizing={process.env.EXPO_OS === 'ios'}
-          key={`${cacheKey}:${attempt}`}
+          key={`${recyclingKey}:${attempt}`}
           onDisplay={reveal}
           onError={fail}
           pointerEvents="none"
-          recyclingKey={cacheKey}
+          recyclingKey={recyclingKey}
           source={{ cacheKey, uri: source }}
           style={StyleSheet.absoluteFill}
           transition={fadeDurationMs === 0 ? null : { duration: fadeDurationMs, effect: 'cross-dissolve' }}
@@ -190,21 +207,6 @@ function BookCoverImageLayer({
   );
 }
 
-function coverCacheKey(source: string): string {
-  const queryStart = source.indexOf('?');
-  if (queryStart < 0) return source.split('#', 1)[0] ?? source;
-  const fragmentStart = source.indexOf('#', queryStart + 1);
-  const queryEnd = fragmentStart < 0 ? source.length : fragmentStart;
-  const query = source.slice(queryStart + 1, queryEnd);
-  const retained = query.split('&').filter((pair) => {
-    const separator = pair.indexOf('=');
-    const key = separator < 0 ? pair : pair.slice(0, separator);
-    return key !== 'placeholder';
-  });
-  const base = source.slice(0, queryStart);
-  return retained.length > 0 ? `${base}?${retained.join('&')}` : base;
-}
-
 export function clearBookCoverRevealCache(): number {
   const count = revealedCoverUrls.size;
   revealedCoverUrls.clear();
@@ -213,7 +215,7 @@ export function clearBookCoverRevealCache(): number {
 
 function rememberRevealedCover(source: string): void {
   if (!source) return;
-  const cacheKey = coverCacheKey(source);
+  const cacheKey = coverImageCacheKey(source);
   revealedCoverUrls.delete(cacheKey);
   revealedCoverUrls.add(cacheKey);
   while (revealedCoverUrls.size > MAX_REVEALED_COVERS) {

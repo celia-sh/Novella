@@ -64,6 +64,7 @@ export const BookCoverGridItem = memo(function BookCoverGridItem({
   const styles = useBookCoverGridItemStyles();
   const categoryBadge = resolveBookCategoryBadge(book.category);
   const coverUrl = normalizeCoverUrl(book.coverUrl);
+  const coverHeight = tileWidth / BOOK_COVER_ASPECT_RATIO;
   const levelBadge = resolveBookLevelBadge({
     interiorLevel: book.interiorLevel,
     level: book.level,
@@ -93,6 +94,7 @@ export const BookCoverGridItem = memo(function BookCoverGridItem({
           accessibilityLabel={t('cover.accessibility', { title: book.title })}
           {...(animateCachedImage === undefined ? {} : { animateCachedImage })}
           blurHash={book.coverPlaceholder}
+          displayHeight={coverHeight}
           networkImageEnabled={networkImageEnabled}
           source={coverUrl}
         />

@@ -51,8 +51,9 @@ export function ShelfFolderGridItem({
   const { t } = useTranslation('library');
   const styles = useShelfFolderGridItemStyles();
   const { colors } = useAppTheme();
+  const coverHeight = tileWidth / BOOK_COVER_ASPECT_RATIO;
   const previewWidth = Math.max(1, Math.floor((tileWidth - 28) / 2));
-  const previewHeight = Math.round(previewWidth * 1.5);
+  const previewHeight = Math.round(previewWidth / BOOK_COVER_ASPECT_RATIO);
   const firstBook = previewBooks[0];
   const slots = [...previewBooks.slice(0, 4), ...Array(4).fill(null)].slice(0, 4);
 
@@ -85,6 +86,7 @@ export function ShelfFolderGridItem({
             accessibilityLabel={t('shelf.coverAccessibility', { title: firstBook.title })}
             animateCachedImage
             blurHash={firstBook.coverPlaceholder}
+            displayHeight={coverHeight}
             networkImageEnabled={networkImageEnabled}
             source={firstBook.coverUrl}
           />
@@ -100,6 +102,7 @@ export function ShelfFolderGridItem({
                     accessibilityLabel={t('shelf.coverAccessibility', { title: book.title })}
                     animateCachedImage
                     blurHash={book.coverPlaceholder}
+                    displayHeight={previewHeight}
                     networkImageEnabled={networkImageEnabled}
                     source={book.coverUrl}
                   />
