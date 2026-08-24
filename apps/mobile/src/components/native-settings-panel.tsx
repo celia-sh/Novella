@@ -11,6 +11,7 @@ import { SettingsRootNavigation } from '@/components/settings-root-navigation';
 
 export function NativeSettingsPanel() {
   const { t } = useTranslation('settings');
+
   const returnToDiscover = () => {
     if (router.canGoBack()) {
       router.back();

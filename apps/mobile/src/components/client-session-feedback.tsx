@@ -1,4 +1,4 @@
-import { toast } from 'react-native-pretty-toast';
+import { toast } from '@celia-sh/react-native-pretty-toast';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -9,12 +9,10 @@ const RECONNECT_TOAST_ID = 'novella-client-reconnecting';
 const SESSION_EXPIRED_TOAST_ID = 'novella-session-expired';
 
 export interface ClientSessionFeedbackProps {
-  hasStoredSession: boolean;
   sessionDecided: boolean;
 }
 
 export function ClientSessionFeedback({
-  hasStoredSession,
   sessionDecided,
 }: ClientSessionFeedbackProps) {
   const session = useClientSession();
@@ -22,14 +20,36 @@ export function ClientSessionFeedback({
   const { t } = useTranslation('common');
   const reconnectToastId = useRef<string | null>(null);
   const recoveryObserved = useRef(false);
+  const sessionReadyObserved = useRef(false);
   const previousAuthStatus = useRef(authentication.status);
 
   useEffect(() => {
     if (!sessionDecided) return;
 
+    if (session.status === 'ready') {
+      sessionReadyObserved.current = true;
+      if (!recoveryObserved.current || !reconnectToastId.current) return;
+
+      toast.update(reconnectToastId.current, {
+        autoDismiss: true,
+        duration: 1_800,
+        enableSwipeDismiss: true,
+        icon: 'checkmark.circle.fill',
+        message: t('connection.reconnectedMessage'),
+        title: t('connection.reconnectedTitle'),
+      });
+      recoveryObserved.current = false;
+      reconnectToastId.current = null;
+      return;
+    }
+
+    if (session.status === 'signedOut') {
+      sessionReadyObserved.current = false;
+    }
+
     if (session.status === 'reconnecting') {
-      recoveryObserved.current = hasStoredSession || authentication.status === 'authenticated';
-      if (!recoveryObserved.current || reconnectToastId.current) return;
+      if (!sessionReadyObserved.current || reconnectToastId.current) return;
+      recoveryObserved.current = true;
 
       reconnectToastId.current = toast.show(
         {
@@ -44,29 +64,20 @@ export function ClientSessionFeedback({
       );
       return;
     }
-
-    if (session.status !== 'ready' || !recoveryObserved.current) return;
-    recoveryObserved.current = false;
-    if (!reconnectToastId.current) return;
-
-    toast.update(reconnectToastId.current, {
-      autoDismiss: true,
-      duration: 1_800,
-      enableSwipeDismiss: true,
-      icon: 'checkmark.circle.fill',
-      message: t('connection.reconnectedMessage'),
-      title: t('connection.reconnectedTitle'),
-    });
-    reconnectToastId.current = null;
-  }, [authentication.status, hasStoredSession, session.status, sessionDecided, t]);
+  }, [session.status, sessionDecided, t]);
 
   useEffect(() => {
     const previousStatus = previousAuthStatus.current;
     previousAuthStatus.current = authentication.status;
     if (!sessionDecided || authentication.status !== 'signedOut') return;
-    if (previousStatus === 'signingOut') return;
-    if (!hasStoredSession && !recoveryObserved.current) return;
+    if (previousStatus === 'signingOut') {
+      sessionReadyObserved.current = false;
+      recoveryObserved.current = false;
+      return;
+    }
+    if (!sessionReadyObserved.current && !recoveryObserved.current) return;
 
+    sessionReadyObserved.current = false;
     recoveryObserved.current = false;
     if (reconnectToastId.current) {
       toast.dismiss(reconnectToastId.current);
@@ -81,7 +92,7 @@ export function ClientSessionFeedback({
       },
       { force: true },
     );
-  }, [authentication.status, hasStoredSession, sessionDecided, t]);
+  }, [authentication.status, sessionDecided, t]);
 
   return null;
 }

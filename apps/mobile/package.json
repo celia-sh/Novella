@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@celia-sh/react-native-pretty-toast": "1.0.2",
     "@expo/metro-runtime": "~57.0.8",
     "@expo/ui": "~57.0.8",
     "@gorhom/bottom-sheet": "^5.2.14",
@@ -47,7 +48,6 @@
     "react-native-enriched-html": "1.1.0",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-paper": "^5.15.3",
-    "react-native-pretty-toast": "^1.0.1",
     "react-native-reanimated": "4.5.1",
     "react-native-render-html": "^6.3.4",
     "react-native-safe-area-context": "~5.7.0",

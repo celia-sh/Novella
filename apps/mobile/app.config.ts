@@ -108,9 +108,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     icon: './assets/Novella.icon',
     infoPlist: {
       CFBundleAllowMixedLocalizations: true,
-      // Required by react-native-pretty-toast so its native toast can own
-      // status-bar visibility while the pill is presented.
-      UIViewControllerBasedStatusBarAppearance: true,
+      // Expo StatusBar / RCTStatusBarManager owns app-wide and route-local
+      // status-bar appearance. react-native-pretty-toast cannot toggle the
+      // bar through its overlay controller in this configuration.
+      UIViewControllerBasedStatusBarAppearance: false,
     },
   },
   android: {

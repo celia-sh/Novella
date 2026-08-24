@@ -1,7 +1,7 @@
 import '../global.css';
 
 import { HeroUINativeProvider } from 'heroui-native';
-import { ToastProvider } from 'react-native-pretty-toast';
+import { ToastProvider } from '@celia-sh/react-native-pretty-toast';
 import {
   DarkTheme,
   DefaultTheme,
@@ -319,10 +319,7 @@ function RootLayoutContent() {
             <Stack.Screen name="reset-password/new-password" options={{ headerShown: !usesComposeBottomSheets, title: tAuth('navigation.recover') }} />
           </Stack.Protected>
         </Stack>
-        <ClientSessionFeedback
-          hasStoredSession={hadAuthenticatedSession}
-          sessionDecided={sessionDecided}
-        />
+        <ClientSessionFeedback sessionDecided={sessionDecided} />
         <NativeAlertHost />
       </BookDetailThemeProvider>
         </ThemeProvider>

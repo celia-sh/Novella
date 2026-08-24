@@ -32,7 +32,7 @@ export const zhCNSettings = {
     about: {
       title: '应用相关',
       description: '版本、更新和外部链接',
-    },
+    }
   },
   appearance: {
     title: '外观',
@@ -363,7 +363,7 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
     about: {
       title: '應用程式相關',
       description: '版本、更新與外部連結',
-    },
+    }
   },
   appearance: {
     title: '外觀',
