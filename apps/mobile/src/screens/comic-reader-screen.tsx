@@ -156,6 +156,8 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   const pagedListRef = useRef<FlatList<ComicPageDisplaySlot> | null>(null);
   const scrollListRef = useRef<FlatList<ComicPageDisplayItem> | null>(null);
   const pagedTapTargetRef = useRef<number | null>(null);
+  const pendingScrollEndRestoreRef = useRef<number | null>(null);
+  const scrollEndRestoreFrameRef = useRef<number | null>(null);
   const scrollMetricsRef = useRef({ contentHeight: 0, offset: 0, viewportHeight: comicViewportHeight });
   const viewportSignatureRef = useRef<ComicViewportSignature | null>(null);
   const viewportRestoreFrameRef = useRef<number | null>(null);
@@ -298,6 +300,11 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     };
   }, [loadChapter]);
   useEffect(() => setMode(settings.comicReaderViewMode), [settings.comicReaderViewMode]);
+  useEffect(() => () => {
+    if (scrollEndRestoreFrameRef.current !== null) {
+      cancelAnimationFrame(scrollEndRestoreFrameRef.current);
+    }
+  }, []);
 
   const loadBatch = useCallback(async (pageIndex: number, retry = false) => {
     if (!chapter || pageIndex < 0 || pageIndex >= chapter.chapter.total) return;
@@ -405,6 +412,29 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   const initialDisplayIndexRef = useRef(initialDisplayIndex);
   initialDisplayIndexRef.current = initialDisplayIndex;
   const restoreTargetRef = useRef<{ chapterId: number; index: number } | null>(null);
+  const clearPendingScrollEndRestore = useCallback(() => {
+    pendingScrollEndRestoreRef.current = null;
+    restoreTargetRef.current = null;
+    if (scrollEndRestoreFrameRef.current !== null) {
+      cancelAnimationFrame(scrollEndRestoreFrameRef.current);
+      scrollEndRestoreFrameRef.current = null;
+    }
+  }, []);
+  const requestScrollEndRestore = useCallback(() => {
+    if (scrollEndRestoreFrameRef.current !== null) {
+      cancelAnimationFrame(scrollEndRestoreFrameRef.current);
+    }
+    scrollEndRestoreFrameRef.current = requestAnimationFrame(() => {
+      scrollEndRestoreFrameRef.current = null;
+      const chapterId = activeChapterIdRef.current;
+      if (
+        chapterId !== null
+        && pendingScrollEndRestoreRef.current === chapterId
+      ) {
+        scrollListRef.current?.scrollToEnd({ animated: false });
+      }
+    });
+  }, []);
   useEffect(() => {
     setVisiblePage(initialPageIndex);
     setReadingDirection(1);
@@ -412,10 +442,19 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     visibleDisplayIndexRef.current = initialDisplayIndexRef.current;
     visibleSegmentIndexRef.current = 0;
     pagedTapTargetRef.current = null;
+    pendingScrollEndRestoreRef.current = activeChapter
+      && mode === 'scroll'
+      && activeSlots.length > 0
+      && initialPageIndex >= activeSlots.length - 1
+      ? activeChapter.chapter.id
+      : null;
+    if (pendingScrollEndRestoreRef.current !== null) {
+      requestScrollEndRestore();
+    }
     restoreTargetRef.current = activeChapter
       ? { chapterId: activeChapter.chapter.id, index: initialPageIndex }
       : null;
-  }, [activeChapter, initialPageIndex, mode]);
+  }, [activeChapter, activeSlots.length, initialPageIndex, mode, openPosition, requestScrollEndRestore]);
   const prefetchPlan = useMemo(() => createComicPrefetchPlan(
     visiblePage,
     activeSlots.length,
@@ -481,7 +520,9 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     if (restoreTarget?.chapterId === activeChapter.chapter.id) {
       if (nextIndex !== restoreTarget.index && !visibleIndexes.includes(restoreTarget.index)) return;
       nextIndex = restoreTarget.index;
-      restoreTargetRef.current = null;
+      if (pendingScrollEndRestoreRef.current !== activeChapter.chapter.id) {
+        restoreTargetRef.current = null;
+      }
     }
     const previousIndex = lastVisiblePageRef.current;
     if (nextIndex !== previousIndex) {
@@ -548,7 +589,9 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     const restoredSegmentIndex = restoreDisplaySlots[displayIndex]?.items.find(
       (item) => item.page.index === pageIndex,
     )?.segmentIndex ?? 0;
-    restoreTargetRef.current = null;
+    if (pendingScrollEndRestoreRef.current !== activeChapter.chapter.id) {
+      restoreTargetRef.current = null;
+    }
     pagedTapTargetRef.current = mode === 'paged' ? displayIndex : null;
     if (mode === 'paged') visibleDisplayIndexRef.current = displayIndex;
     visibleSegmentIndexRef.current = restoredSegmentIndex;
@@ -607,6 +650,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     [activeSlots.length, visiblePage],
   );
   const jumpToProgress = useCallback((value: number) => {
+    clearPendingScrollEndRestore();
     if (activeSlots.length === 0) return;
     const progress = Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
     if (mode === 'paged') {
@@ -634,7 +678,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     const targetIndex = Math.round(progress * Math.max(0, activeSlots.length - 1));
     scrollListRef.current?.scrollToIndex({ animated: false, index: targetIndex });
     recordVisiblePage(targetIndex);
-  }, [activeSlots.length, mode, pagedDisplaySlots, recordVisiblePage]);
+  }, [activeSlots.length, clearPendingScrollEndRestore, mode, pagedDisplaySlots, recordVisiblePage]);
   const onPagedViewableItemsChanged = useCallback(({
     viewableItems,
   }: {
@@ -691,6 +735,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     });
   }, [activeChapter, activeSlots.length, commitPosition, initialPageIndex]);
   const openChapter = useCallback((nextSortNum: number, nextOpenPosition: ReaderOpenPosition) => {
+    clearPendingScrollEndRestore();
     void saveCurrentPosition();
     activeChapterIdRef.current = null;
     setModeRestoreTarget(null);
@@ -699,13 +744,14 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       sortNum: String(nextSortNum),
       type: 'Comic',
     });
-  }, [navigation, saveCurrentPosition]);
+  }, [clearPendingScrollEndRestore, navigation, saveCurrentPosition]);
   useEffect(() => subscribeReaderChapterSelection(route.key, (selection) => {
     if (selection.bookId === bookId && selection.kind === 'Comic') {
       openChapter(selection.sortNum, selection.openPosition);
     }
   }), [bookId, openChapter, route.key]);
   const changeMode = useCallback((nextMode: ReaderMode) => {
+    clearPendingScrollEndRestore();
     if (activeChapter) {
       setModeRestoreTarget({
         chapterId: activeChapter.chapter.id,
@@ -714,8 +760,10 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     }
     setMode(nextMode);
     void updateAppSettings({ comicReaderViewMode: nextMode });
-  }, [activeChapter]);
+  }, [activeChapter, clearPendingScrollEndRestore]);
   const isPagedRtl = settings.comicPagedDirection === 'rtl';
+  // Diagnostic mode: keep the original immediate boundary transition while
+  // retaining the end-anchor fix, isolating momentum timing from layout drift.
   const handleBoundaryChapterGesture = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (mode === 'paged') return;
     const nativeEvent = event.nativeEvent;
@@ -962,12 +1010,16 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           style={{ backgroundColor: COMIC_SCROLL_SURFACE_COLOR }}
           onContentSizeChange={(_width, height) => {
             scrollMetricsRef.current.contentHeight = height;
+            if (pendingScrollEndRestoreRef.current === activeChapter.chapter.id) {
+              requestScrollEndRestore();
+            }
           }}
           onScroll={(event) => {
             scrollMetricsRef.current.offset = event.nativeEvent.contentOffset.y;
             scrollMetricsRef.current.viewportHeight = event.nativeEvent.layoutMeasurement.height;
           }}
           scrollEventThrottle={16}
+          onScrollBeginDrag={clearPendingScrollEndRestore}
           onScrollEndDrag={handleBoundaryChapterGesture}
           onViewableItemsChanged={onScrollViewableItemsChanged}
           updateCellsBatchingPeriod={32}
