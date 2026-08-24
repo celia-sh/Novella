@@ -380,14 +380,29 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   );
 
   // Scroll position management stays on native FlatList events; it never drives rendering.
+  // A chapter change leaves the old list mounted for one render, so its transient
+  // initial scroll callback must not overwrite an explicit start/end boundary.
   const flatListRef = useRef<FlatList<ChapterTile>>(null);
-  const lastPositionRef = useRef<string | null>(null);
+  const lastPositionRef = useRef<{ chapterId: number; locator: string } | null>(null);
+  const positionCaptureReadyRef = useRef(false);
+  const readerChapterKey = `${bookId}:${sortNum}:${conversion ?? 'none'}:${openPosition}`;
+  const positionCaptureKeyRef = useRef(readerChapterKey);
+  if (positionCaptureKeyRef.current !== readerChapterKey) {
+    positionCaptureKeyRef.current = readerChapterKey;
+    positionCaptureReadyRef.current = false;
+    lastPositionRef.current = null;
+  }
   const activeChapterIdRef = useRef<number | null>(null);
   const lastScrollOffsetRef = useRef({ x: 0, y: 0 });
   const [visiblePageIndex, setVisiblePageIndex] = useState(0);
   activeChapterIdRef.current = content?.chapter.id ?? null;
 
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (
+      !content
+      || !positionCaptureReadyRef.current
+      || positionCaptureKeyRef.current !== readerChapterKey
+    ) return;
     const offset = event.nativeEvent.contentOffset;
     lastScrollOffsetRef.current = offset;
     const currentBlock = findVisibleReaderLayoutBlock({
@@ -397,7 +412,12 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       tiles: presentation?.tiles ?? [],
       viewportWidth: screenWidth,
     });
-    if (currentBlock) lastPositionRef.current = currentBlock.locator;
+    if (currentBlock) {
+      lastPositionRef.current = {
+        chapterId: content.chapter.id,
+        locator: currentBlock.locator,
+      };
+    }
     const nextPageIndex = resolveNovelPageProgress({
       mode,
       offset,
@@ -407,7 +427,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       viewportWidth: screenWidth,
     }).current - 1;
     setVisiblePageIndex((current) => current === nextPageIndex ? current : nextPageIndex);
-  }, [layout, mode, presentation?.tiles, screenHeight, screenWidth]);
+  }, [content, layout, mode, presentation?.tiles, readerChapterKey, screenHeight, screenWidth]);
 
   const pageProgress = useMemo(() => resolveNovelPageProgress({
     mode,
@@ -434,10 +454,20 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   }), [layout, mode, presentation?.tiles, screenWidth]);
 
   const captureCurrentVisibleBlock = useCallback(() => {
+    if (
+      !content
+      || !positionCaptureReadyRef.current
+      || positionCaptureKeyRef.current !== readerChapterKey
+    ) return undefined;
     const currentBlock = resolveCurrentVisibleBlock();
-    if (currentBlock) lastPositionRef.current = currentBlock.locator;
+    if (currentBlock) {
+      lastPositionRef.current = {
+        chapterId: content.chapter.id,
+        locator: currentBlock.locator,
+      };
+    }
     return currentBlock;
-  }, [resolveCurrentVisibleBlock]);
+  }, [content, readerChapterKey, resolveCurrentVisibleBlock]);
 
   // A real viewport/frame change invalidates paragraph/page geometry. Cover
   // that reflow with the same overlay used for settings changes; status-bar
@@ -465,6 +495,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     ) return;
 
     viewportReflowPendingRef.current = true;
+    positionCaptureReadyRef.current = false;
     reflowOverlayRef.current?.show();
     setPendingViewportReflowKey(readerViewportKey);
   }, [content?.chapter.id, layout, mode, presentation, readerViewportKey, viewportRevision]);
@@ -530,6 +561,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       || capturedReflowGenerationRef.current === pendingReflowGeneration
     ) return;
     captureCurrentVisibleBlock();
+    positionCaptureReadyRef.current = false;
     // Every accepted settings generation replaces tile geometry, so restore
     // again even if the user quickly returns to a previous value.
     restoredPresentationRef.current = null;
@@ -557,7 +589,10 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     const restoreKey = `${content.chapter.id}:${mode}:${layoutGeneration}:${layout.totalHeight}:${readerViewportKey}`;
     if (restoredPresentationRef.current === restoreKey) return;
 
-    const currentLocator = lastPositionRef.current;
+    const currentPosition = lastPositionRef.current;
+    const currentLocator = currentPosition?.chapterId === content.chapter.id
+      ? currentPosition.locator
+      : null;
     const savedLocator = currentLocator ?? content.readPosition?.position ?? null;
     const savedIndex = findReaderBlockIndex(blocks, savedLocator);
     const sourceIndex = resolveReaderInitialIndex(
@@ -573,9 +608,15 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     if (!targetBlock) return;
 
     restoredPresentationRef.current = restoreKey;
-    lastPositionRef.current = targetBlock.locator;
+    lastPositionRef.current = {
+      chapterId: content.chapter.id,
+      locator: targetBlock.locator,
+    };
     let revealFrame: number | null = null;
     const frame = requestAnimationFrame(() => {
+      if (positionCaptureKeyRef.current !== readerChapterKey) return;
+      // Restore first; only then may native scroll callbacks update progress.
+      positionCaptureReadyRef.current = true;
       if (mode === 'paged') {
         const pageIndex = presentation.tiles.findIndex((page) =>
           page.blocks.some((block) => block.id === targetBlock.id),
@@ -639,6 +680,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     pendingReflowGeneration,
     pendingViewportReflowKey,
     presentation,
+    readerChapterKey,
     readerViewportKey,
     screenHeight,
     screenWidth,
@@ -647,12 +689,17 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   ]);
 
   const saveCurrentPosition = useCallback(async () => {
-    const locator = lastPositionRef.current;
-    if (!locator || !content || activeChapterIdRef.current !== content.chapter.id) {
+    const position = lastPositionRef.current;
+    if (
+      !position
+      || !content
+      || activeChapterIdRef.current !== content.chapter.id
+      || position.chapterId !== content.chapter.id
+    ) {
       await flushPosition();
       return;
     }
-    await commitPosition({ chapterId: content.chapter.id, position: locator });
+    await commitPosition({ chapterId: content.chapter.id, position: position.locator });
   }, [commitPosition, content, flushPosition]);
 
   useReaderLifecycleSave(saveCurrentPosition);
@@ -673,12 +720,19 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
 
   const openChapter = useCallback((nextSortNum: number, nextOpenPosition: ReaderOpenPosition) => {
     void saveCurrentPosition();
+    positionCaptureReadyRef.current = false;
     lastPositionRef.current = null;
     navigation.setParams({
       position: nextOpenPosition,
       sortNum: String(nextSortNum),
     });
   }, [navigation, saveCurrentPosition]);
+
+  useEffect(() => subscribeReaderChapterSelection(route.key, (selection) => {
+    if (selection.bookId === bookId && selection.kind === 'Novel') {
+      openChapter(selection.sortNum, selection.openPosition);
+    }
+  }), [bookId, openChapter, route.key]);
 
   const handleScrollEndDrag = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (mode === 'paged') return;
@@ -791,6 +845,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const beginModeTransition = useCallback((nextMode: ReaderMode, persist: boolean) => {
     if (nextMode === mode || pendingModeRef.current !== null) return;
     captureCurrentVisibleBlock();
+    positionCaptureReadyRef.current = false;
     restoredPresentationRef.current = null;
     pendingModeRef.current = nextMode;
     // This host owns its state, so showing it does not reconcile ReaderScreen

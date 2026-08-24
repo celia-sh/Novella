@@ -11,6 +11,7 @@ export function ReaderNativeProgressBar({
   pageTotal,
   progress,
   remainingText,
+  disabled,
 }: ReaderNativeProgressBarProps) {
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
@@ -20,6 +21,7 @@ export function ReaderNativeProgressBar({
       accentColor={colors.accent}
       currentPage={pageCurrent}
       direction={direction}
+      disabled={disabled}
       onProgressChange={(event) => onProgressChange(event.nativeEvent.value)}
       progress={progress}
       remainingText={remainingText}

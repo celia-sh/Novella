@@ -7,6 +7,7 @@ import { useAppTheme } from '@/theme/app-theme';
 
 export function ReaderNativeProgressBar({
   direction,
+  disabled,
   onProgressChange,
   pageCurrent,
   pageTotal,
@@ -20,8 +21,9 @@ export function ReaderNativeProgressBar({
 
   useEffect(() => setDraft(progress), [progress]);
 
-  const displayedProgress = isReversed ? 1 - draft : draft;
+  const displayedProgress = disabled ? 1 : isReversed ? 1 - draft : draft;
   const handleChange = (value: number | number[]) => {
+    if (disabled) return;
     const displayed = typeof value === 'number' ? value : value[0] ?? 0;
     const next = isReversed ? 1 - displayed : displayed;
     setDraft(next);
@@ -32,6 +34,7 @@ export function ReaderNativeProgressBar({
     <View style={[styles.root, { width: Math.max(1, width - 32) }]}>
       <Slider
         animation="disable-all"
+        isDisabled={disabled}
         maxValue={1}
         minValue={0}
         onChange={handleChange}

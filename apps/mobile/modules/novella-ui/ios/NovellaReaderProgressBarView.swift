@@ -8,6 +8,7 @@ final class NovellaReaderProgressBarView: ExpoView {
 
   private var currentPage = 0
   private var totalPages = 0
+  private var isProgressDisabled = false
 
   let onProgressChange = EventDispatcher()
 
@@ -49,6 +50,11 @@ final class NovellaReaderProgressBarView: ExpoView {
     slider.value = Float(min(max(progress, 0), 1))
   }
 
+  func setDisabled(_ disabled: Bool) {
+    isProgressDisabled = disabled
+    slider.isUserInteractionEnabled = !disabled
+  }
+
   func setCurrentPage(_ page: Int) {
     currentPage = page
     updatePageLabels()
@@ -75,6 +81,7 @@ final class NovellaReaderProgressBarView: ExpoView {
 
   @objc
   private func handleProgressChange() {
+    guard !isProgressDisabled else { return }
     onProgressChange(["value": Double(slider.value)])
   }
 

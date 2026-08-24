@@ -44,9 +44,11 @@ export function resolveNovelPageProgress(
     0,
     safeNumber(options.totalHeight) - positiveDimension(options.viewportHeight, 1),
   );
-  const progress = maximumOffset === 0
-    ? 0
-    : clampProgress(safeNumber(options.offset.y) / maximumOffset);
+  const progress = total <= 1
+    ? 1
+    : maximumOffset === 0
+      ? 1
+      : clampProgress(safeNumber(options.offset.y) / maximumOffset);
   const index = clampIndex(Math.round(progress * Math.max(0, total - 1)), total);
   return { current: index + 1, progress, total };
 }
@@ -68,7 +70,7 @@ function clampIndex(value: number, total: number): number {
 }
 
 function progressForIndex(index: number, total: number): number {
-  return total <= 1 ? 0 : index / (total - 1);
+  return total <= 1 ? 1 : index / (total - 1);
 }
 
 function clampProgress(value: number): number {

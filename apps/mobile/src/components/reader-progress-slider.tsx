@@ -30,14 +30,16 @@ export function ReaderProgressSlider({
   const remainingText = pagesRemaining > 0
     ? t('progress.remainingPages', { count: pagesRemaining })
     : '';
+  const disabled = pageTotal <= 1;
 
   return (
     <ReaderNativeProgressBar
       direction={direction}
-      onProgressChange={onValueChange}
+      disabled={disabled}
+      onProgressChange={disabled ? () => undefined : onValueChange}
       pageCurrent={pageCurrent}
       pageTotal={pageTotal}
-      progress={progress}
+      progress={disabled ? 1 : progress}
       remainingText={remainingText}
     />
   );

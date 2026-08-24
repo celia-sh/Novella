@@ -60,6 +60,9 @@ public final class NovellaUiModule: Module {
       Prop("currentPage") { (view: NovellaReaderProgressBarView, currentPage: Int) in
         view.setCurrentPage(currentPage)
       }
+      Prop("disabled") { (view: NovellaReaderProgressBarView, disabled: Bool) in
+        view.setDisabled(disabled)
+      }
       Prop("totalPages") { (view: NovellaReaderProgressBarView, totalPages: Int) in
         view.setTotalPages(totalPages)
       }
