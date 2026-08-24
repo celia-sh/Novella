@@ -1,6 +1,7 @@
 import '../global.css';
 
 import { HeroUINativeProvider } from 'heroui-native';
+import { ToastProvider } from 'react-native-pretty-toast';
 import {
   DarkTheme,
   DefaultTheme,
@@ -14,6 +15,7 @@ import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { BookDetailThemeProvider } from '@/components/book-detail-theme-provider';
+import { ClientSessionFeedback } from '@/components/client-session-feedback';
 import { AppLocalizationProvider } from '@/localization/localization-provider';
 import { NativeAlertHost } from '@/components/native-alert-dialog';
 import { useAuthentication } from '@/hooks/use-authentication';
@@ -33,7 +35,11 @@ export default function RootLayout() {
   return (
     <AppLocalizationProvider>
       <AppThemeProvider>
-        <RootLayoutContent />
+        <GestureHandlerRootView style={styles.gestureRoot}>
+          <ToastProvider maxQueue={3}>
+            <RootLayoutContent />
+          </ToastProvider>
+        </GestureHandlerRootView>
       </AppThemeProvider>
     </AppLocalizationProvider>
   );
@@ -75,7 +81,6 @@ function RootLayoutContent() {
 
   useEffect(() => {
     if (authentication.status === 'authenticated') setHadAuthenticatedSession(true);
-    else if (authentication.status === 'signedOut') setHadAuthenticatedSession(false);
   }, [authentication.status]);
 
   const hasAuthenticatedSession = authentication.status === 'authenticated'
@@ -88,13 +93,11 @@ function RootLayoutContent() {
     // A plain themed frame for the sub-frame probe window (local read only,
     // no spinner, no wrong-screen flash); it visually continues the splash.
     return (
-      <GestureHandlerRootView style={styles.gestureRoot}>
-        <View style={[styles.blankRoot, { backgroundColor: colors.background }]} />
-      </GestureHandlerRootView>
+      <View style={[styles.blankRoot, { backgroundColor: colors.background }]} />
     );
   }
   return (
-    <GestureHandlerRootView style={styles.gestureRoot}>
+    <>
       <HeroUINativeProvider config={heroUIConfig}>
         <ThemeProvider value={navigationTheme}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
@@ -316,11 +319,15 @@ function RootLayoutContent() {
             <Stack.Screen name="reset-password/new-password" options={{ headerShown: !usesComposeBottomSheets, title: tAuth('navigation.recover') }} />
           </Stack.Protected>
         </Stack>
-      <NativeAlertHost />
+        <ClientSessionFeedback
+          hasStoredSession={hadAuthenticatedSession}
+          sessionDecided={sessionDecided}
+        />
+        <NativeAlertHost />
       </BookDetailThemeProvider>
         </ThemeProvider>
       </HeroUINativeProvider>
-    </GestureHandlerRootView>
+    </>
   );
 }
 

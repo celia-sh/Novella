@@ -75,13 +75,30 @@ export interface ClientRuntime {
   dependencies: Readonly<ClientRuntimeDependencies>;
 }
 
+export type ClientAuthenticationState = 'authenticated' | 'signedOut' | 'unknown';
+
+export type ClientSessionStatus =
+  | 'idle'
+  | 'starting'
+  | 'ready'
+  | 'reconnecting'
+  | 'background'
+  | 'signedOut';
+
+export interface ClientSessionSnapshot {
+  status: ClientSessionStatus;
+  error: unknown | null;
+}
+
 export interface ClientSessionDependencies {
   bootstrapAuthentication(): Promise<boolean>;
   refreshAuthentication(): Promise<boolean>;
+  getAuthenticationState?: () => ClientAuthenticationState;
   lifecycle: AppLifecycle;
   signalR: SignalRTransport;
   backgroundDrainTimeoutMilliseconds?: number;
   connectionTimeoutMilliseconds?: number;
+  reconnectRetryDelaysMilliseconds?: readonly number[];
 }
 
 export interface ClientStartupResult {
@@ -90,6 +107,8 @@ export interface ClientStartupResult {
 }
 
 export interface ClientSessionController {
+  getSnapshot(): ClientSessionSnapshot;
+  subscribe(listener: (snapshot: ClientSessionSnapshot) => void): () => void;
   start(): Promise<ClientStartupResult>;
   close(): Promise<void>;
   registerBeforeBackground(task: () => void | Promise<void>): () => void;
@@ -314,14 +333,24 @@ export function createClientSessionController(
   let lifecycleUnsubscribe: (() => void) | null = null;
   let startupPromise: Promise<ClientStartupResult> | null = null;
   let transition = Promise.resolve();
+  let recovery: { epoch: number; promise: Promise<void> } | null = null;
   let epoch = 0;
   let closed = false;
   let gate = createClosedInvocationGate();
+  let sessionSnapshot: ClientSessionSnapshot = { status: 'idle', error: null };
+  const sessionListeners = new Set<(snapshot: ClientSessionSnapshot) => void>();
   const backgroundTasks = new Set<() => void | Promise<void>>();
   const backgroundDrainTimeoutMilliseconds =
     dependencies.backgroundDrainTimeoutMilliseconds ?? 2_000;
   const connectionTimeoutMilliseconds =
     dependencies.connectionTimeoutMilliseconds ?? 30_000;
+  const reconnectRetryDelaysMilliseconds =
+    dependencies.reconnectRetryDelaysMilliseconds ?? [0, 1_000, 3_000, 10_000, 30_000];
+
+  function publish(next: ClientSessionSnapshot): void {
+    sessionSnapshot = next;
+    for (const listener of sessionListeners) listener(sessionSnapshot);
+  }
 
   function closeGate(): void {
     if (gate.open) gate = createClosedInvocationGate();
@@ -340,6 +369,28 @@ export function createClientSessionController(
     return next;
   }
 
+  function isCurrent(activeEpoch: number): boolean {
+    return !closed && foreground && activeEpoch === epoch;
+  }
+
+  function isSignedOut(): boolean {
+    return dependencies.getAuthenticationState?.() === 'signedOut';
+  }
+
+  function retryDelay(attempt: number): number {
+    const lastDelay = reconnectRetryDelaysMilliseconds.at(-1) ?? 0;
+    return Math.max(
+      0,
+      reconnectRetryDelaysMilliseconds[attempt] ?? lastDelay,
+    );
+  }
+
+  async function waitForRetry(attempt: number): Promise<void> {
+    const delay = retryDelay(attempt);
+    if (delay <= 0) return;
+    await new Promise<void>((resolve) => setTimeout(resolve, delay));
+  }
+
   async function connectSignalR(): Promise<void> {
     let timeout: ReturnType<typeof setTimeout> | null = null;
     const timeoutPromise = new Promise<void>((_, reject) => {
@@ -356,23 +407,53 @@ export function createClientSessionController(
     }
   }
 
-  async function recoverForeground(recoveryEpoch: number): Promise<void> {
-    try {
-      await dependencies.refreshAuthentication();
-    } catch {
-      // A transient refresh failure must not permanently deadlock public or
-      // cached operations. The following connection attempt still runs.
-    }
+  function startRecovery(recoveryEpoch: number, refreshAuthentication: boolean): Promise<void> {
+    if (recovery?.epoch === recoveryEpoch) return recovery.promise;
 
-    if (closed || !foreground || recoveryEpoch !== epoch) return;
+    const promise = (async () => {
+      publish({ status: 'reconnecting', error: null });
+      let lastError: unknown | null = null;
 
-    try {
-      await connectSignalR();
-    } catch {
-      // Degraded foreground state is allowed; the next invocation may retry.
-    } finally {
-      if (!closed && foreground && recoveryEpoch === epoch) openGate();
-    }
+      if (refreshAuthentication) {
+        try {
+          await enqueueTransition(() => dependencies.refreshAuthentication().then(() => undefined));
+        } catch (error) {
+          lastError = error;
+        }
+        if (!isCurrent(recoveryEpoch)) return;
+        if (isSignedOut()) {
+          publish({ status: 'signedOut', error: lastError });
+          openGate();
+          return;
+        }
+      }
+
+      let attempt = 0;
+      while (isCurrent(recoveryEpoch)) {
+        try {
+          await enqueueTransition(connectSignalR);
+          if (!isCurrent(recoveryEpoch)) return;
+          publish({ status: 'ready', error: null });
+          openGate();
+          return;
+        } catch (error) {
+          lastError = error;
+          if (isSignedOut()) {
+            publish({ status: 'signedOut', error });
+            openGate();
+            return;
+          }
+          publish({ status: 'reconnecting', error });
+          await waitForRetry(attempt);
+          attempt += 1;
+        }
+      }
+    })().finally(() => {
+      if (recovery?.promise === promise) recovery = null;
+    });
+
+    recovery = { epoch: recoveryEpoch, promise };
+    return promise;
   }
 
   async function drainBackgroundTasks(): Promise<void> {
@@ -407,6 +488,7 @@ export function createClientSessionController(
     const transitionEpoch = ++epoch;
 
     if (!nextForeground) {
+      publish({ status: 'background', error: null });
       const drain = drainBackgroundTasks();
       void enqueueTransition(async () => {
         await drain;
@@ -418,7 +500,7 @@ export function createClientSessionController(
     }
 
     closeGate();
-    void enqueueTransition(() => recoverForeground(transitionEpoch)).catch(() => undefined);
+    void startRecovery(transitionEpoch, true).catch(() => undefined);
   }
 
   const transport: SignalRTransport = Object.freeze({
@@ -436,6 +518,11 @@ export function createClientSessionController(
   });
 
   return Object.freeze({
+    getSnapshot: () => sessionSnapshot,
+    subscribe(listener: (snapshot: ClientSessionSnapshot) => void) {
+      sessionListeners.add(listener);
+      return () => sessionListeners.delete(listener);
+    },
     transport,
     registerBeforeBackground(task: () => void | Promise<void>) {
       backgroundTasks.add(task);
@@ -459,27 +546,40 @@ export function createClientSessionController(
 
       const startupEpoch = ++epoch;
       closeGate();
+      publish({ status: 'starting', error: null });
       startupPromise = enqueueTransition(async () => {
         let startupError: unknown | null = null;
+        let restored = false;
 
         try {
-          await dependencies.bootstrapAuthentication();
+          restored = await dependencies.bootstrapAuthentication();
         } catch (error) {
           startupError = error;
         }
 
         if (!closed && foreground && startupEpoch === epoch) {
-          try {
-            await connectSignalR();
-          } catch (error) {
-            startupError ??= error;
-          } finally {
-            if (!closed && foreground && startupEpoch === epoch) openGate();
+          if (isSignedOut()) {
+            publish({ status: 'signedOut', error: startupError });
+            openGate();
+          } else {
+            try {
+              await connectSignalR();
+              publish({ status: 'ready', error: null });
+              openGate();
+            } catch (error) {
+              startupError ??= error;
+              publish({ status: 'reconnecting', error: startupError });
+              void startRecovery(startupEpoch, false).catch(() => undefined);
+            }
           }
+        } else if (!foreground && !closed) {
+          publish({ status: 'background', error: startupError });
         }
 
         return {
-          status: startupError === null && foreground ? 'ready' : 'degraded',
+          status: startupError === null && foreground && sessionSnapshot.status === 'ready'
+            ? 'ready'
+            : 'degraded',
           error: startupError,
         } satisfies ClientStartupResult;
       });
@@ -1453,6 +1553,7 @@ export function createAuthenticationUseCase(
   async function performRefresh(
     expectedRevision: number,
     refreshToken: string,
+    previousStatus: AuthenticationStatus,
   ): Promise<boolean> {
     try {
       const sessionToken = await api.refreshToken(refreshToken);
@@ -1475,7 +1576,7 @@ export function createAuthenticationUseCase(
         return false;
       }
       publish({
-        status: 'signedOut',
+        status: previousStatus === 'authenticated' ? 'authenticated' : 'unknown',
         error: error instanceof Error ? error.message : 'Unable to restore your session.',
       });
       return false;
@@ -1500,8 +1601,9 @@ export function createAuthenticationUseCase(
       return shared.promise;
     }
 
+    const previousStatus = snapshot.status;
     publish({ status: 'refreshing', error: null });
-    const promise = performRefresh(expectedRevision, refreshToken);
+    const promise = performRefresh(expectedRevision, refreshToken, previousStatus);
     refreshInFlight = { revision: expectedRevision, refreshToken, promise };
     try {
       return await promise;
@@ -1512,9 +1614,7 @@ export function createAuthenticationUseCase(
 
   async function bootstrap(): Promise<boolean> {
     if (snapshot.status === 'authenticated') return true;
-    const restored = await refresh();
-    if (!restored && snapshot.error) throw new Error(snapshot.error);
-    return restored;
+    return refresh();
   }
 
   async function signIn(email: string, password: string) {

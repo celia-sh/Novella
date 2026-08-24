@@ -25,6 +25,14 @@ export const zhCNCommon = {
     refresh: '刷新',
     retry: '重试',
   },
+  connection: {
+    reconnectingTitle: '正在重新连接',
+    reconnectingMessage: '连接恢复前，当前页面会保持等待。',
+    reconnectedTitle: '连接已恢复',
+    reconnectedMessage: '可以继续阅读了。',
+    sessionExpiredTitle: '登录状态已过期',
+    sessionExpiredMessage: '请重新登录后继续使用 Novella。',
+  },
   states: {
     loading: '正在加载',
     unknownError: '操作失败，请重试。',
@@ -56,6 +64,14 @@ export const zhTWCommon: TranslationShape<typeof zhCNCommon> = {
     close: '關閉',
     refresh: '重新整理',
     retry: '重試',
+  },
+  connection: {
+    reconnectingTitle: '正在重新連線',
+    reconnectingMessage: '連線恢復前，目前頁面會保持等待。',
+    reconnectedTitle: '連線已恢復',
+    reconnectedMessage: '可以繼續閱讀了。',
+    sessionExpiredTitle: '登入狀態已過期',
+    sessionExpiredMessage: '請重新登入後繼續使用 Novella。',
   },
   states: {
     loading: '正在載入',

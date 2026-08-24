@@ -51,6 +51,14 @@ let authentication: AuthenticationUseCase;
 const session = createClientSessionController({
   bootstrapAuthentication: () => authentication.bootstrap(),
   refreshAuthentication: () => authentication.refresh(),
+  getAuthenticationState: () => {
+    const status = authentication.getSnapshot().status;
+    return status === 'authenticated'
+      ? 'authenticated'
+      : status === 'signedOut'
+        ? 'signedOut'
+        : 'unknown';
+  },
   lifecycle,
   signalR,
 });
@@ -100,6 +108,16 @@ export function startClient() {
 
 export function registerClientBackgroundTask(task: () => void | Promise<void>) {
   return session.registerBeforeBackground(task);
+}
+
+export function getClientSessionSnapshot() {
+  return session.getSnapshot();
+}
+
+export function subscribeClientSession(
+  listener: Parameters<typeof session.subscribe>[0],
+) {
+  return session.subscribe(listener);
 }
 
 export function subscribeClientLifecycle(

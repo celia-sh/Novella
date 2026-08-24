@@ -136,28 +136,44 @@ test('a never-settling connection attempt releases startup as degraded', async (
   await session.close();
 });
 
-test('degraded startup releases the invocation gate after the connection attempt', async () => {
+test('startup keeps the invocation gate closed until recovery succeeds', async () => {
   const lifecycle = new FakeLifecycle();
   const signalR = new FakeSignalR();
   const connectionError = new Error('offline');
+  const recovery = deferred();
+  let connectAttempts = 0;
   signalR.connectImplementation = async () => {
-    throw connectionError;
+    connectAttempts += 1;
+    if (connectAttempts === 1) throw connectionError;
+    await recovery.promise;
   };
   const session = createClientSessionController({
     async bootstrapAuthentication() {},
     async refreshAuthentication() {
-      return false;
+      return true;
     },
     lifecycle,
     signalR,
+    reconnectRetryDelaysMilliseconds: [0],
   });
 
   assert.deepEqual(await session.start(), {
     status: 'degraded',
     error: connectionError,
   });
-  const response = await session.transport.invoke('GetOnlineInfo', []);
-  assert.deepEqual(response, { methodName: 'GetOnlineInfo', args: [] });
+
+  let invocationSettled = false;
+  const invocation = session.transport.invoke('GetOnlineInfo', []).then(() => {
+    invocationSettled = true;
+  });
+  await nextTask();
+  assert.equal(signalR.connectCalls, 2);
+  assert.equal(invocationSettled, false);
+
+  recovery.resolve();
+  await invocation;
+  assert.equal(invocationSettled, true);
+  assert.equal(signalR.invokeCalls, 1);
 
   await session.close();
 });
