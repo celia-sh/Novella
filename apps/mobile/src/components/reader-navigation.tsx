@@ -7,6 +7,7 @@ export function ReaderNavigation({
   backgroundColor,
   chromeHidden,
   foregroundColor,
+  statusBarStyle,
   title,
 }: ReaderNavigationProps) {
   return (
@@ -21,10 +22,16 @@ export function ReaderNavigation({
           headerShadowVisible: false,
           headerStyle: { backgroundColor },
           headerTintColor: foregroundColor,
+          headerTitleStyle: { color: foregroundColor },
           title,
         }}
       />
-      <StatusBar animated hidden={chromeHidden} showHideTransition="fade" />
+      <StatusBar
+        animated
+        barStyle={statusBarStyle}
+        hidden={chromeHidden}
+        showHideTransition="fade"
+      />
     </>
   );
 }

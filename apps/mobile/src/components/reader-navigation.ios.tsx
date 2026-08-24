@@ -11,6 +11,7 @@ export function ReaderNavigation({
   onModeChange,
   onOpenChapters,
   onOpenSettings,
+  statusBarStyle,
   title,
   chromeHidden,
 }: ReaderNavigationProps) {
@@ -26,7 +27,14 @@ export function ReaderNavigation({
         options={{
           headerLargeTitle: false,
           headerShadowVisible: false,
+          scrollEdgeEffects: {
+            bottom: 'hidden',
+            left: 'hidden',
+            right: 'hidden',
+            top: 'soft',
+          },
           headerTintColor: foregroundColor,
+          headerTitleStyle: { color: foregroundColor },
           headerShown: !chromeHidden,
           gestureEnabled: false,
           ...(forceLightAppearance
@@ -39,7 +47,12 @@ export function ReaderNavigation({
           title,
         }}
       />
-      <StatusBar animated hidden={chromeHidden} showHideTransition="fade" />
+      <StatusBar
+        animated
+        barStyle={statusBarStyle}
+        hidden={chromeHidden}
+        showHideTransition="fade"
+      />
       {!chromeHidden ? (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button

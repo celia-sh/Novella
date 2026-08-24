@@ -176,6 +176,9 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     readerBackground = resolvedReaderColors.backgroundColor;
     readerTextColor = resolvedReaderColors.textColor;
   }
+  const readerStatusBarStyle = process.env.EXPO_OS === 'ios'
+    ? readerTextColor === '#FFFFFF' ? 'light-content' : 'dark-content'
+    : isDarkReader ? 'light-content' : 'dark-content';
 
   // Skia layout and tiling
   const {
@@ -1034,6 +1037,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
           pathname: '/reader/[bookId]/settings',
           params: { bookId: String(bookId), readerKey: route.key, sortNum: String(sortNum), type: 'Novel' },
         })}
+        statusBarStyle={readerStatusBarStyle}
         title={readerTitle || t('titles.reader')}
       />
       <ReaderChapterNavigation

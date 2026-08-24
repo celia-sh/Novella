@@ -25,11 +25,17 @@ export function ReaderNavigation(props: ReaderNavigationProps) {
           gestureEnabled: false,
           headerStyle: { backgroundColor: props.backgroundColor },
           headerTintColor: props.foregroundColor,
+          headerTitleStyle: { color: props.foregroundColor },
           headerTransparent: true,
           title: props.title,
         }}
       />
-      <StatusBar animated hidden={props.chromeHidden} showHideTransition="fade" />
+      <StatusBar
+        animated
+        barStyle={props.statusBarStyle}
+        hidden={props.chromeHidden}
+        showHideTransition="fade"
+      />
     </>
   );
 }

@@ -68,7 +68,7 @@ import {
   resolveReaderPagedBoundaryChapterAction,
 } from '@/services/reader-boundary-gesture';
 import { resolveComicPageProgress } from '@/services/reader-page-progress';
-import { useAppTheme } from '@/theme/app-theme';
+import { useAppColorScheme, useAppTheme } from '@/theme/app-theme';
 
 const PAGE_BATCH = 12;
 const COMIC_DISK_LOOKAHEAD = 4;
@@ -125,6 +125,7 @@ export function ComicReaderScreen(props: ComicReaderScreenProps) {
 function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: ComicReaderScreenProps) {
   const { t } = useTranslation('reader');
   const { colors } = useAppTheme();
+  const colorScheme = useAppColorScheme();
   const { height: windowHeight, width } = useWindowDimensions();
   // Comic pages occupy the complete reader viewport. Navigation bars are
   // overlays, matching Aidoku's contentInsetAdjustmentBehavior = .never.
@@ -988,6 +989,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           pathname: '/reader/[bookId]/settings',
           params: { bookId: String(bookId), readerKey: route.key, sortNum: String(selectedChapterIndex + 1), type: 'Comic' },
         })}
+        statusBarStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
         title={activeChapter?.chapter.title ?? t('titles.comicReader')}
       />
       <ReaderChapterNavigation

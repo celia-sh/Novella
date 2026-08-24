@@ -1,4 +1,5 @@
 import type { ReaderMode } from '@novella/reader-engine';
+import type { StatusBarStyle } from 'react-native';
 
 export interface ReaderNavigationProps {
   backgroundColor: string;
@@ -6,6 +7,7 @@ export interface ReaderNavigationProps {
   foregroundColor: string;
   mode: ReaderMode;
   onModeChange: (mode: ReaderMode) => void;
+  statusBarStyle: StatusBarStyle;
   onOpenChapters: () => void;
   onOpenSettings: () => void;
   title: string;
