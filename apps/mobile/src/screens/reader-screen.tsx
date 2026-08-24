@@ -27,7 +27,6 @@ import {
   tileChapter,
   type ChapterTile,
 } from '@novella/reader-layout';
-import { NativeScrollEdgeMarker } from '../../modules/novella-ui/src/native-scroll-edge-marker';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
 import { ReaderErrorState } from '@/components/reader-chrome';
@@ -946,7 +945,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               updateCellsBatchingPeriod={0}
               windowSize={5}
             />
-            <NativeScrollEdgeMarker key={`reader-edge:${mode}`} hidesAllEdgeEffects />
           </View>
         ) : null}
         <ReaderReflowOverlayHost

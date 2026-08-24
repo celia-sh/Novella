@@ -43,7 +43,6 @@ import { reader } from '@/services/client';
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
 import { ReaderErrorState, ReaderPreparationState } from '@/components/reader-chrome';
 import { ReaderNavigation } from '@/components/reader-navigation';
-import { NativeScrollEdgeMarker } from '../../modules/novella-ui/src/native-scroll-edge-marker';
 import { subscribeReaderChapterSelection } from '@/services/reader-chapter-selection';
 import {
   getCachedReaderPosition,
@@ -848,11 +847,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     onTouchStart,
   } = useReaderChromeVisibility(handlePagedTap, handlePageSwipe);
 
-  const topBarBlurContentReady = !loading
-    && activeChapter !== null
-    && activeSlots.length > 0
-    && error === null;
-
   const openChapters = useCallback(() => {
     router.push({
       pathname: '/reader/[bookId]/chapters',
@@ -985,7 +979,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           windowSize={5}
         />
       )}
-        <NativeScrollEdgeMarker hidesAllEdgeEffects />
         </>
       )}
       </View>
@@ -1001,9 +994,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           params: { bookId: String(bookId), readerKey: route.key, sortNum: String(selectedChapterIndex + 1), type: 'Comic' },
         })}
         title={activeChapter?.chapter.title ?? t('titles.comicReader')}
-        topBarBlurAppearance="light"
-        topBarBlurContentReady={topBarBlurContentReady}
-        topBarBlurInPagedMode
       />
       <ReaderChapterNavigation
         chromeHidden={chromeHidden}

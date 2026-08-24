@@ -10,7 +10,6 @@ export interface NativeScreenScaffoldProps {
   largeTitle?: boolean;
   onActionPress?: (id: string) => void;
   onBackPress?: () => void;
-  ownsTopBarBackground?: boolean;
   showBackButton?: boolean;
   title: string;
 }

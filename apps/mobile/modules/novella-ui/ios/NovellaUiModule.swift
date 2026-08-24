@@ -1,20 +1,9 @@
 import ExpoModulesCore
-import ExpoUI
 import UIKit
 
 public final class NovellaUiModule: Module {
   public func definition() -> ModuleDefinition {
     Name("NovellaUi")
-
-    OnCreate {
-      ViewModifierRegistry.register("novellaHiddenTopScrollEdgeEffect") { _, _, _ in
-        NovellaHiddenTopScrollEdgeEffectModifier()
-      }
-    }
-
-    OnDestroy {
-      ViewModifierRegistry.unregister("novellaHiddenTopScrollEdgeEffect")
-    }
 
     View(NovellaSearchBarView.self) {
       ViewName("SearchBar")
@@ -44,19 +33,6 @@ public final class NovellaUiModule: Module {
 
     View(NovellaLightAppearanceScopeView.self) {
       ViewName("LightAppearanceScope")
-    }
-
-    View(NovellaScrollEdgeMarkerView.self) {
-      ViewName("ScrollEdgeMarker")
-
-      Prop("hidesAllEdgeEffects") { (view: NovellaScrollEdgeMarkerView, value: Bool) in
-        view.setHidesAllEdgeEffects(value)
-      }
-      Prop("observesTopBarOverlap") { (view: NovellaScrollEdgeMarkerView, value: Bool) in
-        view.setObservesTopBarOverlap(value)
-      }
-
-      Events("topBarBackgroundVisibilityChange")
     }
 
     View(NovellaSegmentedControlView.self) {

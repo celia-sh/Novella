@@ -30,7 +30,6 @@ import {
 
 import type { CommunityThreadReply } from '@novella/api-client';
 
-import { IosScrollViewMarker } from '@/components/ios-scroll-view-marker';
 import { CommunityHtmlContent } from '@/components/community/community-html-content';
 import {
   CommentThreadRow,
@@ -297,60 +296,59 @@ export function CommunityThreadScreen({
           showBackButton
           title=""
         >
-          <IosScrollViewMarker style={styles.root}>
-            <FlatList
-              ListEmptyComponent={
-                state.loading ? (
-                  <View style={styles.loading}>
-                    <CommunityThreadSkeleton />
-                    <CommentThreadSkeleton palette={commentPalette} rows={2} />
-                  </View>
-                ) : state.error && !thread ? (
-                  <ThreadStateCard description={state.error} onRetry={retry} title={t('thread.errors.loadTitle')} variant="error" />
-                ) : thread ? (
-                  <ThreadStateCard
-                    description={t('thread.empty.noRepliesDescription')}
-                    title={t('thread.empty.noRepliesTitle')}
-                    variant="empty"
-                  />
-                ) : (
-                  <ThreadStateCard
-                    description={t('thread.empty.unavailableDescription')}
-                    title={t('thread.empty.unavailableTitle')}
-                    variant="empty"
-                  />
-                )
-              }
-              ListFooterComponent={footer}
-              ListHeaderComponent={header}
-              contentContainerStyle={styles.content}
-              contentInsetAdjustmentBehavior="automatic"
-              data={rows}
-              keyExtractor={(item) => item.key}
-              initialNumToRender={6}
-              keyboardDismissMode="interactive"
-              maxToRenderPerBatch={6}
-              onEndReached={() => void loadMore()}
-              onEndReachedThreshold={0.35}
-              onScrollToIndexFailed={({ index }) => {
-                setTimeout(() => listRef.current?.scrollToIndex({ animated: true, index, viewPosition: 0.2 }), 200);
-              }}
-              ref={listRef}
-              refreshControl={
-                <RefreshControl
-                  colors={[colors.accent as string]}
-                  onRefresh={() => void refresh()}
-                  refreshing={state.loading && Boolean(thread)}
-                  tintColor={colors.accent}
+          <FlatList
+            style={styles.root}
+            ListEmptyComponent={
+              state.loading ? (
+                <View style={styles.loading}>
+                  <CommunityThreadSkeleton />
+                  <CommentThreadSkeleton palette={commentPalette} rows={2} />
+                </View>
+              ) : state.error && !thread ? (
+                <ThreadStateCard description={state.error} onRetry={retry} title={t('thread.errors.loadTitle')} variant="error" />
+              ) : thread ? (
+                <ThreadStateCard
+                  description={t('thread.empty.noRepliesDescription')}
+                  title={t('thread.empty.noRepliesTitle')}
+                  variant="empty"
                 />
-              }
-              removeClippedSubviews={process.env.EXPO_OS === 'android'}
-              renderItem={renderReply}
-              showsVerticalScrollIndicator={false}
-              updateCellsBatchingPeriod={32}
-              windowSize={7}
-            />
-          </IosScrollViewMarker>
+              ) : (
+                <ThreadStateCard
+                  description={t('thread.empty.unavailableDescription')}
+                  title={t('thread.empty.unavailableTitle')}
+                  variant="empty"
+                />
+              )
+            }
+            ListFooterComponent={footer}
+            ListHeaderComponent={header}
+            contentContainerStyle={styles.content}
+            contentInsetAdjustmentBehavior="automatic"
+            data={rows}
+            keyExtractor={(item) => item.key}
+            initialNumToRender={6}
+            keyboardDismissMode="interactive"
+            maxToRenderPerBatch={6}
+            onEndReached={() => void loadMore()}
+            onEndReachedThreshold={0.35}
+            onScrollToIndexFailed={({ index }) => {
+              setTimeout(() => listRef.current?.scrollToIndex({ animated: true, index, viewPosition: 0.2 }), 200);
+            }}
+            ref={listRef}
+            refreshControl={
+              <RefreshControl
+                colors={[colors.accent as string]}
+                onRefresh={() => void refresh()}
+                refreshing={state.loading && Boolean(thread)}
+                tintColor={colors.accent}
+              />
+            }
+            removeClippedSubviews={process.env.EXPO_OS === 'android'}
+            renderItem={renderReply}
+            showsVerticalScrollIndicator={false}
+            updateCellsBatchingPeriod={32}
+            windowSize={7}
+          />
         </NativeScreenScaffold>
       </>
     </PaperProvider>

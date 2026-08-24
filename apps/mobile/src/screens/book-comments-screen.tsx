@@ -21,7 +21,6 @@ import {
 } from '@/components/comment-thread-item';
 import { CommentThreadListItem } from '@/components/comment-thread-list-item';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
-import { IosScrollViewMarker } from '@/components/ios-scroll-view-marker';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { useComments } from '@/hooks/use-comments';
 import { consumeCommentsChanged } from '@/services/comment-events';
@@ -134,18 +133,43 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
         containerColor={palette.surface}
         contentColor={palette.onSurface}
       >
-        <IosScrollViewMarker style={[styles.root, { backgroundColor: palette.surface }]}>
-          <FlatList
-            contentInsetAdjustmentBehavior="automatic"
-            contentContainerStyle={styles.content}
-            data={rows}
-            initialNumToRender={8}
-            keyExtractor={(item) => item.key}
-            maxToRenderPerBatch={6}
-            ListEmptyComponent={
-              isLoading ? (
-                <CommentThreadSkeleton palette={commentPalette} />
-              ) : error ? (
+        <FlatList
+          style={[styles.root, { backgroundColor: palette.surface }]}
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={styles.content}
+          data={rows}
+          initialNumToRender={8}
+          keyExtractor={(item) => item.key}
+          maxToRenderPerBatch={6}
+          ListEmptyComponent={
+            isLoading ? (
+              <CommentThreadSkeleton palette={commentPalette} />
+            ) : error ? (
+              <View style={styles.errorBlock}>
+                <Text style={[styles.errorText, { color: palette.error }]}>{error}</Text>
+                <Pressable
+                  accessibilityLabel={t('accessibility.reloadComments')}
+                  accessibilityRole="button"
+                  onPress={() => void refresh()}
+                  style={({ pressed }) => [styles.inlineButton, pressed && styles.pressed]}
+                >
+                  <IconRefresh color={palette.primary} size={17} strokeWidth={2} />
+                  <Text style={[styles.inlineButtonLabel, { color: palette.primary }]}>{tCommon('actions.retry')}</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <IconMessage color={palette.onSurfaceVariant} size={44} strokeWidth={1.5} />
+                <Text style={[styles.emptyText, { color: palette.onSurfaceVariant }]}>{t('comments.empty')}</Text>
+              </View>
+            )
+          }
+          ListFooterComponent={
+            isLoadingMore ? <CommentThreadSkeleton palette={commentPalette} rows={1} /> : null
+          }
+          ListHeaderComponent={
+            error && page ? (
+              <View style={styles.header}>
                 <View style={styles.errorBlock}>
                   <Text style={[styles.errorText, { color: palette.error }]}>{error}</Text>
                   <Pressable
@@ -158,43 +182,17 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
                     <Text style={[styles.inlineButtonLabel, { color: palette.primary }]}>{tCommon('actions.retry')}</Text>
                   </Pressable>
                 </View>
-              ) : (
-                <View style={styles.emptyState}>
-                  <IconMessage color={palette.onSurfaceVariant} size={44} strokeWidth={1.5} />
-                  <Text style={[styles.emptyText, { color: palette.onSurfaceVariant }]}>{t('comments.empty')}</Text>
-                </View>
-              )
-            }
-            ListFooterComponent={
-              isLoadingMore ? <CommentThreadSkeleton palette={commentPalette} rows={1} /> : null
-            }
-            ListHeaderComponent={
-              error && page ? (
-                <View style={styles.header}>
-                  <View style={styles.errorBlock}>
-                    <Text style={[styles.errorText, { color: palette.error }]}>{error}</Text>
-                    <Pressable
-                      accessibilityLabel={t('accessibility.reloadComments')}
-                      accessibilityRole="button"
-                      onPress={() => void refresh()}
-                      style={({ pressed }) => [styles.inlineButton, pressed && styles.pressed]}
-                    >
-                      <IconRefresh color={palette.primary} size={17} strokeWidth={2} />
-                      <Text style={[styles.inlineButtonLabel, { color: palette.primary }]}>{tCommon('actions.retry')}</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ) : null
-            }
-            onEndReached={loadMore}
-            onEndReachedThreshold={0.35}
-            removeClippedSubviews={process.env.EXPO_OS === 'android'}
-            renderItem={renderComment}
-            showsVerticalScrollIndicator={false}
-            updateCellsBatchingPeriod={32}
-            windowSize={7}
-          />
-        </IosScrollViewMarker>
+              </View>
+            ) : null
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.35}
+          removeClippedSubviews={process.env.EXPO_OS === 'android'}
+          renderItem={renderComment}
+          showsVerticalScrollIndicator={false}
+          updateCellsBatchingPeriod={32}
+          windowSize={7}
+        />
       </NativeScreenScaffold>
     </PaperProvider>
   );

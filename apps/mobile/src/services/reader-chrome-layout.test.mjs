@@ -4,7 +4,6 @@ import test from 'node:test';
 import {
   createReaderChromeInsets,
   resolveReaderChapterBarOrder,
-  shouldRenderReaderEdgeBlur,
 } from './reader-chrome-layout.ts';
 
 test('reader chapter bar follows physical reading direction', () => {
@@ -16,14 +15,6 @@ test('reader chapter bar follows physical reading direction', () => {
     left: 'next',
     right: 'previous',
   });
-});
-
-test('reader edge blur supports comic pagination while remaining gated by content readiness', () => {
-  assert.equal(shouldRenderReaderEdgeBlur('scroll'), true);
-  assert.equal(shouldRenderReaderEdgeBlur('scroll', false), false);
-  assert.equal(shouldRenderReaderEdgeBlur('paged'), false);
-  assert.equal(shouldRenderReaderEdgeBlur('paged', true, true), true);
-  assert.equal(shouldRenderReaderEdgeBlur('paged', false, true), false);
 });
 
 test('reader chrome insets include overlay controls and safe areas', () => {

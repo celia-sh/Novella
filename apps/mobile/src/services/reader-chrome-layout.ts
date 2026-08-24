@@ -1,5 +1,3 @@
-import type { ReaderMode } from '@novella/reader-engine';
-
 export type ReaderChromePlatform = 'android' | 'ios' | 'web';
 
 export interface ReaderChromeInsets {
@@ -27,14 +25,6 @@ export function resolveReaderChapterBarOrder(
   return direction === 'rtl'
     ? { left: 'next', right: 'previous' }
     : { left: 'previous', right: 'next' };
-}
-
-export function shouldRenderReaderEdgeBlur(
-  mode: ReaderMode,
-  contentReady = true,
-  includePagedMode = false,
-): boolean {
-  return contentReady && (mode === 'scroll' || includePagedMode);
 }
 
 export function createReaderChromeInsets(

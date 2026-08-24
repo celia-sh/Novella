@@ -1,9 +1,6 @@
 import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { StatusBar } from 'react-native';
-
-import { IosTopBarBackground } from '@/components/ios-top-bar-background';
-import { shouldRenderReaderEdgeBlur } from '@/services/reader-chrome-layout';
 import type { ReaderNavigationProps } from '@/components/reader-navigation.types';
 import { useOptimisticReaderMode } from '@/hooks/use-optimistic-reader-mode';
 
@@ -16,9 +13,6 @@ export function ReaderNavigation({
   onOpenSettings,
   title,
   chromeHidden,
-  topBarBlurAppearance,
-  topBarBlurContentReady = true,
-  topBarBlurInPagedMode = false,
 }: ReaderNavigationProps) {
   const { t } = useTranslation('reader');
   const {
@@ -30,14 +24,11 @@ export function ReaderNavigation({
     <>
       <Stack.Screen
         options={{
-          headerBackground: () => null,
-          headerBlurEffect: 'none',
           headerLargeTitle: false,
           headerShadowVisible: false,
           headerTintColor: foregroundColor,
           headerShown: !chromeHidden,
           gestureEnabled: false,
-          headerTransparent: true,
           ...(forceLightAppearance
             ? {
                 unstable_nativeProps: {
@@ -45,27 +36,10 @@ export function ReaderNavigation({
                 },
               }
             : {}),
-          scrollEdgeEffects: {
-            bottom: 'hidden',
-            left: 'hidden',
-            right: 'hidden',
-            top: 'hidden',
-          },
           title,
         }}
       />
       <StatusBar animated hidden={chromeHidden} showHideTransition="fade" />
-      {shouldRenderReaderEdgeBlur(
-        mode,
-        topBarBlurContentReady && !chromeHidden,
-        topBarBlurInPagedMode,
-      ) ? (
-        <IosTopBarBackground
-          {...(topBarBlurAppearance
-            ? { blurConfig: { appearance: topBarBlurAppearance } }
-            : {})}
-        />
-      ) : null}
       {!chromeHidden ? (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button

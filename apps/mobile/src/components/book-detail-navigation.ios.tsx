@@ -25,11 +25,8 @@ export function BookDetailNavigation({
       <Stack.Screen
         options={{
           contentStyle: { backgroundColor: palette.surface },
-          headerBackground: () => null,
-          headerStyle: { backgroundColor: 'transparent' },
           headerBackVisible: false,
           headerTintColor: palette.primary,
-          headerTransparent: true,
           title: '',
         }}
       />

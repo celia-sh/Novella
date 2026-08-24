@@ -3,7 +3,6 @@ import { Button, HStack, List, Section, Spacer, Text, VStack } from '@expo/ui/sw
 import {
   buttonStyle,
   contentShape,
-  createModifier,
   disabled as disabledModifier,
   foregroundStyle,
   font,
@@ -11,49 +10,27 @@ import {
   listStyle,
   shapes,
 } from '@expo/ui/swift-ui/modifiers';
-import { Stack } from 'expo-router';
-import { isValidElement, useState, type PropsWithChildren, type ReactNode } from 'react';
+import { isValidElement, type PropsWithChildren, type ReactNode } from 'react';
 
-import { IosTopBarBackground } from '@/components/ios-top-bar-background';
 import { NativeIcon } from '@/components/native-icon';
-import { NativeScrollEdgeMarker } from '../../modules/novella-ui/src/native-scroll-edge-marker';
 import type { NativeGroupedListProps, NativeGroupedListRowProps } from '@/components/native-grouped-list';
 import { useAppTheme } from '@/theme/app-theme';
 
-const hiddenTopScrollEdgeEffect = createModifier('novellaHiddenTopScrollEdgeEffect');
-
 export function NativeGroupedListPlatform({
   children,
-  ownsTopBarBackground = true,
   testID,
 }: NativeGroupedListProps) {
   const { colors } = useAppTheme();
-  const [topBarBackgroundVisible, setTopBarBackgroundVisible] = useState(false);
 
   return (
-    <>
-      <Stack.Screen options={{ headerBackground: () => null }} />
-      <Host seedColor={colors.accent} style={{ flex: 1, width: '100%' }}>
-        <List
-          modifiers={[
-            listStyle('insetGrouped'),
-            ...(ownsTopBarBackground ? [hiddenTopScrollEdgeEffect] : []),
-          ]}
-          {...(testID ? { testID } : {})}
-        >
-          {children}
-        </List>
-      </Host>
-      {ownsTopBarBackground ? (
-        <>
-          <IosTopBarBackground visible={topBarBackgroundVisible} />
-          <NativeScrollEdgeMarker
-            observesTopBarOverlap
-            onTopBarBackgroundVisibilityChange={setTopBarBackgroundVisible}
-          />
-        </>
-      ) : null}
-    </>
+    <Host seedColor={colors.accent} style={{ flex: 1, width: '100%' }}>
+      <List
+        modifiers={[listStyle('insetGrouped')]}
+        {...(testID ? { testID } : {})}
+      >
+        {children}
+      </List>
+    </Host>
   );
 }
 

@@ -3,8 +3,6 @@ import { SkeletonGroup } from 'heroui-native';
 import { useTranslation } from 'react-i18next';
 import {
   useCallback,
-  useRef,
-  useState,
   type ComponentProps,
   type ComponentType,
   type ReactNode,
@@ -16,8 +14,6 @@ import {
   StyleSheet,
   View,
   useWindowDimensions,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
   type ViewStyle,
 } from 'react-native';
 import Animated, {
@@ -55,8 +51,6 @@ import {
 import { BookCoverImage } from '@/components/book-cover-image';
 import { BookDetailNavigation } from '@/components/book-detail-navigation';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
-import { IosTopBarBackground } from '@/components/ios-top-bar-background';
-import { IosScrollViewMarker } from '@/components/ios-scroll-view-marker';
 import { BookHtmlContent } from '@/components/book-html-content';
 import {
   useBookDetail,
@@ -123,7 +117,6 @@ export function BookDetailScreen({
     ? initialCoverPlaceholder ?? book?.coverPlaceholder ?? null
     : book?.coverPlaceholder ?? null;
   const detailTheme = useBookDetailRouteTheme(bookId, coverUrl, coverPlaceholder);
-  const [topBarBackgroundVisible, setTopBarBackgroundVisible] = useState(false);
   const displayBook = book ?? createLoadingBookDetail({
     bookId,
     coverUrl,
@@ -155,12 +148,10 @@ export function BookDetailScreen({
             isLoading={isLoading}
             isShelfLoading={isShelfLoading}
             onToggleShelf={toggleShelf}
-            onTopBarBackgroundChange={setTopBarBackgroundVisible}
             palette={detailTheme.palette}
             shelfError={shelfError}
           />
         )}
-        <IosTopBarBackground visible={topBarBackgroundVisible} />
       </View>
     </PaperProvider>
   );
@@ -206,7 +197,6 @@ function BookDetailContent({
   isLoading,
   isShelfLoading,
   onToggleShelf,
-  onTopBarBackgroundChange,
   palette,
   shelfError,
 }: {
@@ -218,7 +208,6 @@ function BookDetailContent({
   isLoading: boolean;
   isShelfLoading: boolean;
   onToggleShelf: () => Promise<void>;
-  onTopBarBackgroundChange: (visible: boolean) => void;
   palette: BookDetailPalette;
   shelfError: BookUserMessage | null;
 }) {
@@ -257,18 +246,6 @@ function BookDetailContent({
   const isIos = process.env.EXPO_OS === 'ios';
   const heroHeight = BOOK_HERO_HEIGHT + topInset;
   const usesCollapsibleAppBar = process.env.EXPO_OS === 'android';
-  const topBarBackgroundVisibleRef = useRef(false);
-  const handleScroll = useCallback((offsetY: number) => {
-    if (process.env.EXPO_OS !== 'ios') return;
-
-    if (!topBarBackgroundVisibleRef.current && offsetY >= BOOK_HERO_COLLAPSE_DISTANCE) {
-      topBarBackgroundVisibleRef.current = true;
-      onTopBarBackgroundChange(true);
-    } else if (topBarBackgroundVisibleRef.current && offsetY <= 1) {
-      topBarBackgroundVisibleRef.current = false;
-      onTopBarBackgroundChange(false);
-    }
-  }, [onTopBarBackgroundChange]);
 
   return (
     <View style={[styles.detailContent, { backgroundColor: palette.surface }]}>
@@ -280,19 +257,15 @@ function BookDetailContent({
           scrollOffset={scrollOffset}
         />
       ) : null}
-      <IosScrollViewMarker style={styles.scrollViewMarker}>
-        <Animated.ScrollView
-          bounces={isIos}
-          contentInsetAdjustmentBehavior="never"
-          onScroll={({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) =>
-            handleScroll(nativeEvent.contentOffset.y)
-          }
-          overScrollMode="never"
-          ref={scrollRef}
-          scrollEventThrottle={16}
-          showsVerticalScrollIndicator={false}
-          style={{ backgroundColor: isIos ? 'transparent' : palette.surface }}
-        >
+      <Animated.ScrollView
+        bounces={isIos}
+        contentInsetAdjustmentBehavior="never"
+        overScrollMode="never"
+        ref={scrollRef}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        style={[styles.scrollView, { backgroundColor: isIos ? 'transparent' : palette.surface }]}
+      >
           {usesCollapsibleAppBar ? (
             <View style={{ height: BOOK_HERO_HEIGHT + topInset }} />
           ) : (
@@ -482,7 +455,6 @@ function BookDetailContent({
       )}
           <View style={{ height: 40 + bottomInset }} />
         </Animated.ScrollView>
-      </IosScrollViewMarker>
       {usesCollapsibleAppBar ? (
         <CollapsibleBookAppBar
           book={book}
@@ -1069,7 +1041,7 @@ const styles = StyleSheet.create({
   readButtonContent: { height: 56 },
   readButtonLabel: { fontSize: 15, fontWeight: '600', letterSpacing: 0.1, lineHeight: 21.5 },
   root: { flex: 1 },
-  scrollViewMarker: { flex: 1 },
+  scrollView: { flex: 1 },
   sectionTitle: { fontSize: 13, fontWeight: '600', letterSpacing: 0.5, lineHeight: 19 },
   shelfButton: { borderRadius: 16, height: 56, margin: 0, width: 56 },
   updateInfo: { alignItems: 'center', borderRadius: 12, flexDirection: 'row', gap: 8, marginBottom: 24, padding: 12 },
