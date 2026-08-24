@@ -352,10 +352,22 @@ test('scroll tiles preserve the complete document coordinate range', () => {
     height: tile.height,
     ids: tile.blocks.map((block) => block.id),
   })), [
-    { y: 0, height: 260, ids: ['a', 'b'] },
-    { y: 260, height: 140, ids: ['c'] },
+    { y: 0, height: 200, ids: ['a', 'b'] },
+    { y: 200, height: 200, ids: ['c'] },
   ]);
   assert.equal(result.tiles.reduce((sum, tile) => sum + tile.height, 0), 400);
+});
+
+test('scroll tiles slice a block that exceeds the native drawable height', () => {
+  const layout = createLayout([
+    createBlock('long', 20, 5000),
+  ], 5040);
+  const result = tileChapter(layout, 200);
+
+  assert.equal(result.tiles.length, 26);
+  assert.equal(result.tiles.every((tile) => tile.height <= 200), true);
+  assert.equal(result.tiles.reduce((sum, tile) => sum + tile.height, 0), 5040);
+  assert.equal(result.tiles.every((tile) => tile.blocks[0]?.id === 'long'), true);
 });
 
 test('paged plan repeats chrome insets and keeps block order', () => {

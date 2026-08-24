@@ -863,19 +863,25 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     positionCaptureReadyRef.current = false;
     restoredPresentationRef.current = null;
     pendingModeRef.current = nextMode;
-    // This host owns its state, so showing it does not reconcile ReaderScreen
-    // or touch mounted Skia tiles. Two frames let that native view paint first.
+    // First remove the old Skia list behind the reflow overlay. The mode state
+    // changes on a later frame, after the old Canvas surfaces have unmounted,
+    // so Metal never has to allocate old and new chapter drawables together.
     reflowOverlayRef.current?.show();
     modeSwitchFrameRef.current = requestAnimationFrame(() => {
       modeSwitchFrameRef.current = requestAnimationFrame(() => {
         modeSwitchFrameRef.current = null;
         setPendingMode(nextMode);
-        setMode(nextMode);
         void saveCurrentPosition();
         if (persist) void updateAppSettings({ novelReaderViewMode: nextMode });
       });
     });
   }, [captureCurrentVisibleBlock, mode, saveCurrentPosition]);
+
+  useEffect(() => {
+    if (pendingMode === null || pendingMode === mode) return;
+    const frame = requestAnimationFrame(() => setMode(pendingMode));
+    return () => cancelAnimationFrame(frame);
+  }, [mode, pendingMode]);
 
   const changeMode = useCallback((nextMode: ReaderMode) => {
     beginModeTransition(nextMode, true);
@@ -988,7 +994,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
             accentColor={colors.accent as string}
             textColor={readerTextColor}
           />
-        ) : content && presentation ? (
+        ) : content && presentation && (pendingMode === null || pendingMode === mode) ? (
           <View style={styles.reader}>
             <FlatList
               {...{ onTouchCancel, onTouchEnd, onTouchMove, onTouchStart }}

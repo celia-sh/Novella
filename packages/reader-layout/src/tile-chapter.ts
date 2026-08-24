@@ -28,35 +28,32 @@ export function tileChapter(
   layout: LayoutChapterResult,
   targetTileHeight = 900,
 ): TiledChapterResult {
-  if (layout.blocks.length === 0) {
-    return { tiles: [], totalHeight: layout.totalHeight };
+  if (layout.blocks.length === 0 || !Number.isFinite(layout.totalHeight) || layout.totalHeight <= 0) {
+    return { tiles: [], totalHeight: Number.isFinite(layout.totalHeight) ? Math.max(0, layout.totalHeight) : 0 };
   }
 
-  const safeTargetHeight = Math.max(1, targetTileHeight);
+  // Keep every native Canvas below a bounded drawable size. A block (most
+  // commonly a very tall image or a pathological font paragraph) can be much
+  // taller than the target tile. Reusing that block in each intersecting slice
+  // is intentional: the Canvas clips it to the slice, so text/images remain
+  // continuous without asking Metal for one giant texture.
+  const safeTargetHeight = Math.min(4096, Math.max(1, targetTileHeight));
   const tiles: ChapterTile[] = [];
-  let current: ChapterTile = {
-    id: 'tile-0',
-    y: 0,
-    height: 0,
-    blocks: [],
-  };
-
-  for (const block of layout.blocks) {
-    if (current.blocks.length > 0 && block.y >= current.y + safeTargetHeight) {
-      current.height = Math.max(1, block.y - current.y);
-      tiles.push(current);
-      current = {
-        id: `tile-${tiles.length}`,
-        y: block.y,
-        height: 0,
-        blocks: [],
-      };
-    }
-    current.blocks.push(block);
+  for (let y = 0; y < layout.totalHeight; y += safeTargetHeight) {
+    const end = Math.min(layout.totalHeight, y + safeTargetHeight);
+    const blocks = layout.blocks.filter((block) => {
+      if (!Number.isFinite(block.y) || !Number.isFinite(block.height) || block.height <= 0) {
+        return false;
+      }
+      return block.y < end && block.y + block.height > y;
+    });
+    tiles.push({
+      id: `tile-${tiles.length}`,
+      y,
+      height: end - y,
+      blocks,
+    });
   }
-
-  current.height = Math.max(1, layout.totalHeight - current.y);
-  tiles.push(current);
 
   return { tiles, totalHeight: layout.totalHeight };
 }
