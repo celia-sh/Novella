@@ -736,26 +736,24 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
 
   const handleScrollEndDrag = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (mode === 'paged') return;
-    if (settings.readerChapterSwipeNavigation) {
-      const nativeEvent = event.nativeEvent;
-      const action = resolveReaderBoundaryChapterAction({
-        axis: resolveReaderBoundaryAxis(mode),
-        contentExtent: nativeEvent.contentSize.height,
-        offset: nativeEvent.contentOffset.y,
-        velocity: nativeEvent.velocity?.y ?? 0,
-        viewportExtent: nativeEvent.layoutMeasurement.height,
-      });
-      if (action === 'previous' && previousSortNum !== null) {
-        openChapter(previousSortNum, 'end');
-        return;
-      }
-      if (action === 'next' && nextSortNum !== null) {
-        openChapter(nextSortNum, 'start');
-        return;
-      }
+    const nativeEvent = event.nativeEvent;
+    const action = resolveReaderBoundaryChapterAction({
+      axis: resolveReaderBoundaryAxis(mode),
+      contentExtent: nativeEvent.contentSize.height,
+      offset: nativeEvent.contentOffset.y,
+      velocity: nativeEvent.velocity?.y ?? 0,
+      viewportExtent: nativeEvent.layoutMeasurement.height,
+    });
+    if (action === 'previous' && previousSortNum !== null) {
+      openChapter(previousSortNum, 'end');
+      return;
+    }
+    if (action === 'next' && nextSortNum !== null) {
+      openChapter(nextSortNum, 'start');
+      return;
     }
     handleScrollEnd();
-  }, [handleScrollEnd, mode, nextSortNum, openChapter, previousSortNum, settings.readerChapterSwipeNavigation]);
+  }, [handleScrollEnd, mode, nextSortNum, openChapter, previousSortNum]);
 
   const handlePageTap = useCallback<ReaderPageTapHandler>((event) => {
     if (mode !== 'paged' || !settings.readerPagedTapNavigation || !presentation) {
@@ -786,12 +784,10 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       return true;
     }
 
-    if (settings.readerChapterSwipeNavigation) {
-      if (direction < 0 && previousSortNum !== null) {
-        openChapter(previousSortNum, 'end');
-      } else if (direction > 0 && nextSortNum !== null) {
-        openChapter(nextSortNum, 'start');
-      }
+    if (direction < 0 && previousSortNum !== null) {
+      openChapter(previousSortNum, 'end');
+    } else if (direction > 0 && nextSortNum !== null) {
+      openChapter(nextSortNum, 'start');
     }
     return true;
   }, [
@@ -803,14 +799,12 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     previousSortNum,
     screenHeight,
     screenWidth,
-    settings.readerChapterSwipeNavigation,
     settings.readerPagedTapNavigation,
     turnNovelPage,
   ]);
   const handlePageSwipe = useCallback<ReaderPageSwipeHandler>((_event, deltaX, deltaY) => {
     if (
       mode !== 'paged'
-      || !settings.readerChapterSwipeNavigation
       || Math.abs(deltaX) <= Math.abs(deltaY)
       || !presentation
     ) return;
@@ -831,7 +825,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     openChapter,
     presentation,
     previousSortNum,
-    settings.readerChapterSwipeNavigation,
     visiblePageIndex,
   ]);
   const {

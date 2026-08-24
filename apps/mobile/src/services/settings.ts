@@ -63,7 +63,6 @@ export interface AppSettings {
   oledBlack: boolean;
   novelReaderViewMode: ReaderViewMode;
   comicReaderViewMode: ReaderViewMode;
-  readerChapterSwipeNavigation: boolean;
   readerPagedTapNavigation: boolean;
   readerFirstLineIndent: boolean;
   readerImagePreviewOpenOnLongPress: boolean;
@@ -102,7 +101,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   readerPreloadWindow: 3,
   novelReaderViewMode: 'paged',
   comicReaderViewMode: 'paged',
-  readerChapterSwipeNavigation: false,
   readerPagedTapNavigation: true,
   readerSidePadding: 30,
   seedColorValue: DEFAULT_THEME_SEED,
@@ -190,13 +188,6 @@ function decodeSettings(value: unknown): AppSettings {
   const comicReaderViewMode = isReaderViewMode(candidate.comicReaderViewMode)
     ? candidate.comicReaderViewMode
     : legacyReaderViewMode ?? DEFAULT_SETTINGS.comicReaderViewMode;
-  const readerChapterSwipeNavigation = typeof candidate.readerChapterSwipeNavigation === 'boolean'
-    ? candidate.readerChapterSwipeNavigation
-    : typeof candidate.novelReaderChapterSwipeNavigation === 'boolean'
-      || typeof candidate.comicReaderChapterSwipeNavigation === 'boolean'
-      ? candidate.novelReaderChapterSwipeNavigation === true
-        || candidate.comicReaderChapterSwipeNavigation === true
-      : DEFAULT_SETTINGS.readerChapterSwipeNavigation;
   const readerPagedTapNavigation = typeof candidate.readerPagedTapNavigation === 'boolean'
     ? candidate.readerPagedTapNavigation
     : typeof candidate.novelReaderPagedTapNavigation === 'boolean'
@@ -252,7 +243,6 @@ function decodeSettings(value: unknown): AppSettings {
       : {}),
     novelReaderViewMode,
     comicReaderViewMode,
-    readerChapterSwipeNavigation,
     readerPagedTapNavigation,
     ...(typeof candidate.readerImagePreviewOpenOnLongPress === 'boolean'
       ? { readerImagePreviewOpenOnLongPress: candidate.readerImagePreviewOpenOnLongPress }

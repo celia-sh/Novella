@@ -716,7 +716,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   }, [activeChapter]);
   const isPagedRtl = settings.comicPagedDirection === 'rtl';
   const handleBoundaryChapterGesture = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (!settings.readerChapterSwipeNavigation || mode === 'paged') return;
+    if (mode === 'paged') return;
     const nativeEvent = event.nativeEvent;
     const action = resolveReaderBoundaryChapterAction({
       axis: resolveReaderBoundaryAxis(mode),
@@ -730,7 +730,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     } else if (action === 'next' && nextChapter) {
       openChapter(nextChapter.sortNum, 'start');
     }
-  }, [mode, nextChapter, openChapter, previousChapter, settings.readerChapterSwipeNavigation]);
+  }, [mode, nextChapter, openChapter, previousChapter]);
   const turnComicPage = useCallback((direction: -1 | 1) => {
     if (mode !== 'paged' || activeSlots.length === 0) return;
     const currentDisplay = pagedTapTargetRef.current
@@ -782,12 +782,10 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       return true;
     }
 
-    if (settings.readerChapterSwipeNavigation) {
-      if (direction < 0 && previousChapter) {
-        openChapter(previousChapter.sortNum, 'end');
-      } else if (direction > 0 && nextChapter) {
-        openChapter(nextChapter.sortNum, 'start');
-      }
+    if (direction < 0 && previousChapter) {
+      openChapter(previousChapter.sortNum, 'end');
+    } else if (direction > 0 && nextChapter) {
+      openChapter(nextChapter.sortNum, 'start');
     }
     return true;
   }, [
@@ -799,7 +797,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     pagedDisplaySlots,
     pagedDisplaySlots.length,
     previousChapter,
-    settings.readerChapterSwipeNavigation,
     settings.readerPagedTapNavigation,
     turnComicPage,
     width,
@@ -808,7 +805,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   const handlePageSwipe = useCallback<ReaderPageSwipeHandler>((_event, deltaX, deltaY) => {
     if (
       mode !== 'paged'
-      || !settings.readerChapterSwipeNavigation
       || Math.abs(deltaX) <= Math.abs(deltaY)
       || activeSlots.length === 0
     ) return;
@@ -837,7 +833,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     pagedDisplaySlots,
     pagedDisplaySlots.length,
     previousChapter,
-    settings.readerChapterSwipeNavigation,
   ]);
   const {
     hidden: chromeHidden,

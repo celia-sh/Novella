@@ -150,13 +150,6 @@ export function ReaderSettingsContent() {
           title={t('reader.behavior.comicModeTitle')}
         />
         <NativeToggleRow
-          description={t('reader.behavior.chapterSwipeDescription')}
-          icon="progress"
-          onValueChange={(value) => void updateAppSettings({ readerChapterSwipeNavigation: value })}
-          title={t('reader.behavior.chapterSwipeTitle')}
-          value={settings.readerChapterSwipeNavigation}
-        />
-        <NativeToggleRow
           description={t('reader.behavior.pagedTapDescription')}
           icon="readingMode"
           onValueChange={(value) => void updateAppSettings({ readerPagedTapNavigation: value })}
