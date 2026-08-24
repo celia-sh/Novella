@@ -12,6 +12,7 @@ export {
   BOOK_GRID_ROW_GAP,
   bookGridColumns,
   bookGridListKey,
+  homeBookGridPreviewCount,
   bookGridTileWidth,
   type BookGridLayout,
 } from '@/services/book-grid-layout';

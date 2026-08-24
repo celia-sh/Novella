@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { bookGridColumns, bookGridListKey } from './book-grid-layout.ts';
+import {
+  bookGridColumns,
+  bookGridListKey,
+  homeBookGridPreviewCount,
+} from './book-grid-layout.ts';
 import { nearbyGridItemIndices, scrollGridItemIndices } from './cover-activation.ts';
 
 test('book grid columns adapt to window width', () => {
@@ -26,6 +30,15 @@ test('book grid list key changes with the responsive column count', () => {
     bookGridListKey(bookGridColumns(767)),
     bookGridListKey(bookGridColumns(768)),
   );
+});
+
+test('home previews match ranking with two responsive grid rows', () => {
+  assert.equal(homeBookGridPreviewCount(bookGridColumns(320)), 6);
+  assert.equal(homeBookGridPreviewCount(bookGridColumns(480)), 8);
+  assert.equal(homeBookGridPreviewCount(bookGridColumns(600)), 10);
+  assert.equal(homeBookGridPreviewCount(bookGridColumns(768)), 12);
+  assert.equal(homeBookGridPreviewCount(bookGridColumns(1024)), 14);
+  assert.equal(homeBookGridPreviewCount(bookGridColumns(1280)), 16);
 });
 
 test('tile widths stay in a sane range across breakpoints', () => {

@@ -25,7 +25,11 @@ import {
 import { DiscoverNavigation } from '@/components/discover-navigation';
 import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { SectionCard } from '@/components/section-card';
-import { useBookGridLayout, BOOK_GRID_COLUMN_GAP } from '@/hooks/use-book-grid-layout';
+import {
+  homeBookGridPreviewCount,
+  useBookGridLayout,
+  BOOK_GRID_COLUMN_GAP,
+} from '@/hooks/use-book-grid-layout';
 import {
   useCoverScrollViewport,
   useScrollGridCoverActivation,
@@ -114,7 +118,10 @@ function RankingSection({ viewport }: { viewport: CoverScrollViewportController 
   const { colors } = useAppTheme();
   const { books, error, period, reload, retry, status } = useHomeRanking();
   const { columns, contentWidth, tileWidth } = useBookGridLayout(20);
-  const previewBooks = useMemo(() => books.slice(0, columns * 2), [books, columns]);
+  const previewBooks = useMemo(
+    () => books.slice(0, homeBookGridPreviewCount(columns)),
+    [books, columns],
+  );
   const rankingCoverKeys = useMemo(() => previewBooks.map(homeBookCoverKey), [previewBooks]);
   const coverActivation = useScrollGridCoverActivation({
     columns,
@@ -199,7 +206,10 @@ function LatestBooksSection({
   const { t } = useTranslation('library');
   const styles = useHomeScreenStyles();
   const { columns, contentWidth, tileWidth } = useBookGridLayout(20);
-  const books = useMemo(() => state.data?.items.slice(0, 6) ?? [], [state.data]);
+  const books = useMemo(
+    () => state.data?.items.slice(0, homeBookGridPreviewCount(columns)) ?? [],
+    [columns, state.data],
+  );
   const latestCoverKeys = useMemo(() => books.map(homeBookCoverKey), [books]);
   const coverActivation = useScrollGridCoverActivation({
     columns,
@@ -260,7 +270,11 @@ function ComicsSection({ viewport }: { viewport: CoverScrollViewportController }
   const { colors } = useAppTheme();
   const { books, error, reload, retry, status } = useHomeComicPreview();
   const { columns, contentWidth, tileWidth } = useBookGridLayout(20);
-  const comicCoverKeys = useMemo(() => books.map(homeBookCoverKey), [books]);
+  const previewBooks = useMemo(
+    () => books.slice(0, homeBookGridPreviewCount(columns)),
+    [books, columns],
+  );
+  const comicCoverKeys = useMemo(() => previewBooks.map(homeBookCoverKey), [previewBooks]);
   const coverActivation = useScrollGridCoverActivation({
     columns,
     itemKeys: comicCoverKeys,
@@ -295,7 +309,7 @@ function ComicsSection({ viewport }: { viewport: CoverScrollViewportController }
           onRetry={retry}
           title={t('discovery.comicLoadTitle')}
         />
-      ) : books.length === 0 ? (
+      ) : previewBooks.length === 0 ? (
         <SectionCard>
           <Text style={styles.cardTitle}>{t('discovery.noComics')}</Text>
           <Text style={styles.cardDescription}>
@@ -307,7 +321,7 @@ function ComicsSection({ viewport }: { viewport: CoverScrollViewportController }
         <View onLayout={coverActivation.onGridLayout} style={styles.sectionBody}>
           <BookGrid
             activatedCoverKeys={coverActivation.activatedKeys}
-            books={books}
+            books={previewBooks}
             columns={columns}
             tileWidth={tileWidth}
             width={contentWidth}

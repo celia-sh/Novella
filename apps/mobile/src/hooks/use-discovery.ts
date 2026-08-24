@@ -9,6 +9,7 @@ import {
 import type { LibraryMessage } from '@/localization/locales/library';
 import { discovery } from '@/services/client';
 import { filterBooksByContentSettings } from '@/services/content-filter';
+import { HOME_BOOK_METADATA_PAGE_SIZE } from '@/services/book-grid-layout';
 import { useAppSettings } from '@/services/settings';
 
 export type DiscoverySectionState<T> =
@@ -55,13 +56,14 @@ export function useDiscovery() {
       // Flutter's home page requests a larger recent-updates page and then
       // applies the same client-side content filter used by search/rankings.
       // The backend only accepts the Japanese/AI flags; Level 6 is filtered
-      // locally, so requesting 12 gives the six-tile preview room to fill.
+      // locally. Keep this bounded catalog page larger than the phone preview
+      // so tablet grids can show two complete rows without loading covers.
       const response = await discovery.loadBookListPage({
         ignoreAI: settings.ignoreAI,
         ignoreJapanese: settings.ignoreJapanese,
         order: 'latest',
         page: 1,
-        size: 12,
+        size: HOME_BOOK_METADATA_PAGE_SIZE,
       });
       const data = {
         ...response,

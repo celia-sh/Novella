@@ -10,6 +10,7 @@ import {
 
 import type { LibraryMessage } from '@/localization/locales/library';
 import { discovery } from '@/services/client';
+import { HOME_BOOK_METADATA_PAGE_SIZE } from '@/services/book-grid-layout';
 import { useAppSettings } from '@/services/settings';
 
 export type ComicListStatus = 'loading' | 'loadingMore' | 'ready' | 'error' | 'refreshing';
@@ -163,9 +164,9 @@ export interface HomeComicPreviewState {
   status: HomeComicPreviewStatus;
 }
 
-const PREVIEW_SIZE = 6; // matches the novel latest-updates home preview
+const PREVIEW_SIZE = HOME_BOOK_METADATA_PAGE_SIZE;
 
-/** Home all-comics preview: always the default 'latest' order, size 6. */
+/** Home all-comics preview: always the default 'latest' order, size 24. */
 export function useHomeComicPreview() {
   const [state, setState] = useState<HomeComicPreviewState>({
     books: [],
