@@ -52,6 +52,8 @@ export interface ReaderImagePreviewSource {
   alt?: string;
   /** Already-decoded pixels owned by the mounted Skia reader tile. */
   skiaImage?: SkImage;
+  /** Releases the preview's temporary image lease after it closes. */
+  releaseSkiaImage?: () => void;
 }
 
 export interface ReaderImagePreviewProps {
@@ -90,6 +92,7 @@ export const ReaderImagePreviewHost = forwardRef<
   const [state, setState] = useState<ReaderImagePreviewHostState>(EMPTY_PREVIEW_STATE);
   const revealFrameRef = useRef<number | null>(null);
   const cleanupFrameRef = useRef<number | null>(null);
+  const sourceRef = useRef<ReaderImagePreviewSource | null>(null);
 
   const cancelScheduledFrames = useCallback(() => {
     if (revealFrameRef.current !== null) cancelAnimationFrame(revealFrameRef.current);
@@ -98,11 +101,21 @@ export const ReaderImagePreviewHost = forwardRef<
     cleanupFrameRef.current = null;
   }, []);
 
-  useEffect(() => cancelScheduledFrames, [cancelScheduledFrames]);
+  useEffect(() => () => {
+    cancelScheduledFrames();
+    const source = sourceRef.current;
+    sourceRef.current = null;
+    source?.releaseSkiaImage?.();
+  }, [cancelScheduledFrames]);
 
   const open = useCallback((source: ReaderImagePreviewSource) => {
     cancelScheduledFrames();
+    const previousSource = sourceRef.current;
+    sourceRef.current = source;
     setState({ revealImage: false, source, visible: true });
+    if (previousSource && previousSource !== source) {
+      previousSource.releaseSkiaImage?.();
+    }
     revealFrameRef.current = requestAnimationFrame(() => {
       revealFrameRef.current = null;
       setState((current) => current.source === source
@@ -122,6 +135,9 @@ export const ReaderImagePreviewHost = forwardRef<
       revealFrameRef.current = null;
       cleanupFrameRef.current = requestAnimationFrame(() => {
         cleanupFrameRef.current = null;
+        const source = sourceRef.current;
+        sourceRef.current = null;
+        source?.releaseSkiaImage?.();
         setState((current) => current.visible ? current : EMPTY_PREVIEW_STATE);
       });
     });
