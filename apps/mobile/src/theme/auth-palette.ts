@@ -24,9 +24,12 @@ export function createAuthPalette(
   colorScheme: AppColorScheme,
 ): AuthPalette {
   const isDark = colorScheme === 'dark';
+  // iOS supplies a dynamic systemGroupedBackground value. Keep the JS
+  // gradient's opaque stops on the same resolved color as the native root;
+  // white is visibly wrong against light-mode grouped backgrounds.
   const background = resolveGradientColor(
     colors.background,
-    isDark ? '#000000' : '#FFFFFF',
+    isDark ? '#000000' : '#F2F2F7',
   );
 
   return {

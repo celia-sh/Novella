@@ -42,7 +42,7 @@ test('never resolves an iOS semantic background through the accent fallback', ()
   }, 'dark');
 
   assert.equal(light.accent, platformAccent);
-  assert.equal(light.welcomeGradient.at(-1), '#FFFFFF');
+  assert.equal(light.welcomeGradient.at(-1), '#F2F2F7');
   assert.equal(dark.welcomeGradient.at(-1), '#000000');
   assert.notEqual(light.welcomeGradient.at(-1), '#FF375F');
 });
