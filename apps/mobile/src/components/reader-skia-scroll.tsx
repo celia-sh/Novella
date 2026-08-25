@@ -12,12 +12,12 @@ import {
 import Animated, {
   runOnJS,
   useAnimatedScrollHandler,
-  useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
 } from 'react-native-reanimated';
 import {
   Canvas,
+  Fill,
   Group,
   Line,
   Paragraph,
@@ -97,18 +97,18 @@ export function ReaderSkiaScroll({
   openImageOnLongPress = false,
 }: ReaderSkiaScrollProps) {
   const scrollY = useSharedValue(0);
-  const lastWindowIndex = useSharedValue(0);
-  const [windowIndex, setWindowIndex] = useState(0);
+  const windowAnchorY = useSharedValue(0);
+  const [anchorY, setAnchorY] = useState(0);
   const paragraphCache = useMemo(
     () => new ReaderSkiaScrollParagraphCache(),
     [fontMgr, generation, layout],
   );
   useEffect(() => () => paragraphCache.dispose(), [paragraphCache]);
 
-  // The UI-thread scroll offset only moves the existing draw/overlay trees.
-  // React rebuilds nearby blocks after a whole viewport bucket changes.
+  // The UI-thread scroll offset only moves the existing Skia draw tree and
+  // native ScrollView content. React rebuilds nearby blocks after an anchor
+  // window changes.
   const windowHeight = Math.max(1, viewportHeight);
-  const anchorY = windowIndex * windowHeight;
   const renderTop = Math.max(0, anchorY - windowHeight * 2);
   const renderBottom = anchorY + windowHeight * 3;
   const cacheTop = Math.max(0, anchorY - windowHeight * 4);
@@ -219,23 +219,26 @@ export function ReaderSkiaScroll({
     }
   }, [buildParagraph]);
 
-  const paragraphItems = useMemo<ScrollParagraphRenderItem[]>(() => {
-    const retainedBlockIds = new Set(
+  const retainedBlockIds = useMemo(
+    () => new Set(
       cacheBlocks.filter((block) => block.text).map((block) => block.id),
-    );
+    ),
+    [cacheBlocks],
+  );
+  const paragraphItems = useMemo<ScrollParagraphRenderItem[]>(() => renderBlocks.flatMap((block) => {
+    if (!block.text) return [];
+    const bundle = paragraphCache.getOrCreate(block.id, () => createParagraphBundle(block));
+    return bundle.items.map((item) => ({
+      blockId: item.blockId,
+      paragraph: item.paragraph,
+      width: item.width,
+      x: theme.sidePadding + block.x + item.xOffset,
+      y: block.y + item.yOffset,
+    }));
+  }), [createParagraphBundle, paragraphCache, renderBlocks, theme.sidePadding]);
+  useEffect(() => {
     paragraphCache.prune(retainedBlockIds);
-    return renderBlocks.flatMap((block) => {
-      if (!block.text) return [];
-      const bundle = paragraphCache.getOrCreate(block.id, () => createParagraphBundle(block));
-      return bundle.items.map((item) => ({
-        blockId: item.blockId,
-        paragraph: item.paragraph,
-        width: item.width,
-        x: theme.sidePadding + block.x + item.xOffset,
-        y: block.y + item.yOffset,
-      }));
-    });
-  }, [cacheBlocks, createParagraphBundle, paragraphCache, renderBlocks, theme.sidePadding]);
+  }, [paragraphCache, retainedBlockIds]);
 
   const imageBlocks = useMemo<ScrollImageRenderItem[]>(() => renderBlocks.flatMap((block) => {
     const blockX = theme.sidePadding + block.x;
@@ -259,27 +262,63 @@ export function ReaderSkiaScroll({
   ), [renderBlocks, renderBottom, renderTop, theme.sidePadding]);
 
   const contentTransform = useDerivedValue(() => [{ translateY: -scrollY.value }]);
-  const imageOverlayStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -scrollY.value }],
-  }));
-  const handleViewportBucketChange = useCallback((y: number) => {
-    const nextWindowIndex = Math.floor(y / windowHeight);
-    setWindowIndex((current) => current === nextWindowIndex ? current : nextWindowIndex);
+  const handleViewportAnchorChange = useCallback((nextAnchorY: number, y: number) => {
+    setAnchorY((current) => current === nextAnchorY ? current : nextAnchorY);
     onViewportChanged(y);
-  }, [onViewportChanged, windowHeight]);
+  }, [onViewportChanged]);
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       const y = Math.max(0, event.contentOffset.y);
       scrollY.value = y;
-      const nextWindowIndex = Math.floor(y / windowHeight);
-      if (nextWindowIndex === lastWindowIndex.value) return;
-      lastWindowIndex.value = nextWindowIndex;
-      runOnJS(handleViewportBucketChange)(y);
+      if (Math.abs(y - windowAnchorY.value) < windowHeight) return;
+      const nextAnchorY = Math.floor(y / windowHeight) * windowHeight;
+      windowAnchorY.value = nextAnchorY;
+      runOnJS(handleViewportAnchorChange)(nextAnchorY, y);
     },
-  }, [handleViewportBucketChange, windowHeight]);
+  }, [handleViewportAnchorChange, windowHeight]);
 
   return (
     <View style={styles.root}>
+      <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Fill color={theme.backgroundColor} />
+        <Group transform={contentTransform}>
+          {paragraphItems.map((item) => (
+            <Paragraph
+              key={item.blockId}
+              paragraph={item.paragraph}
+              width={item.width}
+              x={item.x}
+              y={item.y}
+            />
+          ))}
+          {imageBlocks.map((item) => (
+            <RoundedRect
+              key={`placeholder:${item.blockId}`}
+              color={Skia.Color('#80808020')}
+              height={item.image.height}
+              r={4}
+              width={item.image.width}
+              x={item.x}
+              y={item.y}
+            />
+          ))}
+          {renderBlocks.map((block) => {
+            if (block.type !== 'hr') return null;
+            const lineY = block.y + block.height / 2;
+            return (
+              <Line
+                key={block.id}
+                color={Skia.Color(theme.textColor)}
+                p1={vec(theme.sidePadding + block.x, lineY)}
+                p2={vec(theme.sidePadding + block.x + block.width, lineY)}
+                strokeWidth={1}
+                style="stroke"
+              />
+            );
+          })}
+        </Group>
+      </Canvas>
+
       <Animated.ScrollView
         {...{ onTouchCancel, onTouchEnd, onTouchMove, onTouchStart }}
         ref={scrollViewRef}
@@ -289,54 +328,13 @@ export function ReaderSkiaScroll({
         onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator
-        style={StyleSheet.absoluteFill}
+        style={[StyleSheet.absoluteFill, styles.scrollView]}
       >
-        <View style={{ height: Math.max(1, layout.totalHeight), width: viewportWidth }} />
-      </Animated.ScrollView>
-
-      <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, styles.overlay]}>
-        <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <Group transform={contentTransform}>
-            {paragraphItems.map((item) => (
-              <Paragraph
-                key={item.blockId}
-                paragraph={item.paragraph}
-                width={item.width}
-                x={item.x}
-                y={item.y}
-              />
-            ))}
-            {imageBlocks.map((item) => (
-              <RoundedRect
-                key={`placeholder:${item.blockId}`}
-                color={Skia.Color('#80808020')}
-                height={item.image.height}
-                r={4}
-                width={item.image.width}
-                x={item.x}
-                y={item.y}
-              />
-            ))}
-            {renderBlocks.map((block) => {
-              if (block.type !== 'hr') return null;
-              const lineY = block.y + block.height / 2;
-              return (
-                <Line
-                  key={block.id}
-                  color={Skia.Color(theme.textColor)}
-                  p1={vec(theme.sidePadding + block.x, lineY)}
-                  p2={vec(theme.sidePadding + block.x + block.width, lineY)}
-                  strokeWidth={1}
-                  style="stroke"
-                />
-              );
-            })}
-          </Group>
-        </Canvas>
-
-        <Animated.View
-          pointerEvents="box-none"
-          style={[StyleSheet.absoluteFill, imageOverlayStyle]}
+        <View
+          style={[
+            styles.scrollContent,
+            { height: Math.max(1, layout.totalHeight), width: viewportWidth },
+          ]}
         >
           {imageBlocks.map((item) => (
             <ReaderScrollNativeImage
@@ -369,8 +367,8 @@ export function ReaderSkiaScroll({
               />
             );
           }) : null}
-        </Animated.View>
-      </View>
+        </View>
+      </Animated.ScrollView>
     </View>
   );
 }
@@ -439,5 +437,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
   root: { flex: 1, overflow: 'hidden' },
-  overlay: { overflow: 'hidden' },
+  scrollContent: { backgroundColor: 'transparent', position: 'relative' },
+  scrollView: { backgroundColor: 'transparent' },
 });
