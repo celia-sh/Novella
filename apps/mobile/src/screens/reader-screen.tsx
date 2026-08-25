@@ -144,7 +144,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   } = useReaderWindowDimensions();
   const stableSafeArea = useMemo(
     () => ({ bottom: insets.bottom, top: insets.top }),
-    [insets.bottom, insets.top, safeAreaFrame.height, safeAreaFrame.width, safeAreaFrame.x, safeAreaFrame.y],
+    [safeAreaFrame.height, safeAreaFrame.width, safeAreaFrame.x, safeAreaFrame.y],
   );
   const useDoublePage = mode === 'paged' && shouldUseReaderDoublePage(screenWidth, screenHeight);
   const readerChromeInsets = createReaderChromeInsets(
