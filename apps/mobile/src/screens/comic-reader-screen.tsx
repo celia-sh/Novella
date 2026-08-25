@@ -1034,8 +1034,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
         backgroundColor={colors.background as string}
         chromeHidden={chromeHidden}
         foregroundColor={colors.label as string}
-        mode={mode}
-        onModeChange={changeMode}
         onOpenChapters={openChapters}
         onOpenSettings={() => router.push({
           pathname: '/reader/[bookId]/settings',

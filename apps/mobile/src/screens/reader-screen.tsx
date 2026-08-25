@@ -1049,8 +1049,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         backgroundColor={readerBackground}
         chromeHidden={chromeHidden}
         foregroundColor={readerTextColor}
-        mode={mode}
-        onModeChange={changeMode}
         onOpenChapters={openChapters}
         onOpenSettings={() => router.push({
           pathname: '/reader/[bookId]/settings',

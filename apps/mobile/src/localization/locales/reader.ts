@@ -18,7 +18,6 @@ export const zhCNReader = {
     retryReader: '重试加载阅读器',
     saveImage: '保存图片',
     shareImage: '分享图片',
-    switchMode: '切换到{{mode}}模式',
   },
   chapters: {
     pageCount: '{{count}} 页',
@@ -63,10 +62,6 @@ export const zhCNReader = {
       unsupportedFormat: '暂不支持保存此图片格式',
     },
   },
-  modes: {
-    paged: '分页',
-    scroll: '滚动',
-  },
   progress: {
     remainingPages: '剩余 {{count}} 页',
   },
@@ -99,7 +94,6 @@ export const zhTWReader: TranslationShape<typeof zhCNReader> = {
     retryReader: '重新載入閱讀器',
     saveImage: '儲存圖片',
     shareImage: '分享圖片',
-    switchMode: '切換至{{mode}}模式',
   },
   chapters: {
     pageCount: '{{count}} 頁',
@@ -143,10 +137,6 @@ export const zhTWReader: TranslationShape<typeof zhCNReader> = {
       shareFailed: '分享圖片失敗',
       unsupportedFormat: '暫不支援儲存此圖片格式',
     },
-  },
-  modes: {
-    paged: '分頁',
-    scroll: '捲動',
   },
   progress: {
     remainingPages: '剩餘 {{count}} 頁',

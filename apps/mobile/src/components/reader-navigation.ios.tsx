@@ -4,22 +4,19 @@ import { useTranslation } from 'react-i18next';
 import { StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import type { ReaderNavigationProps } from '@/components/reader-navigation.types';
-import { useOptimisticReaderMode } from '@/hooks/use-optimistic-reader-mode';
 
 const hasLiquidGlass = isLiquidGlassAvailable();
 const READER_NAVIGATION_ITEM_HEIGHT = 44;
 const READER_NAVIGATION_MAX_TITLE_WIDTH = 180;
-// Reserve the native back button, all three right toolbar buttons, and a
+// Reserve the native back button, both right toolbar buttons, and a
 // conservative center gap. The outer title view must have an explicit width;
 // maxWidth on a child GlassView does not constrain UINavigationItem.titleView's
 // intrinsic measurement on iOS 26.
-const READER_NAVIGATION_TITLE_SIDE_RESERVATION = 286;
+const READER_NAVIGATION_TITLE_SIDE_RESERVATION = 242;
 
 export function ReaderNavigation({
   forceLightAppearance,
   foregroundColor,
-  mode,
-  onModeChange,
   onOpenChapters,
   onOpenSettings,
   statusBarStyle,
@@ -27,11 +24,6 @@ export function ReaderNavigation({
   chromeHidden,
 }: ReaderNavigationProps) {
   const { t } = useTranslation('reader');
-  const {
-    displayMode,
-    nextMode,
-    requestModeChange,
-  } = useOptimisticReaderMode(mode, onModeChange);
   return (
     <>
       <Stack.Screen
@@ -79,15 +71,6 @@ export function ReaderNavigation({
             hidden={chromeHidden}
             icon="list.bullet"
             onPress={onOpenChapters}
-            tintColor={foregroundColor}
-          />
-          <Stack.Toolbar.Button
-            accessibilityLabel={t('accessibility.switchMode', {
-              mode: t(`modes.${nextMode}`),
-            })}
-            hidden={chromeHidden}
-            icon={displayMode === 'scroll' ? 'rectangle.split.1x2' : 'text.justify.left'}
-            onPress={requestModeChange}
             tintColor={foregroundColor}
           />
           <Stack.Toolbar.Button
