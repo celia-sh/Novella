@@ -412,14 +412,11 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     let secondaryTranslation = isHorizontal ? abs(translation.y) : abs(translation.x)
     guard primaryTranslation >= secondaryTranslation else { return nil }
 
-    let scrollViews = descendantScrollViews(of: navigator.view)
-    let scrollView = scrollViews
-      .filter { scrollView in
-        if isHorizontal {
-          return scrollView.contentSize.width > scrollView.bounds.width + 2
-        }
-        return scrollView.contentSize.height > scrollView.bounds.height + 2
-      }
+    // A short chapter has no scrollable extent, so filtering out contentSize <= bounds
+    // would make outward chapter gestures impossible. Prefer the actual WKWebView
+    // scroll view registered above; it remains the correct boundary source even when
+    // both ends collapse to the same offset.
+    let scrollView = registeredContentScrollView ?? descendantScrollViews(of: navigator.view)
       .max { left, right in
         let leftExtent = isHorizontal ? left.contentSize.width : left.contentSize.height
         let rightExtent = isHorizontal ? right.contentSize.width : right.contentSize.height

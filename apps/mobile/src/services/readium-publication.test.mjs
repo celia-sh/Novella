@@ -57,6 +57,7 @@ test('chapter XHTML receives deterministic fragments and a relative font stylesh
   assert.doesNotMatch(html, /nv-reader-image-interaction/);
   assert.match(html, /e\.stopImmediatePropagation\(\);send\(i,'tap'\)/);
   assert.match(html, /window\.webkit\.messageHandlers\.novellaReader\.postMessage\(p\)/);
+  assert.match(html, /classList\.contains\('no-preview'\).*classList\.contains\('footnote'\)/);
   assert.doesNotMatch(html, /preventDefault\(\)/);
 });
 
