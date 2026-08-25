@@ -60,6 +60,25 @@ test('chapter XHTML receives deterministic fragments and a relative font stylesh
   assert.doesNotMatch(html, /preventDefault\(\)/);
 });
 
+test('maps legacy heading classes to Readium semantic headings without absorbing following blocks', () => {
+  const html = buildReadiumChapterDocument({
+    blocks: [
+      { id: 'h1', locator: '//p[1]', html: '<p class="pius1">Heading</p>', textLength: 7, imageCount: 0 },
+      { id: 'h2', locator: '//div[1]', html: '<div class="pius2">Subheading</div>', textLength: 10, imageCount: 0 },
+      { id: 'h4', locator: '//p[2]', html: '<p class="ph4">Subheading 4</p>', textLength: 12, imageCount: 0 },
+      { id: 'body', locator: '//p[3]', html: '<p>Body remains normal</p>', textLength: 18, imageCount: 0 },
+    ],
+    chapterId: 101,
+    title: 'Heading',
+    useBookFont: false,
+  });
+
+  assert.match(html, /<h1 class="pius1" id="nv-block-0">Heading<\/h1>/);
+  assert.match(html, /<h2 class="pius2" id="nv-block-1">Subheading<\/h2>/);
+  assert.match(html, /<h4 class="ph4" id="nv-block-2">Subheading 4<\/h4>/);
+  assert.match(html, /<\/h4>\s*<p id="nv-block-3">Body remains normal<\/p>/);
+});
+
 test('image tables retain their authored rows and columns', () => {
   const row = (start) => '<tr>' + Array.from(
     { length: 4 },

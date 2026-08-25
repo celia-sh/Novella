@@ -150,7 +150,8 @@ export function buildReadiumChapterDocument({
   useBookFont,
 }: ReadiumChapterDocumentOptions): string {
   const body = blocks.map((block, index) => {
-    const withFragment = addBlockFragment(block.html, readiumBlockFragment(index));
+    const withSemanticHeading = mapLegacyHeadingTag(block.html);
+    const withFragment = addBlockFragment(withSemanticHeading, readiumBlockFragment(index));
     const withInlineNotes = inlineFootnotesAfterBlock(withFragment, footnotes);
     return prepareChapterResourceHtml(withInlineNotes, imageBaseUrl);
   }).join('\n');
@@ -216,6 +217,31 @@ function buildReadiumPublicationStylesheet(fontRequired: boolean): string {
     'img{max-width:100%;height:auto;border-radius:4px;}',
     'ruby rt{font-size:.5em;}',
   ].join('');
+}
+
+function mapLegacyHeadingTag(html: string): string {
+  const openingMatch = html.match(/^(\s*)<([a-z][\w:-]*)\b[^>]*>/iu);
+  const openingTag = openingMatch?.[0];
+  const originalTag = openingMatch?.[2];
+  if (!openingTag || !originalTag) return html;
+  const classAttribute = openingTag.match(/\bclass\s*=\s*(["'])([^"']*)\1/iu);
+  const classes = classAttribute?.[2]?.split(/\s+/u) ?? [];
+  const headingTag = classes.includes('pius1')
+    ? 'h1'
+    : classes.includes('pius2')
+      ? 'h2'
+      : classes.includes('ph4')
+        ? 'h4'
+        : null;
+  if (!headingTag) return html;
+  const mappedOpeningTag = openingTag.replace(
+    /^(\s*)<([a-z][\w:-]*)/iu,
+    (_match, whitespace: string) => `${whitespace}<${headingTag}`,
+  );
+  const mappedClosingTag = new RegExp(`</${originalTag}\\s*>\\s*$`, 'iu');
+  return html
+    .replace(openingTag, mappedOpeningTag)
+    .replace(mappedClosingTag, `</${headingTag}>`);
 }
 
 function addBlockFragment(html: string, fragment: string): string {
