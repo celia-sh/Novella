@@ -10,6 +10,7 @@ export function ReaderNativeProgressBar({
   pageCurrent,
   pageTotal,
   progress,
+  progressLabel,
   remainingText,
   disabled,
 }: ReaderNativeProgressBarProps) {
@@ -24,6 +25,7 @@ export function ReaderNativeProgressBar({
       disabled={disabled}
       onProgressChange={(event) => onProgressChange(event.nativeEvent.value)}
       progress={progress}
+      {...(progressLabel ? { progressLabel } : {})}
       remainingText={remainingText}
       style={{ height: 40, width: Math.max(1, width - 42) }}
       totalPages={pageTotal}

@@ -18,5 +18,6 @@ export interface ReaderChapterNavigationProps {
   pageCurrent: number;
   pageProgress: number;
   pageTotal: number;
+  progressMode?: 'pages' | 'percentage';
   chromeHidden: boolean;
 }

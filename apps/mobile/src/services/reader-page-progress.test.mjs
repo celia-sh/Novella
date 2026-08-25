@@ -2,35 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  estimateNovelPageCount,
   readerProgressStep,
   resolveComicPageProgress,
-  resolveNovelPageProgress,
   snapReaderProgress,
 } from './reader-page-progress.ts';
-
-test('novel scroll progress estimates pages from chapter height', () => {
-  assert.equal(estimateNovelPageCount(2400, 800), 3);
-  assert.deepEqual(resolveNovelPageProgress({
-    mode: 'scroll',
-    offset: { x: 0, y: 800 },
-    pagedPageCount: 1,
-    totalHeight: 2400,
-    viewportHeight: 800,
-    viewportWidth: 400,
-  }), { current: 2, progress: 0.5, total: 3 });
-});
-
-test('novel scroll progress is complete at the final viewport offset', () => {
-  assert.deepEqual(resolveNovelPageProgress({
-    mode: 'scroll',
-    offset: { x: 0, y: 1600 },
-    pagedPageCount: 1,
-    totalHeight: 2400,
-    viewportHeight: 800,
-    viewportWidth: 400,
-  }), { current: 3, progress: 1, total: 3 });
-});
 
 test('reader progress snaps to page positions', () => {
   assert.equal(readerProgressStep(5), 0.25);
@@ -38,36 +13,6 @@ test('reader progress snaps to page positions', () => {
   assert.equal(snapReaderProgress(0.14, 5), 0.25);
   assert.equal(snapReaderProgress(0.94, 5), 1);
   assert.equal(snapReaderProgress(0.5, 1), 1);
-});
-
-test('novel paged progress uses measured page tiles', () => {
-  assert.deepEqual(resolveNovelPageProgress({
-    mode: 'paged',
-    offset: { x: 800, y: 0 },
-    pagedPageCount: 4,
-    totalHeight: 3200,
-    viewportHeight: 800,
-    viewportWidth: 400,
-  }), { current: 3, progress: 2 / 3, total: 4 });
-});
-
-test('single-page progress is complete in both novel modes', () => {
-  assert.deepEqual(resolveNovelPageProgress({
-    mode: 'scroll',
-    offset: { x: 0, y: 0 },
-    pagedPageCount: 1,
-    totalHeight: 400,
-    viewportHeight: 800,
-    viewportWidth: 400,
-  }), { current: 1, progress: 1, total: 1 });
-  assert.deepEqual(resolveNovelPageProgress({
-    mode: 'paged',
-    offset: { x: 0, y: 0 },
-    pagedPageCount: 1,
-    totalHeight: 800,
-    viewportHeight: 800,
-    viewportWidth: 400,
-  }), { current: 1, progress: 1, total: 1 });
 });
 
 test('comic progress clamps to the available image range', () => {

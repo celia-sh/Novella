@@ -2,71 +2,39 @@ import { router, useNavigation } from 'expo-router';
 import { useRoute } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAnimatedRef } from 'react-native-reanimated';
-import {
-  FlatList,
-  ScrollView,
-  StyleSheet,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from 'react-native';
-import type { SkTypefaceFontProvider } from '@shopify/react-native-skia';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-context';
+import type {
+  NovellaReadiumViewHandle,
+  ReadiumLinkEvent,
+  ReadiumLocator,
+} from '../../modules/novella-readium';
+import { NovellaReadiumView } from '../../modules/novella-readium';
 import {
-  findReaderBlockIndex,
   getAdjacentChapterSortNum,
   inlineNovelFootnotesAfterBlocks,
   normalizeNovelBlocks,
   processNovelFootnotes,
-  resolveReaderInitialIndex,
   type ReaderMode,
   type ReaderOpenPosition,
 } from '@novella/reader-engine';
-import {
-  layoutChapter,
-  pageChapter,
-  type ChapterTile,
-} from '@novella/reader-layout';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
 import { ReaderErrorState } from '@/components/reader-chrome';
-import {
-  ReaderLoadingState,
-  ReaderReflowOverlayHost,
-  type ReaderReflowOverlayHostHandle,
-} from '@/components/reader-loading-state';
-import {
-  ReaderImagePreviewHost,
-  type ReaderImagePreviewHostHandle,
-  type ReaderImagePreviewSource,
-} from '@/components/reader-image-preview';
+import { ReaderImagePreviewHost, type ReaderImagePreviewHostHandle } from '@/components/reader-image-preview';
+import { ReaderLoadingState } from '@/components/reader-loading-state';
 import { ReaderNavigation } from '@/components/reader-navigation';
-import { ReaderSkiaScroll } from '@/components/reader-skia-scroll';
-import { ReaderSkiaTile } from '@/components/reader-skia-tile';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
 import { createReaderChromeInsets } from '@/services/reader-chrome-layout';
-import {
-  resolveReaderBoundaryAxis,
-  resolveReaderBoundaryChapterAction,
-  resolveReaderPagedBoundaryChapterAction,
-} from '@/services/reader-boundary-gesture';
 import { shouldUseReaderDoublePage } from '@/services/reader-display-layout';
-import { resolveNovelPageProgress } from '@/services/reader-page-progress';
 import { useReaderChapter, type ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
-import {
-  useReaderChromeVisibility,
-  type ReaderPageSwipeHandler,
-  type ReaderPageTapHandler,
-} from '@/hooks/use-reader-chrome-visibility';
 import { useReaderFont } from '@/hooks/use-reader-font';
-import { useReaderImageDimensions } from '@/hooks/use-reader-image-dimensions';
-import { useReaderWindowDimensions } from '@/hooks/use-reader-window-dimensions';
-import { createFontManager } from '@/services/skia-font-loader';
-import { resolveReaderFontUrl } from '@/services/reader-font-loader';
-import { ReaderSkiaImagePool } from '@/services/reader-skia-image-pool';
 import { useReaderPositionSaver } from '@/hooks/use-reader-position-saver';
+import { useReaderWindowDimensions } from '@/hooks/use-reader-window-dimensions';
+import { useReadiumPublication } from '@/hooks/use-readium-publication';
+import { readerFontDataUrl } from '@/services/reader-font-loader';
+import { presentReaderFootnote } from '@/services/reader-footnote-session';
 import { subscribeReaderChapterSelection } from '@/services/reader-chapter-selection';
 import {
   type ReaderProgressCheckpoint,
@@ -74,10 +42,13 @@ import {
   syncReaderProgress,
 } from '@/services/reader-progress-sync';
 import {
-  findVisibleReaderLayoutBlock,
-  resolveReaderReflowOpenPosition,
-  resolveReaderScrollRestoreOffset,
-} from '@/services/reader-reflow-position';
+  createReadiumContentInsets,
+  createReadiumReaderPreferences,
+} from '@/services/readium-preferences';
+import {
+  readiumLocatorToReaderPosition,
+  readerPositionToReadiumLocator,
+} from '@/services/reader-locator-mapping';
 import { updateAppSettings, useAppSettings } from '@/services/settings';
 import { useReaderLifecycleSave } from '@/hooks/use-reader-lifecycle-save';
 import { useAppColorScheme, useAppTheme } from '@/theme/app-theme';
@@ -98,30 +69,31 @@ export interface ReaderScreenProps {
   openPosition?: ReaderOpenPosition;
 }
 
+const NATIVE_READER_LOAD_TIMEOUT_MS = 15_000;
+
 export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: ReaderScreenProps) {
   const { t } = useTranslation('reader');
   const insets = useSafeAreaInsets();
+  const safeAreaFrame = useSafeAreaFrame();
   const settings = useAppSettings();
   const navigation = useNavigation<{
     setParams(params: { position: ReaderOpenPosition; sortNum: string }): void;
   }>();
   const route = useRoute();
   const { colors } = useAppTheme();
+  const isReadiumSupported = process.env.EXPO_OS === 'ios';
   const [mode, setMode] = useState<ReaderMode>(settings.novelReaderViewMode);
-  const [pendingMode, setPendingMode] = useState<ReaderMode | null>(null);
-  const pendingModeRef = useRef<ReaderMode | null>(null);
-  const modeSwitchFrameRef = useRef<number | null>(null);
+  const [chromeHidden, setChromeHidden] = useState(false);
+  const [previewProgression, setPreviewProgression] = useState(0);
+  const [nativeAttempt, setNativeAttempt] = useState(0);
+  const [nativeError, setNativeError] = useState<ReaderUserMessage | null>(null);
+  const [nativeReady, setNativeReady] = useState(false);
   const imagePreviewRef = useRef<ReaderImagePreviewHostHandle>(null);
-  const reflowOverlayRef = useRef<ReaderReflowOverlayHostHandle>(null);
-  const openImagePreview = useCallback((source: ReaderImagePreviewSource) => {
-    imagePreviewRef.current?.open(source);
-  }, []);
-  useEffect(() => () => {
-    if (modeSwitchFrameRef.current !== null) {
-      cancelAnimationFrame(modeSwitchFrameRef.current);
-    }
-  }, []);
+  const nativeReaderRef = useRef<NovellaReadiumViewHandle | null>(null);
+  const lastLocatorRef = useRef<ReadiumLocator | null>(null);
+  const activeChapterIdRef = useRef<number | null>(null);
   const conversion = settings.convertType === 'none' ? undefined : settings.convertType;
+
   const { content, error, isLoading, reload } = useReaderChapter(
     bookId,
     sortNum,
@@ -129,14 +101,16 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     openPosition === 'saved',
   );
   const readerFont = useReaderFont(content?.chapter.fontUrl);
-
   const requiresReaderFont = Boolean(content?.chapter.fontUrl?.trim());
-  const fontLoading = requiresReaderFont && (readerFont.status === 'idle' || readerFont.status === 'loading');
+  const fontLoading = requiresReaderFont
+    && (readerFont.status === 'idle' || readerFont.status === 'loading');
 
   const chapterHtml = content?.chapter.content ?? '';
   const footnotes = useMemo(
-    () => (content ? processNovelFootnotes(chapterHtml) : { html: chapterHtml, notesById: {} }),
-    [content, chapterHtml],
+    () => (content
+      ? processNovelFootnotes(chapterHtml)
+      : { html: chapterHtml, notesById: {} }),
+    [chapterHtml, content],
   );
   const blocks = useMemo(() => {
     if (!content) return [];
@@ -147,13 +121,42 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     );
     return inlineNovelFootnotesAfterBlocks(sourceBlocks, footnotes.notesById);
   }, [content, footnotes.html, footnotes.notesById]);
-  const imageHtmlBlocks = useMemo(
-    () => blocks.map((block) => block.html),
-    [blocks],
-  );
-  const imageGeometry = useReaderImageDimensions(imageHtmlBlocks);
+  const fontDataUrl = useMemo(() => {
+    if (!requiresReaderFont || readerFont.status !== 'loaded') return null;
+    return readerFontDataUrl(content?.chapter.fontUrl);
+  }, [content?.chapter.fontUrl, readerFont.status, requiresReaderFont]);
 
-  // Calculate colors and insets before layout
+  const publication = useReadiumPublication({
+    bookId,
+    content,
+    fontReady: !requiresReaderFont || readerFont.status === 'loaded',
+    ...(conversion === undefined ? {} : { conversion }),
+  });
+  const preparedPublication = publication.publication?.chapter.id === content?.chapter.id
+    ? publication.publication
+    : null;
+  const publicationId = preparedPublication?.publicationId ?? null;
+  const requestedChapterId = content?.chapter.id ?? null;
+
+  const {
+    height: screenHeight,
+    width: screenWidth,
+  } = useReaderWindowDimensions();
+  const stableSafeArea = useMemo(
+    () => ({ bottom: insets.bottom, top: insets.top }),
+    [insets.bottom, insets.top, safeAreaFrame.height, safeAreaFrame.width, safeAreaFrame.x, safeAreaFrame.y],
+  );
+  const useDoublePage = mode === 'paged' && shouldUseReaderDoublePage(screenWidth, screenHeight);
+  const readerChromeInsets = createReaderChromeInsets(
+    process.env.EXPO_OS,
+    stableSafeArea.top,
+    stableSafeArea.bottom,
+  );
+  const readerInsets = useMemo(
+    () => createReadiumContentInsets(readerChromeInsets.top, readerChromeInsets.bottom),
+    [readerChromeInsets.bottom, readerChromeInsets.top],
+  );
+
   const colorScheme = useAppColorScheme();
   const isDarkReader = colorScheme === 'dark';
   const useCoverPalette = process.env.EXPO_OS === 'android' && settings.coverColorExtraction;
@@ -167,9 +170,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     );
     readerTextColor = settings.novelReaderBackgroundColor
       ? resolveNovelReaderTextColor(readerBackground)
-      : isDarkReader
-        ? '#FFFFFF'
-        : '#111827';
+      : isDarkReader ? '#FFFFFF' : '#111827';
   } else {
     const resolvedReaderColors = resolveReaderColors({
       backgroundColor: useCoverPalette ? detailTheme.palette.surface : colors.surface as string,
@@ -184,213 +185,20 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     ? readerTextColor === '#FFFFFF' ? 'light-content' : 'dark-content'
     : isDarkReader ? 'light-content' : 'dark-content';
 
-  // Skia layout and tiling
-  const {
-    height: screenHeight,
-    revision: viewportRevision,
-    width: screenWidth,
-  } = useReaderWindowDimensions();
-  const safeAreaFrame = useSafeAreaFrame();
-  const stableSafeArea = useMemo(
-    () => ({ bottom: insets.bottom, top: insets.top }),
-    [safeAreaFrame.height, safeAreaFrame.width, safeAreaFrame.x, safeAreaFrame.y],
-  );
-  const useDoublePage = mode === 'paged' && shouldUseReaderDoublePage(screenWidth, screenHeight);
-  const readerChromeInsets = createReaderChromeInsets(
-    process.env.EXPO_OS,
-    stableSafeArea.top,
-    stableSafeArea.bottom,
-  );
-  const readerViewportKey = [
-    screenWidth,
-    screenHeight,
-    readerChromeInsets.top,
-    readerChromeInsets.bottom,
-    useDoublePage,
-  ].join(':');
-
-  // Slider rows update their local labels immediately, then commit settings on
-  // release. Keep the expensive Skia work delayed and expose that delay as an
-  // explicit reflow state instead of making the reader appear frozen.
-  const [debouncedSettings, setDebouncedSettings] = useState({
-    fontSize: settings.fontSize,
-    lineHeight: settings.readerLineHeight,
-    paragraphSpacing: settings.readerParagraphSpacing,
-    sidePadding: settings.readerSidePadding,
-    firstLineIndent: settings.readerFirstLineIndent,
-  });
-  const requestedLayoutGeneration = `${settings.fontSize}-${settings.readerLineHeight}-${settings.readerParagraphSpacing}-${settings.readerSidePadding}-${settings.readerFirstLineIndent}`;
-  const layoutGeneration = `${debouncedSettings.fontSize}-${debouncedSettings.lineHeight}-${debouncedSettings.paragraphSpacing}-${debouncedSettings.sidePadding}-${debouncedSettings.firstLineIndent}`;
-  const [pendingReflowGeneration, setPendingReflowGeneration] = useState<string | null>(null);
-  const [pendingViewportReflowKey, setPendingViewportReflowKey] = useState<string | null>(null);
-  const viewportSignatureRef = useRef<{
-    chapterId: number;
-    key: string;
-    mode: ReaderMode;
-  } | null>(null);
-  const handledViewportRevisionRef = useRef(-1);
-  const viewportReflowPendingRef = useRef(false);
-
-  useEffect(() => {
-    if (requestedLayoutGeneration === layoutGeneration) {
-      if (
-        pendingReflowGeneration !== null
-        && pendingReflowGeneration !== layoutGeneration
-      ) {
-        setPendingReflowGeneration(null);
-      }
-      return;
+  const initialLocator = useMemo<ReadiumLocator | undefined>(() => {
+    if (!content) return undefined;
+    if (openPosition === 'start') {
+      return readerPositionToReadiumLocator(null, content.chapter.id, blocks);
     }
-    reflowOverlayRef.current?.show();
-    setPendingReflowGeneration(requestedLayoutGeneration);
-    const timer = setTimeout(() => {
-      setDebouncedSettings({
-        fontSize: settings.fontSize,
-        lineHeight: settings.readerLineHeight,
-        paragraphSpacing: settings.readerParagraphSpacing,
-        sidePadding: settings.readerSidePadding,
-        firstLineIndent: settings.readerFirstLineIndent,
-      });
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [
-    layoutGeneration,
-    pendingReflowGeneration,
-    requestedLayoutGeneration,
-    settings.fontSize,
-    settings.readerFirstLineIndent,
-    settings.readerLineHeight,
-    settings.readerParagraphSpacing,
-    settings.readerSidePadding,
-  ]);
-
-  useEffect(() => {
-    if (
-      pendingMode === null
-      && pendingReflowGeneration === null
-      && pendingViewportReflowKey === null
-      && pendingModeRef.current === null
-    ) {
-      reflowOverlayRef.current?.hide();
+    if (openPosition === 'end') {
+      return readerPositionToReadiumLocator(blocks.at(-1)?.locator, content.chapter.id, blocks);
     }
-  }, [pendingMode, pendingReflowGeneration, pendingViewportReflowKey]);
-
-  // Create custom FontManager when custom font is loaded
-  const [fontMgr, setFontMgr] = useState<SkTypefaceFontProvider | null>(null);
-  // Initialize fontMgrLoading based on whether we need custom font
-  const [fontMgrLoading, setFontMgrLoading] = useState(() => {
-    return requiresReaderFont && readerFont.status === 'loaded' && content?.chapter.fontUrl != null;
-  });
-  const [fontMgrError, setFontMgrError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!requiresReaderFont || readerFont.status !== 'loaded' || !content?.chapter.fontUrl) {
-      setFontMgr(null);
-      setFontMgrLoading(false);
-      setFontMgrError(null);
-      return;
-    }
-
-    const resolvedFontUrl = resolveReaderFontUrl(content.chapter.fontUrl);
-    if (!resolvedFontUrl) {
-      setFontMgrError('Failed to resolve font URL');
-      setFontMgrLoading(false);
-      return;
-    }
-
-    setFontMgrLoading(true);
-    setFontMgrError(null);
-
-    // Create custom font manager with the loaded font
-    createFontManager([
-      {
-        fontUrl: resolvedFontUrl,
-        familyName: readerFont.family ?? 'NovelFont',
-      }
-    ])
-      .then((mgr) => {
-        setFontMgr(mgr);
-        setFontMgrLoading(false);
-      })
-      .catch((error) => {
-        setFontMgrError(error?.message || 'Failed to create font manager');
-        setFontMgr(null);
-        setFontMgrLoading(false);
-      });
-  }, [requiresReaderFont, readerFont.status, readerFont.family, content?.chapter.fontUrl]);
-
-  const layout = useMemo(() => {
-    if (!content || fontLoading || blocks.length === 0) return null;
-
-    // If custom font is required but font manager is still loading, wait
-    if (requiresReaderFont && fontMgrLoading) {
-      return null;
-    }
-
-    return layoutChapter({
+    return readerPositionToReadiumLocator(
+      content.readPosition?.position,
+      content.chapter.id,
       blocks,
-      width: Math.max(
-        1,
-        (useDoublePage ? screenWidth / 2 : screenWidth) - debouncedSettings.sidePadding * 2,
-      ),
-      theme: {
-        backgroundColor: readerBackground,
-        textColor: readerTextColor,
-        fontSize: debouncedSettings.fontSize,
-        lineHeight: debouncedSettings.lineHeight,
-        paragraphSpacing: debouncedSettings.paragraphSpacing,
-        topPadding: readerChromeInsets.top,
-        bottomPadding: readerChromeInsets.bottom,
-        sidePadding: debouncedSettings.sidePadding,
-        firstLineIndent: debouncedSettings.firstLineIndent,
-      },
-      fontFamily: readerFont.family ?? 'System',
-      imageDimensions: imageGeometry.dimensions,
-      ...(mode === 'paged'
-        ? {
-            maxImageHeight: Math.max(
-              1,
-              screenHeight - readerChromeInsets.top - readerChromeInsets.bottom,
-            ),
-          }
-        : {}),
-      ...(fontMgr ? { fontMgr } : {}),
-    });
-  }, [blocks, mode, screenHeight, screenWidth, useDoublePage, debouncedSettings, fontLoading, content, readerFont.family, readerBackground, readerTextColor, readerChromeInsets.bottom, readerChromeInsets.top, fontMgr, requiresReaderFont, fontMgrLoading, imageGeometry.dimensions]);
-
-  // Paged mode uses native list virtualization; scroll mode keeps one
-  // persistent Canvas and virtualizes only nearby paragraph/image data.
-  const presentation = useMemo(() => {
-    if (!layout) return null;
-    if (mode === 'paged') {
-      return pageChapter(layout, {
-        columns: useDoublePage ? 2 : 1,
-        columnWidth: screenWidth / (useDoublePage ? 2 : 1),
-        pageHeight: screenHeight,
-        topPadding: readerChromeInsets.top,
-        bottomPadding: readerChromeInsets.bottom,
-      });
-    }
-    return { tiles: [], totalHeight: layout.totalHeight };
-  }, [layout, mode, readerChromeInsets.bottom, readerChromeInsets.top, screenHeight, screenWidth, useDoublePage]);
-  const imagePool = useMemo(
-    () => new ReaderSkiaImagePool(),
-    [content?.chapter.id],
-  );
-  useEffect(() => () => imagePool.dispose(), [imagePool]);
-
-  const previousViewportSignature = viewportSignatureRef.current;
-  const viewportChangePendingBeforeCommit = Boolean(
-    viewportRevision !== handledViewportRevisionRef.current
-    && content
-    && previousViewportSignature
-    && previousViewportSignature.chapterId === content.chapter.id
-    && previousViewportSignature.mode === mode
-    && previousViewportSignature.key !== readerViewportKey
-  );
-  const viewportTransitionVisible = viewportChangePendingBeforeCommit
-    || pendingViewportReflowKey !== null;
+    );
+  }, [blocks, content, openPosition]);
 
   const stagePosition = useCallback(
     (position: NovelProgressInput) => stageReaderProgress({ bookId, ...position }),
@@ -405,346 +213,53 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     450,
     stagePosition,
   );
-
-  // Scroll mode reports only viewport-bucket changes to JS; drag/momentum end
-  // events still provide the exact native offset. A chapter change leaves the
-  // old presentation mounted for one render, so its transient initial callback
-  // must not overwrite an explicit start/end boundary.
-  const flatListRef = useRef<FlatList<ChapterTile>>(null);
-  const scrollViewRef = useAnimatedRef<ScrollView>();
-  const lastPositionRef = useRef<{ chapterId: number; locator: string } | null>(null);
-  const positionCaptureReadyRef = useRef(false);
-  const readerChapterKey = `${bookId}:${sortNum}:${conversion ?? 'none'}:${openPosition}`;
-  const positionCaptureKeyRef = useRef(readerChapterKey);
-  if (positionCaptureKeyRef.current !== readerChapterKey) {
-    positionCaptureKeyRef.current = readerChapterKey;
-    positionCaptureReadyRef.current = false;
-    lastPositionRef.current = null;
-  }
-  const activeChapterIdRef = useRef<number | null>(null);
-  const lastScrollOffsetRef = useRef({ x: 0, y: 0 });
-  const [visiblePageIndex, setVisiblePageIndex] = useState(0);
-  const [scrollProgressRevision, setScrollProgressRevision] = useState(0);
   activeChapterIdRef.current = content?.chapter.id ?? null;
 
-  const updateScrollPosition = useCallback((offset: { x: number; y: number }) => {
-    lastScrollOffsetRef.current = offset;
-    if (
-      !content
-      || !positionCaptureReadyRef.current
-      || positionCaptureKeyRef.current !== readerChapterKey
-    ) return;
-    const currentBlock = findVisibleReaderLayoutBlock({
-      layout,
-      mode,
-      offset,
-      tiles: presentation?.tiles ?? [],
-      viewportWidth: screenWidth,
-    });
-    if (currentBlock) {
-      lastPositionRef.current = {
-        chapterId: content.chapter.id,
-        locator: currentBlock.locator,
-      };
-    }
-    const nextPageIndex = resolveNovelPageProgress({
-      mode,
-      offset,
-      pagedPageCount: presentation?.tiles.length ?? 0,
-      totalHeight: layout?.totalHeight ?? 0,
-      viewportHeight: screenHeight,
-      viewportWidth: screenWidth,
-    }).current - 1;
-    setVisiblePageIndex((current) => current === nextPageIndex ? current : nextPageIndex);
-  }, [content, layout, mode, presentation?.tiles, readerChapterKey, screenHeight, screenWidth]);
-
-  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    updateScrollPosition(event.nativeEvent.contentOffset);
-  }, [updateScrollPosition]);
-  const handleViewportChanged = useCallback((y: number) => {
-    updateScrollPosition({ x: 0, y });
-  }, [updateScrollPosition]);
-
-  const pageProgress = useMemo(() => resolveNovelPageProgress({
-    mode,
-    offset: lastScrollOffsetRef.current,
-    pagedPageCount: presentation?.tiles.length ?? 0,
-    totalHeight: layout?.totalHeight ?? 0,
-    viewportHeight: screenHeight,
-    viewportWidth: screenWidth,
-  }), [
-    layout?.totalHeight,
-    mode,
-    presentation?.tiles.length,
-    screenHeight,
-    screenWidth,
-    scrollProgressRevision,
-    visiblePageIndex,
-  ]);
-
-  const resolveCurrentVisibleBlock = useCallback(() => findVisibleReaderLayoutBlock({
-    layout,
-    mode,
-    offset: lastScrollOffsetRef.current,
-    tiles: presentation?.tiles ?? [],
-    viewportWidth: screenWidth,
-  }), [layout, mode, presentation?.tiles, screenWidth]);
-
-  const captureCurrentVisibleBlock = useCallback(() => {
-    if (
-      !content
-      || !positionCaptureReadyRef.current
-      || positionCaptureKeyRef.current !== readerChapterKey
-    ) return undefined;
-    const currentBlock = resolveCurrentVisibleBlock();
-    if (currentBlock) {
-      lastPositionRef.current = {
-        chapterId: content.chapter.id,
-        locator: currentBlock.locator,
-      };
-    }
-    return currentBlock;
-  }, [content, readerChapterKey, resolveCurrentVisibleBlock]);
-
-  // A real viewport/frame change invalidates paragraph/page geometry. Cover
-  // that reflow with the same overlay used for settings changes; status-bar
-  // visibility alone never changes readerViewportKey.
   useEffect(() => {
-    const chapterId = content?.chapter.id;
-    if (!chapterId || !layout || !presentation) {
-      handledViewportRevisionRef.current = viewportRevision;
-      viewportSignatureRef.current = null;
-      viewportReflowPendingRef.current = false;
-      setPendingViewportReflowKey(null);
-      reflowOverlayRef.current?.hide();
-      return;
+    setNativeError(null);
+    setNativeReady(false);
+    setPreviewProgression(initialLocator?.locations.progression ?? 0);
+    lastLocatorRef.current = initialLocator ?? null;
+  }, [initialLocator, nativeAttempt, publicationId, requestedChapterId]);
+
+  useEffect(() => {
+    if (!isReadiumSupported || !preparedPublication || !content || nativeReady || nativeError) {
+      return undefined;
     }
+    const timeout = setTimeout(() => {
+      setNativeError({ kind: 'key', key: 'errors.readiumTimeout' });
+    }, NATIVE_READER_LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
+  }, [content, isReadiumSupported, nativeError, nativeReady, preparedPublication]);
 
-    const nextSignature = { chapterId, key: readerViewportKey, mode };
-    const previousSignature = viewportSignatureRef.current;
-    handledViewportRevisionRef.current = viewportRevision;
-    viewportSignatureRef.current = nextSignature;
-    if (
-      !previousSignature
-      || previousSignature.chapterId !== chapterId
-      || previousSignature.mode !== mode
-      || previousSignature.key === readerViewportKey
-    ) return;
-
-    viewportReflowPendingRef.current = true;
-    positionCaptureReadyRef.current = false;
-    reflowOverlayRef.current?.show();
-    setPendingViewportReflowKey(readerViewportKey);
-  }, [content?.chapter.id, layout, mode, presentation, readerViewportKey, viewportRevision]);
-
-  const handleScrollEnd = useCallback((event?: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const saveLocator = useCallback((locator: ReadiumLocator) => {
     if (!content || activeChapterIdRef.current !== content.chapter.id) return;
-    if (event) {
-      lastScrollOffsetRef.current = event.nativeEvent.contentOffset;
-      setScrollProgressRevision((current) => current + 1);
+    lastLocatorRef.current = locator;
+    const progression = locator.locations.progression;
+    if (typeof progression === 'number' && Number.isFinite(progression)) {
+      setPreviewProgression(Math.min(1, Math.max(0, progression)));
     }
-    const currentBlock = captureCurrentVisibleBlock();
-    if (!currentBlock) return;
-    schedulePosition({ chapterId: content.chapter.id, position: currentBlock.locator });
-  }, [captureCurrentVisibleBlock, content, schedulePosition]);
-  const turnNovelPage = useCallback((delta: -1 | 1) => {
-    if (mode !== 'paged' || !presentation) return;
-    const currentIndex = resolveNovelPageProgress({
-      mode,
-      offset: lastScrollOffsetRef.current,
-      pagedPageCount: presentation.tiles.length,
-      totalHeight: layout?.totalHeight ?? 0,
-      viewportHeight: screenHeight,
-      viewportWidth: screenWidth,
-    }).current - 1;
-    const targetIndex = Math.min(
-      Math.max(0, currentIndex + delta),
-      Math.max(0, presentation.tiles.length - 1),
-    );
-    if (targetIndex === currentIndex) return;
-    lastScrollOffsetRef.current = { x: targetIndex * screenWidth, y: 0 };
-    setVisiblePageIndex(targetIndex);
-    flatListRef.current?.scrollToIndex({ animated: false, index: targetIndex });
-    requestAnimationFrame(() => handleScrollEnd());
-  }, [handleScrollEnd, layout?.totalHeight, mode, presentation, screenHeight, screenWidth]);
-
-  const jumpToProgress = useCallback((value: number) => {
-    if (!presentation || !layout) return;
-    const progress = Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
-    if (mode === 'paged') {
-      const index = Math.round(progress * Math.max(0, presentation.tiles.length - 1));
-      lastScrollOffsetRef.current = { x: index * screenWidth, y: 0 };
-      setVisiblePageIndex(index);
-      flatListRef.current?.scrollToIndex({ animated: false, index });
-    } else {
-      const maximumOffset = Math.max(0, layout.totalHeight - screenHeight);
-      const offset = progress * maximumOffset;
-      lastScrollOffsetRef.current = { x: 0, y: offset };
-      setVisiblePageIndex(resolveNovelPageProgress({
-        mode: 'scroll',
-        offset: { x: 0, y: offset },
-        pagedPageCount: presentation.tiles.length,
-        totalHeight: layout.totalHeight,
-        viewportHeight: screenHeight,
-        viewportWidth: screenWidth,
-      }).current - 1);
-      scrollViewRef.current?.scrollTo({ animated: false, x: 0, y: offset });
-    }
-    requestAnimationFrame(() => handleScrollEnd());
-  }, [handleScrollEnd, layout, mode, presentation, screenHeight, screenWidth]);
-
-  const restoredPresentationRef = useRef<string | null>(null);
-  const capturedReflowGenerationRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (
-      pendingReflowGeneration === null
-      || capturedReflowGenerationRef.current === pendingReflowGeneration
-    ) return;
-    captureCurrentVisibleBlock();
-    positionCaptureReadyRef.current = false;
-    // Every accepted settings generation replaces tile geometry, so restore
-    // again even if the user quickly returns to a previous value.
-    restoredPresentationRef.current = null;
-    capturedReflowGenerationRef.current = pendingReflowGeneration;
-  }, [captureCurrentVisibleBlock, pendingReflowGeneration]);
-
-  useEffect(() => {
-    const modeTransitionReady = pendingMode === null || pendingMode === mode;
-    const reflowTransitionReady =
-      pendingReflowGeneration === null || pendingReflowGeneration === layoutGeneration;
-    const viewportTransitionReady = !viewportChangePendingBeforeCommit
-      && (
-        !viewportReflowPendingRef.current
-        || pendingViewportReflowKey === readerViewportKey
-      );
-    if (
-      !modeTransitionReady
-      || !reflowTransitionReady
-      || !viewportTransitionReady
-      || !content
-      || !layout
-      || !presentation
-      || blocks.length === 0
-    ) return;
-    const restoreKey = `${content.chapter.id}:${mode}:${layoutGeneration}:${layout.totalHeight}:${readerViewportKey}`;
-    if (restoredPresentationRef.current === restoreKey) return;
-
-    const currentPosition = lastPositionRef.current;
-    const currentLocator = currentPosition?.chapterId === content.chapter.id
-      ? currentPosition.locator
-      : null;
-    const savedLocator = currentLocator ?? content.readPosition?.position ?? null;
-    const savedIndex = findReaderBlockIndex(blocks, savedLocator);
-    const sourceIndex = resolveReaderInitialIndex(
-      resolveReaderReflowOpenPosition(openPosition, currentLocator),
-      savedIndex,
-      blocks.length,
-    );
-    const sourceBlock = blocks[sourceIndex];
-    const targetBlock = sourceBlock
-      ? layout.blocks.find((block) =>
-          block.id === sourceBlock.id || block.locator === sourceBlock.locator)
-      : layout.blocks[0];
-    if (!targetBlock) return;
-
-    restoredPresentationRef.current = restoreKey;
-    lastPositionRef.current = {
-      chapterId: content.chapter.id,
-      locator: targetBlock.locator,
-    };
-    let revealFrame: number | null = null;
-    const frame = requestAnimationFrame(() => {
-      if (positionCaptureKeyRef.current !== readerChapterKey) return;
-      // Restore first; only then may native scroll callbacks update progress.
-      positionCaptureReadyRef.current = true;
-      if (mode === 'paged') {
-        const pageIndex = presentation.tiles.findIndex((page) =>
-          page.blocks.some((block) => block.id === targetBlock.id),
-        );
-        const safeIndex = Math.max(0, pageIndex);
-        lastScrollOffsetRef.current = { x: safeIndex * screenWidth, y: 0 };
-        setVisiblePageIndex(safeIndex);
-        flatListRef.current?.scrollToIndex({ animated: false, index: safeIndex });
-      } else {
-        const offset = resolveReaderScrollRestoreOffset(
-          targetBlock.y,
-          readerChromeInsets.top,
-        );
-        lastScrollOffsetRef.current = { x: 0, y: offset };
-        setVisiblePageIndex(resolveNovelPageProgress({
-          mode: 'scroll',
-          offset: { x: 0, y: offset },
-          pagedPageCount: presentation.tiles.length,
-          totalHeight: layout.totalHeight,
-          viewportHeight: screenHeight,
-          viewportWidth: screenWidth,
-        }).current - 1);
-        scrollViewRef.current?.scrollTo({ animated: false, x: 0, y: offset });
-      }
-
-      // Keep the native spinner visible while the new list applies its jump.
-      // The following frame reveals the already-positioned presentation.
-      const viewportReflowReady = viewportReflowPendingRef.current
-        && pendingViewportReflowKey === readerViewportKey;
-      if (
-        pendingMode === mode
-        || pendingReflowGeneration === layoutGeneration
-        || viewportReflowReady
-      ) {
-        revealFrame = requestAnimationFrame(() => {
-          if (pendingMode === mode) pendingModeRef.current = null;
-          setPendingMode((current) => current === mode ? null : current);
-          setPendingReflowGeneration((current) =>
-            current === layoutGeneration ? null : current);
-          if (viewportReflowReady) {
-            viewportReflowPendingRef.current = false;
-            setPendingViewportReflowKey((current) =>
-              current === readerViewportKey ? null : current);
-          }
-          reflowOverlayRef.current?.hide();
-        });
-      }
-    });
-    return () => {
-      cancelAnimationFrame(frame);
-      if (revealFrame !== null) cancelAnimationFrame(revealFrame);
-    };
-  }, [
-    blocks,
-    content,
-    layout,
-    layoutGeneration,
-    mode,
-    openPosition,
-    pendingMode,
-    pendingReflowGeneration,
-    pendingViewportReflowKey,
-    presentation,
-    readerChapterKey,
-    readerViewportKey,
-    screenHeight,
-    screenWidth,
-    viewportChangePendingBeforeCommit,
-    viewportRevision,
-  ]);
+    const mapped = readiumLocatorToReaderPosition(locator, content.chapter.id, blocks);
+    if (mapped) schedulePosition(mapped);
+  }, [blocks, content, schedulePosition]);
 
   const saveCurrentPosition = useCallback(async () => {
-    const position = lastPositionRef.current;
-    if (
-      !position
-      || !content
-      || activeChapterIdRef.current !== content.chapter.id
-      || position.chapterId !== content.chapter.id
-    ) {
+    let locator = lastLocatorRef.current;
+    try {
+      locator = await nativeReaderRef.current?.getCurrentLocator() ?? locator;
+    } catch {
+      // The native view may already be detached during route cleanup.
+    }
+    if (!locator || !content || activeChapterIdRef.current !== content.chapter.id) {
       await flushPosition();
       return;
     }
-    await commitPosition({ chapterId: content.chapter.id, position: position.locator });
-  }, [commitPosition, content, flushPosition]);
-
+    lastLocatorRef.current = locator;
+    const mapped = readiumLocatorToReaderPosition(locator, content.chapter.id, blocks);
+    if (mapped) await commitPosition(mapped);
+    else await flushPosition();
+  }, [blocks, commitPosition, content, flushPosition]);
   useReaderLifecycleSave(saveCurrentPosition);
-
-
 
   const chapterCount = content?.chapter.chapterTitles.length ?? 0;
   useReaderChapterPreload({
@@ -755,18 +270,33 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     windowSize: settings.readerPreloadWindow,
     ...(conversion === undefined ? {} : { convert: conversion }),
   });
-  const previousSortNum = getAdjacentChapterSortNum({ sortNum, totalChapters: chapterCount }, 'previous');
-  const nextSortNum = getAdjacentChapterSortNum({ sortNum, totalChapters: chapterCount }, 'next');
+  const previousSortNum = getAdjacentChapterSortNum(
+    { sortNum, totalChapters: chapterCount },
+    'previous',
+  );
+  const nextSortNum = getAdjacentChapterSortNum(
+    { sortNum, totalChapters: chapterCount },
+    'next',
+  );
 
   const openChapter = useCallback((nextSortNum: number, nextOpenPosition: ReaderOpenPosition) => {
     void saveCurrentPosition();
-    positionCaptureReadyRef.current = false;
-    lastPositionRef.current = null;
+    lastLocatorRef.current = null;
     navigation.setParams({
       position: nextOpenPosition,
       sortNum: String(nextSortNum),
     });
   }, [navigation, saveCurrentPosition]);
+
+  const openReadiumChapterHref = useCallback((href: string) => {
+    const match = href.match(/(?:^|\/)chapters\/(\d+)\.xhtml(?:#.*)?$/u);
+    if (!match) return false;
+    const chapterId = Number(match[1]);
+    const chapterIndex = publication.chapters.findIndex((chapter) => chapter.id === chapterId);
+    if (chapterIndex < 0 || chapterIndex + 1 === sortNum) return false;
+    openChapter(chapterIndex + 1, 'start');
+    return true;
+  }, [openChapter, publication.chapters, sortNum]);
 
   useEffect(() => subscribeReaderChapterSelection(route.key, (selection) => {
     if (selection.bookId === bookId && selection.kind === 'Novel') {
@@ -774,142 +304,18 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     }
   }), [bookId, openChapter, route.key]);
 
-  const handleScrollEndDrag = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (mode === 'paged') return;
-    const nativeEvent = event.nativeEvent;
-    const action = resolveReaderBoundaryChapterAction({
-      axis: resolveReaderBoundaryAxis(mode),
-      contentExtent: nativeEvent.contentSize.height,
-      offset: nativeEvent.contentOffset.y,
-      velocity: nativeEvent.velocity?.y ?? 0,
-      viewportExtent: nativeEvent.layoutMeasurement.height,
-    });
-    if (action === 'previous' && previousSortNum !== null) {
-      openChapter(previousSortNum, 'end');
-      return;
-    }
-    if (action === 'next' && nextSortNum !== null) {
-      openChapter(nextSortNum, 'start');
-      return;
-    }
-    handleScrollEnd(event);
-  }, [handleScrollEnd, mode, nextSortNum, openChapter, previousSortNum]);
-
-  const handlePageTap = useCallback<ReaderPageTapHandler>((event) => {
-    if (mode !== 'paged' || !settings.readerPagedTapNavigation || !presentation) {
-      return false;
-    }
-    const x = event.nativeEvent.pageX;
-    const direction = x <= screenWidth * 0.3
-      ? -1
-      : x >= screenWidth * 0.7
-        ? 1
-        : null;
-    if (direction === null) return false;
-
-    const currentIndex = resolveNovelPageProgress({
-      mode,
-      offset: lastScrollOffsetRef.current,
-      pagedPageCount: presentation.tiles.length,
-      totalHeight: layout?.totalHeight ?? 0,
-      viewportHeight: screenHeight,
-      viewportWidth: screenWidth,
-    }).current - 1;
-    const targetIndex = Math.min(
-      Math.max(0, currentIndex + direction),
-      Math.max(0, presentation.tiles.length - 1),
-    );
-    if (targetIndex !== currentIndex) {
-      turnNovelPage(direction);
-      return true;
-    }
-
-    if (direction < 0 && previousSortNum !== null) {
-      openChapter(previousSortNum, 'end');
-    } else if (direction > 0 && nextSortNum !== null) {
-      openChapter(nextSortNum, 'start');
-    }
-    return true;
-  }, [
-    layout?.totalHeight,
-    mode,
-    nextSortNum,
-    openChapter,
-    presentation,
-    previousSortNum,
-    screenHeight,
-    screenWidth,
-    settings.readerPagedTapNavigation,
-    turnNovelPage,
-  ]);
-  const handlePageSwipe = useCallback<ReaderPageSwipeHandler>((_event, deltaX, deltaY) => {
-    if (
-      mode !== 'paged'
-      || Math.abs(deltaX) <= Math.abs(deltaY)
-      || !presentation
-    ) return;
-    const action = resolveReaderPagedBoundaryChapterAction({
-      deltaX,
-      direction: 'ltr',
-      displayCount: presentation.tiles.length,
-      displayIndex: visiblePageIndex,
-    });
-    if (action === 'previous' && previousSortNum !== null) {
-      openChapter(previousSortNum, 'end');
-    } else if (action === 'next' && nextSortNum !== null) {
-      openChapter(nextSortNum, 'start');
-    }
-  }, [
-    mode,
-    nextSortNum,
-    openChapter,
-    presentation,
-    previousSortNum,
-    visiblePageIndex,
-  ]);
-  const {
-    hidden: chromeHidden,
-    onTouchCancel,
-    onTouchEnd,
-    onTouchMove,
-    onTouchStart,
-  } = useReaderChromeVisibility(handlePageTap, handlePageSwipe);
-
-  const beginModeTransition = useCallback((nextMode: ReaderMode, persist: boolean) => {
-    if (nextMode === mode || pendingModeRef.current !== null) return;
-    captureCurrentVisibleBlock();
-    positionCaptureReadyRef.current = false;
-    restoredPresentationRef.current = null;
-    pendingModeRef.current = nextMode;
-    // First remove the old Skia list behind the reflow overlay. The mode state
-    // changes on a later frame, after the old Canvas surfaces have unmounted,
-    // so Metal never has to allocate old and new chapter drawables together.
-    reflowOverlayRef.current?.show();
-    modeSwitchFrameRef.current = requestAnimationFrame(() => {
-      modeSwitchFrameRef.current = requestAnimationFrame(() => {
-        modeSwitchFrameRef.current = null;
-        setPendingMode(nextMode);
-        void saveCurrentPosition();
-        if (persist) void updateAppSettings({ novelReaderViewMode: nextMode });
-      });
-    });
-  }, [captureCurrentVisibleBlock, mode, saveCurrentPosition]);
-
-  useEffect(() => {
-    if (pendingMode === null || pendingMode === mode) return;
-    const frame = requestAnimationFrame(() => setMode(pendingMode));
-    return () => cancelAnimationFrame(frame);
-  }, [mode, pendingMode]);
-
   const changeMode = useCallback((nextMode: ReaderMode) => {
-    beginModeTransition(nextMode, true);
-  }, [beginModeTransition]);
+    if (nextMode === mode) return;
+    void saveCurrentPosition();
+    setMode(nextMode);
+    void updateAppSettings({ novelReaderViewMode: nextMode });
+  }, [mode, saveCurrentPosition]);
 
   useEffect(() => {
-    if (settings.novelReaderViewMode !== mode && pendingMode === null) {
-      beginModeTransition(settings.novelReaderViewMode, false);
+    if (settings.novelReaderViewMode !== mode) {
+      setMode(settings.novelReaderViewMode);
     }
-  }, [beginModeTransition, mode, pendingMode, settings.novelReaderViewMode]);
+  }, [mode, settings.novelReaderViewMode]);
 
   const openChapters = useCallback(() => {
     router.push({
@@ -923,58 +329,70 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     });
   }, [bookId, route.key, sortNum]);
 
-  const renderTile = useCallback(({ item: tile }: { item: ChapterTile }) => (
-    <ReaderSkiaTile
-      fontMgr={fontMgr}
-      generation={layoutGeneration}
-      imageAccessibilityLabel={t('images.illustration')}
-      onOpenImage={openImagePreview}
-      openImageOnLongPress={settings.readerImagePreviewOpenOnLongPress}
-      theme={{
-        backgroundColor: readerBackground,
-        textColor: readerTextColor,
-        fontSize: debouncedSettings.fontSize,
-        lineHeight: debouncedSettings.lineHeight,
-        paragraphSpacing: debouncedSettings.paragraphSpacing,
-        topPadding: readerChromeInsets.top,
-        bottomPadding: readerChromeInsets.bottom,
-        sidePadding: debouncedSettings.sidePadding,
-        firstLineIndent: debouncedSettings.firstLineIndent,
-      }}
-      imagePool={imagePool}
-      tile={tile}
-      viewportWidth={screenWidth}
-    />
-  ), [
-    debouncedSettings,
-    fontMgr,
-    imagePool,
-    layoutGeneration,
+  const openFootnote = useCallback((id: string, body?: string) => {
+    const noteContent = body ?? footnotes.notesById[id];
+    if (!noteContent) return;
+    presentReaderFootnote({
+      content: noteContent,
+      ...(fontDataUrl ? { fontDataUrl } : {}),
+    });
+    router.push({ pathname: '/reader/[bookId]/footnote', params: { bookId: String(bookId) } });
+  }, [bookId, fontDataUrl, footnotes.notesById]);
+
+  const openReadiumLink = useCallback((link: ReadiumLinkEvent) => {
+    if (openReadiumChapterHref(link.href)) return;
+    if (link.content && link.href.startsWith('#')) {
+      openFootnote(link.href.slice(1), link.content);
+      return;
+    }
+    if (link.href.startsWith('#')) openFootnote(link.href.slice(1));
+  }, [openFootnote, openReadiumChapterHref]);
+
+  const handleBoundary = useCallback(({ direction }: { direction: 'next' | 'previous' }) => {
+    if (direction === 'previous' && previousSortNum !== null) {
+      openChapter(previousSortNum, 'end');
+    } else if (direction === 'next' && nextSortNum !== null) {
+      openChapter(nextSortNum, 'start');
+    }
+  }, [nextSortNum, openChapter, previousSortNum]);
+
+  const handleProgressChange = useCallback((progress: number) => {
+    const safeProgress = Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 0;
+    setPreviewProgression(safeProgress);
+    void nativeReaderRef.current?.goToProgression(safeProgress);
+  }, []);
+
+  const readerPreferences = useMemo(() => createReadiumReaderPreferences({
+    backgroundColor: readerBackground,
+    doublePage: useDoublePage,
+    firstLineIndent: settings.readerFirstLineIndent,
+    fontSize: settings.fontSize,
+    imagePreviewOpenOnLongPress: settings.readerImagePreviewOpenOnLongPress,
+    lineHeight: settings.readerLineHeight,
     mode,
-    openImagePreview,
+    pagedTapNavigation: settings.readerPagedTapNavigation,
+    paragraphSpacing: settings.readerParagraphSpacing,
+    sidePadding: settings.readerSidePadding,
+    textColor: readerTextColor,
+  }), [
+    mode,
     readerBackground,
-    readerChromeInsets,
     readerTextColor,
-    screenWidth,
+    settings.fontSize,
+    settings.readerFirstLineIndent,
     settings.readerImagePreviewOpenOnLongPress,
-    t,
+    settings.readerLineHeight,
+    settings.readerPagedTapNavigation,
+    settings.readerParagraphSpacing,
+    settings.readerSidePadding,
+    useDoublePage,
   ]);
 
-  const getTileKey = useCallback(
-    (item: ChapterTile) => `${layoutGeneration}:${mode}:${item.id}`,
-    [layoutGeneration, mode],
-  );
-  const getItemLayout = useCallback((_: ArrayLike<ChapterTile> | null | undefined, index: number) => {
-    if (mode === 'paged') {
-      return { index, length: screenWidth, offset: screenWidth * index };
-    }
-    const tile = presentation?.tiles[index];
-    return {
-      index,
-      length: tile?.height ?? 1,
-      offset: tile?.y ?? 0,
-    };
-  }, [mode, presentation?.tiles, screenWidth]);
+  const retryNativeReader = useCallback(() => {
+    setNativeError(null);
+    setNativeReady(false);
+    setNativeAttempt((value) => value + 1);
+  }, []);
 
   const rawChapterTitle = content?.chapter.title ?? '';
   const readerTitle = rawChapterTitle
@@ -982,109 +400,60 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       ? simplifyReaderChapterTitle(rawChapterTitle)
       : rawChapterTitle
     : '';
-
-  const chapterError = error;
+  const chapterError = error ?? publication.error;
   const translateMessage = (message: ReaderUserMessage) =>
     message.kind === 'raw' ? message.text : t(message.key);
 
   return (
     <>
-      <View
-        style={[styles.root, { backgroundColor: readerBackground }]}
-      >
-        {requiresReaderFont && readerFont.status === 'error' ? (
+      <View style={[styles.root, { backgroundColor: readerBackground }]}>
+        {!isReadiumSupported ? (
+          <ReaderErrorState message={t('errors.readerIosOnly')} onRetry={() => undefined} />
+        ) : requiresReaderFont && readerFont.status === 'error' ? (
           <ReaderErrorState message={t('errors.fontLoad')} onRetry={readerFont.retry} />
-        ) : fontMgrError ? (
-          <ReaderErrorState message={fontMgrError} onRetry={() => {
-            setFontMgrError(null);
-            readerFont.retry();
-          }} />
         ) : chapterError ? (
-          <ReaderErrorState message={translateMessage(chapterError)} onRetry={reload} />
-        ) : isLoading || fontLoading || fontMgrLoading || (content && !layout) ? (
+          <ReaderErrorState message={translateMessage(chapterError)} onRetry={error ? reload : publication.retry} />
+        ) : nativeError ? (
+          <ReaderErrorState message={translateMessage(nativeError)} onRetry={retryNativeReader} />
+        ) : isLoading || fontLoading || publication.status === 'loading' || (content && !preparedPublication) ? (
           <ReaderLoadingState
-            phase={
-              fontLoading
-                ? 'font'
-                : fontMgrLoading
-                  ? 'font'
-                  : isLoading
-                    ? 'content'
-                    : 'layout'
-            }
             accentColor={colors.accent as string}
+            phase={fontLoading ? 'font' : isLoading ? 'content' : 'publication'}
             textColor={readerTextColor}
           />
-        ) : content && presentation && (pendingMode === null || pendingMode === mode) ? (
+        ) : content && preparedPublication && initialLocator ? (
           <View style={styles.reader}>
-            {mode === 'paged' ? (
-              <FlatList
-                {...{ onTouchCancel, onTouchEnd, onTouchMove, onTouchStart }}
-                ref={flatListRef}
-                contentInsetAdjustmentBehavior="never"
-                data={presentation.tiles}
-                decelerationRate="fast"
-                getItemLayout={getItemLayout}
-                horizontal
-                initialNumToRender={3}
-                key={`${content.chapter.id}:paged`}
-                keyExtractor={getTileKey}
-                maxToRenderPerBatch={4}
-                onMomentumScrollEnd={handleScrollEnd}
-                onScroll={handleScroll}
-                onScrollEndDrag={handleScrollEndDrag}
-                pagingEnabled
-                removeClippedSubviews={false}
-                renderItem={renderTile}
-                scrollEventThrottle={250}
-                showsHorizontalScrollIndicator={false}
-                showsVerticalScrollIndicator={false}
-                style={styles.reader}
-                updateCellsBatchingPeriod={0}
-                windowSize={5}
+            <NovellaReadiumView
+              key={`readium-${preparedPublication.publicationId}-${content.chapter.id}-${nativeAttempt}`}
+              ref={nativeReaderRef}
+              contentInsets={readerInsets}
+              declaredHrefs={preparedPublication.declaredHrefs}
+              initialLocator={initialLocator}
+              onBoundary={handleBoundary}
+              onError={({ message }) => setNativeError({ kind: 'raw', text: message })}
+              onImage={(image) => imagePreviewRef.current?.open({
+                uri: image.uri,
+                ...(image.alt ? { alt: image.alt } : {}),
+              })}
+              onLink={openReadiumLink}
+              onLocatorChange={saveLocator}
+              onReady={() => setNativeReady(true)}
+              onStatus={() => undefined}
+              onTap={() => setChromeHidden((current) => !current)}
+              preferences={readerPreferences}
+              publicationId={preparedPublication.publicationId}
+              publicationUri={preparedPublication.directoryUri}
+              style={styles.reader}
+            />
+            {!nativeReady ? (
+              <ReaderLoadingState
+                accentColor={colors.accent as string}
+                phase="publication"
+                textColor={readerTextColor}
               />
-            ) : (
-              <ReaderSkiaScroll
-                key={`scroll:${content.chapter.id}:${layoutGeneration}:${readerViewportKey}`}
-                fontMgr={fontMgr}
-                generation={layoutGeneration}
-                imageAccessibilityLabel={t('images.illustration')}
-                imagePool={imagePool}
-                layout={layout!}
-                onMomentumScrollEnd={handleScrollEnd}
-                onOpenImage={openImagePreview}
-                onViewportChanged={handleViewportChanged}
-                onScrollEndDrag={handleScrollEndDrag}
-                onTouchCancel={onTouchCancel}
-                onTouchEnd={onTouchEnd}
-                onTouchMove={onTouchMove}
-                onTouchStart={onTouchStart}
-                openImageOnLongPress={settings.readerImagePreviewOpenOnLongPress}
-                scrollViewRef={scrollViewRef}
-                theme={{
-                  backgroundColor: readerBackground,
-                  textColor: readerTextColor,
-                  fontSize: debouncedSettings.fontSize,
-                  lineHeight: debouncedSettings.lineHeight,
-                  paragraphSpacing: debouncedSettings.paragraphSpacing,
-                  topPadding: readerChromeInsets.top,
-                  bottomPadding: readerChromeInsets.bottom,
-                  sidePadding: debouncedSettings.sidePadding,
-                  firstLineIndent: debouncedSettings.firstLineIndent,
-                }}
-                viewportHeight={screenHeight}
-                viewportWidth={screenWidth}
-              />
-            )}
+            ) : null}
           </View>
         ) : null}
-        <ReaderReflowOverlayHost
-          ref={reflowOverlayRef}
-          accentColor={colors.accent as string}
-          backgroundColor={readerBackground}
-          forceVisible={viewportTransitionVisible}
-          textColor={readerTextColor}
-        />
       </View>
       <ReaderImagePreviewHost ref={imagePreviewRef} />
       <ReaderNavigation
@@ -1099,20 +468,23 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         statusBarStyle={readerStatusBarStyle}
         title={readerTitle || t('titles.reader')}
       />
-      <ReaderChapterNavigation
-        backgroundColor={readerBackground}
-        chromeHidden={chromeHidden}
-        direction="ltr"
-        pageCurrent={pageProgress.current}
-        pageTotal={pageProgress.total}
-        onPageProgressChange={jumpToProgress}
-        pageProgress={pageProgress.progress}
-      />
+      {isReadiumSupported ? (
+        <ReaderChapterNavigation
+          backgroundColor={readerBackground}
+          chromeHidden={chromeHidden || !nativeReady}
+          direction="ltr"
+          onPageProgressChange={handleProgressChange}
+          pageCurrent={0}
+          pageProgress={previewProgression}
+          pageTotal={0}
+          progressMode="percentage"
+        />
+      ) : null}
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
   reader: { flex: 1 },
+  root: { flex: 1 },
 });

@@ -5,9 +5,11 @@ export interface NativeReaderProgressBarProps extends ViewProps {
   accentColor?: ColorValue;
   currentPage: number;
   direction?: 'ltr' | 'rtl';
+  displayMode?: 'pages' | 'percentage';
   disabled?: boolean;
   onProgressChange?: (event: { nativeEvent: { value: number } }) => void;
   progress: number;
+  progressLabel?: string;
   remainingText: string;
   totalPages: number;
 }

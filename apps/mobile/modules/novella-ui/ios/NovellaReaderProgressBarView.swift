@@ -8,6 +8,7 @@ final class NovellaReaderProgressBarView: ExpoView {
 
   private var currentPage = 0
   private var totalPages = 0
+  private var progressLabel: String?
   private var isProgressDisabled = false
 
   let onProgressChange = EventDispatcher()
@@ -65,6 +66,11 @@ final class NovellaReaderProgressBarView: ExpoView {
     updatePageLabels()
   }
 
+  func setProgressLabel(_ text: String?) {
+    progressLabel = text
+    updatePageLabels()
+  }
+
   func setRemainingText(_ text: String) {
     remainingPagesLabel.text = text.isEmpty ? nil : text
   }
@@ -94,6 +100,10 @@ final class NovellaReaderProgressBarView: ExpoView {
   }
 
   private func updatePageLabels() {
+    if let progressLabel {
+      currentPageLabel.text = progressLabel
+      return
+    }
     guard totalPages > 0 else {
       currentPageLabel.text = nil
       return

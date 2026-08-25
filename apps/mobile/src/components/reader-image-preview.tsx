@@ -12,11 +12,6 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
 import {
-  Canvas,
-  Image as SkiaImage,
-  type SkImage,
-} from '@shopify/react-native-skia';
-import {
   ActivityIndicator,
   Modal,
   Pressable,
@@ -50,10 +45,6 @@ const ACTION_BUTTON_SIZE = 44;
 export interface ReaderImagePreviewSource {
   uri: string;
   alt?: string;
-  /** Already-decoded pixels owned by the mounted Skia reader tile. */
-  skiaImage?: SkImage;
-  /** Releases the preview's temporary image lease after it closes. */
-  releaseSkiaImage?: () => void;
 }
 
 export interface ReaderImagePreviewProps {
@@ -83,7 +74,7 @@ const EMPTY_PREVIEW_STATE: ReaderImagePreviewHostState = {
 /**
  * Keeps preview state out of ReaderScreen so opening/closing never reconciles
  * the chapter FlatList. Presentation and pixel work happen on separate frames;
- * dismissal hides the modal before releasing its Skia canvas.
+ * dismissal hides the modal before releasing its image source.
  */
 export const ReaderImagePreviewHost = forwardRef<
   ReaderImagePreviewHostHandle,
@@ -103,9 +94,7 @@ export const ReaderImagePreviewHost = forwardRef<
 
   useEffect(() => () => {
     cancelScheduledFrames();
-    const source = sourceRef.current;
     sourceRef.current = null;
-    source?.releaseSkiaImage?.();
   }, [cancelScheduledFrames]);
 
   const open = useCallback((source: ReaderImagePreviewSource) => {
@@ -113,9 +102,6 @@ export const ReaderImagePreviewHost = forwardRef<
     const previousSource = sourceRef.current;
     sourceRef.current = source;
     setState({ revealImage: false, source, visible: true });
-    if (previousSource && previousSource !== source) {
-      previousSource.releaseSkiaImage?.();
-    }
     revealFrameRef.current = requestAnimationFrame(() => {
       revealFrameRef.current = null;
       setState((current) => current.source === source
@@ -136,9 +122,7 @@ export const ReaderImagePreviewHost = forwardRef<
         : current);
       cleanupFrameRef.current = requestAnimationFrame(() => {
         cleanupFrameRef.current = null;
-        const source = sourceRef.current;
         sourceRef.current = null;
-        source?.releaseSkiaImage?.();
         setState((current) => current.visible ? current : EMPTY_PREVIEW_STATE);
       });
     });
@@ -171,8 +155,7 @@ export function ReaderImagePreview({
   // from transient Dynamic Island metrics during the first presentation.
   const { bottom: bottomInset } = useSafeAreaInsets();
   const imageUri = resolveReaderImageUrl(source.uri);
-  const warmImage = source.skiaImage;
-  const [isLoading, setIsLoading] = useState(warmImage === undefined);
+  const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -327,21 +310,6 @@ export function ReaderImagePreview({
                 <View style={styles.errorState}>
                   <Text style={styles.errorText}>{t('images.loadFailed')}</Text>
                 </View>
-              ) : revealImage && warmImage ? (
-                <Canvas
-                  accessibilityLabel={source.alt?.trim() || t('images.illustration')}
-                  accessible
-                  style={styles.image}
-                >
-                  <SkiaImage
-                    fit="contain"
-                    height={height}
-                    image={warmImage}
-                    width={width}
-                    x={0}
-                    y={0}
-                  />
-                </Canvas>
               ) : revealImage ? (
                 <Image
                   accessibilityLabel={source.alt?.trim() || t('images.illustration')}

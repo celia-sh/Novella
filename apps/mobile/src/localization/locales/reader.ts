@@ -43,6 +43,7 @@ export const zhCNReader = {
     fontLoad: '无法加载章节字体，因此暂时无法显示已编码的文字。',
     publicationPrepare: '无法准备本章内容。',
     readiumTimeout: 'Readium 未能完成当前章节的加载。',
+    readerIosOnly: '小说阅读器目前仅支持 iOS。',
   },
   images: {
     actionAlertTitle: '提示',
@@ -119,6 +120,7 @@ export const zhTWReader: TranslationShape<typeof zhCNReader> = {
     fontLoad: '無法載入章節字型，因此暫時無法顯示已編碼的文字。',
     publicationPrepare: '無法準備本章內容。',
     readiumTimeout: 'Readium 未能完成目前章節的載入。',
+    readerIosOnly: '小說閱讀器目前僅支援 iOS。',
   },
   images: {
     actionAlertTitle: '提示',

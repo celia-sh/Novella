@@ -70,6 +70,9 @@ public final class NovellaUiModule: Module {
       Prop("totalPages") { (view: NovellaReaderProgressBarView, totalPages: Int) in
         view.setTotalPages(totalPages)
       }
+      Prop("progressLabel") { (view: NovellaReaderProgressBarView, progressLabel: String?) in
+        view.setProgressLabel(progressLabel)
+      }
       Prop("remainingText") { (view: NovellaReaderProgressBarView, remainingText: String) in
         view.setRemainingText(remainingText)
       }

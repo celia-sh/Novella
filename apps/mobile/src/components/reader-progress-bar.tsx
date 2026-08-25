@@ -8,11 +8,13 @@ import { useAppTheme } from '@/theme/app-theme';
 
 export function ReaderNativeProgressBar({
   direction,
+  displayMode = 'pages',
   disabled,
   onProgressChange,
   pageCurrent,
   pageTotal,
   progress,
+  progressLabel,
   remainingText,
   step,
 }: ReaderNativeProgressBarProps) {
@@ -28,7 +30,9 @@ export function ReaderNativeProgressBar({
     if (disabled) return;
     const displayed = typeof value === 'number' ? value : value[0] ?? 0;
     const next = isReversed ? 1 - displayed : displayed;
-    const snapped = snapReaderProgress(next, pageTotal);
+    const snapped = displayMode === 'percentage'
+      ? clampProgress(next)
+      : snapReaderProgress(next, pageTotal);
     setDraft(snapped);
     onProgressChange(snapped);
   };
@@ -56,13 +60,19 @@ export function ReaderNativeProgressBar({
         </Slider.Track>
       </Slider>
       <Text style={[styles.currentPage, { color: colors.label }]}>
-        {pageTotal > 0 ? `${pageCurrent} / ${pageTotal}` : ''}
+        {displayMode === 'percentage'
+          ? progressLabel ?? `${Math.round(progress * 100)}%`
+          : pageTotal > 0 ? `${pageCurrent} / ${pageTotal}` : ''}
       </Text>
       <Text style={[styles.remainingPages, { color: colors.secondaryLabel }]}>
         {remainingText}
       </Text>
     </View>
   );
+}
+
+function clampProgress(value: number): number {
+  return Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
 }
 
 const styles = StyleSheet.create({
