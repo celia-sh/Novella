@@ -315,19 +315,23 @@ export function ReaderSkiaScroll({
               y={item.y}
             />
           ))}
-          {renderScrollImagesInSkia ? imageBlocks.map((item) => (
-            <ReaderSkiaImage
-              key={`skia:${item.blockId}`}
-              blockId={item.blockId}
-              estimatedBytes={estimateReaderImageBytes(item.image)}
-              imageLayout={item.image}
-              imagePool={imagePool}
-              maxPixelSize={resolveReaderImageMaxPixelSize(item.image)}
-              rememberNaturalDimensions={false}
-              x={item.x}
-              y={item.y}
-            />
-          )) : null}
+          {renderScrollImagesInSkia ? imageBlocks.map((item) => {
+            const imageURI = resolveReaderImageUrl(item.image.url);
+            const maxPixelSize = resolveReaderImageMaxPixelSize(item.image);
+            return (
+              <ReaderSkiaImage
+                key={`skia:${item.blockId}:${imageURI}:${maxPixelSize}`}
+                blockId={item.blockId}
+                estimatedBytes={estimateReaderImageBytes(item.image)}
+                imageLayout={item.image}
+                imagePool={imagePool}
+                maxPixelSize={maxPixelSize}
+                rememberNaturalDimensions={false}
+                x={item.x}
+                y={item.y}
+              />
+            );
+          }) : null}
           {renderBlocks.map((block) => {
             if (block.type !== 'hr') return null;
             const lineY = block.y + block.height / 2;
