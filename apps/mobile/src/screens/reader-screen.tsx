@@ -2,6 +2,7 @@ import { router, useNavigation } from 'expo-router';
 import { useRoute } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAnimatedRef } from 'react-native-reanimated';
 import {
   FlatList,
   ScrollView,
@@ -410,7 +411,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   // old presentation mounted for one render, so its transient initial callback
   // must not overwrite an explicit start/end boundary.
   const flatListRef = useRef<FlatList<ChapterTile>>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useAnimatedRef<ScrollView>();
   const lastPositionRef = useRef<{ chapterId: number; locator: string } | null>(null);
   const positionCaptureReadyRef = useRef(false);
   const readerChapterKey = `${bookId}:${sortNum}:${conversion ?? 'none'}:${openPosition}`;

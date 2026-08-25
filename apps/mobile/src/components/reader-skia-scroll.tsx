@@ -1,19 +1,21 @@
 import { Image as NativeImage, type ImageLoadEventData } from 'expo-image';
-import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  type ScrollView,
   type ScrollViewProps,
 } from 'react-native';
 import Animated, {
   runOnJS,
-  useAnimatedScrollHandler,
+  useAnimatedReaction,
   useDerivedValue,
+  useScrollOffset,
   useSharedValue,
+  type AnimatedRef,
 } from 'react-native-reanimated';
 import {
   Canvas,
@@ -21,7 +23,6 @@ import {
   Group,
   Line,
   Paragraph,
-  RoundedRect,
   Skia,
   vec,
   type SkParagraph,
@@ -50,7 +51,7 @@ export interface ReaderSkiaScrollProps {
   viewportHeight: number;
   viewportWidth: number;
   imageAccessibilityLabel: string;
-  scrollViewRef: RefObject<ScrollView | null>;
+  scrollViewRef: AnimatedRef<ScrollView>;
   onViewportChanged: (y: number) => void;
   onScrollEndDrag: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   onMomentumScrollEnd: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
@@ -96,7 +97,7 @@ export function ReaderSkiaScroll({
   onOpenImage,
   openImageOnLongPress = false,
 }: ReaderSkiaScrollProps) {
-  const scrollY = useSharedValue(0);
+  const scrollY = useScrollOffset(scrollViewRef);
   const windowAnchorY = useSharedValue(0);
   const [anchorY, setAnchorY] = useState(0);
   const paragraphCache = useMemo(
@@ -120,6 +121,12 @@ export function ReaderSkiaScroll({
   const cacheBlocks = useMemo(
     () => selectBlocksInRange(layout.blocks, cacheTop, cacheBottom),
     [cacheBottom, cacheTop, layout.blocks],
+  );
+  const imageTop = Math.max(0, anchorY - windowHeight * 5);
+  const imageBottom = anchorY + windowHeight * 6;
+  const imageSourceBlocks = useMemo(
+    () => selectBlocksInRange(layout.blocks, imageTop, imageBottom),
+    [imageBottom, imageTop, layout.blocks],
   );
 
   const buildParagraph = useCallback((
@@ -240,7 +247,7 @@ export function ReaderSkiaScroll({
     paragraphCache.prune(retainedBlockIds);
   }, [paragraphCache, retainedBlockIds]);
 
-  const imageBlocks = useMemo<ScrollImageRenderItem[]>(() => renderBlocks.flatMap((block) => {
+  const imageBlocks = useMemo<ScrollImageRenderItem[]>(() => imageSourceBlocks.flatMap((block) => {
     const blockX = theme.sidePadding + block.x;
     const blockY = block.y;
     return [
@@ -258,24 +265,26 @@ export function ReaderSkiaScroll({
       })),
     ];
   }).filter(
-    (item) => item.y + item.image.height >= renderTop && item.y <= renderBottom,
-  ), [renderBlocks, renderBottom, renderTop, theme.sidePadding]);
+    (item) => item.y + item.image.height >= imageTop && item.y <= imageBottom,
+  ), [imageBottom, imageSourceBlocks, imageTop, theme.sidePadding]);
 
-  const contentTransform = useDerivedValue(() => [{ translateY: -scrollY.value }]);
+  const contentTransform = useDerivedValue(() => [{
+    translateY: -Math.max(0, scrollY.value),
+  }]);
   const handleViewportAnchorChange = useCallback((nextAnchorY: number, y: number) => {
     setAnchorY((current) => current === nextAnchorY ? current : nextAnchorY);
     onViewportChanged(y);
   }, [onViewportChanged]);
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      const y = Math.max(0, event.contentOffset.y);
-      scrollY.value = y;
+  useAnimatedReaction(
+    () => Math.max(0, scrollY.value),
+    (y) => {
       if (Math.abs(y - windowAnchorY.value) < windowHeight) return;
       const nextAnchorY = Math.floor(y / windowHeight) * windowHeight;
       windowAnchorY.value = nextAnchorY;
       runOnJS(handleViewportAnchorChange)(nextAnchorY, y);
     },
-  }, [handleViewportAnchorChange, windowHeight]);
+    [handleViewportAnchorChange, windowHeight],
+  );
 
   return (
     <View style={styles.root}>
@@ -287,17 +296,6 @@ export function ReaderSkiaScroll({
               key={item.blockId}
               paragraph={item.paragraph}
               width={item.width}
-              x={item.x}
-              y={item.y}
-            />
-          ))}
-          {imageBlocks.map((item) => (
-            <RoundedRect
-              key={`placeholder:${item.blockId}`}
-              color={Skia.Color('#80808020')}
-              height={item.image.height}
-              r={4}
-              width={item.image.width}
               x={item.x}
               y={item.y}
             />
@@ -324,7 +322,6 @@ export function ReaderSkiaScroll({
         ref={scrollViewRef}
         contentInsetAdjustmentBehavior="never"
         onMomentumScrollEnd={onMomentumScrollEnd}
-        onScroll={scrollHandler}
         onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator
