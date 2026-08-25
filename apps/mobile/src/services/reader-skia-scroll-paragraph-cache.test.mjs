@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { ReaderSkiaScrollParagraphCache } from './reader-skia-scroll-paragraph-cache.ts';
-import { SKIA_SCENE_RESOURCE_GRACE_MS } from './reader-skia-resource-lifecycle.ts';
+import {
+  retireSkiaHostObjects,
+  SKIA_SCENE_RESOURCE_GRACE_MS,
+} from './reader-skia-resource-lifecycle.ts';
 
 const waitForDisposal = () => new Promise((resolve) => (
   setTimeout(resolve, SKIA_SCENE_RESOURCE_GRACE_MS + 20)
@@ -24,6 +27,19 @@ test('delays paragraph disposal and cancels it when a block re-enters the cache'
 
   assert.equal(disposed, 0);
   cache.prune(new Set());
+  await waitForDisposal();
+  assert.equal(disposed, 1);
+});
+
+test('retirement helper delays disposal and supports cancellation', async () => {
+  let disposed = 0;
+  const paragraph = { dispose: () => { disposed += 1; } };
+  const cancel = retireSkiaHostObjects([paragraph]);
+  cancel();
+  await waitForDisposal();
+  assert.equal(disposed, 0);
+
+  retireSkiaHostObjects([paragraph]);
   await waitForDisposal();
   assert.equal(disposed, 1);
 });

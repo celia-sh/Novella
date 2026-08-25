@@ -14,7 +14,6 @@ import {
   type SkTypefaceFontProvider,
 } from '@shopify/react-native-skia';
 
-import { ReaderSkiaImagePool } from '@/services/reader-skia-image-pool';
 import {
   addTextBlockToParagraphBuilder,
   createRenderableParagraphText,
@@ -26,10 +25,17 @@ import {
 } from '@novella/reader-layout';
 
 import type { ReaderImagePreviewSource } from '@/components/reader-image-preview';
+import { readerImageRasterizerAvailable } from '@/services/native-reader-image-rasterizer';
 import {
   rememberReaderImageDimensions,
   resolveReaderImageUrl,
 } from '@/services/reader-image-dimensions';
+import {
+  estimateReaderImageBytes,
+  ReaderSkiaImagePool,
+  resolveReaderImageMaxPixelSize,
+} from '@/services/reader-skia-image-pool';
+import { retireSkiaHostObjects } from '@/services/reader-skia-resource-lifecycle';
 
 export interface ReaderSkiaTileProps {
   tile: ChapterTile;
@@ -181,9 +187,21 @@ export function ReaderSkiaTile({
       }, ...rubyParagraphs, ...inlineTextParagraphs];
     });
   }, [contentOffsetY, fontMgr, generation, sidePadding, tile]);
+  const paragraphRetirementRef = useRef<{
+    paragraphs: typeof paragraphs;
+    cancel: () => void;
+  } | null>(null);
 
-  useEffect(() => () => {
-    for (const item of paragraphs) item.paragraph.dispose();
+  useEffect(() => {
+    const pending = paragraphRetirementRef.current;
+    if (pending?.paragraphs === paragraphs) {
+      pending.cancel();
+      paragraphRetirementRef.current = null;
+    }
+    return () => {
+      const cancel = retireSkiaHostObjects(paragraphs.map((item) => item.paragraph));
+      paragraphRetirementRef.current = { paragraphs, cancel };
+    };
   }, [paragraphs]);
 
   useEffect(() => () => {
@@ -224,18 +242,29 @@ export function ReaderSkiaTile({
             />
           ))}
 
-          {imageBlocks.map((item) => (
-            <ReaderSkiaImage
-              key={item.blockId}
-              blockId={item.blockId}
-              imageLayout={item.image}
-              imagePool={imagePool}
-              onImageReady={rememberLoadedImage}
-              onImageReleased={releaseLoadedImage}
-              x={item.x}
-              y={item.y}
-            />
-          ))}
+          {imageBlocks.map((item) => {
+            const imageURI = resolveReaderImageUrl(item.image.url);
+            const maxPixelSize = readerImageRasterizerAvailable
+              ? resolveReaderImageMaxPixelSize(item.image)
+              : undefined;
+            return (
+              <ReaderSkiaImage
+                key={`skia:${item.blockId}:${imageURI}:${maxPixelSize ?? 'raw'}`}
+                blockId={item.blockId}
+                {...(maxPixelSize === undefined ? {} : {
+                  estimatedBytes: estimateReaderImageBytes(item.image),
+                  maxPixelSize,
+                })}
+                imageLayout={item.image}
+                imagePool={imagePool}
+                onImageReady={rememberLoadedImage}
+                onImageReleased={releaseLoadedImage}
+                rememberNaturalDimensions={false}
+                x={item.x}
+                y={item.y}
+              />
+            );
+          })}
 
           {tile.blocks.map((block) => {
             if (block.type !== 'hr') return null;

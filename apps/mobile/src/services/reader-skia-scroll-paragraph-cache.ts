@@ -1,5 +1,5 @@
 import type { SkParagraph } from '@shopify/react-native-skia';
-import { SKIA_SCENE_RESOURCE_GRACE_MS } from './reader-skia-resource-lifecycle.ts';
+import { retireSkiaHostObjects } from './reader-skia-resource-lifecycle.ts';
 
 const MAX_CACHED_BLOCKS = 256;
 
@@ -17,7 +17,7 @@ export interface ReaderSkiaScrollParagraphBundle {
 
 interface ParagraphEntry {
   bundle: ReaderSkiaScrollParagraphBundle;
-  disposalTimer: ReturnType<typeof setTimeout> | null;
+  cancelRetirement: (() => void) | null;
 }
 
 /**
@@ -44,7 +44,7 @@ export class ReaderSkiaScrollParagraphCache {
 
     const bundle = create();
     if (this.disposed) return bundle;
-    this.entries.set(blockId, { bundle, disposalTimer: null });
+    this.entries.set(blockId, { bundle, cancelRetirement: null });
     this.trimToBound();
     return bundle;
   }
@@ -70,18 +70,19 @@ export class ReaderSkiaScrollParagraphCache {
   }
 
   private scheduleDisposal(blockId: string, entry: ParagraphEntry): void {
-    if (entry.disposalTimer !== null) return;
-    entry.disposalTimer = setTimeout(() => {
-      entry.disposalTimer = null;
-      if (this.entries.get(blockId) !== entry) return;
-      this.entries.delete(blockId);
-      for (const item of entry.bundle.items) item.paragraph.dispose();
-    }, SKIA_SCENE_RESOURCE_GRACE_MS);
+    if (entry.cancelRetirement !== null) return;
+    entry.cancelRetirement = retireSkiaHostObjects(
+      entry.bundle.items.map((item) => item.paragraph),
+      () => {
+        entry.cancelRetirement = null;
+        if (this.entries.get(blockId) === entry) this.entries.delete(blockId);
+      },
+    );
   }
 
   private cancelDisposal(entry: ParagraphEntry): void {
-    if (entry.disposalTimer === null) return;
-    clearTimeout(entry.disposalTimer);
-    entry.disposalTimer = null;
+    if (entry.cancelRetirement === null) return;
+    entry.cancelRetirement();
+    entry.cancelRetirement = null;
   }
 }
