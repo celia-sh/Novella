@@ -1,4 +1,3 @@
-import { Image as NativeImage, type ImageLoadEventData } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import {
@@ -12,6 +11,7 @@ import {
   vec,
   type SkImage,
   type SkParagraphBuilder,
+  type SkTypefaceFontProvider,
 } from '@shopify/react-native-skia';
 
 import { ReaderSkiaImagePool } from '@/services/reader-skia-image-pool';
@@ -30,16 +30,14 @@ import {
   rememberReaderImageDimensions,
   resolveReaderImageUrl,
 } from '@/services/reader-image-dimensions';
-import { ReaderSkiaParagraphBuilderPool } from '@/services/reader-skia-paragraph-builder-pool';
 
 export interface ReaderSkiaTileProps {
   tile: ChapterTile;
   theme: ReaderTheme;
+  fontMgr?: SkTypefaceFontProvider | null;
   generation: string;
   imagePool: ReaderSkiaImagePool;
-  paragraphBuilderPool: ReaderSkiaParagraphBuilderPool;
   imageAccessibilityLabel: string;
-  useNativeImages?: boolean;
   onOpenImage?: (source: ReaderImagePreviewSource) => void;
   openImageOnLongPress?: boolean;
   viewportWidth?: number;
@@ -53,13 +51,12 @@ export interface ReaderSkiaTileProps {
 export function ReaderSkiaTile({
   tile,
   theme,
+  fontMgr,
   generation,
   imagePool,
-  paragraphBuilderPool,
   imageAccessibilityLabel,
   onOpenImage,
   openImageOnLongPress = false,
-  useNativeImages = false,
   viewportWidth,
 }: ReaderSkiaTileProps) {
   const sidePadding = theme.sidePadding;
@@ -86,16 +83,30 @@ export function ReaderSkiaTile({
     return imagePool.retain(image);
   }, [imagePool]);
   const paragraphs = useMemo(() => {
+    const builders = new Map<string, SkParagraphBuilder>();
     const buildParagraph = (
       paragraphStyle: ReturnType<typeof createSkiaParagraphStyle>,
       populate: (builder: SkParagraphBuilder) => void,
       width: number,
-    ) => paragraphBuilderPool.withBuilder(paragraphStyle, (builder) => {
-      populate(builder);
-      const paragraph = builder.build();
-      paragraph.layout(width);
-      return paragraph;
-    });
+    ) => {
+      const styleKey = JSON.stringify(paragraphStyle);
+      let builder = builders.get(styleKey);
+      if (!builder) {
+        builder = fontMgr
+          ? Skia.ParagraphBuilder.Make(paragraphStyle, fontMgr)
+          : Skia.ParagraphBuilder.Make(paragraphStyle);
+        builders.set(styleKey, builder);
+      }
+      builder.reset();
+      try {
+        populate(builder);
+        const paragraph = builder.build();
+        paragraph.layout(width);
+        return paragraph;
+      } finally {
+        builder.reset();
+      }
+    };
 
     return tile.blocks.flatMap((block) => {
       const textData = block.text;
@@ -169,7 +180,7 @@ export function ReaderSkiaTile({
         width: block.width,
       }, ...rubyParagraphs, ...inlineTextParagraphs];
     });
-  }, [contentOffsetY, generation, paragraphBuilderPool, sidePadding, tile]);
+  }, [contentOffsetY, fontMgr, generation, sidePadding, tile]);
 
   useEffect(() => () => {
     for (const item of paragraphs) item.paragraph.dispose();
@@ -213,30 +224,18 @@ export function ReaderSkiaTile({
             />
           ))}
 
-          {useNativeImages
-            ? imageBlocks.map((item) => (
-              <RoundedRect
-                key={`placeholder:${item.blockId}`}
-                color={Skia.Color('#80808020')}
-                height={item.image.height}
-                r={4}
-                width={item.image.width}
-                x={item.x}
-                y={item.y}
-              />
-            ))
-            : imageBlocks.map((item) => (
-              <ReaderSkiaImage
-                key={item.blockId}
-                blockId={item.blockId}
-                imageLayout={item.image}
-                imagePool={imagePool}
-                onImageReady={rememberLoadedImage}
-                onImageReleased={releaseLoadedImage}
-                x={item.x}
-                y={item.y}
-              />
-            ))}
+          {imageBlocks.map((item) => (
+            <ReaderSkiaImage
+              key={item.blockId}
+              blockId={item.blockId}
+              imageLayout={item.image}
+              imagePool={imagePool}
+              onImageReady={rememberLoadedImage}
+              onImageReleased={releaseLoadedImage}
+              x={item.x}
+              y={item.y}
+            />
+          ))}
 
           {tile.blocks.map((block) => {
             if (block.type !== 'hr') return null;
@@ -254,16 +253,6 @@ export function ReaderSkiaTile({
           })}
         </Group>
       </Canvas>
-
-      {useNativeImages ? imageBlocks.map((item) => (
-        <ReaderNativeImage
-          key={`native:${item.blockId}`}
-          imageLayout={item.image}
-          onLoad={rememberReaderImageDimensions}
-          x={item.x}
-          y={item.y}
-        />
-      )) : null}
 
       {onOpenImage ? imageBlocks.filter((item) => item.image.previewable).map((item) => {
         const warmImage = loadedImages[item.blockId];
@@ -296,46 +285,6 @@ export function ReaderSkiaTile({
         );
       }) : null}
     </View>
-  );
-}
-
-interface ReaderNativeImageProps {
-  imageLayout: ImageLayout;
-  onLoad: (source: string, dimensions: { width: number; height: number }) => void;
-  x: number;
-  y: number;
-}
-
-function ReaderNativeImage({ imageLayout, onLoad, x, y }: ReaderNativeImageProps) {
-  const uri = resolveReaderImageUrl(imageLayout.url);
-  const handleLoad = useCallback((event: ImageLoadEventData) => {
-    onLoad(uri, {
-      width: event.source.width,
-      height: event.source.height,
-    });
-  }, [onLoad, uri]);
-
-  if (!uri) return null;
-  return (
-    <NativeImage
-      allowDownscaling
-      cachePolicy="disk"
-      contentFit="contain"
-      enforceEarlyResizing
-      onLoad={handleLoad}
-      priority="low"
-      recyclingKey={uri}
-      source={{ uri }}
-      style={{
-        borderRadius: 4,
-        height: imageLayout.height,
-        left: x,
-        position: 'absolute',
-        top: y,
-        width: imageLayout.width,
-      }}
-      transition={0}
-    />
   );
 }
 
