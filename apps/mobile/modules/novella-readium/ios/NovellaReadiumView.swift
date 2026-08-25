@@ -385,13 +385,13 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     case .began:
       boundaryCandidate = nil
     case .changed:
-      if let navigator {
-        boundaryCandidate = resolveBoundaryDirection(gesture, navigator: navigator) ?? boundaryCandidate
+      boundaryCandidate = navigator.flatMap {
+        resolveBoundaryDirection(gesture, navigator: $0)
       }
     case .ended:
-      let direction = boundaryCandidate ?? (navigator.flatMap {
+      let direction = navigator.flatMap {
         resolveBoundaryDirection(gesture, navigator: $0)
-      })
+      } ?? boundaryCandidate
       boundaryCandidate = nil
       guard let direction else { return }
       let now = CACurrentMediaTime()
@@ -413,6 +413,10 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     let velocity = gesture.velocity(in: self)
     let presentation = navigator.presentation
     let isHorizontal = presentation.axis == .horizontal
+    let primaryTranslation = isHorizontal ? abs(translation.x) : abs(translation.y)
+    let secondaryTranslation = isHorizontal ? abs(translation.y) : abs(translation.x)
+    guard primaryTranslation >= secondaryTranslation else { return nil }
+
     let scrollViews = descendantScrollViews(of: navigator.view)
     let scrollView = scrollViews
       .filter { scrollView in
