@@ -95,6 +95,7 @@ test('image tables retain their authored rows and columns', () => {
   assert.match(publication.resources['EPUB/styles/reader.css'], /\.nv-inline-footnote-content>li\{display:block;list-style:none;margin:0;padding:0;\}/);
   assert.match(publication.resources['EPUB/styles/reader.css'], /html\[style\*="readium-scroll-on"\],html\[style\*="readium-scroll-on"\] body\{overflow-x:hidden!important;\}/);
   assert.match(publication.resources['EPUB/styles/reader.css'], /-webkit-user-select:none;user-select:none/);
+  assert.match(publication.resources['EPUB/styles/reader.css'], /img\{max-width:100%;height:auto;border-radius:4px;\}/);
 });
 
 test('chapter HTML is normalized with inline footnotes', () => {

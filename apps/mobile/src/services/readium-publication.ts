@@ -213,7 +213,7 @@ function buildReadiumPublicationStylesheet(fontRequired: boolean): string {
     '.nv-inline-footnote-content p,.nv-inline-footnote-content li{margin:0;}',
     '.nv-inline-footnote-label{flex:none;font-weight:600;}',
     '.nv-inline-footnote-marker{font-size:.75em;font-weight:600;line-height:0;vertical-align:super;}',
-    'img{max-width:100%;height:auto;}',
+    'img{max-width:100%;height:auto;border-radius:4px;}',
     'ruby rt{font-size:.5em;}',
   ].join('');
 }
