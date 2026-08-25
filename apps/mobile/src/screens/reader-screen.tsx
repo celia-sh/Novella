@@ -931,6 +931,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       }}
       imagePool={imagePool}
       tile={tile}
+      useNativeImages={mode === 'scroll'}
       viewportWidth={screenWidth}
     />
   ), [
@@ -938,6 +939,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     fontMgr,
     imagePool,
     layoutGeneration,
+    mode,
     openImagePreview,
     readerBackground,
     readerChromeInsets,
