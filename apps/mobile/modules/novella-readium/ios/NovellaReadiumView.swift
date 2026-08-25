@@ -542,7 +542,23 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   }
 
   private func bridgeLocator(_ locator: Locator) -> [String: Any] {
-    locator.jsonObject.mapValues(\.any)
+    var object = locator.jsonObject.mapValues(\.any)
+    guard
+      let resource = navigator?.viewport?.resources.first(where: {
+        $0.href.description == locator.href.description
+      }) ?? navigator?.viewport?.resources.first,
+      var locations = object["locations"] as? [String: Any]
+    else {
+      return object
+    }
+
+    // Readium reports the locator progression at the first visible point.
+    // The reader slider follows the visible viewport's trailing point so an
+    // exact chapter-end position reaches 100%, matching the old Skia scroll
+    // progress (offset / maximumOffset).
+    locations["progression"] = resource.progression.upperBound
+    object["locations"] = locations
+    return object
   }
 
   private func detachNavigator() {
