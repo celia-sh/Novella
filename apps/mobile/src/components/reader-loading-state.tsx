@@ -24,6 +24,33 @@ export interface ReaderReflowOverlayHostHandle {
   show(): void;
 }
 
+interface ReaderLoadingOverlayProps {
+  accentColor: string;
+  backgroundColor: string;
+  phase: ReaderLoadingPhase;
+  textColor: string;
+}
+
+export function ReaderLoadingOverlay({
+  accentColor,
+  backgroundColor,
+  phase,
+  textColor,
+}: ReaderLoadingOverlayProps) {
+  return (
+    <View
+      accessibilityViewIsModal
+      style={[styles.overlay, { backgroundColor }]}
+    >
+      <ReaderLoadingState
+        accentColor={accentColor}
+        phase={phase}
+        textColor={textColor}
+      />
+    </View>
+  );
+}
+
 interface ReaderReflowOverlayHostProps {
   accentColor: string;
   backgroundColor: string;
@@ -49,16 +76,12 @@ export const ReaderReflowOverlayHost = forwardRef<
 
   if (!forceVisible && !imperativeVisible) return null;
   return (
-    <View
-      accessibilityViewIsModal
-      style={[styles.reflowOverlay, { backgroundColor }]}
-    >
-      <ReaderLoadingState
-        accentColor={accentColor}
-        phase="reflow"
-        textColor={textColor}
-      />
-    </View>
+    <ReaderLoadingOverlay
+      accentColor={accentColor}
+      backgroundColor={backgroundColor}
+      phase="reflow"
+      textColor={textColor}
+    />
   );
 });
 
@@ -101,7 +124,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.7,
   },
-  reflowOverlay: {
+  overlay: {
     bottom: 0,
     left: 0,
     position: 'absolute',

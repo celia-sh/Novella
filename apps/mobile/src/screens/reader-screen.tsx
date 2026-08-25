@@ -22,7 +22,7 @@ import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
 import { ReaderErrorState } from '@/components/reader-chrome';
 import { ReaderImagePreviewHost, type ReaderImagePreviewHostHandle } from '@/components/reader-image-preview';
-import { ReaderLoadingState } from '@/components/reader-loading-state';
+import { ReaderLoadingOverlay, ReaderLoadingState } from '@/components/reader-loading-state';
 import { ReaderNavigation } from '@/components/reader-navigation';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
 import { createReaderChromeInsets } from '@/services/reader-chrome-layout';
@@ -446,8 +446,9 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               style={styles.reader}
             />
             {!nativeReady ? (
-              <ReaderLoadingState
+              <ReaderLoadingOverlay
                 accentColor={colors.accent as string}
+                backgroundColor={readerBackground}
                 phase="publication"
                 textColor={readerTextColor}
               />
