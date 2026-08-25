@@ -30,8 +30,14 @@ import {
   type SkTypefaceFontProvider,
 } from '@shopify/react-native-skia';
 import type { ReaderImagePreviewSource } from '@/components/reader-image-preview';
+import { ReaderSkiaImage } from '@/components/reader-skia-tile';
 import { resolveReaderImageUrl, rememberReaderImageDimensions } from '@/services/reader-image-dimensions';
 import { ReaderSkiaScrollParagraphCache } from '@/services/reader-skia-scroll-paragraph-cache';
+import {
+  estimateReaderImageBytes,
+  ReaderSkiaImagePool,
+  resolveReaderImageMaxPixelSize,
+} from '@/services/reader-skia-image-pool';
 import {
   addTextBlockToParagraphBuilder,
   createRenderableParagraphText,
@@ -51,6 +57,7 @@ export interface ReaderSkiaScrollProps {
   viewportHeight: number;
   viewportWidth: number;
   imageAccessibilityLabel: string;
+  imagePool: ReaderSkiaImagePool;
   scrollViewRef: AnimatedRef<ScrollView>;
   onViewportChanged: (y: number) => void;
   onScrollEndDrag: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
@@ -78,6 +85,8 @@ interface ScrollImageRenderItem {
   y: number;
 }
 
+const renderScrollImagesInSkia = process.env.EXPO_OS === 'ios';
+
 export function ReaderSkiaScroll({
   layout,
   theme,
@@ -86,6 +95,7 @@ export function ReaderSkiaScroll({
   viewportHeight,
   viewportWidth,
   imageAccessibilityLabel,
+  imagePool,
   scrollViewRef,
   onViewportChanged,
   onScrollEndDrag,
@@ -122,8 +132,13 @@ export function ReaderSkiaScroll({
     () => selectBlocksInRange(layout.blocks, cacheTop, cacheBottom),
     [cacheBottom, cacheTop, layout.blocks],
   );
-  const imageTop = Math.max(0, anchorY - windowHeight * 5);
-  const imageBottom = anchorY + windowHeight * 6;
+  // iOS Skia images share the fixed Canvas transform, so keep only a small
+  // retention window of downsampled pixels around the current anchor. Android
+  // keeps its existing native-image warm window.
+  const imageRetentionBefore = renderScrollImagesInSkia ? windowHeight : windowHeight * 5;
+  const imageRetentionAfter = renderScrollImagesInSkia ? windowHeight * 2 : windowHeight * 6;
+  const imageTop = Math.max(0, anchorY - imageRetentionBefore);
+  const imageBottom = anchorY + imageRetentionAfter;
   const imageSourceBlocks = useMemo(
     () => selectBlocksInRange(layout.blocks, imageTop, imageBottom),
     [imageBottom, imageTop, layout.blocks],
@@ -300,6 +315,19 @@ export function ReaderSkiaScroll({
               y={item.y}
             />
           ))}
+          {renderScrollImagesInSkia ? imageBlocks.map((item) => (
+            <ReaderSkiaImage
+              key={`skia:${item.blockId}`}
+              blockId={item.blockId}
+              estimatedBytes={estimateReaderImageBytes(item.image)}
+              imageLayout={item.image}
+              imagePool={imagePool}
+              maxPixelSize={resolveReaderImageMaxPixelSize(item.image)}
+              rememberNaturalDimensions={false}
+              x={item.x}
+              y={item.y}
+            />
+          )) : null}
           {renderBlocks.map((block) => {
             if (block.type !== 'hr') return null;
             const lineY = block.y + block.height / 2;
@@ -333,14 +361,14 @@ export function ReaderSkiaScroll({
             { height: Math.max(1, layout.totalHeight), width: viewportWidth },
           ]}
         >
-          {imageBlocks.map((item) => (
+          {!renderScrollImagesInSkia ? imageBlocks.map((item) => (
             <ReaderScrollNativeImage
               key={`native:${item.blockId}`}
               imageLayout={item.image}
               x={item.x}
               y={item.y}
             />
-          ))}
+          )) : null}
 
           {onOpenImage ? imageBlocks.filter((item) => item.image.previewable).map((item) => {
             const open = () => onOpenImage({
@@ -354,13 +382,13 @@ export function ReaderSkiaScroll({
                 accessibilityRole="imagebutton"
                 onLongPress={openImageOnLongPress ? open : undefined}
                 onPress={openImageOnLongPress ? undefined : open}
-                style={({ pressed }) => [{
+                style={{
                   height: item.image.height,
                   left: item.x,
                   position: 'absolute',
                   top: item.y,
                   width: item.image.width,
-                }, pressed ? styles.imagePressed : null]}
+                }}
               />
             );
           }) : null}
@@ -430,9 +458,6 @@ function ReaderScrollNativeImage({ imageLayout, x, y }: {
 }
 
 const styles = StyleSheet.create({
-  imagePressed: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
   root: { flex: 1, overflow: 'hidden' },
   scrollContent: { backgroundColor: 'transparent', position: 'relative' },
   scrollView: { backgroundColor: 'transparent' },

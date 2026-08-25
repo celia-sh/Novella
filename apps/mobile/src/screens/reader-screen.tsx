@@ -1049,6 +1049,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
                 fontMgr={fontMgr}
                 generation={layoutGeneration}
                 imageAccessibilityLabel={t('images.illustration')}
+                imagePool={imagePool}
                 layout={layout!}
                 onMomentumScrollEnd={handleScrollEnd}
                 onOpenImage={openImagePreview}

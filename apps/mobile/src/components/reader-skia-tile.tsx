@@ -288,22 +288,28 @@ export function ReaderSkiaTile({
   );
 }
 
-interface ReaderSkiaImageProps {
+export interface ReaderSkiaImageProps {
   blockId: string;
   imageLayout: ImageLayout;
   imagePool: ReaderSkiaImagePool;
-  onImageReady: (blockId: string, image: SkImage) => void;
-  onImageReleased: (blockId: string, image: SkImage) => void;
+  estimatedBytes?: number;
+  maxPixelSize?: number;
+  onImageReady?: (blockId: string, image: SkImage) => void;
+  onImageReleased?: (blockId: string, image: SkImage) => void;
+  rememberNaturalDimensions?: boolean;
   x: number;
   y: number;
 }
 
-function ReaderSkiaImage({
+export function ReaderSkiaImage({
   blockId,
   imageLayout,
   imagePool,
+  estimatedBytes,
+  maxPixelSize,
   onImageReady,
   onImageReleased,
+  rememberNaturalDimensions = true,
   x,
   y,
 }: ReaderSkiaImageProps) {
@@ -311,7 +317,11 @@ function ReaderSkiaImage({
   const [failed, setFailed] = useState(false);
   const [image, setImage] = useState<SkImage | null>(null);
   const loadedImageRef = useRef<SkImage | null>(null);
-  const handleError = useCallback((_error: Error) => setFailed(true), []);
+  const handleError = useCallback((_error: Error) => {
+    loadedImageRef.current = null;
+    setImage(null);
+    setFailed(true);
+  }, []);
 
   useEffect(() => {
     setFailed(false);
@@ -322,20 +332,32 @@ function ReaderSkiaImage({
     const release = imagePool.acquire(uri, (nextImage) => {
       loadedImageRef.current = nextImage;
       setImage(nextImage);
-      onImageReady(blockId, nextImage);
-      rememberReaderImageDimensions(uri, {
-        width: nextImage.width(),
-        height: nextImage.height(),
-      });
-    }, handleError);
+      onImageReady?.(blockId, nextImage);
+      if (rememberNaturalDimensions) {
+        rememberReaderImageDimensions(uri, {
+          width: nextImage.width(),
+          height: nextImage.height(),
+        });
+      }
+    }, handleError, maxPixelSize, estimatedBytes);
 
     return () => {
       release();
       const loadedImage = loadedImageRef.current;
       loadedImageRef.current = null;
-      if (loadedImage) onImageReleased(blockId, loadedImage);
+      if (loadedImage) onImageReleased?.(blockId, loadedImage);
     };
-  }, [blockId, handleError, imagePool, onImageReady, onImageReleased, uri]);
+  }, [
+    blockId,
+    handleError,
+    estimatedBytes,
+    imagePool,
+    maxPixelSize,
+    onImageReady,
+    onImageReleased,
+    rememberNaturalDimensions,
+    uri,
+  ]);
 
   const clip = {
     rect: { x, y, width: imageLayout.width, height: imageLayout.height },

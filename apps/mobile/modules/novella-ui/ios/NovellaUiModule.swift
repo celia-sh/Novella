@@ -5,6 +5,10 @@ public final class NovellaUiModule: Module {
   public func definition() -> ModuleDefinition {
     Name("NovellaUi")
 
+    AsyncFunction("rasterizeReaderImage") { (uri: String, maxPixelSize: Int) async throws -> String in
+      try await ReaderImageRasterizer.rasterize(uri: uri, maxPixelSize: maxPixelSize)
+    }
+
     View(NovellaSearchBarView.self) {
       ViewName("SearchBar")
 
