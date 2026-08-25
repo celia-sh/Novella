@@ -10,17 +10,20 @@ export function ReaderChapterNavigation({
   pageCurrent,
   pageProgress,
   pageTotal,
+  progressMode = 'pages',
 }: ReaderChapterNavigationProps) {
+  const visible = progressMode === 'percentage' || pageTotal > 0;
   return (
     <Stack.Toolbar placement="bottom">
-      <Stack.Toolbar.View hidden={chromeHidden || pageTotal === 0}>
+      <Stack.Toolbar.View hidden={chromeHidden || !visible}>
         <ReaderProgressSlider
           direction={direction}
+          displayMode={progressMode}
           onValueChange={onPageProgressChange}
           pageCurrent={pageCurrent}
           pageTotal={pageTotal}
           progress={pageProgress}
-          visible={pageTotal > 0}
+          visible={visible}
         />
       </Stack.Toolbar.View>
     </Stack.Toolbar>
