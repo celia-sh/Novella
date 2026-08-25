@@ -12,7 +12,6 @@ import {
   vec,
   type SkImage,
   type SkParagraphBuilder,
-  type SkTypefaceFontProvider,
 } from '@shopify/react-native-skia';
 
 import { ReaderSkiaImagePool } from '@/services/reader-skia-image-pool';
@@ -31,13 +30,14 @@ import {
   rememberReaderImageDimensions,
   resolveReaderImageUrl,
 } from '@/services/reader-image-dimensions';
+import { ReaderSkiaParagraphBuilderPool } from '@/services/reader-skia-paragraph-builder-pool';
 
 export interface ReaderSkiaTileProps {
   tile: ChapterTile;
   theme: ReaderTheme;
-  fontMgr?: SkTypefaceFontProvider | null;
   generation: string;
   imagePool: ReaderSkiaImagePool;
+  paragraphBuilderPool: ReaderSkiaParagraphBuilderPool;
   imageAccessibilityLabel: string;
   useNativeImages?: boolean;
   onOpenImage?: (source: ReaderImagePreviewSource) => void;
@@ -53,9 +53,9 @@ export interface ReaderSkiaTileProps {
 export function ReaderSkiaTile({
   tile,
   theme,
-  fontMgr,
   generation,
   imagePool,
+  paragraphBuilderPool,
   imageAccessibilityLabel,
   onOpenImage,
   openImageOnLongPress = false,
@@ -86,30 +86,16 @@ export function ReaderSkiaTile({
     return imagePool.retain(image);
   }, [imagePool]);
   const paragraphs = useMemo(() => {
-    const builders = new Map<string, SkParagraphBuilder>();
     const buildParagraph = (
       paragraphStyle: ReturnType<typeof createSkiaParagraphStyle>,
       populate: (builder: SkParagraphBuilder) => void,
       width: number,
-    ) => {
-      const styleKey = JSON.stringify(paragraphStyle);
-      let builder = builders.get(styleKey);
-      if (!builder) {
-        builder = fontMgr
-          ? Skia.ParagraphBuilder.Make(paragraphStyle, fontMgr)
-          : Skia.ParagraphBuilder.Make(paragraphStyle);
-        builders.set(styleKey, builder);
-      }
-      builder.reset();
-      try {
-        populate(builder);
-        const paragraph = builder.build();
-        paragraph.layout(width);
-        return paragraph;
-      } finally {
-        builder.reset();
-      }
-    };
+    ) => paragraphBuilderPool.withBuilder(paragraphStyle, (builder) => {
+      populate(builder);
+      const paragraph = builder.build();
+      paragraph.layout(width);
+      return paragraph;
+    });
 
     return tile.blocks.flatMap((block) => {
       const textData = block.text;
@@ -183,7 +169,7 @@ export function ReaderSkiaTile({
         width: block.width,
       }, ...rubyParagraphs, ...inlineTextParagraphs];
     });
-  }, [contentOffsetY, fontMgr, generation, sidePadding, tile]);
+  }, [contentOffsetY, generation, paragraphBuilderPool, sidePadding, tile]);
 
   useEffect(() => () => {
     for (const item of paragraphs) item.paragraph.dispose();

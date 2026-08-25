@@ -64,6 +64,7 @@ import { useReaderWindowDimensions } from '@/hooks/use-reader-window-dimensions'
 import { createFontManager } from '@/services/skia-font-loader';
 import { resolveReaderFontUrl } from '@/services/reader-font-loader';
 import { ReaderSkiaImagePool } from '@/services/reader-skia-image-pool';
+import { ReaderSkiaParagraphBuilderPool } from '@/services/reader-skia-paragraph-builder-pool';
 import { useReaderPositionSaver } from '@/hooks/use-reader-position-saver';
 import { subscribeReaderChapterSelection } from '@/services/reader-chapter-selection';
 import {
@@ -369,13 +370,21 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         bottomPadding: readerChromeInsets.bottom,
       });
     }
-    return tileChapter(layout, screenHeight * 2.5);
+    // A scroll tile is deliberately only a little taller than one viewport.
+    // Smaller Skia surfaces lower the native/GPU allocation peak while the
+    // 25% overlap avoids making every scroll gesture cross a tile boundary.
+    return tileChapter(layout, screenHeight * 1.25);
   }, [layout, mode, readerChromeInsets.bottom, readerChromeInsets.top, screenHeight, screenWidth, useDoublePage]);
   const imagePool = useMemo(
     () => new ReaderSkiaImagePool(),
     [content?.chapter.id],
   );
   useEffect(() => () => imagePool.dispose(), [imagePool]);
+  const paragraphBuilderPool = useMemo(
+    () => new ReaderSkiaParagraphBuilderPool(fontMgr),
+    [fontMgr, layout],
+  );
+  useEffect(() => () => paragraphBuilderPool.dispose(), [paragraphBuilderPool]);
 
   const previousViewportSignature = viewportSignatureRef.current;
   const viewportChangePendingBeforeCommit = Boolean(
@@ -914,7 +923,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
 
   const renderTile = useCallback(({ item: tile }: { item: ChapterTile }) => (
     <ReaderSkiaTile
-      fontMgr={fontMgr}
       generation={layoutGeneration}
       imageAccessibilityLabel={t('images.illustration')}
       onOpenImage={openImagePreview}
@@ -931,14 +939,15 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         firstLineIndent: debouncedSettings.firstLineIndent,
       }}
       imagePool={imagePool}
+      paragraphBuilderPool={paragraphBuilderPool}
       tile={tile}
       useNativeImages={mode === 'scroll'}
       viewportWidth={screenWidth}
     />
   ), [
     debouncedSettings,
-    fontMgr,
     imagePool,
+    paragraphBuilderPool,
     layoutGeneration,
     mode,
     openImagePreview,
@@ -1015,12 +1024,12 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               decelerationRate={mode === 'paged' ? 'fast' : 'normal'}
               getItemLayout={getItemLayout}
               horizontal={mode === 'paged'}
-              // Scroll mode keeps fewer Skia tiles alive because every tile
-              // can own paragraphs and decoded image leases.
-              initialNumToRender={mode === 'paged' ? 3 : 2}
+              // Scroll mode keeps one initial Skia tile pinned and paces new
+              // mounts because every tile can own paragraphs and image views.
+              initialNumToRender={mode === 'paged' ? 3 : 1}
               key={`${content.chapter.id}:${mode}`}
               keyExtractor={getTileKey}
-              maxToRenderPerBatch={mode === 'paged' ? 4 : 2}
+              maxToRenderPerBatch={mode === 'paged' ? 4 : 1}
               onMomentumScrollEnd={handleScrollEnd}
               onScroll={handleScroll}
               onScrollEndDrag={handleScrollEndDrag}
@@ -1031,7 +1040,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               showsHorizontalScrollIndicator={false}
               showsVerticalScrollIndicator={mode !== 'paged'}
               style={styles.reader}
-              updateCellsBatchingPeriod={0}
+              updateCellsBatchingPeriod={mode === 'paged' ? 0 : 50}
               windowSize={mode === 'paged' ? 5 : 3}
             />
           </View>
