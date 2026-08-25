@@ -22,10 +22,10 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   private var preferences: [String: Any] = [:]
   private var contentInsets: [String: Double] = [:]
   private var navigator: EPUBNavigatorViewController?
+  private weak var registeredContentScrollView: UIScrollView?
+  private weak var registeredContentScrollViewOwner: UIViewController?
   private var tapObserver: InputObservableToken?
   private var boundaryPanGesture: UIPanGestureRecognizer?
-  private var scrollEdgeEffectObservations: [NSKeyValueObservation] = []
-  private var observedScrollEdgeEffectIds: Set<ObjectIdentifier> = []
   private var openTask: Task<Void, Never>?
   private var isReady = false
   private var suppressNextTap = false
@@ -69,9 +69,6 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   func setContentInsets(_ value: [String: Double]) {
     contentInsets = value
     navigator?.view.setNeedsLayout()
-    DispatchQueue.main.async { [weak self] in
-      self?.hideSystemScrollEdgeEffects()
-    }
   }
 
   func getCurrentLocator() async -> [String: Any]? {
@@ -111,15 +108,15 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   override func layoutSubviews() {
     super.layoutSubviews()
     navigator?.view.frame = bounds
-    hideSystemScrollEdgeEffects()
+    registerNavigationContentScrollView()
   }
 
   override func didMoveToWindow() {
     super.didMoveToWindow()
     guard window != nil else { return }
-    hideSystemScrollEdgeEffects()
+    registerNavigationContentScrollView()
     DispatchQueue.main.async { [weak self] in
-      self?.hideSystemScrollEdgeEffects()
+      self?.registerNavigationContentScrollView()
     }
   }
 
@@ -200,9 +197,9 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       controller.didMove(toParent: parent)
       controller.view.frame = bounds
       installInputObservers()
-      hideSystemScrollEdgeEffects()
+      registerNavigationContentScrollView()
       DispatchQueue.main.async { [weak self] in
-        self?.hideSystemScrollEdgeEffects()
+        self?.registerNavigationContentScrollView()
       }
       var installedStatus: [String: Any] = ["stage": "navigatorInstalled"]
       if let href = location?.href.description { installedStatus["href"] = href }
@@ -282,38 +279,36 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     }
   }
 
-  private func hideSystemScrollEdgeEffects() {
-    guard #available(iOS 26.0, *), let navigator else { return }
-    let scrollViews = descendantScrollViews(of: navigator.view)
-    let scrollViewIds = Set(scrollViews.map(ObjectIdentifier.init))
-    if scrollViewIds != observedScrollEdgeEffectIds {
-      scrollEdgeEffectObservations.forEach { $0.invalidate() }
-      scrollEdgeEffectObservations.removeAll()
-      observedScrollEdgeEffectIds = scrollViewIds
-      for scrollView in scrollViews {
-        scrollEdgeEffectObservations.append(
-          scrollView.observe(\.contentOffset, options: [.new]) { [weak self, weak scrollView] _, _ in
-            guard let self, let scrollView else { return }
-            self.hideSystemScrollEdgeEffects(on: scrollView)
-          }
-        )
-        scrollEdgeEffectObservations.append(
-          scrollView.observe(\.adjustedContentInset, options: [.new]) { [weak self, weak scrollView] _, _ in
-            guard let self, let scrollView else { return }
-            self.hideSystemScrollEdgeEffects(on: scrollView)
-          }
-        )
-      }
+  // Readium inserts an empty view before its pagination scroll view, so RN Screens'
+  // first-descendant heuristic cannot discover the actual WebView scroll view. Register it
+  // explicitly and leave all UIScrollEdgeEffect instances under UIKit/RN Screens' control.
+  @MainActor private func registerNavigationContentScrollView() {
+    guard #available(iOS 15.0, *), let navigator else { return }
+    guard let webView = descendantWebViews(of: navigator.view).first else { return }
+    let scrollView = webView.scrollView
+    let owner = parentViewController ?? navigator
+    guard registeredContentScrollView !== scrollView || registeredContentScrollViewOwner !== owner else {
+      return
     }
-    scrollViews.forEach { hideSystemScrollEdgeEffects(on: $0) }
+
+    if let previousOwner = registeredContentScrollViewOwner, previousOwner !== owner {
+      previousOwner.setContentScrollView(nil, for: .top)
+    }
+    owner.setContentScrollView(scrollView, for: .top)
+    registeredContentScrollView = scrollView
+    registeredContentScrollViewOwner = owner
   }
 
-  private func hideSystemScrollEdgeEffects(on scrollView: UIScrollView) {
-    guard #available(iOS 26.0, *) else { return }
-    scrollView.topEdgeEffect.isHidden = true
-    scrollView.bottomEdgeEffect.isHidden = true
-    scrollView.leftEdgeEffect.isHidden = true
-    scrollView.rightEdgeEffect.isHidden = true
+  private func descendantWebViews(of root: UIView) -> [WKWebView] {
+    var result: [WKWebView] = []
+    var pending = [root]
+    while let view = pending.popLast() {
+      if let webView = view as? WKWebView {
+        result.append(webView)
+      }
+      pending.append(contentsOf: view.subviews)
+    }
+    return result
   }
 
   private func descendantScrollViews(of root: UIView) -> [UIScrollView] {
@@ -471,8 +466,8 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
     if let epubNavigator = self.navigator {
       enforceScrollModeLayout(epubNavigator.presentation)
+      registerNavigationContentScrollView()
     }
-    hideSystemScrollEdgeEffects()
     if !isReady {
       isReady = true
       onStatus(["stage": "resourceLoaded", "href": locator.href.description])
@@ -491,10 +486,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
 
   func navigator(_ navigator: VisualNavigator, presentationDidChange presentation: VisualNavigatorPresentation) {
     enforceScrollModeLayout(presentation)
-    hideSystemScrollEdgeEffects()
-    DispatchQueue.main.async { [weak self] in
-      self?.hideSystemScrollEdgeEffects()
-    }
+    registerNavigationContentScrollView()
   }
 
   func navigator(_ navigator: VisualNavigator, didTapAt point: CGPoint) {}
@@ -566,9 +558,11 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   }
 
   private func detachNavigator() {
-    scrollEdgeEffectObservations.forEach { $0.invalidate() }
-    scrollEdgeEffectObservations.removeAll()
-    observedScrollEdgeEffectIds.removeAll()
+    if let owner = registeredContentScrollViewOwner {
+      owner.setContentScrollView(nil, for: .top)
+    }
+    registeredContentScrollView = nil
+    registeredContentScrollViewOwner = nil
     if let controller = navigator, let tapObserver {
       controller.removeObserver(tapObserver)
     }
