@@ -1,6 +1,6 @@
 import type { SkParagraph } from '@shopify/react-native-skia';
+import { SKIA_SCENE_RESOURCE_GRACE_MS } from './reader-skia-resource-lifecycle.ts';
 
-const PARAGRAPH_DISPOSAL_DELAY_MS = 80;
 const MAX_CACHED_BLOCKS = 256;
 
 export interface ReaderSkiaScrollParagraphItem {
@@ -76,7 +76,7 @@ export class ReaderSkiaScrollParagraphCache {
       if (this.entries.get(blockId) !== entry) return;
       this.entries.delete(blockId);
       for (const item of entry.bundle.items) item.paragraph.dispose();
-    }, PARAGRAPH_DISPOSAL_DELAY_MS);
+    }, SKIA_SCENE_RESOURCE_GRACE_MS);
   }
 
   private cancelDisposal(entry: ParagraphEntry): void {

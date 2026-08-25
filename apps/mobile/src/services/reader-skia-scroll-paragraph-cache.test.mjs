@@ -2,8 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { ReaderSkiaScrollParagraphCache } from './reader-skia-scroll-paragraph-cache.ts';
+import { SKIA_SCENE_RESOURCE_GRACE_MS } from './reader-skia-resource-lifecycle.ts';
 
-const waitForDisposal = () => new Promise((resolve) => setTimeout(resolve, 100));
+const waitForDisposal = () => new Promise((resolve) => (
+  setTimeout(resolve, SKIA_SCENE_RESOURCE_GRACE_MS + 20)
+));
 
 function createBundle(paragraph) {
   return { items: [{ blockId: 'block', paragraph, xOffset: 0, yOffset: 0, width: 100 }] };

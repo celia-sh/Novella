@@ -5,6 +5,7 @@ import {
   rasterizeReaderImage,
   readerImageRasterizerAvailable,
 } from './native-reader-image-rasterizer';
+import { SKIA_SCENE_RESOURCE_GRACE_MS } from './reader-skia-resource-lifecycle.ts';
 
 type ImageReadyListener = (image: SkImage) => void;
 type ImageErrorListener = (error: Error) => void;
@@ -21,6 +22,7 @@ interface ImageEntry {
   errorListeners: Set<ImageErrorListener>;
   loading: boolean;
   orphaned: boolean;
+  disposalTimer: ReturnType<typeof setTimeout> | null;
   lastUsed: number;
 }
 
@@ -75,11 +77,13 @@ export class ReaderSkiaImagePool {
         errorListeners: new Set(),
         loading: false,
         orphaned: false,
+        disposalTimer: null,
         lastUsed: ++this.usageClock,
       };
       this.entries.set(key, entry);
     }
 
+    this.cancelDisposal(entry);
     entry.refs += 1;
     entry.lastUsed = ++this.usageClock;
     entry.listeners.add(onReady);
@@ -107,6 +111,7 @@ export class ReaderSkiaImagePool {
   retain(image: SkImage): (() => void) | undefined {
     const entry = this.entriesByImage.get(image);
     if (!entry || entry.image !== image || entry.orphaned) return undefined;
+    this.cancelDisposal(entry);
     entry.refs += 1;
     entry.lastUsed = ++this.usageClock;
     let released = false;
@@ -117,31 +122,39 @@ export class ReaderSkiaImagePool {
     };
   }
 
-  /** Dispose every decoded image when its owning chapter is gone. */
+  /** Retire every decoded image when its owning chapter is gone. */
   dispose(): void {
+    if (this.disposed) return;
     this.disposed = true;
+    this.pendingLoads.splice(0, this.pendingLoads.length);
     for (const entry of [...this.entries.values()]) {
       entry.orphaned = true;
-      if (entry.refs === 0 || !entry.image) {
+      if (!entry.image) {
+        // No Skia image has been exposed to a scene yet. The in-flight load,
+        // if any, will dispose its result when it resolves.
         this.disposeEntry(entry);
+      } else if (entry.refs === 0) {
+        this.scheduleDisposal(entry);
       }
     }
-    this.pendingLoads.splice(0, this.pendingLoads.length);
   }
 
   private drainLoads(): void {
     while (this.activeLoads < MAX_CONCURRENT_IMAGE_LOADS) {
+      const staleIndex = this.pendingLoads.findIndex((candidate) => (
+        this.disposed || candidate.orphaned || candidate.refs === 0
+      ));
+      if (staleIndex >= 0) {
+        const [staleEntry] = this.pendingLoads.splice(staleIndex, 1);
+        if (staleEntry) this.disposeEntry(staleEntry);
+        continue;
+      }
+
       const nextIndex = this.pendingLoads.findIndex((candidate) =>
         this.canStartLoad(candidate));
       if (nextIndex < 0) return;
       const [entry] = this.pendingLoads.splice(nextIndex, 1);
       if (!entry) return;
-      if (this.disposed || entry.orphaned || entry.refs === 0) {
-        entry.orphaned = true;
-        entry.loading = false;
-        if (this.entries.get(entry.key) === entry) this.entries.delete(entry.key);
-        continue;
-      }
       this.activeLoads += 1;
       void this.load(entry)
         .catch(() => undefined)
@@ -205,7 +218,8 @@ export class ReaderSkiaImagePool {
     } finally {
       entry.loading = false;
       if (entry.refs === 0 && this.entries.get(entry.key) === entry) {
-        this.disposeEntry(entry);
+        this.scheduleDisposal(entry);
+        this.drainLoads();
       }
     }
   }
@@ -216,15 +230,16 @@ export class ReaderSkiaImagePool {
     if (entry.refs > 0) return;
 
     if (entry.loading) {
-      // Skia.Data.fromURI() and the native thumbnail request have no shared
-      // cancellation hook. Remove the entry now and dispose their result when
-      // the current load resolves.
+      // Skia data loading and the native thumbnail request have no shared
+      // cancellation hook. Remove the entry now; its result was never exposed
+      // to a scene and will be disposed when the current load resolves.
       entry.orphaned = true;
       if (this.entries.get(entry.key) === entry) this.entries.delete(entry.key);
+      this.drainLoads();
       return;
     }
 
-    this.disposeEntry(entry);
+    this.scheduleDisposal(entry);
     this.drainLoads();
   }
 
@@ -240,11 +255,28 @@ export class ReaderSkiaImagePool {
       .sort((left, right) => left.lastUsed - right.lastUsed);
     for (const entry of candidates) {
       if (this.decodedScrollImageBytes <= MAX_SCROLL_IMAGE_BYTES) return;
-      this.disposeEntry(entry);
+      this.scheduleDisposal(entry);
     }
   }
 
+  private scheduleDisposal(entry: ImageEntry): void {
+    if (entry.image === null || entry.disposalTimer !== null) return;
+    entry.disposalTimer = setTimeout(() => {
+      entry.disposalTimer = null;
+      if (entry.refs > 0 || this.entries.get(entry.key) !== entry) return;
+      this.disposeEntry(entry);
+      this.drainLoads();
+    }, SKIA_SCENE_RESOURCE_GRACE_MS);
+  }
+
+  private cancelDisposal(entry: ImageEntry): void {
+    if (entry.disposalTimer === null) return;
+    clearTimeout(entry.disposalTimer);
+    entry.disposalTimer = null;
+  }
+
   private disposeEntry(entry: ImageEntry): void {
+    this.cancelDisposal(entry);
     if (entry.image) {
       this.entriesByImage.delete(entry.image);
       entry.image.dispose();
