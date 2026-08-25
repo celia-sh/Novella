@@ -274,6 +274,10 @@ export function ReaderSkiaTile({
             accessibilityRole="imagebutton"
             onLongPress={openImageOnLongPress ? open : undefined}
             onPress={openImageOnLongPress ? undefined : open}
+            onTouchCancel={(event) => event.stopPropagation()}
+            onTouchEnd={(event) => event.stopPropagation()}
+            onTouchMove={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
             style={({ pressed }) => [{
               height: item.image.height,
               left: item.x,
