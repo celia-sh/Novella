@@ -405,10 +405,10 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     stagePosition,
   );
 
-  // Scroll position management stays on native scroll events; it never drives
-  // layout. A chapter change leaves the old presentation mounted for one
-  // render, so its transient initial callback must not overwrite an explicit
-  // start/end boundary.
+  // Scroll mode reports only viewport-bucket changes to JS; drag/momentum end
+  // events still provide the exact native offset. A chapter change leaves the
+  // old presentation mounted for one render, so its transient initial callback
+  // must not overwrite an explicit start/end boundary.
   const flatListRef = useRef<FlatList<ChapterTile>>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const lastPositionRef = useRef<{ chapterId: number; locator: string } | null>(null);
@@ -426,8 +426,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const [scrollProgressRevision, setScrollProgressRevision] = useState(0);
   activeChapterIdRef.current = content?.chapter.id ?? null;
 
-  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const offset = event.nativeEvent.contentOffset;
+  const updateScrollPosition = useCallback((offset: { x: number; y: number }) => {
     lastScrollOffsetRef.current = offset;
     if (
       !content
@@ -457,6 +456,13 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     }).current - 1;
     setVisiblePageIndex((current) => current === nextPageIndex ? current : nextPageIndex);
   }, [content, layout, mode, presentation?.tiles, readerChapterKey, screenHeight, screenWidth]);
+
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    updateScrollPosition(event.nativeEvent.contentOffset);
+  }, [updateScrollPosition]);
+  const handleViewportChanged = useCallback((y: number) => {
+    updateScrollPosition({ x: 0, y });
+  }, [updateScrollPosition]);
 
   const pageProgress = useMemo(() => resolveNovelPageProgress({
     mode,
@@ -1045,7 +1051,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
                 layout={layout!}
                 onMomentumScrollEnd={handleScrollEnd}
                 onOpenImage={openImagePreview}
-                onScroll={handleScroll}
+                onViewportChanged={handleViewportChanged}
                 onScrollEndDrag={handleScrollEndDrag}
                 onTouchCancel={onTouchCancel}
                 onTouchEnd={onTouchEnd}

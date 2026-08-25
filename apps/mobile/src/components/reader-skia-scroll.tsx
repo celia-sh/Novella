@@ -9,6 +9,13 @@ import {
   type NativeSyntheticEvent,
   type ScrollViewProps,
 } from 'react-native';
+import Animated, {
+  runOnJS,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useDerivedValue,
+  useSharedValue,
+} from 'react-native-reanimated';
 import {
   Canvas,
   Group,
@@ -44,7 +51,7 @@ export interface ReaderSkiaScrollProps {
   viewportWidth: number;
   imageAccessibilityLabel: string;
   scrollViewRef: RefObject<ScrollView | null>;
-  onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  onViewportChanged: (y: number) => void;
   onScrollEndDrag: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   onMomentumScrollEnd: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   onTouchCancel?: ScrollViewProps['onTouchCancel'];
@@ -79,7 +86,7 @@ export function ReaderSkiaScroll({
   viewportWidth,
   imageAccessibilityLabel,
   scrollViewRef,
-  onScroll,
+  onViewportChanged,
   onScrollEndDrag,
   onMomentumScrollEnd,
   onTouchCancel,
@@ -89,17 +96,23 @@ export function ReaderSkiaScroll({
   onOpenImage,
   openImageOnLongPress = false,
 }: ReaderSkiaScrollProps) {
-  const [scrollY, setScrollY] = useState(0);
+  const scrollY = useSharedValue(0);
+  const lastWindowIndex = useSharedValue(0);
+  const [windowIndex, setWindowIndex] = useState(0);
   const paragraphCache = useMemo(
     () => new ReaderSkiaScrollParagraphCache(),
     [fontMgr, generation, layout],
   );
   useEffect(() => () => paragraphCache.dispose(), [paragraphCache]);
 
-  const renderTop = Math.max(0, scrollY - viewportHeight);
-  const renderBottom = scrollY + viewportHeight * 2;
-  const cacheTop = Math.max(0, scrollY - viewportHeight * 3);
-  const cacheBottom = scrollY + viewportHeight * 3;
+  // The UI-thread scroll offset only moves the existing draw/overlay trees.
+  // React rebuilds nearby blocks after a whole viewport bucket changes.
+  const windowHeight = Math.max(1, viewportHeight);
+  const anchorY = windowIndex * windowHeight;
+  const renderTop = Math.max(0, anchorY - windowHeight * 2);
+  const renderBottom = anchorY + windowHeight * 3;
+  const cacheTop = Math.max(0, anchorY - windowHeight * 4);
+  const cacheBottom = anchorY + windowHeight * 5;
   const renderBlocks = useMemo(
     () => selectBlocksInRange(layout.blocks, renderTop, renderBottom),
     [layout.blocks, renderBottom, renderTop],
@@ -219,14 +232,14 @@ export function ReaderSkiaScroll({
         paragraph: item.paragraph,
         width: item.width,
         x: theme.sidePadding + block.x + item.xOffset,
-        y: block.y + item.yOffset - scrollY,
+        y: block.y + item.yOffset,
       }));
     });
-  }, [cacheBlocks, createParagraphBundle, paragraphCache, renderBlocks, scrollY, theme.sidePadding]);
+  }, [cacheBlocks, createParagraphBundle, paragraphCache, renderBlocks, theme.sidePadding]);
 
   const imageBlocks = useMemo<ScrollImageRenderItem[]>(() => renderBlocks.flatMap((block) => {
     const blockX = theme.sidePadding + block.x;
-    const blockY = block.y - scrollY;
+    const blockY = block.y;
     return [
       ...(block.image ? [{
         blockId: block.id,
@@ -241,36 +254,49 @@ export function ReaderSkiaScroll({
         y: blockY + item.y,
       })),
     ];
-  }).filter((item) => {
-    const absoluteY = item.y + scrollY;
-    return absoluteY + item.image.height >= renderTop && absoluteY <= renderBottom;
-  }), [renderBlocks, renderBottom, renderTop, scrollY, theme.sidePadding]);
+  }).filter(
+    (item) => item.y + item.image.height >= renderTop && item.y <= renderBottom,
+  ), [renderBlocks, renderBottom, renderTop, theme.sidePadding]);
 
-  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const nextScrollY = Math.max(0, event.nativeEvent.contentOffset.y);
-    setScrollY((current) => current === nextScrollY ? current : nextScrollY);
-    onScroll(event);
-  }, [onScroll]);
+  const contentTransform = useDerivedValue(() => [{ translateY: -scrollY.value }]);
+  const imageOverlayStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -scrollY.value }],
+  }));
+  const handleViewportBucketChange = useCallback((y: number) => {
+    const nextWindowIndex = Math.floor(y / windowHeight);
+    setWindowIndex((current) => current === nextWindowIndex ? current : nextWindowIndex);
+    onViewportChanged(y);
+  }, [onViewportChanged, windowHeight]);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      const y = Math.max(0, event.contentOffset.y);
+      scrollY.value = y;
+      const nextWindowIndex = Math.floor(y / windowHeight);
+      if (nextWindowIndex === lastWindowIndex.value) return;
+      lastWindowIndex.value = nextWindowIndex;
+      runOnJS(handleViewportBucketChange)(y);
+    },
+  }, [handleViewportBucketChange, windowHeight]);
 
   return (
     <View style={styles.root}>
-      <ScrollView
+      <Animated.ScrollView
         {...{ onTouchCancel, onTouchEnd, onTouchMove, onTouchStart }}
         ref={scrollViewRef}
         contentInsetAdjustmentBehavior="never"
         onMomentumScrollEnd={onMomentumScrollEnd}
-        onScroll={handleScroll}
+        onScroll={scrollHandler}
         onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator
         style={StyleSheet.absoluteFill}
       >
         <View style={{ height: Math.max(1, layout.totalHeight), width: viewportWidth }} />
-      </ScrollView>
+      </Animated.ScrollView>
 
       <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, styles.overlay]}>
         <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <Group>
+          <Group transform={contentTransform}>
             {paragraphItems.map((item) => (
               <Paragraph
                 key={item.blockId}
@@ -293,7 +319,7 @@ export function ReaderSkiaScroll({
             ))}
             {renderBlocks.map((block) => {
               if (block.type !== 'hr') return null;
-              const lineY = block.y - scrollY + block.height / 2;
+              const lineY = block.y + block.height / 2;
               return (
                 <Line
                   key={block.id}
@@ -308,32 +334,42 @@ export function ReaderSkiaScroll({
           </Group>
         </Canvas>
 
-        {imageBlocks.map((item) => (
-          <ReaderScrollNativeImage key={`native:${item.blockId}`} imageLayout={item.image} x={item.x} y={item.y} />
-        ))}
-
-        {onOpenImage ? imageBlocks.filter((item) => item.image.previewable).map((item) => {
-          const open = () => onOpenImage({
-            uri: item.image.url,
-            ...(item.image.alt ? { alt: item.image.alt } : {}),
-          });
-          return (
-            <Pressable
-              key={`hit:${item.blockId}`}
-              accessibilityLabel={item.image.alt || imageAccessibilityLabel}
-              accessibilityRole="imagebutton"
-              onLongPress={openImageOnLongPress ? open : undefined}
-              onPress={openImageOnLongPress ? undefined : open}
-              style={({ pressed }) => [{
-                height: item.image.height,
-                left: item.x,
-                position: 'absolute',
-                top: item.y,
-                width: item.image.width,
-              }, pressed ? styles.imagePressed : null]}
+        <Animated.View
+          pointerEvents="box-none"
+          style={[StyleSheet.absoluteFill, imageOverlayStyle]}
+        >
+          {imageBlocks.map((item) => (
+            <ReaderScrollNativeImage
+              key={`native:${item.blockId}`}
+              imageLayout={item.image}
+              x={item.x}
+              y={item.y}
             />
-          );
-        }) : null}
+          ))}
+
+          {onOpenImage ? imageBlocks.filter((item) => item.image.previewable).map((item) => {
+            const open = () => onOpenImage({
+              uri: item.image.url,
+              ...(item.image.alt ? { alt: item.image.alt } : {}),
+            });
+            return (
+              <Pressable
+                key={`hit:${item.blockId}`}
+                accessibilityLabel={item.image.alt || imageAccessibilityLabel}
+                accessibilityRole="imagebutton"
+                onLongPress={openImageOnLongPress ? open : undefined}
+                onPress={openImageOnLongPress ? undefined : open}
+                style={({ pressed }) => [{
+                  height: item.image.height,
+                  left: item.x,
+                  position: 'absolute',
+                  top: item.y,
+                  width: item.image.width,
+                }, pressed ? styles.imagePressed : null]}
+              />
+            );
+          }) : null}
+        </Animated.View>
       </View>
     </View>
   );
