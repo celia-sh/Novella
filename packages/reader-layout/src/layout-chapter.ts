@@ -41,6 +41,7 @@ import type {
 import {
   createRenderableParagraphText,
   decodeReaderLayoutTextEntities,
+  READER_FIRST_LINE_INDENT,
   READER_LINE_BREAK_OPPORTUNITY,
   shouldAddLineBreakOpportunityBetween,
 } from './text-layout';
@@ -247,7 +248,8 @@ function layoutTextBlock(input: LayoutTextBlockInput): LayoutBlock {
     && (style.textIndent ?? 0) > 0
     && hasVisibleText;
   const markerText = sourceBlock.listMarker ? `${sourceBlock.listMarker}\u00A0` : '';
-  const content = `${markerText}${parsed.text}` || ' ';
+  const firstLineIndentAlreadyPresent = markerText.length === 0
+    && parsed.text.startsWith(READER_FIRST_LINE_INDENT);
   const paragraphSpec = {
     color,
     fontFamily,
@@ -273,13 +275,13 @@ function layoutTextBlock(input: LayoutTextBlockInput): LayoutBlock {
     maxImageHeight,
   });
   const textDraft: TextBlockData = {
-    content,
     fontSize,
     lineHeight,
     color,
     fontFamily,
     textAlign,
     firstLineIndent,
+    ...(firstLineIndentAlreadyPresent ? { firstLineIndentAlreadyPresent: true } : {}),
     measuredHeight: 0,
     ...(style.fontWeight ? { fontWeight: style.fontWeight } : {}),
     ...(style.fontStyle ? { fontStyle: style.fontStyle } : {}),

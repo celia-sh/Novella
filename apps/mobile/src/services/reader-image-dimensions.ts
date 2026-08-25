@@ -71,13 +71,21 @@ export function rememberReaderImageDimensions(
 }
 
 export function extractReaderImageSources(html: string): string[] {
+  return extractReaderImageSourcesFromHtmlBlocks([html]);
+}
+
+export function extractReaderImageSourcesFromHtmlBlocks(
+  htmlBlocks: readonly string[],
+): string[] {
   const sources = new Set<string>();
   const imagePattern = /<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["'][^>]*>/giu;
-  let match: RegExpExecArray | null;
-  while ((match = imagePattern.exec(html)) !== null) {
-    const source = match[1]?.trim();
-    if (source) sources.add(source);
-  }
+  htmlBlocks.forEach((html) => {
+    let match: RegExpExecArray | null;
+    while ((match = imagePattern.exec(html)) !== null) {
+      const source = match[1]?.trim();
+      if (source) sources.add(source);
+    }
+  });
   return [...sources];
 }
 
@@ -100,13 +108,24 @@ function getExplicitDimensions(html: string, source: string): ReaderImageDimensi
 export function getKnownReaderImageDimensions(
   html: string,
 ): Record<string, ReaderImageDimensions> {
-  return Object.fromEntries(extractReaderImageSources(html).flatMap((source) => {
-    const uri = resolveReaderImageUrl(source);
-    const dimensions = getExplicitDimensions(html, source) ?? dimensionsCache.get(uri);
-    if (!dimensions) return [];
-    rememberReaderImageDimensions(uri, dimensions);
-    return [[source, dimensions] as const];
-  }));
+  return getKnownReaderImageDimensionsFromHtmlBlocks([html]);
+}
+
+export function getKnownReaderImageDimensionsFromHtmlBlocks(
+  htmlBlocks: readonly string[],
+): Record<string, ReaderImageDimensions> {
+  const dimensionsBySource = new Map<string, ReaderImageDimensions>();
+  htmlBlocks.forEach((html) => {
+    extractReaderImageSources(html).forEach((source) => {
+      if (dimensionsBySource.has(source)) return;
+      const uri = resolveReaderImageUrl(source);
+      const dimensions = getExplicitDimensions(html, source) ?? dimensionsCache.get(uri);
+      if (!dimensions) return;
+      rememberReaderImageDimensions(uri, dimensions);
+      dimensionsBySource.set(source, dimensions);
+    });
+  });
+  return Object.fromEntries(dimensionsBySource);
 }
 
 function isReaderImageDimensions(value: unknown): value is ReaderImageDimensions {

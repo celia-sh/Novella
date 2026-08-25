@@ -35,7 +35,8 @@ export interface LayoutBlock {
  * This is what gets stored in LayoutBlock instead of the Paragraph itself.
  */
 export interface TextBlockData {
-  content: string; // Plain text content
+  /** Optional legacy fallback text; rich-text layout stores paragraphRuns instead. */
+  content?: string;
   fontSize: number;
   /** CSS/Flutter-style line-height multiplier (for example, 1.6). */
   lineHeight: number;
@@ -46,6 +47,8 @@ export interface TextBlockData {
   fontStyle?: 'normal' | 'italic';
   /** Whether rendering prepends exactly two full-width CJK spaces. */
   firstLineIndent: boolean;
+  /** True when the source already begins with the two indent cells. */
+  firstLineIndentAlreadyPresent?: boolean;
   /** Inline content used to recreate text + ruby placeholders during paint. */
   paragraphRuns?: ParagraphRun[];
   // Measured metrics from temporary Paragraph

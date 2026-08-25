@@ -136,19 +136,20 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     () => (content ? processNovelFootnotes(chapterHtml) : { html: chapterHtml, notesById: {} }),
     [content, chapterHtml],
   );
-  const sourceBlocks = useMemo(
-    () => (content ? normalizeNovelBlocks(footnotes.html, undefined, { sanitize: false }) : []),
-    [content, footnotes.html],
-  );
-  const blocks = useMemo(
-    () => inlineNovelFootnotesAfterBlocks(sourceBlocks, footnotes.notesById),
-    [footnotes.notesById, sourceBlocks],
-  );
-  const imageDimensionHtml = useMemo(
-    () => blocks.map((block) => block.html).join('\n'),
+  const blocks = useMemo(() => {
+    if (!content) return [];
+    const sourceBlocks = normalizeNovelBlocks(
+      footnotes.html,
+      undefined,
+      { sanitize: false },
+    );
+    return inlineNovelFootnotesAfterBlocks(sourceBlocks, footnotes.notesById);
+  }, [content, footnotes.html, footnotes.notesById]);
+  const imageHtmlBlocks = useMemo(
+    () => blocks.map((block) => block.html),
     [blocks],
   );
-  const imageGeometry = useReaderImageDimensions(imageDimensionHtml);
+  const imageGeometry = useReaderImageDimensions(imageHtmlBlocks);
 
   // Calculate colors and insets before layout
   const colorScheme = useAppColorScheme();

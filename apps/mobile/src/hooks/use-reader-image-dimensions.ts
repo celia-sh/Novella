@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import {
-  extractReaderImageSources,
-  getKnownReaderImageDimensions,
+  extractReaderImageSourcesFromHtmlBlocks,
+  getKnownReaderImageDimensionsFromHtmlBlocks,
   hydrateReaderImageDimensions,
   type ReaderImageDimensions,
 } from '@/services/reader-image-dimensions';
@@ -11,42 +11,48 @@ import {
  * Hydrates geometry metadata only. Image pixels are loaded by visible
  * `expo-image` instances and never gate paged chapter display.
  */
-export function useReaderImageDimensions(html: string) {
-  const sources = useMemo(() => extractReaderImageSources(html), [html]);
-  const immediateDimensions = useMemo(() => getKnownReaderImageDimensions(html), [html]);
+export function useReaderImageDimensions(htmlBlocks: readonly string[]) {
+  const sources = useMemo(
+    () => extractReaderImageSourcesFromHtmlBlocks(htmlBlocks),
+    [htmlBlocks],
+  );
+  const immediateDimensions = useMemo(
+    () => getKnownReaderImageDimensionsFromHtmlBlocks(htmlBlocks),
+    [htmlBlocks],
+  );
   const [state, setState] = useState<{
     dimensions: Record<string, ReaderImageDimensions>;
-    html: string;
+    htmlBlocks: readonly string[];
     ready: boolean;
-  }>({ dimensions: {}, html: '', ready: false });
+  }>({ dimensions: {}, htmlBlocks: [], ready: false });
 
   useEffect(() => {
     let cancelled = false;
     if (sources.length === 0) {
-      setState({ dimensions: {}, html, ready: true });
+      setState({ dimensions: {}, htmlBlocks, ready: true });
       return () => {
         cancelled = true;
       };
     }
 
-    setState({ dimensions: immediateDimensions, html, ready: false });
+    setState({ dimensions: immediateDimensions, htmlBlocks, ready: false });
     void hydrateReaderImageDimensions().then(() => {
       if (cancelled) return;
       setState({
-        dimensions: getKnownReaderImageDimensions(html),
-        html,
+        dimensions: getKnownReaderImageDimensionsFromHtmlBlocks(htmlBlocks),
+        htmlBlocks,
         ready: true,
       });
     });
     return () => {
       cancelled = true;
     };
-  }, [html, immediateDimensions, sources.length]);
+  }, [htmlBlocks, immediateDimensions, sources.length]);
 
   return {
-    dimensions: state.html === html ? state.dimensions : immediateDimensions,
+    dimensions: state.htmlBlocks === htmlBlocks ? state.dimensions : immediateDimensions,
     hasImages: sources.length > 0,
-    isReady: state.html === html && state.ready,
+    isReady: state.htmlBlocks === htmlBlocks && state.ready,
     total: sources.length,
   };
 }

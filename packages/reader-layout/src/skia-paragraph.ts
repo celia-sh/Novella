@@ -105,13 +105,13 @@ export function addTextBlockToParagraphBuilder(
 ): void {
   const runs = text.paragraphRuns;
   if (!runs) {
-    builder.addText(createRenderableParagraphText(text.content, text.firstLineIndent));
+    builder.addText(createRenderableParagraphText(text.content ?? ' ', text.firstLineIndent));
     return;
   }
 
   if (
     text.firstLineIndent
-    && !text.content.startsWith(READER_FIRST_LINE_INDENT)
+    && !text.firstLineIndentAlreadyPresent
   ) {
     builder.addText(READER_FIRST_LINE_INDENT);
   }
