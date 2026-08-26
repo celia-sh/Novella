@@ -9,10 +9,11 @@ import {
   normalizeThemeSeed,
   type MaterialSchemeVariant,
 } from '@/theme/material-theme';
+import type { BookColorProfile } from '@/theme/book-detail-profile';
+
+export type { BookColorProfile } from '@/theme/book-detail-profile';
 
 const BASE83 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[]^_{|}~';
-
-export type BookColorProfile = 'dark' | 'light' | 'oledBlack';
 
 export interface BookDetailPalette {
   background: string;

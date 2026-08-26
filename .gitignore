@@ -46,15 +46,10 @@ apps/mobile/.expo/
 apps/mobile/android/
 apps/mobile/ios/
 
-# Android and iOS local output
-**/.gradle/
-**/local.properties
-**/captures/
+# iOS local output
 **/build/
 **/Pods/
 **/DerivedData/
-**/*.keystore
-**/*.jks
 **/*.p12
 **/*.mobileprovision
 **/*.cer

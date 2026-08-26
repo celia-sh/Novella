@@ -1,7 +1,7 @@
 import { DomUtils, parseDOM } from 'htmlparser2';
 import type { NovelReaderBlock } from '@novella/reader-engine';
 
-import { chapterHrefFor } from './reader-xhtml-builder.ts';
+import { chapterHrefFor } from './reader-xhtml.ts';
 
 type ReadiumHtmlNode = ReturnType<typeof parseDOM>[number];
 

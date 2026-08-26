@@ -980,7 +980,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           getItemLayout={(_, index) => scrollLayouts[index] ?? { index, length: continuousContentWidth * 1.5, offset: 0 }}
           initialNumToRender={3}
           maxToRenderPerBatch={3}
-          removeClippedSubviews={process.env.EXPO_OS === 'android'}
           renderItem={({ item }) => {
             const displaySize = item.segmentCount > 1
               ? { height: item.segmentHeight, width: item.segmentWidth }
@@ -1031,7 +1030,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       )}
       </View>
       <ReaderNavigation
-        backgroundColor={colors.background as string}
         chromeHidden={chromeHidden}
         foregroundColor={colors.label as string}
         onOpenChapters={openChapters}
@@ -1188,7 +1186,7 @@ function ComicPage({
       allowDownscaling
       cachePolicy="memory-disk"
       contentFit="contain"
-      enforceEarlyResizing={process.env.EXPO_OS === 'ios'}
+      enforceEarlyResizing
       onError={() => setFailedImageUri(image.url)}
       placeholderContentFit="contain"
       priority={priority}

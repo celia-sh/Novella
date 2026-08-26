@@ -186,11 +186,11 @@ const useShelfActionSheetStyles = createThemedStyles((colors) => ({
   },
   disabled: { opacity: 0.45 },
   formContent: {
-    backgroundColor: process.env.EXPO_OS === 'android' ? 'transparent' : colors.surface,
+    backgroundColor: colors.surface,
     gap: 16,
     paddingBottom: 28,
     paddingHorizontal: 24,
-    paddingTop: process.env.EXPO_OS === 'android' ? 12 : 28,
+    paddingTop: 28,
   },
   heading: { gap: 5 },
   input: {
@@ -206,12 +206,10 @@ const useShelfActionSheetStyles = createThemedStyles((colors) => ({
     gap: 16,
     paddingBottom: 32,
     paddingHorizontal: 24,
-    paddingTop: process.env.EXPO_OS === 'android' ? 12 : 28,
+    paddingTop: 28,
   },
   pressed: { opacity: 0.68 },
-  root: {
-    backgroundColor: process.env.EXPO_OS === 'android' ? 'transparent' : colors.surface,
-  },
+  root: { backgroundColor: colors.surface },
   submitButton: {
     alignItems: 'center',
     borderRadius: 20,

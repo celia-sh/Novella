@@ -1,27 +1,82 @@
-import { forwardRef, useImperativeHandle } from 'react';
-import { View } from 'react-native';
+import {
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+  type ForwardRefExoticComponent,
+  type RefAttributes,
+} from 'react';
+import { requireNativeView } from 'expo';
+import type { ViewProps } from 'react-native';
 
 import type {
   NovellaReadiumViewHandle,
   NovellaReadiumViewProps,
+  ReadiumBoundaryEvent,
+  ReadiumImageEvent,
+  ReadiumLinkEvent,
+  ReadiumLocator,
+  ReadiumReaderError,
+  ReadiumStatusEvent,
+  ReadiumTapEvent,
 } from './novella-readium.types';
 
-/**
- * Readium is intentionally iOS-only for now. Keeping a no-op view here lets
- * Android resolve the shared TypeScript module without loading an unregistered
- * native view; the reader screen presents its unsupported-platform state.
- */
+type NativeViewHandle = {
+  getCurrentLocator(): Promise<ReadiumLocator | null>;
+  goBackward(): Promise<boolean>;
+  goForward(): Promise<boolean>;
+  goToLocator(locator: ReadiumLocator): Promise<boolean>;
+  goToProgression(progression: number): Promise<boolean>;
+};
+
+type NativeViewProps = ViewProps &
+  Omit<
+    NovellaReadiumViewProps,
+    'onBoundary' | 'onError' | 'onImage' | 'onLink' | 'onLocatorChange' | 'onReady' | 'onStatus' | 'onTap'
+  > & {
+    onBoundary?: (event: { nativeEvent: ReadiumBoundaryEvent }) => void;
+    onError?: (event: { nativeEvent: ReadiumReaderError }) => void;
+    onImage?: (event: { nativeEvent: ReadiumImageEvent }) => void;
+    onLink?: (event: { nativeEvent: ReadiumLinkEvent }) => void;
+    onLocatorChange?: (event: { nativeEvent: ReadiumLocator }) => void;
+    onReady?: (event: { nativeEvent: Record<string, never> }) => void;
+    onStatus?: (event: { nativeEvent: ReadiumStatusEvent }) => void;
+    onTap?: (event: { nativeEvent: ReadiumTapEvent }) => void;
+  };
+
+const NativeView = requireNativeView<NativeViewProps>('NovellaReadium', 'Reader');
+const NativeViewWithRef = NativeView as unknown as ForwardRefExoticComponent<
+  NativeViewProps & RefAttributes<NativeViewHandle>
+>;
+
 export const NovellaReadiumView = forwardRef<
   NovellaReadiumViewHandle,
   NovellaReadiumViewProps
->(function NovellaReadiumView({ style }, ref) {
+>(function NovellaReadiumView(
+  { onBoundary, onError, onImage, onLink, onLocatorChange, onReady, onStatus, onTap, ...props },
+  ref,
+) {
+  const nativeRef = useRef<NativeViewHandle | null>(null);
+
   useImperativeHandle(ref, () => ({
-    getCurrentLocator: () => Promise.resolve(null),
-    goBackward: () => Promise.resolve(false),
-    goForward: () => Promise.resolve(false),
-    goToLocator: () => Promise.resolve(false),
-    goToProgression: () => Promise.resolve(false),
+    getCurrentLocator: () => nativeRef.current?.getCurrentLocator() ?? Promise.resolve(null),
+    goBackward: () => nativeRef.current?.goBackward() ?? Promise.resolve(false),
+    goForward: () => nativeRef.current?.goForward() ?? Promise.resolve(false),
+    goToLocator: (locator) => nativeRef.current?.goToLocator(locator) ?? Promise.resolve(false),
+    goToProgression: (progression) => nativeRef.current?.goToProgression(progression) ?? Promise.resolve(false),
   }), []);
 
-  return <View style={style} />;
+  return (
+    <NativeViewWithRef
+      {...props}
+      ref={nativeRef}
+      {...(onBoundary ? { onBoundary: ({ nativeEvent }) => onBoundary(nativeEvent) } : {})}
+      {...(onError ? { onError: ({ nativeEvent }) => onError(nativeEvent) } : {})}
+      {...(onImage ? { onImage: ({ nativeEvent }) => onImage(nativeEvent) } : {})}
+      {...(onLink ? { onLink: ({ nativeEvent }) => onLink(nativeEvent) } : {})}
+      {...(onLocatorChange ? { onLocatorChange: ({ nativeEvent }) => onLocatorChange(nativeEvent) } : {})}
+      {...(onReady ? { onReady: () => onReady() } : {})}
+      {...(onStatus ? { onStatus: ({ nativeEvent }) => onStatus(nativeEvent) } : {})}
+      {...(onTap ? { onTap: ({ nativeEvent }) => onTap(nativeEvent) } : {})}
+    />
+  );
 });

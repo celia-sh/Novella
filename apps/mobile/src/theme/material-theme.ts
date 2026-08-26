@@ -13,21 +13,21 @@ import {
   type DynamicScheme,
 } from '@material/material-color-utilities';
 
-export const DEFAULT_THEME_SEED = '#B71C1C';
+import {
+  DEFAULT_THEME_SEED,
+  isMaterialSchemeVariant,
+  isThemeSeed,
+  MATERIAL_SCHEME_VARIANTS,
+  type MaterialSchemeVariant,
+} from './material-theme-values';
 
-export const MATERIAL_SCHEME_VARIANTS = [
-  'tonalSpot',
-  'fidelity',
-  'content',
-  'monochrome',
-  'neutral',
-  'vibrant',
-  'expressive',
-  'rainbow',
-  'fruitSalad',
-] as const;
-
-export type MaterialSchemeVariant = (typeof MATERIAL_SCHEME_VARIANTS)[number];
+export {
+  DEFAULT_THEME_SEED,
+  isMaterialSchemeVariant,
+  isThemeSeed,
+  MATERIAL_SCHEME_VARIANTS,
+  type MaterialSchemeVariant,
+} from './material-theme-values';
 
 export function createMaterialScheme({
   isDark,
@@ -60,15 +60,6 @@ export function createMaterialScheme({
     case 'tonalSpot':
       return new SchemeTonalSpot(sourceColor, isDark, 0);
   }
-}
-
-export function isMaterialSchemeVariant(value: unknown): value is MaterialSchemeVariant {
-  return typeof value === 'string'
-    && (MATERIAL_SCHEME_VARIANTS as readonly string[]).includes(value);
-}
-
-export function isThemeSeed(value: unknown): value is string {
-  return typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value);
 }
 
 export function normalizeThemeSeed(value: string): string {

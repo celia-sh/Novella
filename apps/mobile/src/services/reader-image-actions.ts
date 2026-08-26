@@ -1,15 +1,13 @@
 import { File, Paths } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
-import { Platform, Share } from 'react-native';
+import { Share } from 'react-native';
 
 import { resolveReaderImageUrl } from '@/services/reader-image-dimensions';
 import {
   resolveReaderImageFormat,
   type ReaderImageFormat,
 } from '@/services/reader-image-format';
-
-export const READER_IMAGE_ALBUM_NAME = 'Novella';
 
 export type ReaderImageActionErrorCode =
   | 'invalid-url'
@@ -32,7 +30,6 @@ export class ReaderImageActionError extends Error {
 
 interface DownloadedReaderImage {
   file: File;
-  fileName: string;
   format: ReaderImageFormat;
 }
 
@@ -40,9 +37,7 @@ interface DownloadedReaderImage {
 export async function saveReaderImage(imageUrl: string): Promise<void> {
   let permission: MediaLibrary.PermissionResponse;
   try {
-    permission = Platform.OS === 'android'
-      ? await MediaLibrary.requestPermissionsAsync(true, [])
-      : await MediaLibrary.requestPermissionsAsync(true);
+    permission = await MediaLibrary.requestPermissionsAsync(true);
   } catch (error) {
     throw mapSaveError(error);
   }
@@ -52,20 +47,10 @@ export async function saveReaderImage(imageUrl: string): Promise<void> {
 
   const downloaded = await downloadReaderImage(imageUrl);
   try {
-    if (Platform.OS === 'ios') {
-      // PHPhotoLibrary add-only access can create an asset, but album lookup
-      // and album mutation require full read/write access. Keep the privacy
-      // contract and save to the library without reading existing albums.
-      await MediaLibrary.Asset.create(downloaded.file.uri);
-    } else {
-      // Android's MediaStore can place a new file directly in the album path
-      // without requesting READ_MEDIA_* access.
-      await MediaLibrary.Album.create(
-        READER_IMAGE_ALBUM_NAME,
-        [downloaded.file.uri],
-        true,
-      );
-    }
+    // PHPhotoLibrary add-only access can create an asset, but album lookup
+    // and album mutation require full read/write access. Keep the privacy
+    // contract and save to the library without reading existing albums.
+    await MediaLibrary.Asset.create(downloaded.file.uri);
   } catch (error) {
     throw mapSaveError(error);
   } finally {
@@ -109,9 +94,9 @@ export async function shareReaderImage(imageUrl: string, shareTitle: string): Pr
     if (error instanceof ReaderImageActionError) throw error;
     throw new ReaderImageActionError('share-failed', getErrorMessage(error));
   } finally {
-    // Android share targets can read the content URI after shareAsync resolves;
+    // The share sheet may still be opening the file after shareAsync resolves;
     // leave a successful share file in cache briefly instead of deleting it
-    // while the receiving app is still opening it.
+    // during hand-off.
     if (handedToShareSheet) {
       scheduleDownloadedReaderImageCleanup(downloaded);
     } else {
@@ -163,7 +148,7 @@ async function downloadReaderImage(imageUrl: string): Promise<DownloadedReaderIm
     throw new ReaderImageActionError('download-failed', getErrorMessage(error));
   }
 
-  return { file, fileName, format };
+  return { file, format };
 }
 
 async function shareReaderImageUrl(imageUrl: string, shareTitle: string): Promise<void> {

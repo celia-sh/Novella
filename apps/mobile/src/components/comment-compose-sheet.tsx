@@ -66,11 +66,7 @@ export function CommentComposeSheet({
         keyboardShouldPersistTaps="handled"
         style={[
           styles.root,
-          {
-            backgroundColor: process.env.EXPO_OS === 'android'
-              ? 'transparent'
-              : palette.surface,
-          },
+          { backgroundColor: palette.surface },
         ]}
       >
         <TextInput

@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingBottom: 16,
     paddingHorizontal: 8,
-    paddingTop: process.env.EXPO_OS === 'android' ? 0 : 12,
+    paddingTop: 12,
   },
   headingTitle: { fontSize: 17, fontWeight: '700', lineHeight: 22 },
 });

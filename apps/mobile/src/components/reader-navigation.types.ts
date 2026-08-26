@@ -1,7 +1,6 @@
 import type { StatusBarStyle } from 'react-native';
 
 export interface ReaderNavigationProps {
-  backgroundColor: string;
   forceLightAppearance?: boolean;
   foregroundColor: string;
   statusBarStyle: StatusBarStyle;
@@ -12,7 +11,6 @@ export interface ReaderNavigationProps {
 }
 
 export interface ReaderChapterNavigationProps {
-  backgroundColor?: string;
   direction?: 'ltr' | 'rtl';
   onPageProgressChange: (progress: number) => void;
   pageCurrent: number;

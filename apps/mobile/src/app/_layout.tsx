@@ -1,7 +1,7 @@
 import '../global.css';
 
-import { HeroUINativeProvider } from 'heroui-native';
 import { ToastProvider } from '@celia-sh/react-native-pretty-toast';
+import { HeroUINativeProvider } from 'heroui-native';
 import {
   DarkTheme,
   DefaultTheme,
@@ -9,15 +9,14 @@ import {
 } from 'expo-router/react-navigation';
 import { Stack } from 'expo-router/stack';
 import { StatusBar } from 'expo-status-bar';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 
 import { BookDetailThemeProvider } from '@/components/book-detail-theme-provider';
 import { ClientSessionFeedback } from '@/components/client-session-feedback';
 import { AppLocalizationProvider } from '@/localization/localization-provider';
-import { NativeAlertHost } from '@/components/native-alert-dialog';
 import { useAuthentication } from '@/hooks/use-authentication';
 import { hasStoredSession, startClient } from '@/services/client';
 import { loadAppSettings } from '@/services/settings';
@@ -28,7 +27,6 @@ import { useSystemScreenStackPreset } from '@/theme/stack-preset';
 // at module scope so the route decision (app vs sign-in welcome) is typically
 // ready before the first frame paints. The splash shows the logo normally and
 // auto-hides; it is never used to cover up a routing transition.
-
 const sessionProbe = Promise.all([hasStoredSession(), loadAppSettings()]);
 
 export default function RootLayout() {
@@ -51,7 +49,6 @@ function RootLayoutContent() {
   const { t: tAuth } = useTranslation('auth');
   const { colorScheme, colors } = useAppTheme();
   const systemScreenStackPreset = useSystemScreenStackPreset();
-  const usesComposeBottomSheets = process.env.EXPO_OS === 'android';
   // False until the local session probe resolves. The probe decides the very
   // first rendered screen, so a logged-in user never passes through the
   // welcome page and a first-install user goes straight to the welcome page.
@@ -70,7 +67,7 @@ function RootLayoutContent() {
     };
   }, []);
 
-  // Session init (token refresh + signalR) is a background concern shared by
+  // Session init (token refresh + SignalR) is a background concern shared by
   // both entry surfaces: the welcome page (first install) and the home page
   // (logged-in, which shows its existing skeletons meanwhile). A failed
   // refresh clears credentials and flips the guard back to the welcome page;
@@ -96,235 +93,195 @@ function RootLayoutContent() {
       <View style={[styles.blankRoot, { backgroundColor: colors.background }]} />
     );
   }
+
   return (
-    <>
-      <HeroUINativeProvider config={heroUIConfig}>
-        <ThemeProvider value={navigationTheme}>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-      <BookDetailThemeProvider>
-        <Stack screenOptions={systemScreenStackPreset}>
-          <Stack.Protected guard={hasAuthenticatedSession}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="settings" options={{ headerShown: false }} />
-          <Stack.Screen name="book/[id]" options={{ title: '' }} />
-          <Stack.Screen
-            name="quick-search"
-            options={{
-              headerLargeTitle: !usesComposeBottomSheets,
-              headerShown: !usesComposeBottomSheets,
-              title: t('routes.search'),
-            }}
-          />
-          <Stack.Screen name="book/[id]/comments" options={{ headerShown: !usesComposeBottomSheets, title: t('routes.comments') }} />
-          <Stack.Screen name="announcements" options={{ headerShown: !usesComposeBottomSheets, title: t('routes.announcements') }} />
-          <Stack.Screen name="announcement/[source]/[id]" options={{ headerShown: !usesComposeBottomSheets, title: '' }} />
-          <Stack.Screen name="books" options={{ headerShown: !usesComposeBottomSheets, title: t('routes.allNovels') }} />
-          <Stack.Screen name="comics" options={{ headerShown: !usesComposeBottomSheets, title: t('routes.allComics') }} />
-          <Stack.Screen name="ranking" options={{ headerShown: !usesComposeBottomSheets, title: t('routes.rankings') }} />
-          <Stack.Screen
-            name="shelf/folder"
-            options={{
-              headerLargeTitle: false,
-              headerShown: !usesComposeBottomSheets,
-              title: t('routes.folder'),
-            }}
-          />
-          <Stack.Screen
-            name="shelf/action"
-            options={{
-              ...(usesComposeBottomSheets
-                ? {
-                    animation: 'none',
-                    contentStyle: { backgroundColor: 'transparent' },
-                  }
-                : {
-                    sheetAllowedDetents: 'fitToContents',
-                    sheetGrabberVisible: true,
-                  }),
-              headerShown: false,
-              presentation: usesComposeBottomSheets ? 'transparentModal' : 'formSheet',
-              title: '',
-            }}
-          />
-          <Stack.Screen
-            name="announcement/comment-compose"
-            options={{
-              ...(usesComposeBottomSheets
-                ? {
-                    animation: 'none',
-                    contentStyle: { backgroundColor: 'transparent' },
-                  }
-                : {
-                    sheetAllowedDetents: 'fitToContents',
-                    sheetGrabberVisible: false,
-                  }),
-              headerShown: false,
-              presentation: usesComposeBottomSheets ? 'transparentModal' : 'formSheet',
-              title: '',
-            }}
-          />
-          <Stack.Screen
-            name="book/[id]/comment-compose"
-            options={{
-              ...(usesComposeBottomSheets
-                ? {
-                    animation: 'none',
-                    contentStyle: { backgroundColor: 'transparent' },
-                  }
-                : {
-                    sheetAllowedDetents: 'fitToContents',
-                    sheetGrabberVisible: false,
-                  }),
-              headerShown: false,
-              presentation: usesComposeBottomSheets ? 'transparentModal' : 'formSheet',
-              title: '',
-            }}
-          />
-          <Stack.Screen
-            name="book/[id]/introduction"
-            options={{
-              ...(usesComposeBottomSheets
-                ? {
-                    animation: 'none',
-                    contentStyle: { backgroundColor: 'transparent' },
-                  }
-                : {
-                    sheetAllowedDetents: [0.75, 1],
-                    sheetGrabberVisible: true,
-                    sheetInitialDetentIndex: 0,
-                  }),
-              headerShown: false,
-              presentation: usesComposeBottomSheets ? 'transparentModal' : 'formSheet',
-              title: '',
-            }}
-          />
-          <Stack.Screen
-            name="book/[id]/tags"
-            options={{
-              ...(usesComposeBottomSheets
-                ? {
-                    animation: 'none',
-                    contentStyle: { backgroundColor: 'transparent' },
-                  }
-                : {
-                    sheetAllowedDetents: 'fitToContents',
-                    sheetGrabberVisible: true,
-                  }),
-              headerShown: false,
-              presentation: usesComposeBottomSheets ? 'transparentModal' : 'formSheet',
-              title: '',
-            }}
-          />
-          <Stack.Screen
-            name="book/[id]/uploader"
-            options={{
-              ...(usesComposeBottomSheets
-                ? {
-                    animation: 'none',
-                    contentStyle: { backgroundColor: 'transparent' },
-                  }
-                : {
-                    sheetAllowedDetents: 'fitToContents',
-                    sheetGrabberVisible: true,
-                  }),
-              headerShown: false,
-              presentation: usesComposeBottomSheets ? 'transparentModal' : 'formSheet',
-              title: '',
-            }}
-          />
-          <Stack.Screen
-            name="book/[id]/versions"
-            options={{
-              ...(usesComposeBottomSheets
-                ? {
-                    animation: 'none',
-                    contentStyle: { backgroundColor: 'transparent' },
-                  }
-                : {
-                    sheetAllowedDetents: [0.6, 1],
-                    sheetGrabberVisible: true,
-                    sheetInitialDetentIndex: 0,
-                  }),
-              headerShown: false,
-              presentation: usesComposeBottomSheets ? 'transparentModal' : 'formSheet',
-              title: '',
-            }}
-          />
-          <Stack.Screen
-            name="reader/[bookId]/[sortNum]"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="reader/[bookId]/chapters"
-            options={{
-              ...(usesComposeBottomSheets
-                ? {
-                    animation: 'none',
-                    contentStyle: { backgroundColor: 'transparent' },
-                  }
-                : {
-                    sheetAllowedDetents: [0.5, 1],
-                    sheetGrabberVisible: true,
-                    sheetInitialDetentIndex: 0,
-                  }),
-              headerShown: false,
-              presentation: usesComposeBottomSheets ? 'transparentModal' : 'formSheet',
-              title: t('routes.chapters'),
-            }}
-          />
-          <Stack.Screen
-            name="reader/[bookId]/settings"
-            options={{
-              ...(usesComposeBottomSheets
-                ? {
-                    animation: 'none',
-                    contentStyle: { backgroundColor: 'transparent' },
-                  }
-                : {
-                    sheetAllowedDetents: [0.5, 1],
-                    sheetGrabberVisible: true,
-                    sheetInitialDetentIndex: 0,
-                  }),
-              headerShown: false,
-              presentation: usesComposeBottomSheets ? 'transparentModal' : 'formSheet',
-              title: t('routes.reading'),
-            }}
-          />
-          <Stack.Screen
-            name="reader/[bookId]/footnote"
-            options={{
-              ...(usesComposeBottomSheets
-                ? {
-                    animation: 'none',
-                    contentStyle: { backgroundColor: 'transparent' },
-                  }
-                : {
-                    sheetAllowedDetents: [0.5, 1],
-                    sheetGrabberVisible: true,
-                    sheetInitialDetentIndex: 0,
-                  }),
-              headerShown: false,
-              presentation: usesComposeBottomSheets ? 'transparentModal' : 'formSheet',
-              title: t('routes.footnote'),
-            }}
-          />
-          </Stack.Protected>
-          <Stack.Protected guard={!hasAuthenticatedSession}>
-            <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-            <Stack.Screen name="sign-in/credentials" options={{ headerShown: !usesComposeBottomSheets, title: tAuth('navigation.signIn') }} />
-            <Stack.Screen name="register" options={{ headerShown: !usesComposeBottomSheets, title: tAuth('navigation.register') }} />
-            <Stack.Screen name="register/verify" options={{ headerShown: !usesComposeBottomSheets, title: tAuth('navigation.register') }} />
-            <Stack.Screen name="reset-password" options={{ headerShown: !usesComposeBottomSheets, title: tAuth('navigation.recover') }} />
-            <Stack.Screen name="reset-password/verify" options={{ headerShown: !usesComposeBottomSheets, title: tAuth('navigation.recover') }} />
-            <Stack.Screen name="reset-password/new-password" options={{ headerShown: !usesComposeBottomSheets, title: tAuth('navigation.recover') }} />
-          </Stack.Protected>
-        </Stack>
-        <ClientSessionFeedback sessionDecided={sessionDecided} />
-        <NativeAlertHost />
-      </BookDetailThemeProvider>
-        </ThemeProvider>
-      </HeroUINativeProvider>
-    </>
+    <HeroUINativeProvider config={heroUIConfig}>
+      <ThemeProvider value={navigationTheme}>
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        <BookDetailThemeProvider>
+          <Stack screenOptions={systemScreenStackPreset}>
+            <Stack.Protected guard={hasAuthenticatedSession}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="settings" options={{ headerShown: false }} />
+              <Stack.Screen name="book/[id]" options={{ title: '' }} />
+              <Stack.Screen
+                name="quick-search"
+                options={{
+                  headerLargeTitle: true,
+                  headerShown: true,
+                  title: t('routes.search'),
+                }}
+              />
+              <Stack.Screen
+                name="book/[id]/comments"
+                options={{ headerShown: true, title: t('routes.comments') }}
+              />
+              <Stack.Screen
+                name="announcements"
+                options={{ headerShown: true, title: t('routes.announcements') }}
+              />
+              <Stack.Screen
+                name="announcement/[source]/[id]"
+                options={{ headerShown: true, title: '' }}
+              />
+              <Stack.Screen
+                name="books"
+                options={{ headerShown: true, title: t('routes.allNovels') }}
+              />
+              <Stack.Screen
+                name="comics"
+                options={{ headerShown: true, title: t('routes.allComics') }}
+              />
+              <Stack.Screen
+                name="ranking"
+                options={{ headerShown: true, title: t('routes.rankings') }}
+              />
+              <Stack.Screen
+                name="shelf/folder"
+                options={{ headerLargeTitle: false, headerShown: true, title: t('routes.folder') }}
+              />
+              <Stack.Screen
+                name="shelf/action"
+                options={{
+                  headerShown: false,
+                  presentation: 'formSheet',
+                  sheetAllowedDetents: 'fitToContents',
+                  sheetGrabberVisible: true,
+                  title: '',
+                }}
+              />
+              <Stack.Screen
+                name="announcement/comment-compose"
+                options={{
+                  headerShown: false,
+                  presentation: 'formSheet',
+                  sheetAllowedDetents: 'fitToContents',
+                  sheetGrabberVisible: false,
+                  title: '',
+                }}
+              />
+              <Stack.Screen
+                name="book/[id]/comment-compose"
+                options={{
+                  headerShown: false,
+                  presentation: 'formSheet',
+                  sheetAllowedDetents: 'fitToContents',
+                  sheetGrabberVisible: false,
+                  title: '',
+                }}
+              />
+              <Stack.Screen
+                name="book/[id]/introduction"
+                options={{
+                  headerShown: false,
+                  presentation: 'formSheet',
+                  sheetAllowedDetents: [0.75, 1],
+                  sheetGrabberVisible: true,
+                  sheetInitialDetentIndex: 0,
+                  title: '',
+                }}
+              />
+              <Stack.Screen
+                name="book/[id]/tags"
+                options={{
+                  headerShown: false,
+                  presentation: 'formSheet',
+                  sheetAllowedDetents: 'fitToContents',
+                  sheetGrabberVisible: true,
+                  title: '',
+                }}
+              />
+              <Stack.Screen
+                name="book/[id]/uploader"
+                options={{
+                  headerShown: false,
+                  presentation: 'formSheet',
+                  sheetAllowedDetents: 'fitToContents',
+                  sheetGrabberVisible: true,
+                  title: '',
+                }}
+              />
+              <Stack.Screen
+                name="book/[id]/versions"
+                options={{
+                  headerShown: false,
+                  presentation: 'formSheet',
+                  sheetAllowedDetents: [0.6, 1],
+                  sheetGrabberVisible: true,
+                  sheetInitialDetentIndex: 0,
+                  title: '',
+                }}
+              />
+              <Stack.Screen
+                name="reader/[bookId]/[sortNum]"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="reader/[bookId]/chapters"
+                options={{
+                  headerShown: false,
+                  presentation: 'formSheet',
+                  sheetAllowedDetents: [0.5, 1],
+                  sheetGrabberVisible: true,
+                  sheetInitialDetentIndex: 0,
+                  title: t('routes.chapters'),
+                }}
+              />
+              <Stack.Screen
+                name="reader/[bookId]/settings"
+                options={{
+                  headerShown: false,
+                  presentation: 'formSheet',
+                  sheetAllowedDetents: [0.5, 1],
+                  sheetGrabberVisible: true,
+                  sheetInitialDetentIndex: 0,
+                  title: t('routes.reading'),
+                }}
+              />
+              <Stack.Screen
+                name="reader/[bookId]/footnote"
+                options={{
+                  headerShown: false,
+                  presentation: 'formSheet',
+                  sheetAllowedDetents: [0.5, 1],
+                  sheetGrabberVisible: true,
+                  sheetInitialDetentIndex: 0,
+                  title: t('routes.footnote'),
+                }}
+              />
+            </Stack.Protected>
+            <Stack.Protected guard={!hasAuthenticatedSession}>
+              <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="sign-in/credentials"
+                options={{ headerShown: true, title: tAuth('navigation.signIn') }}
+              />
+              <Stack.Screen
+                name="register"
+                options={{ headerShown: true, title: tAuth('navigation.register') }}
+              />
+              <Stack.Screen
+                name="register/verify"
+                options={{ headerShown: true, title: tAuth('navigation.register') }}
+              />
+              <Stack.Screen
+                name="reset-password"
+                options={{ headerShown: true, title: tAuth('navigation.recover') }}
+              />
+              <Stack.Screen
+                name="reset-password/verify"
+                options={{ headerShown: true, title: tAuth('navigation.recover') }}
+              />
+              <Stack.Screen
+                name="reset-password/new-password"
+                options={{ headerShown: true, title: tAuth('navigation.recover') }}
+              />
+            </Stack.Protected>
+          </Stack>
+          <ClientSessionFeedback sessionDecided={sessionDecided} />
+        </BookDetailThemeProvider>
+      </ThemeProvider>
+    </HeroUINativeProvider>
   );
 }
 

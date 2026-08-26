@@ -14,12 +14,7 @@ export function ContentSettingsScreen() {
   const { t } = useTranslation('settings');
 
   return (
-    <NativeGroupedList
-      onBackPress={() => router.back()}
-      showBackButton
-      testID="content-settings"
-      title={t('content.title')}
-    >
+    <NativeGroupedList testID="content-settings">
       <NativeGroupedListSection title={t('content.home.section')}>
         <NativePickerRow
           description={t('content.home.rankingDescription')}

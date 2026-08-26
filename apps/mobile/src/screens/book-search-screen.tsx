@@ -31,11 +31,7 @@ import type { LibraryMessage } from '@/localization/locales/library';
 import {
   NativeSearchControls,
 } from '@/components/native-search-controls';
-import {
-  BOOK_SEARCH_MODE_OPTIONS,
-  type NativeSearchControlsHandle,
-} from '@/components/native-search-controls.types';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
+import { type NativeSearchControlsHandle } from '@/components/native-search-controls.types';
 import { useBookSearch, type BookSearchFormat } from '@/hooks/use-book-search';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
@@ -47,14 +43,12 @@ export interface BookSearchScreenProps {
   initialFormat?: BookSearchFormat;
   initialMode?: BookSearchMode;
   initialQuery?: string;
-  showBackButton?: boolean;
 }
 
 export function BookSearchScreen({
   initialFormat = 'Novel',
   initialMode = 'fuzzy',
   initialQuery = '',
-  showBackButton = false,
 }: BookSearchScreenProps) {
   const { t } = useTranslation('library');
   const styles = useBookSearchScreenStyles();
@@ -104,32 +98,7 @@ export function BookSearchScreen({
   }, [initialFormat, initialMode, initialQuery, search]);
 
   return (
-    <NativeScreenScaffold
-      actions={[
-        {
-          accessibilityLabel: t('search.modeAccessibility'),
-          icon: 'adjustmentsHorizontal',
-          id: 'search-mode',
-          menuItems: BOOK_SEARCH_MODE_OPTIONS.map((option) => ({
-            icon: option.androidIcon,
-            id: `search-mode:${option.value}`,
-            label: t(option.labelKey),
-            selected: search.mode === option.value,
-          })),
-        },
-      ]}
-      largeTitle
-      {...(showBackButton ? { onBackPress: () => router.back() } : {})}
-      onActionPress={(id) => {
-        if (!id.startsWith('search-mode:')) return;
-        const mode = id.slice('search-mode:'.length) as BookSearchMode;
-        if (BOOK_SEARCH_MODE_OPTIONS.some((option) => option.value === mode)) {
-          search.changeMode(mode);
-        }
-      }}
-      showBackButton={showBackButton}
-      title={t('search.title')}
-    >
+
       <FlatList
         ListEmptyComponent={
           <SearchEmpty
@@ -206,7 +175,6 @@ export function BookSearchScreen({
         keyExtractor={searchItemKey}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
-        nestedScrollEnabled
         numColumns={columns}
         onEndReached={search.loadMore}
         onEndReachedThreshold={0.6}
@@ -231,7 +199,7 @@ export function BookSearchScreen({
         showsVerticalScrollIndicator={false}
         viewabilityConfig={coverActivation.viewabilityConfig}
       />
-    </NativeScreenScaffold>
+
   );
 }
 

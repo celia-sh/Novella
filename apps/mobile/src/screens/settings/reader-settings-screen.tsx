@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -24,12 +23,7 @@ export function ReaderSettingsScreen() {
   const { t } = useTranslation('settings');
 
   return (
-    <NativeGroupedList
-      onBackPress={() => router.back()}
-      showBackButton
-      testID="reader-settings"
-      title={t('reader.title')}
-    >
+    <NativeGroupedList testID="reader-settings">
       <ReaderSettingsContent />
     </NativeGroupedList>
   );

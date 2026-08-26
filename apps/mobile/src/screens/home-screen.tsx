@@ -23,7 +23,6 @@ import {
   BookCoverGridItem,
 } from '@/components/book-cover-grid-item';
 import { DiscoverNavigation } from '@/components/discover-navigation';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { SectionCard } from '@/components/section-card';
 import {
   homeBookGridPreviewCount,
@@ -57,27 +56,12 @@ export function HomeScreen() {
   } = useDiscovery();
   const coverViewport = useCoverScrollViewport();
 
-  const openProfileAndSettings = () => router.push('/settings');
-
   return (
     <>
-      <NativeScreenScaffold
-        actions={[
-          {
-            accessibilityLabel: t('discovery.profileAndSettings'),
-            icon: 'userCircle',
-            id: 'profile-settings',
-          },
-        ]}
-        onActionPress={(id) => {
-          if (id === 'profile-settings') openProfileAndSettings();
-        }}
-        title={t('discovery.title')}
-      >
+
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.content}
-          nestedScrollEnabled
           onLayout={coverViewport.onLayout}
           onScroll={coverViewport.onScroll}
           scrollEventThrottle={16}
@@ -106,7 +90,7 @@ export function HomeScreen() {
           <ComicsSection viewport={coverViewport} />
           <OnlineInfoSection onRetry={retryOnlineInfo} state={onlineInfo} />
         </ScrollView>
-      </NativeScreenScaffold>
+
       <DiscoverNavigation />
     </>
   );

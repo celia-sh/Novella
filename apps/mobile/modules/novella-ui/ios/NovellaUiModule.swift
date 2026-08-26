@@ -35,10 +35,6 @@ public final class NovellaUiModule: Module {
       }
     }
 
-    View(NovellaLightAppearanceScopeView.self) {
-      ViewName("LightAppearanceScope")
-    }
-
     View(NovellaSegmentedControlView.self) {
       ViewName("SegmentedControl")
 

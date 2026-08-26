@@ -162,7 +162,7 @@ function BookCoverImageLayer({
           allowDownscaling
           cachePolicy="memory-disk"
           contentFit="cover"
-          enforceEarlyResizing={process.env.EXPO_OS === 'ios'}
+          enforceEarlyResizing
           key={`${recyclingKey}:${attempt}`}
           onDisplay={reveal}
           onError={fail}

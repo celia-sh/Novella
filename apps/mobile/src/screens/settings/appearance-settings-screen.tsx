@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { NativeGroupedList, NativeGroupedListSection } from '@/components/native-grouped-list';
@@ -10,12 +9,7 @@ export function AppearanceSettingsScreen() {
   const { t } = useTranslation('settings');
 
   return (
-    <NativeGroupedList
-      onBackPress={() => router.back()}
-      showBackButton
-      testID="appearance-settings"
-      title={t('appearance.title')}
-    >
+    <NativeGroupedList testID="appearance-settings">
       <NativeGroupedListSection title={t('appearance.language.section')}>
         <NativePickerRow
           description={t('appearance.language.description')}
@@ -51,24 +45,6 @@ export function AppearanceSettingsScreen() {
           title={t('appearance.theme.coverColorTitle')}
           value={settings.coverColorExtraction}
         />
-        {process.env.EXPO_OS === 'android' ? (
-          <NativeToggleRow
-            description={t('appearance.theme.systemColorsDescription')}
-            icon="systemColors"
-            onValueChange={(value) => void updateAppSettings({ useSystemColor: value })}
-            title={t('appearance.theme.systemColorsTitle')}
-            value={settings.useSystemColor}
-          />
-        ) : null}
-        {process.env.EXPO_OS === 'android' ? (
-          <NativeToggleRow
-            description={t('appearance.theme.oledBlackDescription')}
-            icon="oledBlack"
-            onValueChange={(value) => void updateAppSettings({ oledBlack: value })}
-            title={t('appearance.theme.oledBlackTitle')}
-            value={settings.oledBlack}
-          />
-        ) : null}
       </NativeGroupedListSection>
     </NativeGroupedList>
   );

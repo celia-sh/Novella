@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,7 +21,6 @@ import {
 } from '@novella/client-core';
 
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { ProfileAvatar } from '@/components/profile-avatar';
 import { useProfile } from '@/hooks/use-profile';
 import { profile as profileUseCase } from '@/services/client';
@@ -55,12 +53,7 @@ export function AvatarSettingsScreen() {
 
   if (!profile) {
     return (
-      <NativeScreenScaffold
-        largeTitle={false}
-        onBackPress={() => router.back()}
-        showBackButton
-        title={t('avatar.title')}
-      >
+
         <View style={styles.loadingRoot}>
           {status === 'loading' ? <ActivityIndicator color={colors.accent as string} /> : null}
           <Text style={styles.loadingTitle}>
@@ -72,7 +65,7 @@ export function AvatarSettingsScreen() {
             </Pressable>
           ) : null}
         </View>
-      </NativeScreenScaffold>
+
     );
   }
 
@@ -104,14 +97,9 @@ export function AvatarSettingsScreen() {
   }
 
   return (
-    <NativeScreenScaffold
-      largeTitle={false}
-      onBackPress={() => router.back()}
-      showBackButton
-      title={t('avatar.title')}
-    >
+
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         style={styles.root}
       >
         <ScrollView
@@ -183,7 +171,7 @@ export function AvatarSettingsScreen() {
         </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
-    </NativeScreenScaffold>
+
   );
 }
 

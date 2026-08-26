@@ -43,11 +43,7 @@ export function ReaderFootnoteSheetScreen({ bookId, payload }: ReaderFootnoteShe
     <View
       style={[
         styles.root,
-        {
-          backgroundColor: process.env.EXPO_OS === 'android'
-            ? 'transparent'
-            : backgroundColor,
-        },
+        { backgroundColor },
       ]}
     >
       <View style={styles.content}>
@@ -84,7 +80,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: process.env.EXPO_OS === 'android' ? 8 : 28,
+    paddingTop: 28,
   },
   sheetSection: { flex: 1, gap: 16 },
   sheetHeading: { alignItems: 'center', flexDirection: 'row', gap: 10 },

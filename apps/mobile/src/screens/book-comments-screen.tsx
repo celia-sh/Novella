@@ -21,7 +21,6 @@ import {
 } from '@/components/comment-thread-item';
 import { CommentThreadListItem } from '@/components/comment-thread-list-item';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { useComments } from '@/hooks/use-comments';
 import { consumeCommentsChanged } from '@/services/comment-events';
 import { flattenCommentRows, type CommentListRow } from '@/services/comment-list-rows';
@@ -115,24 +114,7 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
   return (
     <PaperProvider theme={detailTheme.paperTheme}>
       <BookCommentsNavigation onCompose={openComposer} palette={palette} />
-      <NativeScreenScaffold
-        actions={[
-          {
-            accessibilityLabel: t('accessibility.writeComment'),
-            icon: 'pencil',
-            id: 'compose',
-          },
-        ]}
-        largeTitle={false}
-        onActionPress={(id) => {
-          if (id === 'compose') openComposer();
-        }}
-        onBackPress={() => router.back()}
-        showBackButton
-        title={t('comments.title')}
-        containerColor={palette.surface}
-        contentColor={palette.onSurface}
-      >
+
         <FlatList
           style={[styles.root, { backgroundColor: palette.surface }]}
           contentInsetAdjustmentBehavior="automatic"
@@ -187,13 +169,12 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
           }
           onEndReached={loadMore}
           onEndReachedThreshold={0.35}
-          removeClippedSubviews={process.env.EXPO_OS === 'android'}
           renderItem={renderComment}
           showsVerticalScrollIndicator={false}
           updateCellsBatchingPeriod={32}
           windowSize={7}
         />
-      </NativeScreenScaffold>
+
     </PaperProvider>
   );
 }

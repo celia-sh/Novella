@@ -1,6 +1,5 @@
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -41,10 +40,7 @@ export function AboutSettingsScreen() {
 
   return (
     <NativeGroupedList
-      onBackPress={() => router.back()}
-      showBackButton
       testID="about-settings"
-      title={t('about.title')}
     >
       <NativeGroupedListSection title={t('about.sections.app')}>
         <NativeValueRow

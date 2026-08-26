@@ -82,15 +82,10 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
-      nestedScrollEnabled={process.env.EXPO_OS === 'android'}
       showsVerticalScrollIndicator={false}
       style={[
         styles.scroll,
-        {
-          backgroundColor: process.env.EXPO_OS === 'android'
-            ? 'transparent'
-            : palette.surface,
-        },
+        { backgroundColor: palette.surface },
       ]}
     >
       {isLoading ? (
@@ -186,7 +181,7 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 48, paddingHorizontal: 24, paddingTop: process.env.EXPO_OS === 'android' ? 8 : 28 },
+  content: { paddingBottom: 48, paddingHorizontal: 24, paddingTop: 28 },
   currentBadge: { alignItems: 'center', borderRadius: 8, flexDirection: 'row', gap: 4, paddingHorizontal: 8, paddingVertical: 4 },
   currentLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, lineHeight: 15 },
   description: { fontSize: 13, lineHeight: 18 },

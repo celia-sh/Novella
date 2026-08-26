@@ -1,4 +1,6 @@
-import SegmentedControl from '@expo/ui/community/segmented-control';
+import { StyleSheet } from 'react-native';
+
+import { NativeSegmentedControl as NativeSegmentedControlView } from '../../modules/novella-ui';
 
 export interface NativeSegmentedControlOption<T extends string> {
   label: string;
@@ -18,16 +20,23 @@ export function NativeSegmentedControl<T extends string>({
   options,
   selectedValue,
 }: NativeSegmentedControlProps<T>) {
-  const selectedIndex = Math.max(0, options.findIndex((option) => option.value === selectedValue));
   return (
-    <SegmentedControl
+    <NativeSegmentedControlView
       enabled={enabled}
-      onChange={({ nativeEvent }) => {
-        const option = options[nativeEvent.selectedSegmentIndex];
+      onValueChange={(value) => {
+        const option = options.find((candidate) => candidate.value === value);
         if (option) onValueChange(option.value);
       }}
-      selectedIndex={selectedIndex}
-      values={options.map((option) => option.label)}
+      options={options}
+      selectedValue={selectedValue}
+      style={styles.control}
     />
   );
 }
+
+const styles = StyleSheet.create({
+  control: {
+    height: 32,
+    width: '100%',
+  },
+});

@@ -129,7 +129,6 @@ export function SignInCredentialsScreen({ initialEmail = '' }: { initialEmail?: 
   return (
     <AuthFormLayout
       description={t('signIn.description')}
-      navigationTitle={t('navigation.signIn')}
       title={t('signIn.title')}
     >
       <View style={styles.formFields}>

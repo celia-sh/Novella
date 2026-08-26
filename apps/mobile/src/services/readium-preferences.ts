@@ -49,10 +49,9 @@ export function createReadiumReaderPreferences({
 }
 
 /**
- * React Native and Material expose eight-digit colors as CSS #RRGGBBAA.
- * Native Android APIs interpret eight-digit hex as #AARRGGBB, so strip the
- * alpha channel before crossing the Readium bridge. Reader surfaces are
- * intentionally opaque.
+ * React Native and Material can expose eight-digit colors as CSS #RRGGBBAA.
+ * Readium reader surfaces are intentionally opaque, so strip any alpha
+ * channel before crossing the native bridge.
  */
 export function opaqueCssColor(value: string): string {
   const normalized = value.trim();

@@ -18,7 +18,6 @@ import {
   View,
 } from 'react-native';
 
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import {
   useAnnouncements,
   type AnnouncementListEntry,
@@ -51,12 +50,7 @@ export function AnnouncementCenterScreen() {
   } = useAnnouncements();
 
   return (
-    <NativeScreenScaffold
-      largeTitle={false}
-      onBackPress={() => router.back()}
-      showBackButton
-      title={t('announcements.title')}
-    >
+
       <FlatList
         contentContainerStyle={[
           styles.content,
@@ -104,7 +98,6 @@ export function AnnouncementCenterScreen() {
               </View>
             )
           : null}
-        nestedScrollEnabled={process.env.EXPO_OS === 'android'}
         onEndReached={() => void loadMore()}
         onEndReachedThreshold={0.4}
         refreshControl={
@@ -119,7 +112,7 @@ export function AnnouncementCenterScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.root}
       />
-    </NativeScreenScaffold>
+
   );
 }
 

@@ -1,19 +1,16 @@
 import type { BookSearchMode } from '@novella/api-client';
 
-import type { NativeSelectionMenuIcon } from '../../modules/novella-ui';
-
 import type { BookSearchFormat } from '@/hooks/use-book-search';
 
 export const BOOK_SEARCH_MODE_OPTIONS = [
-  { androidIcon: 'sparkles', iosIcon: 'sparkles', labelKey: 'search.modes.fuzzy', value: 'fuzzy' },
-  { androidIcon: 'equal', iosIcon: 'equal', labelKey: 'search.modes.exact', value: 'exact' },
-  { androidIcon: 'textSize', iosIcon: 'textformat', labelKey: 'search.modes.title', value: 'title' },
-  { androidIcon: 'user', iosIcon: 'person', labelKey: 'search.modes.author', value: 'author' },
-  { androidIcon: 'books', iosIcon: 'books.vertical', labelKey: 'search.modes.series', value: 'name' },
-  { androidIcon: 'tag', iosIcon: 'tag', labelKey: 'search.modes.tags', value: 'tags' },
+  { icon: 'sparkles', labelKey: 'search.modes.fuzzy', value: 'fuzzy' },
+  { icon: 'equal', labelKey: 'search.modes.exact', value: 'exact' },
+  { icon: 'textformat', labelKey: 'search.modes.title', value: 'title' },
+  { icon: 'person', labelKey: 'search.modes.author', value: 'author' },
+  { icon: 'books.vertical', labelKey: 'search.modes.series', value: 'name' },
+  { icon: 'tag', labelKey: 'search.modes.tags', value: 'tags' },
 ] as const satisfies ReadonlyArray<{
-  androidIcon: NativeSelectionMenuIcon;
-  iosIcon: string;
+  icon: string;
   labelKey: `search.modes.${'fuzzy' | 'exact' | 'title' | 'author' | 'series' | 'tags'}`;
   value: BookSearchMode;
 }>;

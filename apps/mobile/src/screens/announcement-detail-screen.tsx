@@ -27,7 +27,6 @@ import {
 } from '@/components/comment-thread-item';
 import { CommentThreadListItem } from '@/components/comment-thread-list-item';
 import type { CommentThreadPalette } from '@/components/comment-thread';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { showAlert } from '@/components/native-alert-dialog';
 import { useAnnouncementDetail } from '@/hooks/use-announcement-detail';
 import { useComments } from '@/hooks/use-comments';
@@ -66,18 +65,12 @@ function AppAnnouncementDetail({ id }: { id: string }) {
   );
 
   return (
-    <NativeScreenScaffold
-      largeTitle={false}
-      onBackPress={() => router.back()}
-      showBackButton
-      title=""
-    >
+
       <>
         <Stack.Screen options={{ title: '' }} />
         <ScrollView
           contentContainerStyle={styles.detailContent}
           contentInsetAdjustmentBehavior="automatic"
-          nestedScrollEnabled={process.env.EXPO_OS === 'android'}
           showsVerticalScrollIndicator={false}
           style={styles.root}
         >
@@ -97,7 +90,7 @@ function AppAnnouncementDetail({ id }: { id: string }) {
           )}
         </ScrollView>
       </>
-    </NativeScreenScaffold>
+
   );
 }
 
@@ -125,27 +118,10 @@ function SiteAnnouncementDetail({ id }: { id: string }) {
   }, [serverId]);
 
   return (
-    <NativeScreenScaffold
-      {...(detail
-        ? {
-            actions: [{
-              accessibilityLabel: t('accessibility.writeComment'),
-              icon: 'pencil' as const,
-              id: 'compose',
-            }],
-            onActionPress: (actionId: string) => {
-              if (actionId === 'compose') openComposer();
-            },
-          }
-        : {})}
-      largeTitle={false}
-      onBackPress={() => router.back()}
-      showBackButton
-      title=""
-    >
+
       <>
         <Stack.Screen options={{ title: '' }} />
-        {detail && process.env.EXPO_OS === 'ios' ? (
+        {detail ? (
           <Stack.Toolbar placement="right">
             <Stack.Toolbar.Button
               accessibilityLabel={t('accessibility.writeComment')}
@@ -167,7 +143,7 @@ function SiteAnnouncementDetail({ id }: { id: string }) {
           />
         )}
       </>
-    </NativeScreenScaffold>
+
   );
 }
 
@@ -187,7 +163,6 @@ function SiteAnnouncementStateContent({
     <ScrollView
       contentContainerStyle={styles.detailContent}
       contentInsetAdjustmentBehavior="automatic"
-      nestedScrollEnabled={process.env.EXPO_OS === 'android'}
       showsVerticalScrollIndicator={false}
       style={styles.root}
     >
@@ -207,19 +182,14 @@ function InvalidAnnouncementDetail() {
   const styles = useAnnouncementDetailStyles();
   const { t } = useTranslation('community');
   return (
-    <NativeScreenScaffold
-      largeTitle={false}
-      onBackPress={() => router.back()}
-      showBackButton
-      title=""
-    >
+
       <>
         <Stack.Screen options={{ title: '' }} />
         <View style={styles.invalidDetail}>
           <DetailError message={t('announcements.errors.invalid')} />
         </View>
       </>
-    </NativeScreenScaffold>
+
   );
 }
 
@@ -316,10 +286,8 @@ function SiteAnnouncementContent({
           ) : null}
         </View>
       }
-      nestedScrollEnabled={process.env.EXPO_OS === 'android'}
       onEndReached={loadMore}
       onEndReachedThreshold={0.35}
-      removeClippedSubviews={process.env.EXPO_OS === 'android'}
       renderItem={renderComment}
       showsVerticalScrollIndicator={false}
       updateCellsBatchingPeriod={32}

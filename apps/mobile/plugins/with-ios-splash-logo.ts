@@ -1,10 +1,6 @@
 /// <reference types="node" />
 
 import {
-  AndroidConfig,
-  withAndroidColors,
-  withAndroidColorsNight,
-  withAndroidStyles,
   withDangerousMod,
   withMod,
 } from '@expo/config-plugins';
@@ -12,10 +8,8 @@ import type { ConfigPlugin } from '@expo/config-plugins';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const logoTintColorName = 'splashscreen_logo_tint';
 const logoTintAssetName = 'SplashScreenLogoTint';
 const splashLogoName = 'SplashScreenLogo';
-const androidSplashIconName = 'splashscreen_icon';
 
 type StoryboardNode = {
   $: Record<string, string>;
@@ -44,109 +38,6 @@ type SplashStoryboard = {
       }>;
     }>;
   };
-};
-
-const setAndroidTintColor = (
-  colors: AndroidConfig.Resources.ResourceXML,
-  value: string,
-): AndroidConfig.Resources.ResourceXML =>
-  AndroidConfig.Colors.assignColorValue(colors, {
-    name: logoTintColorName,
-    value,
-  });
-
-const withAndroidSplashLogoTint: ConfigPlugin = (config) => {
-  config = withAndroidColors(config, (cfg) => {
-    cfg.modResults = setAndroidTintColor(cfg.modResults, '#000000');
-    return cfg;
-  });
-
-  config = withAndroidColorsNight(config, (cfg) => {
-    cfg.modResults = setAndroidTintColor(cfg.modResults, '#FFFFFF');
-    return cfg;
-  });
-
-  config = withAndroidStyles(config, (cfg) => {
-    cfg.modResults = AndroidConfig.Styles.assignStylesValue(cfg.modResults, {
-      add: true,
-      name: 'windowSplashScreenAnimatedIcon',
-      parent: {
-        name: 'Theme.App.SplashScreen',
-        parent: 'Theme.SplashScreen',
-      },
-      value: `@mipmap/${androidSplashIconName}`,
-    });
-    return cfg;
-  });
-
-  return withDangerousMod(config, [
-    'android',
-    async (cfg) => {
-      const resourcesRoot = path.join(
-        cfg.modRequest.projectRoot,
-        'android/app/src/main/res',
-      );
-      const drawableDirectory = path.join(resourcesRoot, 'drawable');
-      const mipmapDirectory = path.join(resourcesRoot, 'mipmap-anydpi');
-      const adaptiveMipmapDirectory = path.join(
-        resourcesRoot,
-        'mipmap-anydpi-v26',
-      );
-
-      await Promise.all([
-        fs.promises.mkdir(drawableDirectory, { recursive: true }),
-        fs.promises.mkdir(mipmapDirectory, { recursive: true }),
-        fs.promises.mkdir(adaptiveMipmapDirectory, { recursive: true }),
-      ]);
-
-      // Use the generated adaptive launcher foreground itself, rather than a
-      // separately resized splash bitmap. This preserves the exact geometry
-      // and safe-zone behavior that Android already renders correctly for the
-      // app icon, while the bitmap wrapper supplies the day/night tint.
-      await fs.promises.writeFile(
-        path.join(drawableDirectory, 'splashscreen_adaptive_foreground.xml'),
-        `<?xml version="1.0" encoding="utf-8"?>
-<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
-    android:antialias="true"
-    android:filter="true"
-    android:gravity="fill"
-    android:src="@mipmap/ic_launcher_foreground"
-    android:tint="@color/${logoTintColorName}"
-    android:tintMode="src_in" />
-`,
-      );
-
-      // Android 8+ receives an adaptive icon, matching the launcher path that
-      // previously produced the correct splash geometry. Its background is
-      // identical to the window background, so only the tinted logo is seen.
-      await fs.promises.writeFile(
-        path.join(adaptiveMipmapDirectory, `${androidSplashIconName}.xml`),
-        `<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/splashscreen_background" />
-    <foreground android:drawable="@drawable/splashscreen_adaptive_foreground" />
-</adaptive-icon>
-`,
-      );
-
-      // Keep a compatible centered fallback for Android versions that do not
-      // support adaptive icons. Expo's generated bitmap uses the same source.
-      await fs.promises.writeFile(
-        path.join(mipmapDirectory, `${androidSplashIconName}.xml`),
-        `<?xml version="1.0" encoding="utf-8"?>
-<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
-    android:antialias="true"
-    android:filter="true"
-    android:gravity="center"
-    android:src="@drawable/splashscreen_logo"
-    android:tint="@color/${logoTintColorName}"
-    android:tintMode="src_in" />
-`,
-      );
-
-      return cfg;
-    },
-  ]);
 };
 
 const withIosSplashLogoAssets: ConfigPlugin = (config) =>
@@ -288,17 +179,16 @@ const withIosSplashLogoTint: ConfigPlugin = (config) =>
   });
 
 /**
- * Tint one monochrome splash mask from adaptive native colors instead of
- * relying on per-appearance bitmap selection during process launch.
+ * Tint one iOS splash mask from an asset catalog color instead of relying on
+ * per-appearance bitmap selection during process launch.
  *
  * Register this plugin before expo-splash-screen so its mods run after Expo
  * creates the splash assets and storyboard.
  */
-const withAdaptiveSplashLogo: ConfigPlugin = (config) => {
-  config = withAndroidSplashLogoTint(config);
+const withIosSplashLogo: ConfigPlugin = (config) => {
   config = withIosSplashLogoAssets(config);
   config = withIosSplashLogoTint(config);
   return config;
 };
 
-export default withAdaptiveSplashLogo;
+export default withIosSplashLogo;

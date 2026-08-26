@@ -1,4 +1,5 @@
-import { Slider } from '@expo/ui';
+import { Slider } from '@expo/ui/swift-ui';
+import { disabled as disabledModifier } from '@expo/ui/swift-ui/modifiers';
 
 export interface NativeSliderControlProps {
   disabled?: boolean;
@@ -10,18 +11,17 @@ export interface NativeSliderControlProps {
   value: number;
 }
 
-/** Web/fallback implementation; native files provide a true release event. */
 export function NativeSliderControl({
+  disabled = false,
   onSlidingComplete,
-  onValueChange,
   ...props
 }: NativeSliderControlProps) {
   return (
     <Slider
       {...props}
-      onValueChange={(value) => {
-        onValueChange(value);
-        onSlidingComplete?.();
+      {...(disabled ? { modifiers: [disabledModifier(true)] } : {})}
+      onEditingChanged={(isEditing) => {
+        if (!isEditing) setTimeout(() => onSlidingComplete?.(), 0);
       }}
     />
   );

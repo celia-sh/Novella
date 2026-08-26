@@ -26,7 +26,6 @@ import {
   CommunityPaperProvider,
 } from '@/components/community/community-ui';
 import { showAlert } from '@/components/native-alert-dialog';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { ProfileAvatar } from '@/components/profile-avatar';
 import { useCommunityNotifications } from '@/hooks/use-community-notifications';
 import { useAppLocale } from '@/localization/localization-provider';
@@ -82,27 +81,7 @@ export function CommunityNotificationsScreen() {
     <CommunityPaperProvider>
       <>
         <Stack.Screen options={{ title: t('notifications.title') }} />
-      <NativeScreenScaffold
-        largeTitle={false}
-        onBackPress={() => router.back()}
-        showBackButton
-        title={t('notifications.title')}
-        {...(hasUnread
-          ? {
-              actions: [
-                {
-                  accessibilityLabel: t('accessibility.notificationActions'),
-                  icon: 'dots',
-                  id: 'notifications-menu',
-                  menuItems: [{ id: 'markAll', label: t('actions.markAllRead') }],
-                },
-              ],
-            }
-          : {})}
-        onActionPress={(id) => {
-          if (id === 'markAll') void markAll();
-        }}
-      >
+
         <View style={styles.root}>
         <FlatList
           ListEmptyComponent={
@@ -151,7 +130,7 @@ export function CommunityNotificationsScreen() {
           showsVerticalScrollIndicator={false}
         />
         </View>
-      </NativeScreenScaffold>
+
         <CommunityNotificationsNavigation hidden={!hasUnread} onMarkAll={() => void markAll()} />
       </>
     </CommunityPaperProvider>

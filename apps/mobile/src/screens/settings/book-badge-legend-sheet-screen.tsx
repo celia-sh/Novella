@@ -27,7 +27,6 @@ export function BookBadgeLegendSheetScreen() {
     <ScrollView
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
-      nestedScrollEnabled={process.env.EXPO_OS === 'android'}
       showsVerticalScrollIndicator={false}
       style={styles.scroll}
     >
@@ -103,7 +102,7 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingBottom: 48,
     paddingHorizontal: 24,
-    paddingTop: process.env.EXPO_OS === 'android' ? 8 : 28,
+    paddingTop: 28,
   },
   description: { fontSize: 13, lineHeight: 18 },
   scroll: { flex: 1 },

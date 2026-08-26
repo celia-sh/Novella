@@ -9,7 +9,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   // CI 通过 v* tag 注入 APP_VERSION；本地开发回退到 package.json 版本。
   version: process.env.APP_VERSION || config.version || '2.0.0',
   orientation: 'portrait',
-  platforms: ['android', 'ios'],
+  platforms: ['ios'],
   scheme: 'novella',
   userInterfaceStyle: 'automatic',
   icon: './assets/icon.png',
@@ -22,24 +22,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-localization',
       {
         supportedLocales: {
-          android: ['zh-CN', 'zh-TW'],
           ios: ['zh-CN', 'zh-TW'],
         },
       },
     ],
     'expo-router',
-    // Register before expo-splash-screen so the native mods can replace its
-    // per-appearance bitmaps with one mask driven by adaptive tint colors.
-    './plugins/with-adaptive-splash-logo',
+    // Register before expo-splash-screen so the iOS mods can replace its
+    // generated logo assets with one mask driven by appearance tint colors.
+    './plugins/with-ios-splash-logo',
     [
       'expo-splash-screen',
       {
-        android: {
-          // Match the adaptive launcher icon exactly; the native plugin applies
-          // the light/dark tint without replacing its foreground geometry.
-          image: './assets/android-icon-foreground.png',
-          imageWidth: 200,
-        },
         backgroundColor: '#FFFFFF',
         dark: {
           backgroundColor: '#000000',
@@ -83,15 +76,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         },
       },
     ],
-    './plugins/with-android-signing',
-    './plugins/with-android-desugaring',
-    ['expo-media-library', {
-      // Saving does not need read access. iOS uses the add-only permission;
-      // Android requests no READ_MEDIA_* granular permission.
-      granularPermissions: [],
-      photosPermission: false,
-      savePhotosPermission: '允许 Novella 将图片保存到你的照片图库。',
-    }],
     'expo-sharing',
   ],
   extra: {
@@ -112,17 +96,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       // status-bar appearance. react-native-pretty-toast cannot toggle the
       // bar through its overlay controller in this configuration.
       UIViewControllerBasedStatusBarAppearance: false,
+      NSPhotoLibraryAddUsageDescription: '允许 Novella 将图片保存到你的照片图库。',
     },
-  },
-  android: {
-    adaptiveIcon: {
-      backgroundColor: '#FFFFFF',
-      backgroundImage: './assets/android-icon-background.png',
-      foregroundImage: './assets/android-icon-foreground.png',
-      monochromeImage: './assets/android-icon-monochrome.png',
-    },
-    package: 'sh.celia.novella',
-    predictiveBackGestureEnabled: false,
-    versionCode: buildNumber ? Number(buildNumber) : 1,
   },
 });

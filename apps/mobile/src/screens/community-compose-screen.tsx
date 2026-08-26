@@ -11,7 +11,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,7 +29,6 @@ import {
   CommunityErrorState,
   CommunityPaperProvider,
 } from '@/components/community/community-ui';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { showAlert } from '@/components/native-alert-dialog';
 import { community, storage } from '@/services/client';
 import { createThemedStyles } from '@/theme/app-theme';
@@ -153,28 +151,12 @@ export function CommunityComposeScreen({
     <CommunityPaperProvider>
       <>
         <Stack.Screen options={{ title: t('navigation.newPost') }} />
-      <NativeScreenScaffold
-        actions={[
-          {
-            accessibilityLabel: t('accessibility.publishDiscussion'),
-            enabled: canPublish,
-            icon: 'check',
-            id: 'publish',
-          },
-        ]}
-        largeTitle={false}
-        onActionPress={(id) => {
-          if (id === 'publish') void publish();
-        }}
-        onBackPress={() => router.back()}
-        showBackButton
-        title={t('navigation.newPost')}
-      >
-        <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
-        style={styles.root}
-      >
+
+          <KeyboardAvoidingView
+            behavior="padding"
+            keyboardVerticalOffset={88}
+            style={styles.root}
+          >
         {loading ? (
           <View style={styles.center}><Spinner /></View>
         ) : (
@@ -182,7 +164,6 @@ export function CommunityComposeScreen({
             contentContainerStyle={styles.content}
             contentInsetAdjustmentBehavior="automatic"
             keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
           >
             {error ? (
               <CommunityErrorState
@@ -273,8 +254,8 @@ export function CommunityComposeScreen({
             </View>
           </ScrollView>
         )}
-      </KeyboardAvoidingView>
-      </NativeScreenScaffold>
+          </KeyboardAvoidingView>
+
         <CommunityPublishNavigation disabled={!canPublish} onPublish={() => void publish()} />
       </>
     </CommunityPaperProvider>

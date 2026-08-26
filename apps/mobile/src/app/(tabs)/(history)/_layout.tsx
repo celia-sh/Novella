@@ -5,7 +5,6 @@ import { useSystemScreenStackPreset } from '@/theme/stack-preset';
 
 export default function HistoryStackLayout() {
   const { t } = useTranslation('navigation');
-  const isAndroid = process.env.EXPO_OS === 'android';
   const systemScreenStackPreset = useSystemScreenStackPreset();
 
   return (
@@ -13,8 +12,8 @@ export default function HistoryStackLayout() {
       <Stack.Screen
         name="history"
         options={{
-          headerLargeTitle: !isAndroid,
-          headerShown: !isAndroid,
+          headerLargeTitle: true,
+          headerShown: true,
           title: t('tabs.history'),
         }}
       />

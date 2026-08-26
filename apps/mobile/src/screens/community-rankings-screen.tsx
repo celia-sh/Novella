@@ -2,7 +2,6 @@ import { IconFlame } from '@tabler/icons-react-native';
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import {
   CommunityActiveMembers,
   CommunityHotDiscussions,
@@ -24,12 +23,7 @@ export function CommunityRankingsScreen() {
   };
 
   return (
-    <NativeScreenScaffold
-      largeTitle={false}
-      onBackPress={() => router.back()}
-      showBackButton
-      title={t('rankings.title')}
-    >
+
       <ScrollView
         alwaysBounceVertical
         contentContainerStyle={styles.content}
@@ -54,7 +48,7 @@ export function CommunityRankingsScreen() {
           </View>
         )}
       </ScrollView>
-    </NativeScreenScaffold>
+
   );
 }
 

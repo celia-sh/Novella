@@ -14,12 +14,8 @@ const SEARCH_MODES = new Set<BookSearchMode>([
   'tags',
 ]);
 
-export interface BookSearchRouteScreenProps {
-  showBackButton?: boolean;
-}
-
 /** Shared route adapter for the Search tab and root quick-search route. */
-export function BookSearchRouteScreen({ showBackButton = false }: BookSearchRouteScreenProps) {
+export function BookSearchRouteScreen() {
   const params = useLocalSearchParams<{ format?: string; mode?: string; query?: string }>();
   const initialFormat: BookSearchFormat = params.format === 'Comic' ? 'Comic' : 'Novel';
   const initialMode: BookSearchMode = SEARCH_MODES.has(params.mode as BookSearchMode)
@@ -31,7 +27,6 @@ export function BookSearchRouteScreen({ showBackButton = false }: BookSearchRout
       initialFormat={initialFormat}
       initialMode={initialMode}
       initialQuery={params.query ?? ''}
-      showBackButton={showBackButton}
     />
   );
 }

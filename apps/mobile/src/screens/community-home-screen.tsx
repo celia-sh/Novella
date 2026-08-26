@@ -52,7 +52,6 @@ import type {
 } from '@novella/api-client';
 
 import { CommunityHomeNavigation } from '@/components/community/community-navigation';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { useCommunityHome, type CommunityHomeQuery } from '@/hooks/use-community-home';
 import { useAppLocale } from '@/localization/localization-provider';
 import { resolveCommunityBoardIcon } from '@/services/community-board-icons';
@@ -109,37 +108,11 @@ export function CommunityHomeScreen() {
   return (
     <PaperProvider theme={paperTheme}>
       <>
-        <NativeScreenScaffold
-          actions={[
-            { accessibilityLabel: t('accessibility.newPost'), icon: 'pencil', id: 'compose' },
-            {
-              accessibilityLabel: t('accessibility.notifications'),
-              icon: 'bell',
-              id: 'notifications',
-            },
-            {
-              accessibilityLabel: t('accessibility.menu'),
-              icon: 'dots',
-              id: 'community-menu',
-              menuItems: [
-                { icon: 'user', id: 'mine', label: t('navigation.myCommunity') },
-                { icon: 'trophy', id: 'rankings', label: t('navigation.rankings') },
-              ],
-            },
-          ]}
-          onActionPress={(id) => {
-            if (id === 'compose') router.push('/compose');
-            else if (id === 'notifications') router.push('/notifications');
-            else if (id === 'mine') router.push('/mine');
-            else if (id === 'rankings') router.push('/community-rankings');
-          }}
-          title={t('navigation.community')}
-        >
+
           <ScrollView
             alwaysBounceVertical
             contentContainerStyle={styles.content}
             contentInsetAdjustmentBehavior="automatic"
-            nestedScrollEnabled={process.env.EXPO_OS === 'android'}
             onScroll={handleScroll}
             refreshControl={
               <RefreshControl
@@ -200,7 +173,7 @@ export function CommunityHomeScreen() {
               />
             ) : null}
           </ScrollView>
-        </NativeScreenScaffold>
+
         <CommunityHomeNavigation />
       </>
     </PaperProvider>
@@ -434,7 +407,6 @@ function CommunityBoardStrip({
       <ScrollView
         contentContainerStyle={styles.toolbarScroll}
         horizontal
-        nestedScrollEnabled
         showsHorizontalScrollIndicator={false}
       >
         <FilterCaption
@@ -538,7 +510,6 @@ function FilterToolbar({
       <ScrollView
         contentContainerStyle={styles.toolbarScroll}
         horizontal
-        nestedScrollEnabled
         showsHorizontalScrollIndicator={false}
       >
         <FilterCaption
@@ -578,7 +549,6 @@ function FilterToolbar({
         <ScrollView
           contentContainerStyle={styles.toolbarScrollSecondary}
           horizontal
-          nestedScrollEnabled
           showsHorizontalScrollIndicator={false}
         >
           <FilterCaption

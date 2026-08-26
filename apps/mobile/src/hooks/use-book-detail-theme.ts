@@ -1,21 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+
 import { useAppSettings } from '@/services/settings';
 import {
   createBookDetailTheme,
   interpolateBookDetailTheme,
   type BookDetailTheme,
 } from '@/theme/book-detail-theme';
-import { useSystemThemeSeed } from '@/hooks/use-system-theme-seed';
 import { useAppColorScheme } from '@/theme/app-theme';
+import { resolveBookColorProfile } from '@/theme/book-detail-profile';
 
 export function useBookDetailTheme(coverUrl: string | null, coverPlaceholder: string | null) {
-  const effectiveColorScheme = useAppColorScheme();
+  const colorScheme = useAppColorScheme();
   const settings = useAppSettings();
-  const systemThemeSeed = useSystemThemeSeed(effectiveColorScheme);
-  const useSystemThemeSeedValue = settings.useSystemColor && systemThemeSeed !== null;
-  const colorProfile = effectiveColorScheme === 'dark'
-    ? settings.oledBlack ? 'oledBlack' : 'dark'
-    : 'light';
+  const colorProfile = resolveBookColorProfile(colorScheme);
 
   return useMemo(
     () => createBookDetailTheme({
@@ -23,12 +20,8 @@ export function useBookDetailTheme(coverUrl: string | null, coverPlaceholder: st
       coverColorExtraction: settings.coverColorExtraction,
       coverPlaceholder,
       coverUrl,
-      dynamicSchemeVariant: useSystemThemeSeedValue
-        ? 'tonalSpot'
-        : settings.dynamicSchemeVariant,
-      themeSeedColor: useSystemThemeSeedValue
-        ? systemThemeSeed
-        : settings.seedColorValue,
+      dynamicSchemeVariant: settings.dynamicSchemeVariant,
+      themeSeedColor: settings.seedColorValue,
     }),
     [
       colorProfile,
@@ -37,8 +30,6 @@ export function useBookDetailTheme(coverUrl: string | null, coverPlaceholder: st
       settings.coverColorExtraction,
       settings.dynamicSchemeVariant,
       settings.seedColorValue,
-      systemThemeSeed,
-      useSystemThemeSeedValue,
     ],
   );
 }

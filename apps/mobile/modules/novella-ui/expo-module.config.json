@@ -1,8 +1,5 @@
 {
-  "platforms": ["android", "ios"],
-  "android": {
-    "modules": ["sh.celia.novella.modules.novellaui.NovellaUiModule"]
-  },
+  "platforms": ["ios"],
   "ios": {
     "modules": ["NovellaUiModule"]
   }

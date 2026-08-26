@@ -20,7 +20,6 @@ import {
   bookGridSkeletonCount,
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
@@ -70,12 +69,7 @@ export function ComicListScreen() {
   return (
     <>
       <Stack.Screen options={{ title: t('catalog.allComics') }} />
-      <NativeScreenScaffold
-        largeTitle={false}
-        onBackPress={() => router.back()}
-        showBackButton
-        title={t('catalog.allComics')}
-      >
+
         <FlatList
           style={styles.root}
           ListEmptyComponent={
@@ -101,7 +95,6 @@ export function ComicListScreen() {
           extraData={coverActivation.activatedKeys}
           key={listKey}
           keyExtractor={comicListItemKey}
-          nestedScrollEnabled
           numColumns={columns}
           onEndReached={loadMore}
           onEndReachedThreshold={0.6}
@@ -129,7 +122,7 @@ export function ComicListScreen() {
           showsVerticalScrollIndicator={false}
           viewabilityConfig={coverActivation.viewabilityConfig}
         />
-      </NativeScreenScaffold>
+
     </>
   );
 }

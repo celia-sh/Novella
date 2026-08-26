@@ -243,45 +243,37 @@ function BookDetailContent({
     : null;
   const startSortNum = currentSortNum ?? 1;
   const latestChapter = book.chapters.at(-1)?.title ?? book.lastUpdatedChapter;
-  const isIos = process.env.EXPO_OS === 'ios';
   const heroHeight = BOOK_HERO_HEIGHT + topInset;
-  const usesCollapsibleAppBar = process.env.EXPO_OS === 'android';
 
   return (
     <View style={[styles.detailContent, { backgroundColor: palette.surface }]}>
-      {isIos ? (
-        <CollapsingBookHeroBackdrop
-          maxHeight={heroHeight}
-          minHeight={BOOK_HERO_TOOLBAR_HEIGHT + topInset}
-          palette={palette}
-          scrollOffset={scrollOffset}
-        />
-      ) : null}
+      <CollapsingBookHeroBackdrop
+        maxHeight={heroHeight}
+        minHeight={BOOK_HERO_TOOLBAR_HEIGHT + topInset}
+        palette={palette}
+        scrollOffset={scrollOffset}
+      />
       <Animated.ScrollView
-        bounces={isIos}
+        bounces
         contentInsetAdjustmentBehavior="never"
         overScrollMode="never"
         ref={scrollRef}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        style={[styles.scrollView, { backgroundColor: isIos ? 'transparent' : palette.surface }]}
+        style={[styles.scrollView, { backgroundColor: 'transparent' }]}
       >
-          {usesCollapsibleAppBar ? (
-            <View style={{ height: BOOK_HERO_HEIGHT + topInset }} />
-          ) : (
-            <InlineBookHero
-              book={book}
-              coverPlaceholder={coverPlaceholder}
-              coverUrl={coverUrl}
-              horizontalPadding={horizontalPadding}
-              isLoading={isLoading}
-              onQuickSearch={handleQuickSearch}
-              palette={palette}
-              titleSearchAccessibilityLabel={titleSearchAccessibilityLabel}
-              scrollOffset={scrollOffset}
-              topInset={topInset}
-            />
-          )}
+        <InlineBookHero
+          book={book}
+          coverPlaceholder={coverPlaceholder}
+          coverUrl={coverUrl}
+          horizontalPadding={horizontalPadding}
+          isLoading={isLoading}
+          onQuickSearch={handleQuickSearch}
+          palette={palette}
+          titleSearchAccessibilityLabel={titleSearchAccessibilityLabel}
+          scrollOffset={scrollOffset}
+          topInset={topInset}
+        />
 
       {isLoading ? (
         <BookDetailBodyLoading horizontalPadding={horizontalPadding} palette={palette} />
@@ -455,110 +447,7 @@ function BookDetailContent({
       )}
           <View style={{ height: 40 + bottomInset }} />
         </Animated.ScrollView>
-      {usesCollapsibleAppBar ? (
-        <CollapsibleBookAppBar
-          book={book}
-          coverPlaceholder={coverPlaceholder}
-          coverUrl={coverUrl}
-          horizontalPadding={horizontalPadding}
-          isLoading={isLoading}
-          onQuickSearch={handleQuickSearch}
-          palette={palette}
-          titleSearchAccessibilityLabel={titleSearchAccessibilityLabel}
-          scrollOffset={scrollOffset}
-          topInset={topInset}
-        />
-      ) : null}
     </View>
-  );
-}
-
-function CollapsibleBookAppBar({
-  book,
-  coverPlaceholder,
-  coverUrl,
-  horizontalPadding,
-  isLoading,
-  onQuickSearch,
-  palette,
-  scrollOffset,
-  titleSearchAccessibilityLabel,
-  topInset,
-}: {
-  book: BookDetail;
-  coverPlaceholder: string | null;
-  coverUrl: string | null;
-  horizontalPadding: number;
-  isLoading: boolean;
-  onQuickSearch: (target: BookQuickSearchTarget) => void;
-  palette: BookDetailPalette;
-  scrollOffset: SharedValue<number>;
-  titleSearchAccessibilityLabel: string;
-  topInset: number;
-}) {
-  const author = book.authorName?.trim() ?? '';
-  const maxHeight = BOOK_HERO_HEIGHT + topInset;
-  const minHeight = BOOK_HERO_TOOLBAR_HEIGHT + topInset;
-  const appBarStyle = useAnimatedStyle(() => ({
-    height: interpolate(
-      scrollOffset.value,
-      [0, BOOK_HERO_COLLAPSE_DISTANCE],
-      [maxHeight, minHeight],
-      'clamp',
-    ),
-  }));
-  const flexibleBackgroundStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      scrollOffset.value,
-      [
-        0,
-        BOOK_HERO_COLLAPSE_DISTANCE - BOOK_HERO_TOOLBAR_HEIGHT,
-        BOOK_HERO_COLLAPSE_DISTANCE,
-      ],
-      [1, 1, 0],
-      'clamp',
-    ),
-    transform: [{
-      translateY: interpolate(
-        scrollOffset.value,
-        [0, BOOK_HERO_COLLAPSE_DISTANCE],
-        [0, -BOOK_HERO_TOOLBAR_HEIGHT],
-        'clamp',
-      ),
-    }],
-  }));
-
-  return (
-    <Animated.View
-      pointerEvents="box-none"
-      style={[
-        styles.collapsibleAppBar,
-        { backgroundColor: palette.surface, height: maxHeight },
-        appBarStyle,
-      ]}
-    >
-      <Animated.View
-        pointerEvents="box-none"
-        style={[
-          styles.flexibleAppBarBackground,
-          { height: maxHeight },
-          flexibleBackgroundStyle,
-        ]}
-      >
-        <BookHeroContent
-          author={author}
-          book={book}
-          coverPlaceholder={coverPlaceholder}
-          coverUrl={coverUrl}
-          height={maxHeight}
-          horizontalPadding={horizontalPadding}
-          isLoading={isLoading}
-          onQuickSearch={onQuickSearch}
-          palette={palette}
-          titleSearchAccessibilityLabel={titleSearchAccessibilityLabel}
-        />
-      </Animated.View>
-    </Animated.View>
   );
 }
 
@@ -999,7 +888,6 @@ const styles = StyleSheet.create({
   chapterRow: { alignItems: 'center', flexDirection: 'row', gap: 16, minHeight: 48, paddingHorizontal: 12 },
   chapterTitle: { flex: 1, fontSize: 14, letterSpacing: 0.5, lineHeight: 21 },
   chips: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 20 },
-  collapsibleAppBar: { left: 0, overflow: 'hidden', position: 'absolute', right: 0, top: 0, zIndex: 1 },
   coverFallback: { alignItems: 'center', height: 150, justifyContent: 'center', width: 100 },
   coverFrame: { borderRadius: 8, height: 150, overflow: 'hidden', width: 100 },
   coverShadow: { borderRadius: 8, boxShadow: '0 3px 8px rgba(0, 0, 0, 0.176)', height: 150, width: 100 },
@@ -1011,7 +899,6 @@ const styles = StyleSheet.create({
   errorContent: { alignItems: 'center', gap: 10, padding: 32, paddingTop: 88 },
   errorText: { fontSize: 15, lineHeight: 21, textAlign: 'center' },
   errorTitle: { fontSize: 18, fontWeight: '700', letterSpacing: 0, lineHeight: 24 },
-  flexibleAppBarBackground: { left: 0, position: 'absolute', right: 0, top: 0 },
   hero: { overflow: 'hidden' },
   heroBackdrop: { left: 0, overflow: 'hidden', position: 'absolute', right: 0, top: 0 },
   heroContent: { alignItems: 'flex-end', bottom: 16, flexDirection: 'row', gap: 16, position: 'absolute' },

@@ -104,7 +104,6 @@ export function CommentThreadRow({
           {badge ? <CommentBadge label={badge} palette={palette} /> : null}
         </View>
         <Text
-          android_hyphenationFrequency="none"
           selectable
           style={[styles.commentText, { color: palette.label }]}
           textBreakStrategy="simple"
@@ -157,7 +156,6 @@ export function CommentThreadRow({
           </Text>
         ) : null}
         <Text
-          android_hyphenationFrequency="none"
           selectable
           style={[styles.commentText, { color: palette.label }]}
           textBreakStrategy="simple"

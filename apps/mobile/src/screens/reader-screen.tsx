@@ -18,7 +18,6 @@ import {
   type ReaderMode,
   type ReaderOpenPosition,
 } from '@novella/reader-engine';
-import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
 import { ReaderErrorState } from '@/components/reader-chrome';
 import { ReaderImagePreviewHost, type ReaderImagePreviewHostHandle } from '@/components/reader-image-preview';
@@ -56,7 +55,6 @@ import {
   resolveNovelReaderBackgroundColor,
   resolveNovelReaderTextColor,
 } from '@/theme/reader-theme';
-import { resolveReaderColors } from '@/theme/theme-mode';
 
 interface NovelProgressInput {
   chapterId: number;
@@ -81,7 +79,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   }>();
   const route = useRoute();
   const { colors } = useAppTheme();
-  const isReadiumSupported = process.env.EXPO_OS === 'ios';
   const [mode, setMode] = useState<ReaderMode>(settings.novelReaderViewMode);
   const [chromeHidden, setChromeHidden] = useState(false);
   const [previewProgression, setPreviewProgression] = useState(0);
@@ -148,7 +145,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   );
   const useDoublePage = mode === 'paged' && shouldUseReaderDoublePage(screenWidth, screenHeight);
   const readerChromeInsets = createReaderChromeInsets(
-    process.env.EXPO_OS,
     stableSafeArea.top,
     stableSafeArea.bottom,
   );
@@ -159,31 +155,16 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
 
   const colorScheme = useAppColorScheme();
   const isDarkReader = colorScheme === 'dark';
-  const useCoverPalette = process.env.EXPO_OS === 'android' && settings.coverColorExtraction;
-  const detailTheme = useBookDetailRouteTheme(bookId, null, null, useCoverPalette);
-  let readerBackground: string;
-  let readerTextColor: string;
-  if (process.env.EXPO_OS === 'ios') {
-    readerBackground = resolveNovelReaderBackgroundColor(
-      settings.novelReaderBackgroundColor,
-      colorScheme,
-    );
-    readerTextColor = settings.novelReaderBackgroundColor
-      ? resolveNovelReaderTextColor(readerBackground)
-      : isDarkReader ? '#FFFFFF' : '#111827';
-  } else {
-    const resolvedReaderColors = resolveReaderColors({
-      backgroundColor: useCoverPalette ? detailTheme.palette.surface : colors.surface as string,
-      colorScheme,
-      oledBlack: settings.oledBlack,
-      textColor: useCoverPalette ? detailTheme.palette.onSurface : colors.label as string,
-    });
-    readerBackground = resolvedReaderColors.backgroundColor;
-    readerTextColor = resolvedReaderColors.textColor;
-  }
-  const readerStatusBarStyle = process.env.EXPO_OS === 'ios'
-    ? readerTextColor === '#FFFFFF' ? 'light-content' : 'dark-content'
-    : isDarkReader ? 'light-content' : 'dark-content';
+  const readerBackground = resolveNovelReaderBackgroundColor(
+    settings.novelReaderBackgroundColor,
+    colorScheme,
+  );
+  const readerTextColor = settings.novelReaderBackgroundColor
+    ? resolveNovelReaderTextColor(readerBackground)
+    : isDarkReader ? '#FFFFFF' : '#111827';
+  const readerStatusBarStyle = readerTextColor === '#FFFFFF'
+    ? 'light-content'
+    : 'dark-content';
 
   const initialLocator = useMemo<ReadiumLocator | undefined>(() => {
     if (!content) return undefined;
@@ -223,14 +204,14 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   }, [initialLocator, nativeAttempt, publicationId, requestedChapterId]);
 
   useEffect(() => {
-    if (!isReadiumSupported || !preparedPublication || !content || nativeReady || nativeError) {
+    if (!preparedPublication || !content || nativeReady || nativeError) {
       return undefined;
     }
     const timeout = setTimeout(() => {
       setNativeError({ kind: 'key', key: 'errors.readiumTimeout' });
     }, NATIVE_READER_LOAD_TIMEOUT_MS);
     return () => clearTimeout(timeout);
-  }, [content, isReadiumSupported, nativeError, nativeReady, preparedPublication]);
+  }, [content, nativeError, nativeReady, preparedPublication]);
 
   const saveLocator = useCallback((locator: ReadiumLocator) => {
     if (!content || activeChapterIdRef.current !== content.chapter.id) return;
@@ -407,9 +388,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   return (
     <>
       <View style={[styles.root, { backgroundColor: readerBackground }]}>
-        {!isReadiumSupported ? (
-          <ReaderErrorState message={t('errors.readerIosOnly')} onRetry={() => undefined} />
-        ) : requiresReaderFont && readerFont.status === 'error' ? (
+        {requiresReaderFont && readerFont.status === 'error' ? (
           <ReaderErrorState message={t('errors.fontLoad')} onRetry={readerFont.retry} />
         ) : chapterError ? (
           <ReaderErrorState message={translateMessage(chapterError)} onRetry={error ? reload : publication.retry} />
@@ -458,7 +437,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       </View>
       <ReaderImagePreviewHost ref={imagePreviewRef} />
       <ReaderNavigation
-        backgroundColor={readerBackground}
         chromeHidden={chromeHidden}
         foregroundColor={readerTextColor}
         onOpenChapters={openChapters}
@@ -469,18 +447,15 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         statusBarStyle={readerStatusBarStyle}
         title={readerTitle || t('titles.reader')}
       />
-      {isReadiumSupported ? (
-        <ReaderChapterNavigation
-          backgroundColor={readerBackground}
-          chromeHidden={chromeHidden || !nativeReady}
-          direction="ltr"
-          onPageProgressChange={handleProgressChange}
-          pageCurrent={0}
-          pageProgress={previewProgression}
-          pageTotal={0}
-          progressMode="percentage"
-        />
-      ) : null}
+      <ReaderChapterNavigation
+        chromeHidden={chromeHidden || !nativeReady}
+        direction="ltr"
+        onPageProgressChange={handleProgressChange}
+        pageCurrent={0}
+        pageProgress={previewProgression}
+        pageTotal={0}
+        progressMode="percentage"
+      />
     </>
   );
 }

@@ -10,7 +10,6 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  BackHandler,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -29,8 +28,6 @@ import {
   type ShelfSnapshot,
 } from '@novella/client-core';
 
-import type { NativeTopAppBarAction } from '../../modules/novella-ui';
-
 import {
   BOOK_COVER_ASPECT_RATIO,
   BookCoverGridItem,
@@ -44,7 +41,6 @@ import {
 import { ShelfNavigation } from '@/components/shelf-navigation';
 import type { ShelfEditInteraction } from '@/components/shelf-navigation.types';
 import { ReorderableShelfGrid } from '@/components/reorderable-shelf-grid';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { SectionCard } from '@/components/section-card';
 import { useBookGridLayout, BOOK_GRID_COLUMN_GAP } from '@/hooks/use-book-grid-layout';
 import {
@@ -154,33 +150,9 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
     exitEdit();
   }, [exitEdit]);
 
-  const handleBack = useCallback(() => {
-    if (mode === 'edit') {
-      leaveEdit();
-      return;
-    }
-    if (router.canGoBack()) router.back();
-    else router.replace('/(tabs)/(shelf)/shelf');
-  }, [leaveEdit, mode]);
-
   usePreventRemove(mode === 'edit', () => {
     leaveEdit();
   });
-
-  useEffect(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (mode === 'edit') {
-        leaveEdit();
-        return true;
-      }
-      if (parents.length > 0) {
-        handleBack();
-        return true;
-      }
-      return false;
-    });
-    return () => subscription.remove();
-  }, [handleBack, leaveEdit, mode, parents.length]);
 
   const openFolder = useCallback((folderId: string) => {
     router.push({
@@ -271,83 +243,13 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
     );
   }, [canDelete, removeItems, selectedFolders.length, selectedKeys, t, tCommon]);
 
-  const androidActions = useMemo<NativeTopAppBarAction[]>(() => {
-    if (mode === 'browse') {
-      return isFolder
-        ? [
-            { accessibilityLabel: t('shelf.edit'), icon: 'edit', id: 'edit' },
-            { accessibilityLabel: t('shelf.renameFolder'), icon: 'pencil', id: 'rename' },
-          ]
-        : [
-            { accessibilityLabel: t('shelf.newFolder'), icon: 'folderPlus', id: 'create' },
-            { accessibilityLabel: t('shelf.edit'), icon: 'edit', id: 'edit' },
-          ];
-    }
-    return [
-      {
-        accessibilityLabel: editInteraction === 'select'
-          ? t('shelf.switchToReorder')
-          : t('shelf.switchToSelection'),
-        icon: editInteraction === 'select' ? 'sortAscending' : 'listCheck',
-        id: 'toggle-interaction',
-      },
-      {
-        accessibilityLabel: t('shelf.moveSelectedItems'),
-        enabled: canMove,
-        icon: 'folderMove',
-        id: 'move',
-      },
-      {
-        accessibilityLabel: t('shelf.deleteSelectedItems'),
-        enabled: canDelete,
-        icon: 'trash',
-        id: 'delete',
-      },
-      { accessibilityLabel: t('shelf.exitEdit'), icon: 'x', id: 'exit' },
-    ];
-  }, [canDelete, canMove, editInteraction, isFolder, mode, t]);
-
-  const handleAndroidAction = useCallback((id: string) => {
-    switch (id) {
-      case 'create':
-        openCreateFolder();
-        break;
-      case 'delete':
-        handleDelete();
-        break;
-      case 'edit':
-        enterEdit();
-        break;
-      case 'exit':
-        leaveEdit();
-        break;
-      case 'move':
-        openMoveSheet();
-        break;
-      case 'rename':
-        openRenameFolder();
-        break;
-      case 'toggle-interaction':
-        toggleEditInteraction();
-        break;
-    }
-  }, [enterEdit, handleDelete, leaveEdit, openCreateFolder, openMoveSheet, openRenameFolder, toggleEditInteraction]);
-
   return (
     <>
-      <NativeScreenScaffold
-        actions={androidActions}
-        largeTitle={mode === 'browse' && parents.length === 0}
-        onActionPress={handleAndroidAction}
-        onBackPress={handleBack}
-        showBackButton={parents.length > 0}
-        title={title}
-      >
+
         <ShelfScrollRoot nested={parents.length > 0}>
           <ScrollView
             contentInsetAdjustmentBehavior="automatic"
             contentContainerStyle={styles.content}
-            nestedScrollEnabled
             onLayout={(event) => {
               viewportHeightRef.current = event.nativeEvent.layout.height;
               coverViewport.onLayout(event);
@@ -414,7 +316,7 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
             ) : null}
           </ScrollView>
         </ShelfScrollRoot>
-      </NativeScreenScaffold>
+
       <ShelfNavigation
         canDelete={canDelete}
         canMove={canMove}

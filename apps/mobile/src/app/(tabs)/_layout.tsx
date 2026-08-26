@@ -23,31 +23,19 @@ export default function TabsLayout() {
       tintColor={colors.accent}
     >
       <NativeTabs.Trigger name="(discover)">
-        <NativeTabs.Trigger.Icon
-          drawable="ic_tabler_compass_24"
-          sf="safari.fill"
-        />
+        <NativeTabs.Trigger.Icon sf="safari.fill" />
         <NativeTabs.Trigger.Label>{t('tabs.discover')}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(shelf)">
-        <NativeTabs.Trigger.Icon
-          drawable="ic_tabler_books_24"
-          sf="book.closed.fill"
-        />
+        <NativeTabs.Trigger.Icon sf="book.closed.fill" />
         <NativeTabs.Trigger.Label>{t('tabs.shelf')}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(history)">
-        <NativeTabs.Trigger.Icon
-          drawable="ic_tabler_history_24"
-          sf="clock.fill"
-        />
+        <NativeTabs.Trigger.Icon sf="clock.fill" />
         <NativeTabs.Trigger.Label>{t('tabs.history')}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(community)">
-        <NativeTabs.Trigger.Icon
-          drawable="ic_tabler_messages_24"
-          sf="text.bubble.fill"
-        />
+        <NativeTabs.Trigger.Icon sf="text.bubble.fill" />
         <NativeTabs.Trigger.Label>{t('tabs.community')}</NativeTabs.Trigger.Label>
         {unreadNotifications > 0 ? (
           <NativeTabs.Trigger.Badge>
@@ -56,10 +44,7 @@ export default function TabsLayout() {
         ) : null}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(search)">
-        <NativeTabs.Trigger.Icon
-          drawable="ic_tabler_search_24"
-          sf="magnifyingglass"
-        />
+        <NativeTabs.Trigger.Icon sf="magnifyingglass" />
         <NativeTabs.Trigger.Label>{t('tabs.search')}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>

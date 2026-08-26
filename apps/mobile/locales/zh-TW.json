@@ -2,8 +2,5 @@
   "ios": {
     "CFBundleDisplayName": "Novella",
     "NSPhotoLibraryAddUsageDescription": "允許 Novella 將圖片儲存到你的照片圖庫。"
-  },
-  "android": {
-    "app_name": "Novella"
   }
 }

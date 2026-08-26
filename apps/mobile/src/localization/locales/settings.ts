@@ -57,10 +57,6 @@ export const zhCNSettings = {
       },
       coverColorTitle: '提取封面颜色',
       coverColorDescription: '在书籍详情页使用封面颜色',
-      systemColorsTitle: '系统配色',
-      systemColorsDescription: '使用设备壁纸的颜色',
-      oledBlackTitle: 'OLED 纯黑',
-      oledBlackDescription: '在深色模式下使用纯黑背景',
     },
   },
   content: {
@@ -391,10 +387,6 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
       },
       coverColorTitle: '擷取封面色彩',
       coverColorDescription: '在書籍詳細資料頁使用封面色彩',
-      systemColorsTitle: '系統色彩',
-      systemColorsDescription: '使用裝置桌布的色彩',
-      oledBlackTitle: 'OLED 純黑',
-      oledBlackDescription: '在深色模式使用純黑背景',
     },
   },
   content: {

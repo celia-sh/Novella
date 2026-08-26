@@ -24,7 +24,6 @@ import {
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
 import { HistoryNavigation } from '@/components/history-navigation';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
@@ -123,23 +122,7 @@ export function HistoryScreen() {
 
   return (
     <>
-      <NativeScreenScaffold
-        {...(hasAnyHistory
-          ? {
-              actions: [
-                {
-                  accessibilityLabel: t('history.clearAccessibility'),
-                  icon: 'trash',
-                  id: 'clear-history',
-                },
-              ],
-              onActionPress: (actionId: string) => {
-                if (actionId === 'clear-history') confirmClearHistory();
-              },
-            }
-          : {})}
-        title={t('history.title')}
-      >
+
         <View style={styles.root}>
           <FlatList
             ListEmptyComponent={
@@ -175,9 +158,6 @@ export function HistoryScreen() {
             key={listKey}
             keyExtractor={(item) => historyItemKey(item, tab)}
             numColumns={columns}
-            // Inside the Android Compose top-bar host the list must
-            // participate in the nested scrolling coordinator.
-            nestedScrollEnabled={process.env.EXPO_OS === 'android'}
             onEndReached={() => loadMore(tab)}
             onEndReachedThreshold={0.6}
             onViewableItemsChanged={coverActivation.onViewableItemsChanged}
@@ -215,7 +195,7 @@ export function HistoryScreen() {
             viewabilityConfig={coverActivation.viewabilityConfig}
           />
         </View>
-      </NativeScreenScaffold>
+
       <HistoryNavigation onClear={confirmClearHistory} showClear={hasAnyHistory} />
     </>
   );

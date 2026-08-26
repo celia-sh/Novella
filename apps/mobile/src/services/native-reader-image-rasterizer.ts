@@ -1,5 +1,13 @@
-export const readerImageRasterizerAvailable = false;
+import { requireNativeModule } from 'expo';
 
-export function rasterizeReaderImage(_uri: string, _maxPixelSize: number): Promise<string> {
-  return Promise.reject(new Error('Reader image rasterization is only available on iOS'));
+interface ReaderImageRasterizerModule {
+  rasterizeReaderImage(uri: string, maxPixelSize: number): Promise<string>;
+}
+
+const NativeReaderImageRasterizer = requireNativeModule<ReaderImageRasterizerModule>('NovellaUi');
+
+export const readerImageRasterizerAvailable = true;
+
+export function rasterizeReaderImage(uri: string, maxPixelSize: number): Promise<string> {
+  return NativeReaderImageRasterizer.rasterizeReaderImage(uri, maxPixelSize);
 }

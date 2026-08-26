@@ -4,7 +4,6 @@ import type { ReaderChapterNavigationProps } from '@/components/reader-navigatio
 import { ReaderProgressSlider } from '@/components/reader-progress-slider';
 
 export function ReaderChapterNavigation({
-  backgroundColor,
   chromeHidden,
   direction = 'ltr',
   onPageProgressChange,
@@ -13,21 +12,18 @@ export function ReaderChapterNavigation({
   pageTotal,
   progressMode = 'pages',
 }: ReaderChapterNavigationProps) {
-  if (chromeHidden || (progressMode === 'pages' && pageTotal === 0)) return null;
+  const visible = progressMode === 'percentage' || pageTotal > 0;
   return (
-    <Stack.Toolbar
-      placement="bottom"
-      {...(backgroundColor ? { backgroundColor } : {})}
-    >
-      <Stack.Toolbar.View>
+    <Stack.Toolbar placement="bottom">
+      <Stack.Toolbar.View hidden={chromeHidden || !visible}>
         <ReaderProgressSlider
           direction={direction}
-          onValueChange={onPageProgressChange}
           displayMode={progressMode}
+          onValueChange={onPageProgressChange}
           pageCurrent={pageCurrent}
           pageTotal={pageTotal}
           progress={pageProgress}
-          visible
+          visible={visible}
         />
       </Stack.Toolbar.View>
     </Stack.Toolbar>

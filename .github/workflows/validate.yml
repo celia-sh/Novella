@@ -48,9 +48,6 @@ jobs:
       - name: Run mobile reader tests
         run: npm run test:reader --workspace @novella/mobile
 
-      - name: Run mobile config plugin tests
-        run: npm run test:plugins --workspace @novella/mobile
-
       - name: Build public site
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

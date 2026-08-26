@@ -1,4 +1,4 @@
-import { arrayBufferToBase64 } from '@/services/reader-xhtml-builder';
+import { arrayBufferToBase64 } from '@/services/reader-xhtml';
 import * as FileSystem from 'expo-file-system';
 
 import { SERVICE_ENDPOINTS } from '@novella/api-client';

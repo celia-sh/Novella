@@ -1,7 +1,6 @@
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import Stack from 'expo-router/stack';
 import { useMemo } from 'react';
-import { Platform } from 'react-native';
 
 import { useAppTheme } from '@/theme/app-theme';
 
@@ -15,15 +14,11 @@ export function useSystemScreenStackPreset(): StackScreenOptions {
   return useMemo(() => ({
     contentStyle: { backgroundColor: colors.background },
     headerBackButtonDisplayMode: 'minimal',
-    ...(Platform.OS === 'ios'
-      ? {
-          headerBlurEffect: hasLiquidGlass ? undefined : 'systemMaterial',
-          headerTransparent: hasLiquidGlass,
-        }
-      : {}),
+    headerBlurEffect: hasLiquidGlass ? undefined : 'systemMaterial',
     headerLargeTitleShadowVisible: false,
     headerShadowVisible: false,
     headerTintColor: colors.accent,
     headerTitleStyle: { color: colors.label as string },
+    headerTransparent: hasLiquidGlass,
   }), [colors]);
 }

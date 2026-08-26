@@ -13,31 +13,17 @@ import {
 
 export interface NativeGroupedListProps extends PropsWithChildren {
   iconSet?: NativeIconSet;
-  largeTitle?: boolean;
-  onBackPress?: () => void;
-  showBackButton?: boolean;
   testID?: string;
-  title?: string;
 }
 
 export function NativeGroupedList({
   children,
   iconSet = 'tabler',
-  largeTitle,
-  onBackPress,
-  showBackButton,
   testID,
-  title,
 }: NativeGroupedListProps) {
   return (
     <NativeIconSetProvider value={iconSet}>
-      <NativeGroupedListPlatform
-        {...(largeTitle === undefined ? {} : { largeTitle })}
-        {...(onBackPress ? { onBackPress } : {})}
-        {...(showBackButton === undefined ? {} : { showBackButton })}
-        {...(testID ? { testID } : {})}
-        {...(title ? { title } : {})}
-      >
+      <NativeGroupedListPlatform {...(testID ? { testID } : {})}>
         {children}
       </NativeGroupedListPlatform>
     </NativeIconSetProvider>

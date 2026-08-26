@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { showAlert } from '@/components/native-alert-dialog';
-import { router } from 'expo-router';
 
 import { clearBookCoverRevealCache } from '@/components/book-cover-image';
 import {
@@ -74,10 +73,7 @@ export function CacheSettingsScreen() {
 
   return (
     <NativeGroupedList
-      onBackPress={() => router.back()}
-      showBackButton
       testID="cache-settings"
-      title={t('cache.title')}
     >
       <NativeGroupedListSection title={t('cache.section')}>
         <NativeToggleRow

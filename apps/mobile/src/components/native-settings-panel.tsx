@@ -12,23 +12,11 @@ import { SettingsRootNavigation } from '@/components/settings-root-navigation';
 export function NativeSettingsPanel() {
   const { t } = useTranslation('settings');
 
-  const returnToDiscover = () => {
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-    router.replace('/(tabs)/(discover)');
-  };
-
   return (
     <>
       <NativeGroupedList
         iconSet="platform"
-        largeTitle
-        onBackPress={returnToDiscover}
-        showBackButton
         testID="native-settings-panel"
-        title={t('panel.title')}
       >
         <NativeGroupedListSection title={t('panel.sections.account')}>
           <NativeGroupedListRow

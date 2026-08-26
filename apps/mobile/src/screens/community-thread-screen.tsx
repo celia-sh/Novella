@@ -37,7 +37,6 @@ import {
 } from '@/components/comment-thread';
 import { CommentThreadSkeleton } from '@/components/comment-thread-item';
 import { CommunitySectionTitle, CommunityThreadSkeleton } from '@/components/community/community-ui';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { useCommunityThread } from '@/hooks/use-community-thread';
 import { useAppLocale } from '@/localization/localization-provider';
 import { consumeCommunityThreadChanged } from '@/services/community-reply-events';
@@ -66,9 +65,9 @@ export function CommunityThreadScreen({
   // Map paper's M3 color roles onto the app theme so contained buttons,
   // contained-tonal (selected) buttons and the reply input's focus outline
   // use the app accent instead of the library default purple. Paper's color
-  // parser can't resolve PlatformColor objects, so resolve iOS's semantic
+  // The parser can't resolve PlatformColor objects, so resolve iOS semantic
   // colors to their stable hex equivalents (systemPink is the same in both
-  // appearances); Android's Material palette is already hex strings.
+  // appearances).
   const accentHex = resolveAccentHex(colors.accent);
   const primaryContainerHex = resolveAccentHex(colors.primaryContainer);
   const onPrimaryContainerHex = resolveAccentHex(colors.onPrimaryContainer);
@@ -290,12 +289,7 @@ export function CommunityThreadScreen({
     <PaperProvider theme={paperTheme}>
       <>
         <Stack.Screen options={{ title: '' }} />
-        <NativeScreenScaffold
-          largeTitle={false}
-          onBackPress={() => router.back()}
-          showBackButton
-          title=""
-        >
+
           <FlatList
             style={styles.root}
             ListEmptyComponent={
@@ -343,13 +337,12 @@ export function CommunityThreadScreen({
                 tintColor={colors.accent}
               />
             }
-            removeClippedSubviews={process.env.EXPO_OS === 'android'}
             renderItem={renderReply}
             showsVerticalScrollIndicator={false}
             updateCellsBatchingPeriod={32}
             windowSize={7}
           />
-        </NativeScreenScaffold>
+
       </>
     </PaperProvider>
   );

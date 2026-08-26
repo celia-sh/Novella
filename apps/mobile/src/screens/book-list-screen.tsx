@@ -20,7 +20,6 @@ import {
   bookGridSkeletonCount,
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
@@ -73,12 +72,7 @@ export function BookListScreen() {
   return (
     <>
       <Stack.Screen options={{ title: t('catalog.allNovels') }} />
-      <NativeScreenScaffold
-        largeTitle={false}
-        onBackPress={() => router.back()}
-        showBackButton
-        title={t('catalog.allNovels')}
-      >
+
         <FlatList
           style={styles.root}
           ListEmptyComponent={
@@ -104,15 +98,14 @@ export function BookListScreen() {
           extraData={coverActivation.activatedKeys}
           key={listKey}
           keyExtractor={bookListItemKey}
-          nestedScrollEnabled
           numColumns={columns}
           onEndReached={loadMore}
           onEndReachedThreshold={0.6}
           onViewableItemsChanged={coverActivation.onViewableItemsChanged}
           // This list scrolls forever, and RN's default window retains ~21
           // screens of rows with their cover bitmaps: 1.28GB peak RSS versus
-          // 1.03GB bounded, frame pacing unchanged. `removeClippedSubviews` and
-          // smaller render batches were measured here and made draw work worse.
+          // 1.03GB bounded, frame pacing unchanged. Smaller render batches
+          // were measured here and made draw work worse.
           windowSize={11}
           refreshControl={
             <RefreshControl
@@ -137,7 +130,7 @@ export function BookListScreen() {
           showsVerticalScrollIndicator={false}
           viewabilityConfig={coverActivation.viewabilityConfig}
         />
-      </NativeScreenScaffold>
+
     </>
   );
 }

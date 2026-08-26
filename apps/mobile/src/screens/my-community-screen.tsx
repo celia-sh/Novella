@@ -23,7 +23,6 @@ import {
   CommunityPaperProvider,
   CommunityThreadCard,
 } from "@/components/community/community-ui";
-import { NativeScreenScaffold } from "@/components/native-screen-scaffold";
 import {
   NativeSegmentedControl,
   type NativeSegmentedControlOption,
@@ -59,17 +58,11 @@ export function MyCommunityScreen() {
 
   return (
     <CommunityPaperProvider>
-      <NativeScreenScaffold
-        largeTitle={false}
-        onBackPress={() => router.back()}
-        showBackButton
-        title={t("myCommunity.title")}
-      >
+
         <ScrollView
           alwaysBounceVertical
           contentContainerStyle={styles.content}
           contentInsetAdjustmentBehavior="automatic"
-          nestedScrollEnabled={process.env.EXPO_OS === "android"}
           refreshControl={
             <RefreshControl
               colors={[colors.accent as string]}
@@ -151,7 +144,7 @@ export function MyCommunityScreen() {
             </View>
           )}
         </ScrollView>
-      </NativeScreenScaffold>
+
     </CommunityPaperProvider>
   );
 }

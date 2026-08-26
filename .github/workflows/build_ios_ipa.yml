@@ -91,7 +91,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Verify release tag target
-        # 与 Android 保持一致：tag 构建不应依赖仓库层 Ruleset 才能拦住坏 tag。
+        # tag 构建不应依赖仓库层 Ruleset 才能拦住坏 tag。
         if: github.ref_type == 'tag'
         run: |
           set -euo pipefail

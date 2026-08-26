@@ -17,7 +17,6 @@ import {
   IconChevronRight,
   IconClock,
   IconCoins,
-  IconContrast,
   IconDatabase,
   IconDownload,
   IconEraser,
@@ -58,7 +57,6 @@ import {
   IconUserCircle,
   IconUsers,
   IconUsersGroup,
-  IconWallpaper,
   IconWorld,
 } from '@tabler/icons-react-native';
 import type { ComponentProps, ComponentType } from 'react';
@@ -117,7 +115,6 @@ export const tablerNativeIcons: Record<NativeIconName, TablerNativeIcon> = {
   level6Content: IconHexagon,
   level: IconHexagon,
   lineHeight: IconLineHeight,
-  oledBlack: IconContrast,
   preload: IconDownload,
   profileError: IconAlertTriangle,
   profileStatus: IconUserCircle,
@@ -134,7 +131,6 @@ export const tablerNativeIcons: Record<NativeIconName, TablerNativeIcon> = {
   sidePadding: IconArrowsHorizontal,
   signOut: IconLogout,
   sourceCode: IconBrandGithub,
-  systemColors: IconWallpaper,
   telegram: IconBrandTelegram,
   textConvert: IconExchange,
   textSize: IconTextSize,

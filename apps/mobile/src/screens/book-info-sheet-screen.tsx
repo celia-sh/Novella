@@ -64,16 +64,11 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
-      nestedScrollEnabled={process.env.EXPO_OS === 'android'}
       onLayout={(event) => setContentWidth(Math.max(1, event.nativeEvent.layout.width - 48))}
       showsVerticalScrollIndicator={false}
       style={[
         styles.scroll,
-        {
-          backgroundColor: process.env.EXPO_OS === 'android'
-            ? 'transparent'
-            : palette.surface,
-        },
+        { backgroundColor: palette.surface },
         variant === 'introduction' && styles.scrollFill,
       ]}
     >
@@ -216,7 +211,7 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 48,
     paddingHorizontal: 24,
-    paddingTop: process.env.EXPO_OS === 'android' ? 8 : 28,
+    paddingTop: 28,
   },
   description: { fontSize: 13, lineHeight: 18 },
   errorText: { fontSize: 15, lineHeight: 21, textAlign: 'center' },

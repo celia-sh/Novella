@@ -90,10 +90,7 @@ export function ProfileScreen() {
 
   return (
     <NativeGroupedList
-      onBackPress={() => router.back()}
-      showBackButton
       testID="profile-screen"
-      title={t('profile.title')}
     >
       {!profile ? (
         <NativeGroupedListSection title={t('profile.sections.profile')}>

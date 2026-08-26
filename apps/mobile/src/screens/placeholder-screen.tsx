@@ -1,7 +1,6 @@
 import { Column, Host, ScrollView, Text } from '@expo/ui';
 
 import { NativeIcon, type NativeIconName } from '@/components/native-icon';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 interface PlaceholderScreenProps {
@@ -18,7 +17,7 @@ export function PlaceholderScreen({
   const styles = usePlaceholderScreenStyles();
   const { colors } = useAppTheme();
   return (
-    <NativeScreenScaffold title={title}>
+
       <Host seedColor={colors.accent} style={{ flex: 1, width: '100%' }}>
         <ScrollView showsIndicators={false} style={{ height: '100%', width: '100%' }}>
           <Column alignment="center" spacing={16} style={styles.content}>
@@ -35,7 +34,7 @@ export function PlaceholderScreen({
           </Column>
         </ScrollView>
       </Host>
-    </NativeScreenScaffold>
+
   );
 }
 

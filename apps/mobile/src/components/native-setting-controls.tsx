@@ -117,25 +117,15 @@ export function NativePickerRow<T extends string | number>({
   options: readonly NativePickerOption<T>[];
   selectedValue: T;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const handlePress = disabled
-    ? onPress
-    : () => {
-        onPress?.();
-        setExpanded(true);
-      };
-
   return (
     <NativeGroupedListRow
       {...row}
       disabled={disabled}
-      {...(handlePress ? { onPress: handlePress } : {})}
+      {...(onPress ? { onPress } : {})}
       trailing={
         <NativePickerControl
           enabled={!disabled}
-          expanded={expanded}
           onValueChange={onValueChange}
-          onExpandedChange={setExpanded}
           options={options}
           selectedValue={selectedValue}
         />

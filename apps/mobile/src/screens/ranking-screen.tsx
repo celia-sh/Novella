@@ -22,7 +22,6 @@ import {
   bookGridSkeletonCount,
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
@@ -78,12 +77,7 @@ export function RankingScreen() {
   return (
     <>
       <Stack.Screen options={{ title: t('ranking.title') }} />
-      <NativeScreenScaffold
-        largeTitle={false}
-        onBackPress={() => router.back()}
-        showBackButton
-        title={t('ranking.title')}
-      >
+
         <FlatList
           style={styles.root}
           ListEmptyComponent={
@@ -109,7 +103,6 @@ export function RankingScreen() {
           extraData={coverActivation.activatedKeys}
           key={listKey}
           keyExtractor={rankingItemKey}
-          nestedScrollEnabled
           numColumns={columns}
           onViewableItemsChanged={coverActivation.onViewableItemsChanged}
           refreshControl={
@@ -120,9 +113,6 @@ export function RankingScreen() {
               tintColor={colors.accent as string}
             />
           }
-          // Android-only, like every other list here: on iOS this prop is known
-          // to blank out cells in multi-column lists.
-          removeClippedSubviews={process.env.EXPO_OS === 'android'}
           renderItem={({ item, index }) =>
             typeof item === 'number' ? (
               <BookCoverSkeletonTile tileWidth={tileWidth} />
@@ -139,7 +129,7 @@ export function RankingScreen() {
           showsVerticalScrollIndicator={false}
           viewabilityConfig={coverActivation.viewabilityConfig}
         />
-      </NativeScreenScaffold>
+
     </>
   );
 }

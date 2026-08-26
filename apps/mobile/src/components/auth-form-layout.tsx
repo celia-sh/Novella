@@ -1,10 +1,8 @@
-import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,32 +14,23 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import NovellaLogo from '../../assets/novella-logo.svg';
-import { NativeScreenScaffold } from '@/components/native-screen-scaffold';
 import { useAuthPalette } from '@/theme/auth-theme';
 
 export function AuthFormLayout({
   children,
   description,
-  navigationTitle,
   title,
 }: {
   children: ReactNode;
   description: string;
-  navigationTitle: string;
   title: string;
 }) {
   const insets = useSafeAreaInsets();
   const palette = useAuthPalette();
 
   return (
-    <NativeScreenScaffold
-      largeTitle={false}
-      onBackPress={() => router.back()}
-      showBackButton
-      title={navigationTitle}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <KeyboardAvoidingView
+        behavior="padding"
         style={[styles.root, { backgroundColor: palette.background }]}
       >
         <StatusBar style={palette.isDark ? 'light' : 'dark'} />
@@ -52,7 +41,6 @@ export function AuthFormLayout({
             { paddingBottom: Math.max(32, insets.bottom + 20) },
           ]}
           keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled={process.env.EXPO_OS === 'android'}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.contentColumn}>
@@ -69,8 +57,7 @@ export function AuthFormLayout({
             {children}
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
-    </NativeScreenScaffold>
+    </KeyboardAvoidingView>
   );
 }
 
