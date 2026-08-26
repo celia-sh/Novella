@@ -223,11 +223,10 @@ nav { display: flex; flex: 1; align-items: center; gap: 4px; }
 .sideload-button:hover { border-color: color-mix(in oklab, var(--primary) 60%, transparent); color: var(--primary-content); background: var(--primary); }
 .sideload-button span { color: var(--primary); font-size: 16px; line-height: 1; }
 .sideload-button:hover span { color: inherit; }
-.download-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-top: 72px; }
+.download-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 72px; }
 .download-card { position: relative; min-width: 0; aspect-ratio: .76; overflow: hidden; border: 1px solid color-mix(in oklab, var(--base-content) 13%, transparent); border-radius: 16px; background: #08090b; box-shadow: 0 24px 60px rgb(0 0 0 / .28); isolation: isolate; }
 .download-card-image { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; opacity: .72; filter: saturate(.72) contrast(1.08); transition: transform .5s ease, opacity .3s ease; }
 .download-card:hover .download-card-image { opacity: .84; transform: scale(1.035); }
-.download-card--android .download-card-image { object-position: center 42%; }
 .download-card--reader .download-card-image { object-position: center center; opacity: .52; }
 .download-card--ios .download-card-image { object-position: center 26%; transform: scale(.82); }
 .download-card--ios:hover .download-card-image { transform: scale(.86); }
@@ -239,7 +238,7 @@ nav { display: flex; flex: 1; align-items: center; gap: 4px; }
 .download-stat span { flex: none; color: var(--muted); font-size: 12px; }
 .download-card-title { display: flex; align-items: center; justify-content: center; min-height: 100px; text-align: center; }
 .download-card-title span { max-width: 90%; color: var(--base-content); font-size: 20px; font-style: italic; font-weight: 600; line-height: 1.2; white-space: pre-line; }
-.download-card--android .download-card-title span, .download-card--ios .download-card-title span { opacity: 0; }
+.download-card--ios .download-card-title span { opacity: 0; }
 .download-card-title .download-update-icon {
   display: block;
   width: 88px;

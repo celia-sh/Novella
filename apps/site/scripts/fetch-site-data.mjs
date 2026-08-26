@@ -18,6 +18,8 @@ const contributors = await github(`/repos/${repositorySlug}/contributors?per_pag
 
 const bodyMarkdown = typeof release.body === 'string' ? release.body : '';
 const releaseDate = release.published_at || release.created_at;
+// Keep the complete release asset classification for historical metadata. The
+// download page intentionally selects only the iOS asset for the current app.
 const assets = Array.isArray(release.assets)
   ? release.assets.map((asset) => ({
       contentType: stringValue(asset.content_type),

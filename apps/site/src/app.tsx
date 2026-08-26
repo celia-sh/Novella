@@ -151,8 +151,7 @@ function HomePage({
   onNavigate: (page: Page) => void;
   siteData: SiteData;
 }) {
-  const featured = featuredAssets(siteData.latestRelease.assets);
-  const platforms = featured.length > 0 ? featured.slice(0, 4).map((asset) => platformLabel(asset.platform)) : ['Android', 'iOS'];
+  const platforms = ['iOS'];
 
   return (
     <>
@@ -196,7 +195,6 @@ function HomePage({
 }
 
 function DownloadPage({ onOpenSources, siteData }: { onOpenSources: () => void; siteData: SiteData }) {
-  const android = assetForPlatform(siteData.latestRelease.assets, 'android');
   const ios = assetForPlatform(siteData.latestRelease.assets, 'ios');
   const version = siteData.latestRelease.tagName.toUpperCase();
 
@@ -211,16 +209,6 @@ function DownloadPage({ onOpenSources, siteData }: { onOpenSources: () => void; 
       </div>
 
       <div className="download-cards">
-        <DownloadCard
-          asset={android}
-          className="download-card--android"
-          image="assets/screenshots/Novella_reader.png"
-          label="For Android"
-          meta=".APK"
-          statLabel="下载次数"
-          statValue={android ? formatDownloadCount(android.downloadCount) : '—'}
-          title="Android"
-        />
         <DownloadCard
           className="download-card--reader"
           href={siteData.latestRelease.url}
@@ -289,19 +277,8 @@ function siteAsset(path: string) {
   return `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`;
 }
 
-function featuredAssets(assets: ReleaseAsset[]) {
-  const order: ReleasePlatform[] = ['android', 'windows', 'macos', 'linux', 'ios', 'other'];
-  const picked = new Map<ReleasePlatform, ReleaseAsset>();
-  for (const asset of assets) if (!picked.has(asset.platform)) picked.set(asset.platform, asset);
-  return order.flatMap((platform) => picked.get(platform) ? [picked.get(platform)!] : []);
-}
-
 function assetForPlatform(assets: ReleaseAsset[], platform: ReleasePlatform) {
   return assets.find((asset) => asset.platform === platform);
-}
-
-function platformLabel(platform: ReleasePlatform) {
-  return { android: 'Android', windows: 'Windows', macos: 'macOS', linux: 'Linux', ios: 'iOS', other: '其他文件' }[platform];
 }
 
 function formatCompactNumber(value: number) {

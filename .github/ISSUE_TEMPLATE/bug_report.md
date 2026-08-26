@@ -26,9 +26,9 @@ assignees: ''
 在 "设置 > 关于 > 调试日志" 方可查看。
 
 **软硬件信息**
- - 你的设备：［例如 Apple iPhone 17 Pro / Google Pixel 7 Pro］
- - 操作系统：［例如 iOS 26.1 / Android 16］
- - 应用版本：［例如 1.3.0］
+ - 你的设备：［例如 Apple iPhone 17 Pro / iPad Pro］
+ - 操作系统：［例如 iOS 26.1］
+ - 应用版本：［例如 2.3.0］
 
 **其它背景**
 请在此处添加有关问题的其它背景信息。

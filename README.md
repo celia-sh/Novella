@@ -17,7 +17,7 @@
 
 本仓库正在从 Dart 迁移到 TypeScript：
 
-- `apps/mobile`：基于 React Native + Expo 的 Android 与 iOS 客户端。
+- `apps/mobile`：基于 React Native + Expo 的 iOS 客户端。
 - `apps/site`：React 静态网站。
 - `packages/*`：与平台无关的客户端核心、协议。
 
@@ -29,7 +29,7 @@ React Native 重写正在积极开发中，欢迎向本仓库提交代码。功�
 
 ## 移动端开发
 
-移动端使用 Expo Development Build 开发，支持 Android 与 iOS。
+移动端使用 Expo Development Build 开发，仅支持 iOS。
 
 开发工作流（首次构建、日常开发、重新生成原生工程）与代码规范（原生设计、图标、组件泛用性）见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 

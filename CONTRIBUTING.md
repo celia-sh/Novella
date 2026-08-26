@@ -7,11 +7,11 @@
 - `apps/mobile`：React Native + Expo 移动端
 - `apps/site`：React 静态网站
 - `packages/*`：与平台无关的客户端核心与协议
-- `apps/mobile/modules/novella-ui`：自定义 Expo 原生模块，跨平台封装原生组件——iOS 使用 SwiftUI，Android 使用 Jetpack Compose，并与 `@expo/ui` 混合使用
+- `apps/mobile/modules/novella-ui`：自定义 Expo 原生模块，封装 iOS UIKit/SwiftUI 组件，并与 `@expo/ui` 混合使用
 
 ## 移动端开发
 
-移动端基于 Expo Development Build 开发，覆盖 Android 与 iOS。项目不使用 Expo Go，日常开发也不依赖 EAS Build。
+移动端基于 Expo Development Build 开发，仅支持 iOS。项目不使用 Expo Go，日常开发也不依赖 EAS Build。
 
 Expo CLI 命令统一在 `apps/mobile` 目录下执行：
 
@@ -24,21 +24,16 @@ cd apps/mobile
 首次运行前，或安装、修改了包含原生代码的依赖之后，需要重新编译并安装 Development Build：
 
 ```bash
-# iOS
 npx expo run:ios
-
-# Android
-npx expo run:android
 ```
 
 连接真机时，可指定设备：
 
 ```bash
 npx expo run:ios --device
-npx expo run:android --device
 ```
 
-`expo run:ios` 与 `expo run:android` 会在需要时生成原生工程、编译并安装应用到设备，然后启动 Metro。
+`expo run:ios` 会在需要时生成 iOS 原生工程、编译并安装应用到设备，然后启动 Metro。
 
 ### 日常开发
 
@@ -56,13 +51,11 @@ npx expo start --clear
 
 ### 重新生成原生工程
 
-修改了 Expo 配置、Config Plugin 或原生依赖后，如需彻底重新生成 `ios` 与 `android` 工程：
+修改了 Expo 配置、Config Plugin 或原生依赖后，如需彻底重新生成 iOS 工程：
 
 ```bash
-npx expo prebuild --clean
+npx expo prebuild --clean --platform ios
 npx expo run:ios
-# 或
-npx expo run:android
 ```
 
 注意：`prebuild --clean` 会重建原生工程，尚未迁移到 Expo Module 或 Config Plugin 的手动原生修改会被覆盖，请勿将其保留在生成目录中。
@@ -71,12 +64,11 @@ npx expo run:android
 
 ### 原生设计
 
-项目的设计目标是原生质感：iOS 使用 SwiftUI 渲染，Android 使用 Jetpack Compose。实现上依赖 `@expo/ui` 的跨平台原生宿主（`RNHostView` / `Host`），并辅以 `modules/novella-ui` 中封装的定制原生组件（搜索栏、分段控件、顶部/底部应用栏、选择菜单、BlurHash 等）。
+移动端以 iOS 原生体验为目标：系统导航由 Expo Router native stack 负责，局部控件使用 SwiftUI。优先使用 `@expo/ui` 的原生宿主（`RNHostView` / `Host`）和 `modules/novella-ui` 中封装的原生组件。
 
-- 优先复用共享组件（`NativeScreenScaffold`、`NativeGroupedList`、`NativeIcon` 等），避免在每个页面中直接使用 `RNHostView`。
-- `modules/novella-ui` 内的组件面向双端：以 `.tsx` 提供统一契约，`.ios.tsx` / `.android.tsx` 提供平台原生实现。个别组件仅有单平台的原生实现（如选择菜单只在 Android 提供 Compose 实现），另一平台回退到 JS 组合实现。
-- 平台差异通过 `.ios.tsx` / `.android.tsx` 配对实现，公共 props 保持平台无关（如 `icon`、`title`、`description`、`trailing`、`onPress`、`disabled`）。
-- 项目采用 CNG（Continuous Native Generation）：`ios/` 与 `android/` 为生成产物（已 gitignore）。原生配置应写入 `app.config.ts` 的 Config Plugin 或 Expo Module，不宜长期手改生成目录——`prebuild --clean` 会覆盖这些改动。
+- 优先复用共享组件（`NativeGroupedList`、`NativeIcon` 等），避免在每个页面中直接使用 `RNHostView`。
+- `apps/mobile` 的 TypeScript 与 Expo Module 源码直接使用 iOS 实现。
+- 项目采用 CNG（Continuous Native Generation）：`ios/` 为生成产物（已 gitignore）。原生配置应写入 `app.config.ts` 的 Config Plugin 或 Expo Module，不宜长期手改生成目录——`prebuild --clean --platform ios` 会覆盖这些改动。
 
 ### 图标
 
@@ -87,18 +79,17 @@ npx expo run:android
 
 平台原生图标的具体规则：
 
-- **Android**：统一使用 Tabler 图标（`tabler-native-icon-map.ts`）。
-- **iOS**：优先使用 SF Symbols（`@expo/ui` swift-ui 的 `Image systemName`）——凡是 SF 能自然表达语义的场景均优先使用；SF 无法表达的含义（如部分设置二级行）回退到 Tabler。
-- 新增 `NativeIconName` 时，需在 `native-icon-types.ts` 中声明，并同步更新 `tabler-native-icon-map.ts`（Android）与 `native-icon.ios.tsx` 中的 `icons` 表（iOS 的 SF 映射）。
+- **iOS**：优先使用 SF Symbols（`@expo/ui/swift-ui` 的 `Image systemName`）——凡是 SF 能自然表达语义的场景均优先使用；SF 无法表达的含义（如部分设置二级行）回退到 Tabler。
+- 新增 `NativeIconName` 时，需在 `native-icon-types.ts` 中声明，并同步更新 `tabler-native-icon-map.ts` 与 `native-icon.tsx` 中的 iOS SF 映射。
 
 通用注意：
 
-- Tabler 的命名与 Material Icons 并不一致（如 `IconDeviceGamepad2` 而非 `IconGamepad2`、`IconPin` 而非 `IconPushPin`，且没有 `IconForum`——使用 `IconMessages`），使用前请核对 `@tabler/icons-react-native` 的图标列表。
+- 使用 Tabler 图标前请核对 `@tabler/icons-react-native` 的图标列表，不要根据名称猜测。
 - 纯逻辑解析器（如图标键映射、格式化函数）不应导入 react-native 依赖，应放在 react-native-free 模块中，以便 Node 单元测试覆盖。
 
 ### 组件泛用性
 
-**向 `modules/novella-ui` 新增原生组件时（主要适用）**：组件应保持泛用，不与某个具体功能或页面绑定。公共 props 采用平台无关、通用语义的命名（如 `icon`、`title`、`description`、`trailing`、`onPress`、`disabled`）；当组件开始出现业务字段时，应拆出通用契约。可参照 `NativeGroupedListRow`、`NativeSearchBar` 的模式：统一契约 + 平台配对实现。
+**向 `modules/novella-ui` 新增原生组件时**：组件应保持泛用，不与某个具体功能或页面绑定。公共 props 采用通用语义的命名（如 `icon`、`title`、`description`、`trailing`、`onPress`、`disabled`）；当组件开始出现业务字段时，应拆出通用契约。
 
 **一般 React Native 组件**（如骨架屏、通用占位组件）若会被多处使用，请抽离为可复用组件，供各页面共享。
 
@@ -112,4 +103,4 @@ npm run test:client  # 客户端核心测试
 npm run test:reader  # 阅读器相关测试
 ```
 
-提交 PR 前，请确保在 iOS 与 Android 双端完成测试；若某一平台未覆盖，请在 PR 描述中明确标注。
+提交 PR 前，请完成 iOS simulator/device 的功能回归；视觉和交互验收范围见任务文档。
