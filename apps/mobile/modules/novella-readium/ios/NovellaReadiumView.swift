@@ -548,8 +548,12 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     // Readium reports the locator progression at the first visible point.
     // The reader slider follows the visible viewport's trailing point so an
     // exact chapter-end position reaches 100%, matching the old Skia scroll
-    // progress (offset / maximumOffset).
-    locations["progression"] = resource.progression.upperBound
+    // progress (offset / maximumOffset). At the first page, use the leading
+    // edge instead so returning to the chapter start reports exactly 0%.
+    let visibleProgression = resource.progression
+    locations["progression"] = visibleProgression.lowerBound <= 0.0001
+      ? 0
+      : visibleProgression.upperBound
     object["locations"] = locations
     return object
   }

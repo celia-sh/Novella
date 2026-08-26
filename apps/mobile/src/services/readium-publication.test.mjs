@@ -61,6 +61,24 @@ test('chapter XHTML receives deterministic fragments and a relative font stylesh
   assert.doesNotMatch(html, /preventDefault\(\)/);
 });
 
+test('adds browser line-break opportunities around private-use font glyphs', () => {
+  const privateUse = String.fromCodePoint(0xE001);
+  const html = buildReadiumChapterDocument({
+    blocks: [{
+      id: 'pua',
+      locator: '//p[1]',
+      html: `<p>甲${privateUse}乙${privateUse}${privateUse}丙</p>`,
+      textLength: 6,
+      imageCount: 0,
+    }],
+    chapterId: 101,
+    title: 'PUA',
+    useBookFont: false,
+  });
+
+  assert.match(html, /&#x7532;&#x200B;&#xE001;&#x200B;&#x4E59;&#x200B;&#xE001;&#x200B;&#xE001;&#x200B;&#x4E19;/);
+});
+
 test('maps legacy heading classes to Readium semantic headings without absorbing following blocks', () => {
   const html = buildReadiumChapterDocument({
     blocks: [

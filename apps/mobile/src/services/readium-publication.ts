@@ -3,6 +3,8 @@ import type { NovelReaderBlock } from '@novella/reader-engine';
 
 import { chapterHrefFor } from './reader-xhtml-builder.ts';
 
+type ReadiumHtmlNode = ReturnType<typeof parseDOM>[number];
+
 export const READIUM_BOOK_FONT_HREF = 'fonts/book.woff2';
 export const READIUM_STYLESHEET_HREF = 'styles/reader.css';
 
@@ -297,10 +299,60 @@ function buildImagePreviewScript(): string {
 }
 
 function normalizeHtmlFragmentForXhtml(html: string): string {
-  return DomUtils.getOuterHTML(parseDOM(html, { decodeEntities: true }), {
+  const nodes = parseDOM(html, { decodeEntities: true });
+  addPuaLineBreakOpportunities(nodes);
+  return DomUtils.getOuterHTML(nodes, {
     decodeEntities: true,
     xmlMode: true,
   });
+}
+
+function addPuaLineBreakOpportunities(nodes: readonly ReadiumHtmlNode[]): void {
+  for (const node of nodes) {
+    if (node.type === 'text') {
+      const textNode = node as ReadiumHtmlNode & { data: string };
+      textNode.data = addPuaLineBreakOpportunitiesToText(textNode.data);
+    } else if ('children' in node) {
+      const children = (node as ReadiumHtmlNode & { children: ReadonlyArray<ReadiumHtmlNode> }).children;
+      addPuaLineBreakOpportunities(children);
+    }
+  }
+}
+
+function addPuaLineBreakOpportunitiesToText(text: string): string {
+  const characters = Array.from(text);
+  if (!characters.some((character) => isPrivateUseCodepoint(character.codePointAt(0)))) {
+    return text;
+  }
+
+  const output: string[] = [];
+  for (let index = 0; index < characters.length; index += 1) {
+    const character = characters[index]!;
+    const previous = characters[index - 1];
+    if (
+      previous !== undefined
+      && !isTextSeparator(previous)
+      && !isTextSeparator(character)
+      && (isPrivateUseCodepoint(previous.codePointAt(0)) || isPrivateUseCodepoint(character.codePointAt(0)))
+    ) {
+      output.push('\u200B');
+    }
+    output.push(character);
+  }
+  return output.join('');
+}
+
+function isPrivateUseCodepoint(codepoint: number | undefined): boolean {
+  if (codepoint === undefined) return false;
+  return (
+    (codepoint >= 0xE000 && codepoint <= 0xF8FF)
+    || (codepoint >= 0xF0000 && codepoint <= 0xFFFFD)
+    || (codepoint >= 0x100000 && codepoint <= 0x10FFFD)
+  );
+}
+
+function isTextSeparator(character: string): boolean {
+  return character === '\u200B' || /\s/u.test(character);
 }
 
 function prepareChapterResourceHtml(html: string, imageBaseUrl?: string): string {
