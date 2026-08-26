@@ -217,7 +217,8 @@ function buildReadiumPublicationStylesheet(fontRequired: boolean): string {
     '.nv-inline-footnote-label{flex:none;font-weight:600;}',
     '.nv-inline-footnote-marker{font-size:.75em;font-weight:600;line-height:0;vertical-align:super;}',
     'img{max-width:100%;height:auto;border-radius:4px;}',
-    'ruby rt{font-size:.5em;}',
+    'ruby{white-space:normal;word-break:break-all;overflow-wrap:anywhere;}',
+    'ruby rt{font-size:.5em;white-space:normal;word-break:break-all;overflow-wrap:anywhere;}',
   ].join('');
 }
 
@@ -301,10 +302,11 @@ function buildImagePreviewScript(): string {
 function normalizeHtmlFragmentForXhtml(html: string): string {
   const nodes = parseDOM(html, { decodeEntities: true });
   addPuaLineBreakOpportunities(nodes);
-  return DomUtils.getOuterHTML(nodes, {
+  const serialized = DomUtils.getOuterHTML(nodes, {
     decodeEntities: true,
     xmlMode: true,
   });
+  return serialized.replace(/<\/ruby>(?=\s*<ruby\b)/giu, '</ruby>&#x200B;');
 }
 
 function addPuaLineBreakOpportunities(nodes: readonly ReadiumHtmlNode[]): void {

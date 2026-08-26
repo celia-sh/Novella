@@ -79,6 +79,23 @@ test('adds browser line-break opportunities around private-use font glyphs', () 
   assert.match(html, /&#x7532;&#x200B;&#xE001;&#x200B;&#x4E59;&#x200B;&#xE001;&#x200B;&#xE001;&#x200B;&#x4E19;/);
 });
 
+test('adds break opportunities between adjacent ruby runs', () => {
+  const html = buildReadiumChapterDocument({
+    blocks: [{
+      id: 'ruby',
+      locator: '//p[1]',
+      html: '<p><ruby>粹<rt>•</rt></ruby><ruby>伏<rt>•</rt></ruby><ruby>的<rt>•</rt></ruby></p>',
+      textLength: 3,
+      imageCount: 0,
+    }],
+    chapterId: 101,
+    title: 'Ruby',
+    useBookFont: false,
+  });
+
+  assert.ok(html.includes('</ruby>&#x200B;<ruby>'));
+});
+
 test('maps legacy heading classes to Readium semantic headings without absorbing following blocks', () => {
   const html = buildReadiumChapterDocument({
     blocks: [
@@ -134,6 +151,8 @@ test('image tables retain their authored rows and columns', () => {
   assert.match(publication.resources['EPUB/styles/reader.css'], /html\[style\*="readium-scroll-on"\],html\[style\*="readium-scroll-on"\] body\{overflow-x:hidden!important;\}/);
   assert.match(publication.resources['EPUB/styles/reader.css'], /-webkit-user-select:none;user-select:none/);
   assert.match(publication.resources['EPUB/styles/reader.css'], /img\{max-width:100%;height:auto;border-radius:4px;\}/);
+  assert.match(publication.resources['EPUB/styles/reader.css'], /ruby\{white-space:normal;word-break:break-all;overflow-wrap:anywhere;\}/);
+  assert.match(publication.resources['EPUB/styles/reader.css'], /ruby rt\{font-size:\.5em;white-space:normal;word-break:break-all;overflow-wrap:anywhere;\}/);
 });
 
 test('chapter HTML is normalized with inline footnotes', () => {
