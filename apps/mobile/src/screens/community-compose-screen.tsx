@@ -31,15 +31,19 @@ import {
 } from '@/components/community/community-ui';
 import { showAlert } from '@/components/native-alert-dialog';
 import { community, storage } from '@/services/client';
+import { markCommunityThreadChanged } from '@/services/community-reply-events';
 import { createThemedStyles } from '@/theme/app-theme';
 
 export function CommunityComposeScreen({
   initialBoardKey = '',
   initialSubCategoryKey = '',
+  threadId,
 }: {
   initialBoardKey?: string;
   initialSubCategoryKey?: string;
+  threadId?: number;
 }) {
+  const isEditing = threadId !== undefined && threadId > 0;
   const styles = useCommunityComposeStyles();
   const { t } = useTranslation('community');
   const { t: tCommon } = useTranslation('common');
@@ -48,6 +52,7 @@ export function CommunityComposeScreen({
   const [boardKey, setBoardKey] = useState(initialBoardKey);
   const [subCategoryKey, setSubCategoryKey] = useState(initialSubCategoryKey);
   const [title, setTitle] = useState('');
+  const [initialHtml, setInitialHtml] = useState('');
   const [contentText, setContentText] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadToken, setLoadToken] = useState(0);
@@ -57,27 +62,42 @@ export function CommunityComposeScreen({
 
   useEffect(() => {
     let active = true;
-    void Promise.all([
-      community.loadHome({ page: 1, size: 1 }),
-      storage.get(COMMUNITY_STORAGE_KEYS.postNoticeAccepted),
-    ]).then(([home, notice]) => {
-      if (!active) return;
-      setBoards(home.catalogBoards.filter((board) => board.key !== 'all'));
-      if (initialBoardKey && home.catalogBoards.some((board) => board.key === initialBoardKey)) {
-        setBoardKey(initialBoardKey);
+    setBoards([]);
+    setError(null);
+    setLoading(true);
+    void (async () => {
+      try {
+        const home = await community.loadHome({ page: 1, size: 1 });
+        const editInfo = isEditing && threadId
+          ? await community.loadThreadEditInfo(threadId)
+          : null;
+        const notice = isEditing
+          ? 'true'
+          : await storage.get(COMMUNITY_STORAGE_KEYS.postNoticeAccepted);
+        if (!active) return;
+        setBoards(home.catalogBoards.filter((board) => board.key !== 'all'));
+        if (editInfo) {
+          setBoardKey(editInfo.boardKey);
+          setSubCategoryKey(editInfo.subCategoryKey);
+          setTitle(editInfo.title);
+          setInitialHtml(editInfo.content);
+          setContentText(extractCommunityPlainText(editInfo.content));
+        } else if (initialBoardKey && home.catalogBoards.some((board) => board.key === initialBoardKey)) {
+          setBoardKey(initialBoardKey);
+        }
+        setNoticeAccepted(notice === 'true');
+        if (!isEditing && notice !== 'true') showFirstPostNotice();
+        setLoading(false);
+      } catch (loadError: unknown) {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : t('compose.errors.prepare'));
+        setLoading(false);
       }
-      setNoticeAccepted(notice === 'true');
-      if (notice !== 'true') showFirstPostNotice();
-      setLoading(false);
-    }).catch((loadError: unknown) => {
-      if (!active) return;
-      setError(loadError instanceof Error ? loadError.message : t('compose.errors.prepare'));
-      setLoading(false);
-    });
+    })();
     return () => {
       active = false;
     };
-  }, [initialBoardKey, initialSubCategoryKey, loadToken, t]);
+  }, [initialBoardKey, initialSubCategoryKey, isEditing, loadToken, t, threadId]);
 
   const selectedBoard = useMemo(
     () => boards.find((board) => board.key === boardKey) ?? null,
@@ -124,23 +144,48 @@ export function CommunityComposeScreen({
     setError(null);
     try {
       const contentHtml = await editorRef.current?.getHtml() ?? '';
-      const thread = await community.createThread({
-        boardKey,
-        subCategoryKey,
-        title,
-        contentHtml,
-        contentText,
-      });
-      router.replace({
-        pathname: '/thread/[id]',
-        params: { id: String(thread.id) },
-      });
+      if (isEditing && threadId) {
+        await community.updateThread({
+          threadId,
+          boardKey,
+          subCategoryKey,
+          title,
+          contentHtml,
+          contentText,
+        });
+      } else {
+        const thread = await community.createThread({
+          boardKey,
+          subCategoryKey,
+          title,
+          contentHtml,
+          contentText,
+        });
+        router.replace({
+          pathname: '/thread/[id]',
+          params: { id: String(thread.id) },
+        });
+        return;
+      }
+      markCommunityThreadChanged();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace({
+          pathname: '/thread/[id]',
+          params: { id: String(threadId) },
+        });
+      }
     } catch (publishError) {
       showAlert(
-        t('compose.errors.publishDiscussionTitle'),
+        isEditing
+          ? t('compose.errors.updateDiscussionTitle')
+          : t('compose.errors.publishDiscussionTitle'),
         publishError instanceof Error
           ? publishError.message
-          : t('compose.errors.publishDiscussion'),
+          : isEditing
+            ? t('compose.errors.updateDiscussion')
+            : t('compose.errors.publishDiscussion'),
       );
     } finally {
       setPublishing(false);
@@ -150,7 +195,7 @@ export function CommunityComposeScreen({
   return (
     <CommunityPaperProvider>
       <>
-        <Stack.Screen options={{ title: t('navigation.newPost') }} />
+        <Stack.Screen options={{ title: isEditing ? t('navigation.editPost') : t('navigation.newPost') }} />
 
           <KeyboardAvoidingView
             behavior="padding"
@@ -170,16 +215,20 @@ export function CommunityComposeScreen({
                 description={error}
                 onRetry={() => {
                   setError(null);
-                  if (boards.length === 0) {
-                    setLoading(true);
-                    setLoadToken((current) => current + 1);
-                  }
+                  setLoading(true);
+                  setLoadToken((current) => current + 1);
                 }}
-                title={boards.length === 0 ? t('compose.errors.prepareTitle') : t('compose.errors.publishTitle')}
+                title={isEditing
+                  ? t('compose.errors.prepareEditTitle')
+                  : boards.length === 0
+                    ? t('compose.errors.prepareTitle')
+                    : t('compose.errors.publishTitle')}
               />
             ) : null}
 
-            <View style={styles.fieldGroup}>
+            {!error || boards.length > 0 ? (
+              <>
+                <View style={styles.fieldGroup}>
               <Text style={styles.fieldHeading}>{t('compose.board')}</Text>
               <View style={styles.chips}>
                 {boards.map((board) => (
@@ -244,6 +293,7 @@ export function CommunityComposeScreen({
               </View>
               <CommunityRichEditor
                 editable={!publishing}
+                initialHtml={initialHtml}
                 onTextChange={setContentText}
                 placeholder={t('compose.postPlaceholder')}
                 ref={editorRef}
@@ -251,15 +301,31 @@ export function CommunityComposeScreen({
               {contentText.length > 0 && contentText.trim().length < 20 ? (
                 <Text style={styles.validation}>{t('compose.contentMinimum')}</Text>
               ) : null}
-            </View>
+                </View>
+              </>
+            ) : null}
           </ScrollView>
         )}
           </KeyboardAvoidingView>
 
-        <CommunityPublishNavigation disabled={!canPublish} onPublish={() => void publish()} />
+        <CommunityPublishNavigation
+          accessibilityLabel={isEditing ? t('accessibility.saveThread') : t('accessibility.publishDiscussion')}
+          disabled={!canPublish}
+          onPublish={() => void publish()}
+        />
       </>
     </CommunityPaperProvider>
   );
+}
+
+function extractCommunityPlainText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>(?=\s*)/giu, '\n')
+    .replace(/<\/p>/giu, '\n')
+    .replace(/<[^>]*>/gu, ' ')
+    .replace(/&nbsp;/giu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
 }
 
 const useCommunityComposeStyles = createThemedStyles((colors) => ({

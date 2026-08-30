@@ -31,6 +31,8 @@ import {
 import type { CommunityThreadReply } from '@novella/api-client';
 
 import { CommunityHtmlContent } from '@/components/community/community-html-content';
+import { CommunityThreadNavigation } from '@/components/community/community-navigation';
+import { showAlert } from '@/components/native-alert-dialog';
 import {
   CommentThreadRow,
   type CommentThreadPalette,
@@ -47,6 +49,7 @@ import {
   type CommunityThreadRow,
 } from '@/services/community-thread-rows';
 import { createThemedStyles, resolveAccentHex, resolveOnAccentHex, useAppTheme } from '@/theme/app-theme';
+import { resolveStringColor } from '@/theme/color-values';
 
 export function CommunityThreadScreen({
   parentReplyId,
@@ -60,18 +63,17 @@ export function CommunityThreadScreen({
   const styles = useCommunityThreadStyles();
   const { colorScheme, colors } = useAppTheme();
   const { t } = useTranslation('community');
+  const { t: tCommon } = useTranslation('common');
   const locale = useAppLocale();
   const basePaperTheme = colorScheme === 'dark' ? MD3DarkTheme : MD3LightTheme;
-  // Map paper's M3 color roles onto the app theme so contained buttons,
-  // contained-tonal (selected) buttons and the reply input's focus outline
-  // use the app accent instead of the library default purple. Paper's color
-  // The parser can't resolve PlatformColor objects, so resolve iOS semantic
-  // colors to their stable hex equivalents (systemPink is the same in both
-  // appearances).
+  // Map Paper's M3 color roles onto the app theme so contained buttons and
+  // selected buttons use the app accent instead of the library default purple.
+  // Paper's color parser cannot resolve iOS PlatformColor objects, so every
+  // explicit Paper color must remain a literal string.
   const accentHex = resolveAccentHex(colors.accent);
-  const primaryContainerHex = resolveAccentHex(colors.primaryContainer);
-  const onPrimaryContainerHex = resolveAccentHex(colors.onPrimaryContainer);
   const onPrimaryHex = resolveOnAccentHex(colors.accent);
+  const primaryContainerHex = resolveStringColor(colors.primaryContainer, accentHex);
+  const onPrimaryContainerHex = resolveStringColor(colors.onPrimaryContainer, onPrimaryHex);
   const paperTheme = useMemo(() => ({
     ...basePaperTheme,
     colors: {
@@ -86,6 +88,8 @@ export function CommunityThreadScreen({
   const listRef = useRef<FlatList<CommunityThreadRow>>(null);
   const hasFocused = useRef(false);
   const {
+    deleteReply,
+    deleteThread,
     loadChildren,
     loadMore,
     refresh,
@@ -123,6 +127,47 @@ export function CommunityThreadScreen({
   }, [rows, state.highlightedReplyId]);
   const canReply = Boolean(thread && !thread.locked);
 
+  const handleDeleteThread = useCallback(() => {
+    if (!thread?.canEdit || state.threadActionId) return;
+    showAlert(
+      t('thread.deleteTitle'),
+      t('thread.deleteMessage'),
+      [
+        { style: 'cancel', text: tCommon('actions.cancel') },
+        {
+          style: 'destructive',
+          text: tCommon('actions.delete'),
+          onPress: () => {
+            void deleteThread().then((deleted) => {
+              if (!deleted) return;
+              router.replace('/community');
+            });
+          },
+        },
+      ],
+    );
+  }, [deleteThread, state.threadActionId, t, tCommon, thread]);
+
+  const handleDeleteReply = useCallback((reply: CommunityThreadReply) => {
+    if (!reply.canDelete || state.actionId) return;
+    showAlert(
+      t('thread.deleteReplyTitle'),
+      t('thread.deleteReplyMessage'),
+      [
+        { style: 'cancel', text: tCommon('actions.cancel') },
+        {
+          style: 'destructive',
+          text: tCommon('actions.delete'),
+          onPress: () => {
+            void deleteReply(reply.id).then((deleted) => {
+              if (deleted) showAlert(t('thread.deleteSuccessTitle'), t('thread.replyDeleted'));
+            });
+          },
+        },
+      ],
+    );
+  }, [deleteReply, state.actionId, t, tCommon]);
+
   const openReply = useCallback((reply: CommunityThreadReply | null) => {
     if (!canReply) return;
     router.push({
@@ -152,6 +197,7 @@ export function CommunityThreadScreen({
         highlightedReplyId={state.highlightedReplyId}
         onLike={handleReplyLike}
         onLoadChildren={handleLoadChildren}
+        onDelete={handleDeleteReply}
         onReply={openReply}
         palette={commentPalette}
         row={item}
@@ -162,6 +208,7 @@ export function CommunityThreadScreen({
       commentPalette,
       handleLoadChildren,
       handleReplyLike,
+      handleDeleteReply,
       openReply,
       state.actionId,
       state.highlightedReplyId,
@@ -188,11 +235,16 @@ export function CommunityThreadScreen({
               <Text style={styles.authorName}>
                 {thread.authorIsDeleted ? t('labels.deletedUser') : thread.authorName || t('labels.unknownUser')}
               </Text>
-              <Text style={styles.time}>{formatCommunityTime(thread.publishedAt, locale)}</Text>
+              <Text style={styles.time}>
+                {formatCommunityTime(thread.publishedAt, locale)}
+                {thread.editedAt
+                  ? ` · ${t('thread.edited')} ${formatCommunityTime(thread.editedAt, locale)}`
+                  : ''}
+              </Text>
             </View>
           </View>
           <View style={styles.html}>
-            <CommunityHtmlContent html={thread.bodyHtml} />
+            <CommunityHtmlContent html={thread.content} />
           </View>
         </View>
         <View style={styles.actions}>
@@ -289,6 +341,16 @@ export function CommunityThreadScreen({
     <PaperProvider theme={paperTheme}>
       <>
         <Stack.Screen options={{ title: '' }} />
+        {thread?.canEdit ? (
+          <CommunityThreadNavigation
+            disabled={state.threadActionId !== null}
+            onDelete={handleDeleteThread}
+            onEdit={() => router.push({
+              pathname: '/thread/[id]/edit',
+              params: { id: String(thread.id) },
+            })}
+          />
+        ) : null}
 
           <FlatList
             style={styles.root}
@@ -507,6 +569,7 @@ const ThreadReplyRow = memo(function ThreadReplyRow({
   highlightedReplyId,
   onLike,
   onLoadChildren,
+  onDelete,
   onReply,
   palette,
   row,
@@ -516,6 +579,7 @@ const ThreadReplyRow = memo(function ThreadReplyRow({
   highlightedReplyId: number | null;
   onLike(reply: CommunityThreadReply): void;
   onLoadChildren(reply: CommunityThreadReply): void;
+  onDelete(reply: CommunityThreadReply): void;
   onReply(reply: CommunityThreadReply): void;
   palette: CommentThreadPalette;
   row: CommunityThreadRow;
@@ -569,6 +633,7 @@ const ThreadReplyRow = memo(function ThreadReplyRow({
         avatarUrl={reply.authorAvatar}
         badge={reply.authorBadge}
         canReply={canReply}
+        canDelete={reply.canDelete}
         content={reply.content}
         createdAtLabel={formatCommunityTime(reply.publishedAt, locale)}
         deleted={reply.authorIsDeleted}
@@ -581,6 +646,7 @@ const ThreadReplyRow = memo(function ThreadReplyRow({
           onPress: () => onLike(reply),
         }}
         onReply={() => onReply(reply)}
+        onDelete={() => onDelete(reply)}
         palette={palette}
         replyToName={replyToName}
         userName={reply.authorName}

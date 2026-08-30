@@ -38,6 +38,56 @@ export function updateCommunityReply(
   });
 }
 
+export function removeCommunityReply(
+  replies: readonly CommunityThreadReply[],
+  replyId: number,
+): { changed: boolean; replies: CommunityThreadReply[]; removedRoot: boolean } {
+  const rootIndex = replies.findIndex((reply) => reply.id === replyId);
+  if (rootIndex >= 0) {
+    return {
+      changed: true,
+      replies: replies.filter((_, index) => index !== rootIndex),
+      removedRoot: true,
+    };
+  }
+
+  let changed = false;
+  const next = replies.map((reply) => {
+    const childIndex = reply.childReplies.findIndex((child) => child.id === replyId);
+    if (childIndex >= 0) {
+      changed = true;
+      return {
+        ...reply,
+        childReplies: reply.childReplies.filter((_, index) => index !== childIndex),
+        childPage: {
+          ...reply.childPage,
+          total: Math.max(0, reply.childPage.total - 1),
+        },
+      };
+    }
+    const nested = removeCommunityReply(reply.childReplies, replyId);
+    if (!nested.changed) return reply;
+    changed = true;
+    return {
+      ...reply,
+      childReplies: nested.replies,
+      ...(nested.removedRoot
+        ? {
+            childPage: {
+              ...reply.childPage,
+              total: Math.max(0, reply.childPage.total - 1),
+            },
+          }
+        : {}),
+    };
+  });
+  return {
+    changed,
+    replies: changed ? next : [...replies],
+    removedRoot: false,
+  };
+}
+
 export function findCommunityReply(
   replies: readonly CommunityThreadReply[],
   replyId: number,

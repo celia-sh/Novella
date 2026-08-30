@@ -1,6 +1,5 @@
-import type { ColorValue } from 'react-native';
-
 import type { AppColors } from '@/theme/app-colors';
+import { resolveStringColor } from './color-values.ts';
 import type { AppColorScheme } from '@/theme/theme-mode';
 
 export type HeroUIThemeVariables = Record<`--${string}`, string>;
@@ -10,22 +9,22 @@ export function createHeroUIThemeVariables(
   colorScheme: AppColorScheme,
 ): HeroUIThemeVariables {
   const fallback = colorScheme === 'dark' ? darkFallback : lightFallback;
-  const background = resolveColor(colors.background, fallback.background);
-  const foreground = resolveColor(colors.label, fallback.foreground);
-  const surface = resolveColor(colors.surface, fallback.surface);
-  const surfaceSecondary = resolveColor(colors.card, fallback.surfaceSecondary);
-  const surfaceTertiary = resolveColor(
+  const background = resolveStringColor(colors.background, fallback.background);
+  const foreground = resolveStringColor(colors.label, fallback.foreground);
+  const surface = resolveStringColor(colors.surface, fallback.surface);
+  const surfaceSecondary = resolveStringColor(colors.card, fallback.surfaceSecondary);
+  const surfaceTertiary = resolveStringColor(
     colors.surfaceContainerHighest,
     fallback.surfaceTertiary,
   );
-  const muted = resolveColor(colors.secondaryLabel, fallback.muted);
-  const border = resolveColor(colors.separator, fallback.border);
-  const accent = resolveColor(colors.accent, fallback.accent);
+  const muted = resolveStringColor(colors.secondaryLabel, fallback.muted);
+  const border = resolveStringColor(colors.separator, fallback.border);
+  const accent = resolveStringColor(colors.accent, fallback.accent);
   const accentForeground = readableForeground(accent);
-  const danger = resolveColor(colors.error, fallback.danger);
+  const danger = resolveStringColor(colors.error, fallback.danger);
   const dangerForeground = readableForeground(danger);
-  const primaryContainer = resolveColor(colors.primaryContainer, surfaceTertiary);
-  const onPrimaryContainer = resolveColor(colors.onPrimaryContainer, foreground);
+  const primaryContainer = resolveStringColor(colors.primaryContainer, surfaceTertiary);
+  const onPrimaryContainer = resolveStringColor(colors.onPrimaryContainer, foreground);
 
   const base: HeroUIThemeVariables = {
     '--accent': accent,
@@ -87,10 +86,6 @@ export function createHeroUIThemeVariables(
     '--color-surface-tertiary': surfaceTertiary,
     '--color-surface-tertiary-foreground': foreground,
   };
-}
-
-function resolveColor(value: ColorValue, fallback: string): string {
-  return typeof value === 'string' && value.trim() ? value : fallback;
 }
 
 function readableForeground(color: string): string {

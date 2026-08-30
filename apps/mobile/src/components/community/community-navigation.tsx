@@ -33,10 +33,45 @@ export function CommunityHomeNavigation() {
   );
 }
 
+export function CommunityThreadNavigation({
+  disabled,
+  onDelete,
+  onEdit,
+}: {
+  disabled: boolean;
+  onDelete(): void;
+  onEdit(): void;
+}) {
+  const { t } = useTranslation('community');
+  return (
+    <Stack.Toolbar placement="right">
+      <Stack.Toolbar.Menu accessibilityLabel={t('accessibility.menu')} icon="ellipsis">
+        <Stack.Toolbar.MenuAction
+          disabled={disabled}
+          icon="square.and.pencil"
+          onPress={onEdit}
+        >
+          {t('actions.editThread')}
+        </Stack.Toolbar.MenuAction>
+        <Stack.Toolbar.MenuAction
+          destructive
+          disabled={disabled}
+          icon="trash"
+          onPress={onDelete}
+        >
+          {t('actions.deleteThread')}
+        </Stack.Toolbar.MenuAction>
+      </Stack.Toolbar.Menu>
+    </Stack.Toolbar>
+  );
+}
+
 export function CommunityPublishNavigation({
+  accessibilityLabel,
   disabled,
   onPublish,
 }: {
+  accessibilityLabel?: string;
   disabled: boolean;
   onPublish(): void;
 }) {
@@ -44,7 +79,7 @@ export function CommunityPublishNavigation({
   return (
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Button
-        accessibilityLabel={t('accessibility.publishDiscussion')}
+        accessibilityLabel={accessibilityLabel ?? t('accessibility.publishDiscussion')}
         disabled={disabled}
         icon="checkmark"
         onPress={onPublish}

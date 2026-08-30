@@ -77,14 +77,19 @@ export function CommentThreadRow({
       <View
         style={[
           styles.replyRow,
-          highlighted && {
-            backgroundColor: palette.highlightBackground,
-            borderLeftColor: palette.accent,
-            borderLeftWidth: 3,
-            paddingLeft: 9,
-          },
+          highlighted && [
+            styles.highlightedRow,
+            { backgroundColor: palette.highlightBackground },
+          ],
         ]}
       >
+        {highlighted ? (
+          <View
+            pointerEvents="none"
+            style={[styles.highlightBar, { backgroundColor: palette.accent }]}
+          />
+        ) : null}
+
         <View style={styles.replyIdentity}>
           <CommentAvatar
             avatarUrl={avatarUrl}
@@ -130,14 +135,19 @@ export function CommentThreadRow({
       style={[
         styles.commentRow,
         { paddingHorizontal: horizontalInset },
-        highlighted && {
-          backgroundColor: palette.highlightBackground,
-          borderLeftColor: palette.accent,
-          borderLeftWidth: 3,
-          paddingLeft: Math.max(0, horizontalInset - 3),
-        },
+        highlighted && [
+          styles.highlightedRow,
+          { backgroundColor: palette.highlightBackground },
+        ],
       ]}
     >
+      {highlighted ? (
+        <View
+          pointerEvents="none"
+          style={[styles.highlightBar, { backgroundColor: palette.accent }]}
+        />
+      ) : null}
+
       <CommentAvatar
         avatarUrl={avatarUrl}
         backgroundColor={palette.surfaceContainerHighest}
@@ -316,6 +326,14 @@ const styles = StyleSheet.create({
   commentRow: { alignItems: 'flex-start', flexDirection: 'row', gap: 16, paddingVertical: 8 },
   disabled: { opacity: 0.42 },
   commentText: { fontSize: 14, lineHeight: 19 },
+  highlightBar: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+    width: 3,
+  },
+  highlightedRow: { position: 'relative' },
   identityRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   likeAction: { alignItems: 'center', flexDirection: 'row', gap: 4, minHeight: 32, paddingHorizontal: 5 },
   likeCount: { fontSize: 12, fontVariant: ['tabular-nums'] },

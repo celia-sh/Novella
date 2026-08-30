@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { resolveStringColor } from './color-values.ts';
 import { createHeroUIThemeVariables } from './hero-ui-theme.ts';
 
 const palette = {
@@ -16,6 +17,15 @@ const palette = {
   surface: '#18191A',
   surfaceContainerHighest: '#303132',
 };
+
+test('resolves parser-facing colors without leaking platform color objects', () => {
+  assert.equal(resolveStringColor('#FF3B30', '#BA1A1A'), '#FF3B30');
+  assert.equal(resolveStringColor('  ', '#BA1A1A'), '#BA1A1A');
+  assert.equal(
+    resolveStringColor({ semantic: ['systemRed'] }, '#BA1A1A'),
+    '#BA1A1A',
+  );
+});
 
 test('maps the app palette to HeroUI semantic roots and native aliases', () => {
   const variables = createHeroUIThemeVariables(palette, 'dark');

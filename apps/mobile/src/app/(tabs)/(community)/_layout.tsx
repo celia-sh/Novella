@@ -22,6 +22,10 @@ export default function CommunityStackLayout() {
         options={{ headerLargeTitle: false, headerShown: true, title: '' }}
       />
       <Stack.Screen
+        name="thread/[id]/edit"
+        options={{ headerLargeTitle: false, headerShown: true, title: t('navigation.editPost') }}
+      />
+      <Stack.Screen
         name="thread/[id]/reply"
         options={{
           sheetAllowedDetents: 'fitToContents',

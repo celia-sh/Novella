@@ -10,6 +10,7 @@ import { community } from '@/services/client';
 import {
   findCommunityReply,
   mergeCommunityItems,
+  removeCommunityReply,
   updateCommunityReply,
 } from '@/services/community-utils';
 
@@ -81,6 +82,7 @@ export function useCommunityThread({
         replyPage: page,
         replySize: 5,
         trackView,
+        ...(replyId === null ? {} : { focusReplyId: replyId }),
       }, controller.signal);
       if (generation !== generationRef.current) return null;
       operationRef.current = 'idle';
@@ -109,7 +111,7 @@ export function useCommunityThread({
       }));
       return null;
     }
-  }, [t, threadId]);
+  }, [replyId, t, threadId]);
 
   useEffect(() => {
     void load({ page: 1, trackView: true });
@@ -146,11 +148,13 @@ export function useCommunityThread({
           }
           parent = findCommunityReply(thread.replyItems, parentReplyId);
           while (parent && !findCommunityReply(parent.childReplies, replyId) && parent.childPage.hasMore) {
+            const afterReplyId = parent.childReplies.at(-1)?.id;
             const children = await community.loadReplyChildren({
               threadId,
               parentReplyId,
               page: parent.childPage.page + 1,
               size: parent.childPage.size || 3,
+              ...(afterReplyId === undefined ? {} : { afterReplyId }),
             });
             if (focusGeneration !== focusGenerationRef.current) return;
             thread = {
@@ -207,11 +211,13 @@ export function useCommunityThread({
     replyOperationRef.current = actionId;
     setState((current) => ({ ...current, actionId }));
     try {
+      const afterReplyId = parent.childReplies.at(-1)?.id;
       const children = await community.loadReplyChildren({
         threadId,
         parentReplyId: parent.id,
         page: parent.childPage.page + 1,
         size: parent.childPage.size || 3,
+        ...(afterReplyId === undefined ? {} : { afterReplyId }),
       });
       setState((current) => current.thread ? ({
         ...current,
@@ -268,6 +274,68 @@ export function useCommunityThread({
     }
   }, [state.thread, state.threadActionId, t]);
 
+  const deleteReply = useCallback(async (replyId: number) => {
+    if (!state.thread || replyOperationRef.current !== null) return false;
+    const actionId = `reply-delete:${replyId}`;
+    replyOperationRef.current = actionId;
+    setState((current) => ({ ...current, actionId, error: null }));
+    try {
+      const result = await community.deleteReply(replyId);
+      setState((current) => {
+        if (!current.thread) return current;
+        const removed = removeCommunityReply(current.thread.replyItems, replyId);
+        return {
+          ...current,
+          thread: {
+            ...current.thread,
+            replies: Math.max(0, current.thread.replies - result.removed),
+            replyItems: removed.replies,
+            repliesPage: {
+              ...current.thread.repliesPage,
+              total: Math.max(
+                0,
+                current.thread.repliesPage.total - (removed.removedRoot ? 1 : 0),
+              ),
+            },
+          },
+        };
+      });
+      // Reload remains the final authority. If it fails, the confirmed delete
+      // projection above stays visible instead of resurrecting removed UI.
+      await load({ page: 1, trackView: false });
+      return true;
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        actionId: null,
+        error: error instanceof Error ? error.message : t('thread.errors.deleteReply'),
+      }));
+      return false;
+    } finally {
+      if (replyOperationRef.current === actionId) replyOperationRef.current = null;
+      setState((current) => current.actionId === actionId
+        ? { ...current, actionId: null }
+        : current);
+    }
+  }, [load, state.thread, t]);
+
+  const deleteThread = useCallback(async () => {
+    const thread = state.thread;
+    if (!thread?.canEdit || state.threadActionId) return false;
+    setState((current) => ({ ...current, threadActionId: 'thread-delete', error: null }));
+    try {
+      await community.deleteThread(thread.id);
+      return true;
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        threadActionId: null,
+        error: error instanceof Error ? error.message : t('thread.errors.deleteThread'),
+      }));
+      return false;
+    }
+  }, [state.thread, state.threadActionId, t]);
+
   const toggleReplyLike = useCallback(async (reply: CommunityThreadReply) => {
     if (state.thread?.locked || replyOperationRef.current !== null) return;
     const actionId = `reply-like:${reply.id}`;
@@ -313,6 +381,8 @@ export function useCommunityThread({
   }, [load, state.postingReply, state.thread?.locked, t, threadId]);
 
   return {
+    deleteReply,
+    deleteThread,
     loadChildren,
     loadMore,
     postReply,

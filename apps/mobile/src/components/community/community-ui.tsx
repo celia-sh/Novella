@@ -37,20 +37,23 @@ import {
   resolveOnAccentHex,
   useAppTheme,
 } from "@/theme/app-theme";
+import { resolveStringColor } from "@/theme/color-values";
 
 const FEATURED_AMBER = "#F59E0B";
 
 export function CommunityPaperProvider({ children }: PropsWithChildren) {
   const { colorScheme, colors } = useAppTheme();
   const baseTheme = colorScheme === "dark" ? MD3DarkTheme : MD3LightTheme;
+  const accent = resolveAccentHex(colors.accent);
+  const onAccent = resolveOnAccentHex(colors.accent);
   const theme = {
     ...baseTheme,
     colors: {
       ...baseTheme.colors,
-      onPrimary: resolveOnAccentHex(colors.accent),
-      onSecondaryContainer: resolveOnAccentHex(colors.primaryContainer),
-      primary: resolveAccentHex(colors.accent),
-      secondaryContainer: resolveAccentHex(colors.primaryContainer),
+      onPrimary: onAccent,
+      onSecondaryContainer: resolveStringColor(colors.onPrimaryContainer, onAccent),
+      primary: accent,
+      secondaryContainer: resolveStringColor(colors.primaryContainer, accent),
     },
   };
 
