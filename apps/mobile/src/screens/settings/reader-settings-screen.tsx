@@ -160,6 +160,13 @@ export function ReaderSettingsContent() {
           title={t('reader.behavior.comicModeTitle')}
         />
         <NativeToggleRow
+          description={t('reader.behavior.comicDoublePageOffsetDescription')}
+          icon="comicPageLayout"
+          onValueChange={(value) => void updateAppSettings({ comicDoublePageOffset: value })}
+          title={t('reader.behavior.comicDoublePageOffsetTitle')}
+          value={settings.comicDoublePageOffset}
+        />
+        <NativeToggleRow
           description={t('reader.behavior.pagedTapDescription')}
           icon="readingMode"
           onValueChange={(value) => void updateAppSettings({ readerPagedTapNavigation: value })}

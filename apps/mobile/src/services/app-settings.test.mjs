@@ -3,6 +3,12 @@ import test from 'node:test';
 
 import { decodeAppSettings } from './app-settings.ts';
 
+test('comic double-page offset is opt-in and survives settings decoding', () => {
+  assert.equal(decodeAppSettings(null).comicDoublePageOffset, false);
+  assert.equal(decodeAppSettings({ comicDoublePageOffset: true }).comicDoublePageOffset, true);
+  assert.equal(decodeAppSettings({ comicDoublePageOffset: 'true' }).comicDoublePageOffset, false);
+});
+
 test('legacy appearance fields are ignored without losing current settings', () => {
   const settings = decodeAppSettings({
     fontSize: 22,

@@ -67,6 +67,7 @@ export interface AppSettings {
   readerLineHeight: number;
   readerParagraphSpacing: number;
   comicPagedDirection: 'ltr' | 'rtl';
+  comicDoublePageOffset: boolean;
   readerPreloadWindow: number;
   readerSidePadding: number;
   seedColorValue: string;
@@ -94,6 +95,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   readerLineHeight: 1.6,
   readerParagraphSpacing: 0,
   comicPagedDirection: 'ltr',
+  comicDoublePageOffset: false,
   readerPreloadWindow: 3,
   novelReaderBackgroundColor: null,
   novelReaderViewMode: 'paged',
@@ -190,6 +192,9 @@ export function decodeAppSettings(value: unknown): AppSettings {
       : {}),
     ...(candidate.comicPagedDirection === 'ltr' || candidate.comicPagedDirection === 'rtl'
       ? { comicPagedDirection: candidate.comicPagedDirection }
+      : {}),
+    ...(typeof candidate.comicDoublePageOffset === 'boolean'
+      ? { comicDoublePageOffset: candidate.comicDoublePageOffset }
       : {}),
     ...(typeof candidate.readerPreloadWindow === 'number' &&
       Number.isFinite(candidate.readerPreloadWindow)

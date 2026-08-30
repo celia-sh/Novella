@@ -137,6 +137,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   const route = useRoute();
   const [mode, setMode] = useState<ReaderMode>(settings.comicReaderViewMode);
   const useDoublePage = mode === 'paged' && shouldUseReaderDoublePage(width, windowHeight);
+  const pagedLayoutKey = useDoublePage && settings.comicDoublePageOffset ? 'offset' : 'normal';
   const pagedPageHeight = comicViewportHeight;
   const pagedContentPadding = { paddingBottom: 0, paddingTop: 0 };
   const [modeRestoreTarget, setModeRestoreTarget] = useState<{
@@ -358,11 +359,20 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   const splitLongPages = shouldSplitLongComicPages(width, windowHeight, pagedColumns);
   const pagedDisplaySlots = useMemo(
     () => createComicPageDisplaySlots(activeSlots, pagedColumns, {
+      doublePageOffset: useDoublePage && settings.comicDoublePageOffset,
       splitLongPages,
       viewportHeight: comicViewportHeight,
       viewportWidth: width,
     }),
-    [activeSlots, comicViewportHeight, pagedColumns, splitLongPages, width],
+    [
+      activeSlots,
+      comicViewportHeight,
+      pagedColumns,
+      settings.comicDoublePageOffset,
+      splitLongPages,
+      useDoublePage,
+      width,
+    ],
   );
   const scrollDisplaySlots = useMemo(
     () => createComicPageDisplaySlots(activeSlots, 1, {
@@ -921,7 +931,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           contentInsetAdjustmentBehavior="never"
           contentContainerStyle={pagedContentPadding}
           data={pagedDisplaySlots}
-          key={`paged-${activeChapter.chapter.id}:${pagedColumns}`}
+          key={`paged-${activeChapter.chapter.id}:${pagedColumns}:${pagedLayoutKey}`}
           horizontal
           inverted={isPagedRtl}
           initialScrollIndex={Math.min(initialDisplayIndex, Math.max(0, pagedDisplaySlots.length - 1))}

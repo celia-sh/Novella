@@ -31,6 +31,7 @@ export interface ComicPageDisplaySlot {
 }
 
 export interface ComicPageDisplayOptions {
+  doublePageOffset?: boolean;
   splitLongPages?: boolean;
   viewportHeight?: number;
   viewportWidth?: number;
@@ -62,8 +63,25 @@ export function createComicPageDisplaySlots(
     && options.splitLongPages === true
     && hasPositiveDimension(options.viewportWidth)
     && hasPositiveDimension(options.viewportHeight);
+  const doublePageOffset = safeColumns >= 2 && options.doublePageOffset === true;
   const displays: ComicPageDisplaySlot[] = [];
   let slotIndex = 0;
+  if (doublePageOffset && slots.length > 0) {
+    const first = slots[0];
+    if (first) {
+      displays.push({
+        index: 0,
+        items: createComicPageDisplayItems(
+          first,
+          splitLongPages,
+          options.viewportWidth,
+          options.viewportHeight,
+        ),
+        pages: [first],
+      });
+      slotIndex = 1;
+    }
+  }
   while (slotIndex < slots.length) {
     const first = slots[slotIndex];
     if (!first) break;
