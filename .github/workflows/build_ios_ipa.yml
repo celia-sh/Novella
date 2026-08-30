@@ -54,6 +54,16 @@ jobs:
           git fetch --no-tags origin main:refs/remotes/origin/main
 
           RELEASE_VERSION=""
+          PACKAGE_VERSION="$(sed -nE 's/^[[:space:]]*\"version\":[[:space:]]*\"([^\"]+)\".*/\1/p' apps/mobile/package.json | head -1)"
+          LATEST_RELEASE_TAG="$(git tag --merged HEAD --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
+          COMPATIBILITY_VERSION="${LATEST_RELEASE_TAG#v}"
+          COMPATIBILITY_VERSION="${COMPATIBILITY_VERSION:-$PACKAGE_VERSION}"
+
+          if [ -z "$COMPATIBILITY_VERSION" ]; then
+            echo "::error::Unable to determine a backend-compatible app version."
+            exit 1
+          fi
+
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             BUILD_NUMBER="$(git rev-list --count origin/main)"
             BUILD_CHANNEL="pr"
@@ -65,6 +75,10 @@ jobs:
               exit 1
             fi
             RELEASE_VERSION="${BASH_REMATCH[1]}"
+            if [ "$PACKAGE_VERSION" != "$RELEASE_VERSION" ]; then
+              echo "::error::Mobile package version $PACKAGE_VERSION must match release tag $GITHUB_REF_NAME."
+              exit 1
+            fi
             BUILD_NUMBER="$(git rev-list --count HEAD)"
             BUILD_CHANNEL="tag"
             BUILD_LABEL="Build $BUILD_NUMBER"
@@ -80,6 +94,10 @@ jobs:
             BUILD_LABEL="$GITHUB_REF_NAME"
             SAFE_REF="${GITHUB_REF_NAME//\//-}"
             ARTIFACT_ID="branch-${SAFE_REF}-${GITHUB_SHA:0:7}"
+          fi
+
+          if [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            RELEASE_VERSION="$COMPATIBILITY_VERSION"
           fi
 
           {
@@ -289,8 +307,8 @@ jobs:
           BUILT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Info.plist")"
           BUILT_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_PATH/Info.plist")"
           echo "Built version: $BUILT_VERSION ($BUILT_BUILD)"
-          if [ -n "${{ env.APP_VERSION }}" ] && [ "$BUILT_VERSION" != "${{ env.APP_VERSION }}" ]; then
-            echo "::error::Built version $BUILT_VERSION does not match tag version ${{ env.APP_VERSION }}"
+          if [ "$BUILT_VERSION" != "${{ env.APP_VERSION }}" ]; then
+            echo "::error::Built version $BUILT_VERSION does not match APP_VERSION ${{ env.APP_VERSION }}"
             exit 1
           fi
           if [ "$BUILT_BUILD" != "${{ env.APP_BUILD_NUMBER }}" ]; then

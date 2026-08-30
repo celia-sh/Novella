@@ -29,6 +29,7 @@ export function ProfileScreen() {
   const { error, profile, reload, status } = useProfile();
   const [copiedField, setCopiedField] = useState<CopyableProfileField | null>(null);
   const [checkingIn, setCheckingIn] = useState(false);
+  const [resettingInviteCode, setResettingInviteCode] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -65,6 +66,38 @@ export function ProfileScreen() {
     } finally {
       setCheckingIn(false);
     }
+  }
+
+  function openPointLogs(kind: 'experience' | 'coin') {
+    router.push({ pathname: '/settings/point-logs', params: { kind } });
+  }
+
+  function confirmResetInviteCode() {
+    if (!profile || resettingInviteCode) return;
+    showAlert(t('profile.resetInvite.confirmTitle'), t('profile.resetInvite.confirmMessage'), [
+      { style: 'cancel', text: tCommon('actions.cancel') },
+      {
+        style: 'destructive',
+        text: tCommon('actions.confirm'),
+        onPress: () => {
+          setResettingInviteCode(true);
+          void profileUseCase.resetInviteCode()
+            .then((outcome) => {
+              showAlert(
+                t('profile.resetInvite.successTitle'),
+                t('profile.resetInvite.successMessage', { code: outcome.result.inviteCode }),
+              );
+            })
+            .catch((resetError) => {
+              showAlert(
+                t('profile.resetInvite.failedTitle'),
+                resetError instanceof Error ? resetError.message : t('profile.tryAgain'),
+              );
+            })
+            .finally(() => setResettingInviteCode(false));
+        },
+      },
+    ]);
   }
 
   function confirmSignOut() {
@@ -155,9 +188,33 @@ export function ProfileScreen() {
           </NativeGroupedListSection>
 
           <NativeGroupedListSection title={t('profile.sections.growth')}>
-            <StaticValueRow icon="level" label={t('profile.fields.level')} value={t('profile.fields.levelValue', { level: profile.growth.level })} />
-            <StaticValueRow icon="experience" label={t('profile.fields.experience')} value={new Intl.NumberFormat(locale).format(profile.growth.experience)} />
-            <StaticValueRow icon="coins" label={t('profile.fields.coins')} value={new Intl.NumberFormat(locale).format(profile.growth.coin)} />
+            <StaticValueRow
+              description={t('profile.fields.levelDescription')}
+              icon="level"
+              label={t('profile.fields.level')}
+              value={t('profile.fields.levelValue', { level: profile.growth.level })}
+            />
+            <StaticValueRow
+              description={t('profile.tapToViewLogs')}
+              icon="experience"
+              label={t('profile.fields.experience')}
+              onPress={() => openPointLogs('experience')}
+              value={new Intl.NumberFormat(locale).format(profile.growth.experience)}
+            />
+            <StaticValueRow
+              description={t('profile.tapToViewLogs')}
+              icon="coins"
+              label={t('profile.fields.coins')}
+              onPress={() => openPointLogs('coin')}
+              value={new Intl.NumberFormat(locale).format(profile.growth.coin)}
+            />
+            <NativeGroupedListRow
+              description={t('profile.shopDescription')}
+              icon="shop"
+              onPress={() => router.push('/settings/shop')}
+              title={t('profile.shopTitle')}
+              trailing={<DisclosureIcon />}
+            />
             <NativeGroupedListRow
               description={profile.growth.signedToday
                 ? t('profile.checkIn.signedDescription', { days: profile.growth.signInStreak })
@@ -173,6 +230,13 @@ export function ProfileScreen() {
       )}
 
       <NativeGroupedListSection title={t('profile.sections.account')}>
+        <NativeGroupedListRow
+          description={t('profile.resetInvite.description')}
+          disabled={!profile}
+          icon="inviteCode"
+          onPress={confirmResetInviteCode}
+          title={t('profile.resetInvite.title')}
+        />
         <NativeGroupedListRow
           description={t('profile.signOut.description')}
           disabled={signingOut || auth.status === 'signingOut'}
@@ -214,17 +278,23 @@ function CopyableValueRow({
 }
 
 function StaticValueRow({
+  description,
   icon,
   label,
+  onPress,
   value,
 }: {
+  description?: string;
   icon: 'coins' | 'experience' | 'level' | 'registered' | 'userGroup';
   label: string;
+  onPress?: () => void;
   value: string;
 }) {
   return (
     <NativeGroupedListRow
+      {...(description ? { description } : {})}
       icon={icon}
+      {...(onPress ? { onPress } : {})}
       title={label}
       trailing={<NativeListValue>{value}</NativeListValue>}
     />

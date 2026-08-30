@@ -20,6 +20,18 @@ export default function SettingsStackLayout() {
       />
       <Stack.Screen name="profile" options={{ title: t('profile.title') }} />
       <Stack.Screen name="avatar" options={{ title: t('avatar.title') }} />
+      <Stack.Screen name="shop" options={{ title: t('shop.title') }} />
+      <Stack.Screen
+        name="point-logs"
+        options={{
+          headerShown: false,
+          presentation: 'formSheet',
+          sheetAllowedDetents: [0.5, 1],
+          sheetGrabberVisible: true,
+          sheetInitialDetentIndex: 0,
+          title: t('pointLogs.experienceTitle'),
+        }}
+      />
       <Stack.Screen name="reader" options={{ title: t('reader.title') }} />
       <Stack.Screen name="content" options={{ title: t('content.title') }} />
       <Stack.Screen

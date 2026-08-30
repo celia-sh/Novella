@@ -12,8 +12,10 @@ import {
   createDiscoveryUseCase,
   createHistoryUseCase,
   createNotificationsUseCase,
+  createPointLogUseCase,
   createProfileUseCase,
   createReaderUseCase,
+  createShopUseCase,
   createShelfUseCase,
   type AnnouncementsUseCase,
   type AuthenticationUseCase,
@@ -25,8 +27,10 @@ import {
   type DiscoveryUseCase,
   type HistoryUseCase,
   type NotificationsUseCase,
+  type PointLogUseCase,
   type ProfileUseCase,
   type ReaderUseCase,
+  type ShopUseCase,
   type ShelfUseCase,
 } from '@novella/client-core';
 
@@ -74,9 +78,11 @@ export const bookSearch: BookSearchUseCase = createBookSearchUseCase(api);
 export const comments: CommentsUseCase = createCommentsUseCase(api);
 export const community: CommunityUseCase = createCommunityUseCase(api);
 export const notifications: NotificationsUseCase = createNotificationsUseCase(api);
+export const pointLogs: PointLogUseCase = createPointLogUseCase(api);
 export const history: HistoryUseCase = createHistoryUseCase(api);
 export const profile: ProfileUseCase = createProfileUseCase(api);
 export const reader: ReaderUseCase = createReaderUseCase(api);
+export const shop: ShopUseCase = createShopUseCase(api);
 export const shelf: ShelfUseCase = createShelfUseCase(api);
 authentication = createAuthenticationUseCase(
   api,

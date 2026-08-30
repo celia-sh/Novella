@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   createAnnouncementsUseCase,
+  createAuthenticationUseCase,
   createBookSearchUseCase,
   createClientSessionController,
   createComicDetailUseCase,
@@ -11,8 +12,10 @@ import {
   createDiscoveryUseCase,
   createHistoryUseCase,
   createNotificationsUseCase,
+  createPointLogUseCase,
   createProfileUseCase,
   createReaderUseCase,
+  createShopUseCase,
   createShelfDraft,
   createShelfFolder,
   createShelfUseCase,
@@ -69,6 +72,59 @@ class FakeSignalR {
     return { methodName, args };
   }
 }
+
+test('sign-in stays authenticated when stale SignalR cleanup fails', async () => {
+  const values = new Map();
+  const authentication = createAuthenticationUseCase(
+    {
+      async login() {
+        return { sessionToken: 'session-token', refreshToken: 'refresh-token' };
+      },
+    },
+    {
+      async sha256(value) { return `hash:${value}`; },
+    },
+    {
+      async get(key) { return values.get(key) ?? null; },
+      async set(key, value) { values.set(key, value); },
+      async delete(key) { values.delete(key); },
+    },
+    {
+      async close() { throw new Error('stale SignalR connection'); },
+    },
+  );
+
+  await authentication.signIn('reader@example.com', 'password');
+
+  assert.equal(authentication.getSnapshot().status, 'authenticated');
+  assert.equal(values.get('novella.refresh-token'), 'refresh-token');
+  assert.equal(values.get('novella.session-token'), 'session-token');
+});
+
+test('refresh stays authenticated when stale SignalR cleanup fails', async () => {
+  const values = new Map([['novella.refresh-token', 'refresh-token']]);
+  const authentication = createAuthenticationUseCase(
+    {
+      async refreshToken() { return 'new-session-token'; },
+    },
+    {
+      async sha256(value) { return `hash:${value}`; },
+    },
+    {
+      async get(key) { return values.get(key) ?? null; },
+      async set(key, value) { values.set(key, value); },
+      async delete(key) { values.delete(key); },
+    },
+    {
+      async close() { throw new Error('stale SignalR connection'); },
+    },
+  );
+
+  assert.equal(await authentication.refresh(), true);
+  assert.equal(authentication.getSnapshot().status, 'authenticated');
+  assert.equal(values.get('novella.refresh-token'), 'refresh-token');
+  assert.equal(values.get('novella.session-token'), 'new-session-token');
+});
 
 test('client startup bootstraps auth before one shared SignalR connection', async () => {
   const order = [];
@@ -549,6 +605,34 @@ test('avatar sources round-trip Web-Master URL, QQ, and QQ group modes', () => {
   assert.throws(() => resolveAvatarUrl('url', 'http://cdn.example/avatar.png'), /valid HTTPS/);
 });
 
+test('point log use case selects and validates paged logs', async () => {
+  const calls = [];
+  const useCase = createPointLogUseCase({
+    async getPointLog(page, size) {
+      calls.push({ kind: 'experience', page, size });
+      return { page, totalPages: 2, items: [] };
+    },
+    async getCoinLog(page, size) {
+      calls.push({ kind: 'coin', page, size });
+      return { page, totalPages: 1, items: [] };
+    },
+  });
+
+  assert.deepEqual(await useCase.loadPage('experience', 1), {
+    page: 1, totalPages: 2, items: [],
+  });
+  assert.deepEqual(await useCase.loadPage('coin', 2, 10), {
+    page: 2, totalPages: 1, items: [],
+  });
+  assert.deepEqual(calls, [
+    { kind: 'experience', page: 1, size: 20 },
+    { kind: 'coin', page: 2, size: 10 },
+  ]);
+  assert.throws(() => useCase.loadPage('invalid', 1), /valid point log kind/);
+  assert.throws(() => useCase.loadPage('coin', 0), /valid point log page/);
+  assert.throws(() => useCase.loadPage('coin', 1, 25), /Page size/);
+});
+
 test('profile repository publishes refreshed avatar and check-in state', async () => {
   let profile = {
     id: 9,
@@ -573,6 +657,10 @@ test('profile repository publishes refreshed avatar and check-in state', async (
   const useCase = createProfileUseCase({
     async getMyProfile() { return structuredClone(profile); },
     async setAvatar(url) { profile = { ...profile, avatarUrl: url }; },
+    async resetInviteCode() {
+      profile = { ...profile, inviteCode: 'NEW-CODE' };
+      return { inviteCode: 'NEW-CODE' };
+    },
     async checkIn() {
       profile = {
         ...profile,
@@ -592,7 +680,135 @@ test('profile repository publishes refreshed avatar and check-in state', async (
   assert.equal(outcome.result.reward, 5);
   assert.equal(outcome.profile.growth.signedToday, true);
   assert.equal(useCase.getSnapshot().growth.signInStreak, 1);
+  const reset = await useCase.resetInviteCode();
+  assert.equal(reset.result.inviteCode, 'NEW-CODE');
+  assert.equal(reset.profile.inviteCode, 'NEW-CODE');
+  assert.equal(useCase.getSnapshot().inviteCode, 'NEW-CODE');
+  assert.equal(published.length, 4);
+});
+
+test('shop repository serializes purchases and publishes authoritative snapshots', async () => {
+  let coin = 100;
+  let owned = 0;
+  let monthlyPurchased = 0;
+  let failNextShopLoad = false;
+  const purchaseCalls = [];
+  const firstPurchase = deferred();
+  const api = {
+    async getShop() {
+      if (failNextShopLoad) {
+        failNextShopLoad = false;
+        throw new Error('shop refresh failed');
+      }
+      return {
+        coin,
+        items: [{
+          key: 'sign_makeup',
+          name: '补签卡',
+          description: '补签一天',
+          image: '/images/sign-makeup.png',
+          price: 20,
+          owned,
+          monthlyLimit: 5,
+          monthlyPurchased,
+        }],
+      };
+    },
+    async getMyShopItems() {
+      return {
+        items: owned === 0 ? [] : [{
+          key: 'sign_makeup',
+          name: '补签卡',
+          description: '补签一天',
+          image: '/images/sign-makeup.png',
+          quantity: owned,
+        }],
+      };
+    },
+    async getSignInCalendar(year, month) {
+      assert.equal(year, 2026);
+      assert.equal(month, 8);
+      return {
+        year,
+        month,
+        days: [{ date: '2026-08-01', streak: 7, reward: 5 }],
+      };
+    },
+    async buyShopItem(request) {
+      purchaseCalls.push(request);
+      if (request.key === 'fail') throw new Error('purchase failed');
+      if (purchaseCalls.length === 1) await firstPurchase.promise;
+      coin -= 20 * request.quantity;
+      owned += request.quantity;
+      monthlyPurchased += request.quantity;
+      return {
+        key: request.key,
+        owned,
+        coin,
+        cost: 20 * request.quantity,
+        monthlyPurchased,
+      };
+    },
+    async useSignMakeupCard(request) {
+      assert.equal(request.date, '2026-08-01');
+      owned -= 1;
+      return {
+        date: request.date,
+        streak: 8,
+        reward: 12,
+        coinReward: 3,
+        owned,
+      };
+    },
+  };
+  const useCase = createShopUseCase(api);
+  const published = [];
+  useCase.subscribe((snapshot) => published.push(snapshot));
+
+  const initial = await useCase.load();
+  assert.equal(initial.coin, 100);
+  assert.deepEqual(initial.ownedItems, []);
+
+  const calendar = await useCase.loadSignInCalendar(2026, 8);
+  assert.deepEqual(calendar.days, [{ date: '2026-08-01', streak: 7, reward: 5 }]);
+
+  const first = useCase.buy(' sign_makeup ');
+  const second = useCase.buy('sign_makeup');
+  await Promise.resolve();
+  assert.deepEqual(purchaseCalls, [{ key: 'sign_makeup', quantity: 1 }]);
+  firstPurchase.resolve();
+  await Promise.all([first, second]);
+
+  assert.deepEqual(purchaseCalls, [
+    { key: 'sign_makeup', quantity: 1 },
+    { key: 'sign_makeup', quantity: 1 },
+  ]);
+  assert.equal(useCase.getSnapshot().coin, 60);
+  assert.equal(useCase.getSnapshot().ownedItems[0].quantity, 2);
+  assert.equal(published.length, 2);
+
+  failNextShopLoad = true;
+  const refreshFallback = await useCase.buy('sign_makeup');
+  assert.equal(refreshFallback.coin, 40);
+  assert.equal(refreshFallback.items[0].owned, 3);
+  assert.equal(refreshFallback.ownedItems[0].quantity, 3);
+  assert.equal(useCase.getSnapshot(), refreshFallback);
   assert.equal(published.length, 3);
+
+  const makeup = await useCase.useSignMakeupCard('2026-08-01');
+  assert.equal(makeup.result.streak, 8);
+  assert.equal(makeup.result.owned, 2);
+  assert.equal(makeup.snapshot.ownedItems[0].quantity, 2);
+  assert.equal(useCase.getSnapshot(), makeup.snapshot);
+  assert.equal(published.length, 4);
+
+  const confirmed = useCase.getSnapshot();
+  await assert.rejects(useCase.buy('fail'), /purchase failed/);
+  assert.equal(useCase.getSnapshot(), confirmed);
+  assert.throws(() => useCase.buy('  '), /item key/);
+  assert.throws(() => useCase.buy('sign_makeup', 0), /positive/);
+  await assert.rejects(useCase.useSignMakeupCard('2026/08/01'), /yyyy-MM-dd/);
+  await assert.rejects(useCase.useSignMakeupCard('2026-02-31'), /yyyy-MM-dd/);
 });
 
 test('shelf repository publishes one shared snapshot after load and save', async () => {
@@ -1073,6 +1289,22 @@ test('Community use case validates input and forwards cancellation and mutations
       calls.push(['createReply', request]);
       return Promise.resolve({ id: 6 });
     },
+    getCommunityThreadEditInfo(id, format) {
+      calls.push(['editInfo', id, format]);
+      return Promise.resolve({ id, format });
+    },
+    updateCommunityThread(request) {
+      calls.push(['updateThread', request]);
+      return Promise.resolve({ id: request.threadId });
+    },
+    deleteCommunityThread(id) {
+      calls.push(['deleteThread', id]);
+      return Promise.resolve({ id });
+    },
+    deleteCommunityReply(id) {
+      calls.push(['deleteReply', id]);
+      return Promise.resolve({ id, removed: 1 });
+    },
     toggleCommunityThreadLike(id) {
       calls.push(['threadLike', id]);
       return Promise.resolve({ liked: true, likes: 1 });
@@ -1101,6 +1333,17 @@ test('Community use case validates input and forwards cancellation and mutations
     contentHtml: '  <p>This body is definitely long enough.</p>  ',
   });
   await useCase.createReply({ threadId: 3, content: '  reply  ', replyToId: 4 });
+  await useCase.loadThreadEditInfo(3);
+  await useCase.updateThread({
+    threadId: 3,
+    boardKey: ' general ',
+    subCategoryKey: ' news ',
+    title: '  Valid title  ',
+    contentText: '  This body is definitely long enough.  ',
+    contentHtml: '  <p>This body is definitely long enough.</p>  ',
+  });
+  await useCase.deleteThread(3);
+  await useCase.deleteReply(4);
   await useCase.toggleThreadLike(3);
   await useCase.toggleThreadFavorite(3);
   await useCase.toggleReplyLike(4);
@@ -1114,7 +1357,19 @@ test('Community use case validates input and forwards cancellation and mutations
     contentHtml: '<p>This body is definitely long enough.</p>',
   });
   assert.deepEqual(calls[6][1], { threadId: 3, content: 'reply', replyToId: 4 });
+  assert.deepEqual(calls[7], ['editInfo', 3, 'html']);
+  assert.deepEqual(calls[8][1], {
+    threadId: 3,
+    boardKey: 'general',
+    subCategoryKey: 'news',
+    title: 'Valid title',
+    contentHtml: '<p>This body is definitely long enough.</p>',
+  });
+  assert.deepEqual(calls[9], ['deleteThread', 3]);
+  assert.deepEqual(calls[10], ['deleteReply', 4]);
   assert.throws(() => useCase.loadThread({ threadId: 0 }), /valid Community thread id/i);
+  assert.throws(() => useCase.deleteThread(0), /valid Community thread id/i);
+  assert.throws(() => useCase.deleteReply(0), /valid Community reply id/i);
   await assert.rejects(() => useCase.createThread({
     boardKey: 'all',
     title: 'short',

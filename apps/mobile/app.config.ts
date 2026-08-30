@@ -1,13 +1,49 @@
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
 const buildNumber = process.env.APP_BUILD_NUMBER;
+const localCompatibilityVersion = resolveLocalCompatibilityVersion();
+
+function resolveLocalCompatibilityVersion(): string {
+  try {
+    const repositoryRoot = execFileSync(
+      'git',
+      ['rev-parse', '--show-toplevel'],
+      { encoding: 'utf8' },
+    ).trim();
+    const latestTag = execFileSync(
+      'git',
+      ['tag', '--merged', 'HEAD', '--sort=-version:refname'],
+      { cwd: repositoryRoot, encoding: 'utf8' },
+    )
+      .split(/\r?\n/)
+      .find((tag) => /^v\d+\.\d+\.\d+$/.test(tag));
+    if (latestTag) return latestTag.slice(1);
+  } catch {
+    // Local source archives may not include the Git metadata.
+  }
+
+  try {
+    const packageJson = JSON.parse(
+      readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
+    ) as { version?: unknown };
+    if (typeof packageJson.version === 'string' && packageJson.version.trim()) {
+      return packageJson.version.trim();
+    }
+  } catch {
+    // Keep a stable backend-compatible fallback for unusual config runners.
+  }
+  return '2.2.0';
+}
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Novella',
   slug: 'novella',
-  // CI 通过 v* tag 注入 APP_VERSION；本地开发回退到 package.json 版本。
-  version: process.env.APP_VERSION || config.version || '2.0.0',
+  // CI release tags override this; local and untagged builds advertise the
+  // newest backend-compatible release instead of an obsolete config default.
+  version: process.env.APP_VERSION || localCompatibilityVersion,
   orientation: 'portrait',
   platforms: ['ios'],
   scheme: 'novella',

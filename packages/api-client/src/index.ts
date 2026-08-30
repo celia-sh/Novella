@@ -525,6 +525,20 @@ export interface OnlineInfo {
   dayRegister: number;
 }
 
+export interface PointLogItem {
+  source: string;
+  amount: number;
+  balance: number;
+  refId: number | null;
+  occurredAt: string;
+}
+
+export interface PointLogPage {
+  page: number;
+  totalPages: number;
+  items: PointLogItem[];
+}
+
 export interface UserGrowth {
   experience: number;
   coin: number;
@@ -553,6 +567,75 @@ export interface DailyCheckInResult {
   streak: number;
   experience: number;
   level: number;
+}
+
+export interface ResetInviteCodeResult {
+  inviteCode: string;
+}
+
+export interface ShopItem {
+  key: string;
+  name: string;
+  description: string;
+  image: string;
+  price: number;
+  owned: number;
+  monthlyLimit: number;
+  monthlyPurchased: number;
+}
+
+export interface OwnedShopItem {
+  key: string;
+  name: string;
+  description: string;
+  image: string;
+  quantity: number;
+}
+
+export interface ShopData {
+  coin: number;
+  items: ShopItem[];
+}
+
+export interface OwnedShopItemsData {
+  items: OwnedShopItem[];
+}
+
+export interface BuyShopItemRequest {
+  key: string;
+  quantity: number;
+}
+
+export interface BuyShopItemResult {
+  key: string;
+  owned: number;
+  coin: number;
+  cost: number;
+  monthlyPurchased: number;
+}
+
+export interface UseSignMakeupCardRequest {
+  date: string;
+}
+
+export interface UseSignMakeupCardResult {
+  date: string;
+  streak: number;
+  reward: number;
+  coinReward: number;
+  owned: number;
+}
+
+export interface SignInCalendarDay {
+  date: string;
+  streak: number;
+  reward: number;
+}
+
+export interface SignInCalendar {
+  year: number;
+  month: number;
+  days: SignInCalendarDay[];
 }
 
 export type CommunityBoardKey = string;
@@ -663,6 +746,7 @@ export interface CommunityThreadReply {
   content: string;
   likes: number;
   liked: boolean;
+  canDelete: boolean;
   replyTo: CommunityReplyTarget | null;
   childReplies: CommunityThreadReply[];
   childPage: CommunityPagination;
@@ -671,10 +755,34 @@ export interface CommunityThreadReply {
 export interface CommunityThreadDetail extends CommunityFeedItem {
   liked: boolean;
   favorited: boolean;
-  bodyHtml: string;
+  editedAt: string | null;
+  canEdit: boolean;
+  content: string;
   repliesPage: CommunityPagination;
   replyItems: CommunityThreadReply[];
   relatedThreads: CommunityFeedItem[];
+}
+
+export interface CommunityThreadEditInfo {
+  id: number;
+  boardKey: string;
+  subCategoryKey: string;
+  title: string;
+  content: string;
+  format: string;
+}
+
+export interface UpdateCommunityThreadRequest extends CreateCommunityThreadRequest {
+  threadId: number;
+}
+
+export interface CommunityThreadMutationResult {
+  id: number;
+}
+
+export interface CommunityReplyDeletionResult {
+  id: number;
+  removed: number;
 }
 
 export interface CommunityHomePayload {
@@ -706,6 +814,7 @@ export interface GetCommunityThreadRequest {
   replyPage?: number;
   replySize?: number;
   trackView?: boolean;
+  focusReplyId?: number;
 }
 
 export interface CreateCommunityThreadRequest {
@@ -726,6 +835,7 @@ export interface GetCommunityReplyChildrenRequest {
   parentReplyId: number;
   page?: number;
   size?: number;
+  afterReplyId?: number;
 }
 
 export interface CommunityReplyChildrenPayload {
@@ -1165,9 +1275,55 @@ export class ApiClient {
         ReplyPage: replyPage,
         ReplySize: Math.max(1, request.replySize ?? 5),
         TrackView: request.trackView ?? replyPage === 1,
+        ...(request.focusReplyId === undefined
+          ? {}
+          : { FocusReplyId: Math.max(0, request.focusReplyId) }),
       },
       decodeCommunityThread,
       options,
+    );
+  }
+
+  getCommunityThreadEditInfo(
+    threadId: number,
+    format: 'html' | 'markdown' = 'html',
+  ): Promise<CommunityThreadEditInfo> {
+    return this.invoke(
+      'GetCommunityThreadEditInfo',
+      { ThreadId: threadId, Format: format },
+      decodeCommunityThreadEditInfo,
+    );
+  }
+
+  updateCommunityThread(
+    request: UpdateCommunityThreadRequest,
+  ): Promise<CommunityThreadMutationResult> {
+    return this.invoke(
+      'UpdateCommunityThread',
+      {
+        ThreadId: request.threadId,
+        BoardKey: request.boardKey,
+        SubCategoryKey: request.subCategoryKey ?? '',
+        Title: request.title,
+        ContentHtml: request.contentHtml,
+      },
+      decodeCommunityThreadMutationResult,
+    );
+  }
+
+  deleteCommunityThread(threadId: number): Promise<CommunityThreadMutationResult> {
+    return this.invoke(
+      'DeleteCommunityThread',
+      { ThreadId: threadId },
+      decodeCommunityThreadMutationResult,
+    );
+  }
+
+  deleteCommunityReply(replyId: number): Promise<CommunityReplyDeletionResult> {
+    return this.invoke(
+      'DeleteCommunityReply',
+      { ReplyId: replyId },
+      decodeCommunityReplyDeletionResult,
     );
   }
 
@@ -1237,6 +1393,9 @@ export class ApiClient {
         ParentReplyId: request.parentReplyId,
         Page: Math.max(1, request.page ?? 1),
         Size: Math.max(1, request.size ?? 3),
+        ...(request.afterReplyId === undefined
+          ? {}
+          : { AfterReplyId: Math.max(0, request.afterReplyId) }),
       },
       decodeCommunityReplyChildren,
       options,
@@ -1368,6 +1527,50 @@ export class ApiClient {
 
   getMyProfile(): Promise<UserProfile> {
     return this.invoke('GetMyInfo', {}, decodeUserProfile);
+  }
+
+  resetInviteCode(): Promise<ResetInviteCodeResult> {
+    return this.invoke('ResetInviteCode', {}, decodeResetInviteCodeResult);
+  }
+
+  getShop(): Promise<ShopData> {
+    return this.invoke('GetShop', {}, decodeShopData);
+  }
+
+  getMyShopItems(): Promise<OwnedShopItemsData> {
+    return this.invoke('GetMyItems', {}, decodeOwnedShopItemsData);
+  }
+
+  getPointLog(page: number, size: number): Promise<PointLogPage> {
+    return this.invoke('GetPointLog', { Page: page, Size: size }, decodePointLogPage);
+  }
+
+  getCoinLog(page: number, size: number): Promise<PointLogPage> {
+    return this.invoke('GetCoinLog', { Page: page, Size: size }, decodePointLogPage);
+  }
+
+  buyShopItem(request: BuyShopItemRequest): Promise<BuyShopItemResult> {
+    return this.invoke(
+      'BuyShopItem',
+      { Key: request.key, Quantity: request.quantity },
+      decodeBuyShopItemResult,
+    );
+  }
+
+  useSignMakeupCard(request: UseSignMakeupCardRequest): Promise<UseSignMakeupCardResult> {
+    return this.invoke(
+      'UseSignMakeupCard',
+      { Date: request.date },
+      decodeUseSignMakeupCardResult,
+    );
+  }
+
+  getSignInCalendar(year: number, month: number): Promise<SignInCalendar> {
+    return this.invoke(
+      'GetSignInCalendar',
+      { Year: year, Month: month },
+      decodeSignInCalendar,
+    );
   }
 
   setAvatar(url: string): Promise<void> {
@@ -1591,6 +1794,107 @@ export function decodeDailyCheckInResult(value: unknown): DailyCheckInResult {
   };
 }
 
+export function decodeResetInviteCodeResult(value: unknown): ResetInviteCodeResult {
+  const record = asRecord(value, 'reset invite code response');
+  return { inviteCode: asString(record.InviteCode) };
+}
+
+export function decodePointLogPage(value: unknown): PointLogPage {
+  const record = asRecord(value, 'point log response');
+  return {
+    page: asNumber(record.Page),
+    totalPages: asNumber(record.TotalPages),
+    items: asArray(record.Data, 'point log items').map((item) => {
+      const entry = asRecord(item, 'point log item');
+      return {
+        source: asString(entry.Source),
+        amount: asNumber(entry.Amount),
+        balance: asNumber(entry.Balance),
+        refId: asNullableNumber(entry.RefId),
+        occurredAt: asDateString(entry.OccurredAt),
+      };
+    }),
+  };
+}
+
+export function decodeShopData(value: unknown): ShopData {
+  const record = asRecord(value, 'shop response');
+  return {
+    coin: asNumber(record.Coin),
+    items: asArray(record.Items, 'shop items').map(decodeShopItem),
+  };
+}
+
+export function decodeOwnedShopItemsData(value: unknown): OwnedShopItemsData {
+  const record = asRecord(value, 'owned shop items response');
+  return {
+    items: asArray(record.Items, 'owned shop items').map(decodeOwnedShopItem),
+  };
+}
+
+export function decodeBuyShopItemResult(value: unknown): BuyShopItemResult {
+  const record = asRecord(value, 'buy shop item response');
+  return {
+    key: asString(record.Key),
+    owned: asNumber(record.Owned),
+    coin: asNumber(record.Coin),
+    cost: asNumber(record.Cost),
+    monthlyPurchased: asNumber(record.MonthlyPurchased),
+  };
+}
+
+export function decodeUseSignMakeupCardResult(value: unknown): UseSignMakeupCardResult {
+  const record = asRecord(value, 'use sign makeup card response');
+  return {
+    date: asString(record.Date),
+    streak: asNumber(record.Streak),
+    reward: asNumber(record.Reward),
+    coinReward: asNumber(record.CoinReward),
+    owned: asNumber(record.Owned),
+  };
+}
+
+export function decodeSignInCalendar(value: unknown): SignInCalendar {
+  const record = asRecord(value, 'sign-in calendar response');
+  return {
+    year: asNumber(record.Year),
+    month: asNumber(record.Month),
+    days: asArray(record.Days, 'sign-in calendar days').map((day) => {
+      const entry = asRecord(day, 'sign-in calendar day');
+      return {
+        date: asString(entry.SignDate),
+        streak: asNumber(entry.Streak),
+        reward: asNumber(entry.Reward),
+      };
+    }),
+  };
+}
+
+function decodeShopItem(value: unknown): ShopItem {
+  const record = asRecord(value, 'shop item');
+  return {
+    key: asString(record.Key),
+    name: asString(record.Name),
+    description: asPresentString(record.Description),
+    image: asPresentString(record.Image),
+    price: asNumber(record.Price),
+    owned: asNumber(record.Owned),
+    monthlyLimit: asNumber(record.MonthlyLimit),
+    monthlyPurchased: asNumber(record.MonthlyPurchased),
+  };
+}
+
+function decodeOwnedShopItem(value: unknown): OwnedShopItem {
+  const record = asRecord(value, 'owned shop item');
+  return {
+    key: asString(record.Key),
+    name: asString(record.Name),
+    description: asPresentString(record.Description),
+    image: asPresentString(record.Image),
+    quantity: asNumber(record.Quantity),
+  };
+}
+
 export function decodeUserShelf(value: unknown): UserShelf {
   const record = isRecord(value) ? value : null;
   let rawItems: unknown[] | null;
@@ -1722,6 +2026,37 @@ export function decodeCommunityFeed(value: unknown): CommunityFeedPayload {
   };
 }
 
+export function decodeCommunityThreadEditInfo(
+  value: unknown,
+): CommunityThreadEditInfo {
+  const response = asRecord(value, 'community thread edit response');
+  return {
+    id: asNumber(response.Id),
+    boardKey: asString(response.BoardKey),
+    subCategoryKey: asStringOrEmpty(response.SubCategoryKey),
+    title: asString(response.Title),
+    content: asStringOrEmpty(response.Content),
+    format: asString(response.Format),
+  };
+}
+
+export function decodeCommunityThreadMutationResult(
+  value: unknown,
+): CommunityThreadMutationResult {
+  const response = asRecord(value, 'community thread mutation response');
+  return { id: asNumber(response.Id) };
+}
+
+export function decodeCommunityReplyDeletionResult(
+  value: unknown,
+): CommunityReplyDeletionResult {
+  const response = asRecord(value, 'community reply deletion response');
+  return {
+    id: asNumber(response.Id),
+    removed: asNumber(response.Removed),
+  };
+}
+
 export function decodeCommunityThread(
   value: unknown,
 ): CommunityThreadDetail | null {
@@ -1738,7 +2073,9 @@ export function decodeCommunityThreadRequired(
     ...decodeCommunityFeedItem(response),
     liked: asBoolean(response.Liked, false),
     favorited: asBoolean(response.Favorited, false),
-    bodyHtml: asStringOrEmpty(response.BodyHtml),
+    editedAt: asNullableDateString(response.EditedAt),
+    canEdit: asBoolean(response.CanEdit, false),
+    content: asStringOrEmpty(response.Content),
     repliesPage: decodeCommunityPagination(response.RepliesPage),
     replyItems: decodeOptionalArray(
       response.ReplyItems,
@@ -1934,6 +2271,7 @@ function decodeCommunityThreadReply(value: unknown): CommunityThreadReply {
     content: asStringOrEmpty(reply.Content),
     likes: Math.max(0, asNumber(reply.Likes, 0)),
     liked: asBoolean(reply.Liked, false),
+    canDelete: asBoolean(reply.CanDelete, false),
     replyTo: isRecord(reply.ReplyTo)
       ? {
           id: asNumber(reply.ReplyTo.Id),
@@ -2532,6 +2870,13 @@ function asString(value: unknown): string {
 
 function asStringOrEmpty(value: unknown): string {
   return typeof value === 'string' ? value : '';
+}
+
+function asPresentString(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw new ApiError('The server returned an invalid text field.', 'server');
+  }
+  return value;
 }
 
 function asNullableString(value: unknown): string | null {

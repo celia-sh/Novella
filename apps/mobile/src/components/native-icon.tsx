@@ -41,6 +41,7 @@ const icons: Partial<Record<NativeIconName, SystemName>> = {
   reader: 'book.pages',
   search: 'magnifyingglass',
   settings: 'gearshape',
+  shop: 'bag.fill',
   website: 'globe',
 };
 

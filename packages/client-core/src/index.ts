@@ -11,18 +11,23 @@ import {
   type CommunityListQuery,
   type CommunityMyOverview,
   type CommunityReplyChildrenPayload,
+  type CommunityReplyDeletionResult,
   type CommunityThreadDetail,
+  type CommunityThreadEditInfo,
+  type CommunityThreadMutationResult,
   type CommunityThreadReply,
   type CreateCommunityReplyRequest,
   type CreateCommunityThreadRequest,
   type GetCommunityReplyChildrenRequest,
   type GetCommunityThreadRequest,
   type GetNotificationsRequest,
+  type UpdateCommunityThreadRequest,
   type BookDetail,
   type BookListItem,
   type BookListOrder,
   type BookListPage,
   type BookSearchRequest,
+  type BuyShopItemResult,
   type ComicContent,
   type ComicContentRequest,
   type ComicInfo,
@@ -36,8 +41,14 @@ import {
   type NovelContent,
   type NovelContentRequest,
   type OnlineInfo,
+  type OwnedShopItem,
+  type PointLogPage,
   type PostCommentRequest,
   type ReadHistory,
+  type ResetInviteCodeResult,
+  type ShopItem,
+  type SignInCalendar,
+  type UseSignMakeupCardResult,
   type SaveReadPositionRequest,
   type ShelfItem,
   type UserProfile,
@@ -198,9 +209,15 @@ export type CreateCommunityThreadInput = CreateCommunityThreadRequest & {
   contentText: string;
 };
 
+export type UpdateCommunityThreadInput = UpdateCommunityThreadRequest & {
+  contentText: string;
+};
+
 export interface CommunityUseCase {
   createReply(request: CreateCommunityReplyRequest): Promise<CommunityThreadReply>;
   createThread(request: CreateCommunityThreadInput): Promise<CommunityThreadDetail>;
+  deleteReply(replyId: number): Promise<CommunityReplyDeletionResult>;
+  deleteThread(threadId: number): Promise<CommunityThreadMutationResult>;
   loadFeed(query?: CommunityListQuery, signal?: AbortSignal): Promise<CommunityFeedPayload>;
   loadHome(query?: CommunityListQuery, signal?: AbortSignal): Promise<CommunityHomePayload>;
   loadMyOverview(signal?: AbortSignal): Promise<CommunityMyOverview>;
@@ -212,9 +229,11 @@ export interface CommunityUseCase {
     request: GetCommunityThreadRequest,
     signal?: AbortSignal,
   ): Promise<CommunityThreadDetail | null>;
+  loadThreadEditInfo(threadId: number, format?: 'html' | 'markdown'): Promise<CommunityThreadEditInfo>;
   toggleReplyLike(replyId: number): Promise<CommunityLikeToggleResult>;
   toggleThreadFavorite(threadId: number): Promise<CommunityFavoriteToggleResult>;
   toggleThreadLike(threadId: number): Promise<CommunityLikeToggleResult>;
+  updateThread(request: UpdateCommunityThreadInput): Promise<CommunityThreadMutationResult>;
 }
 
 export interface NotificationsUseCase {
@@ -266,12 +285,46 @@ export interface ProfileCheckInOutcome {
   profile: UserProfile;
 }
 
+export interface ProfileResetInviteCodeOutcome {
+  result: ResetInviteCodeResult;
+  profile: UserProfile;
+}
+
 export interface ProfileUseCase {
   checkIn(): Promise<ProfileCheckInOutcome>;
   getSnapshot(): UserProfile | null;
   load(): Promise<UserProfile>;
+  resetInviteCode(): Promise<ProfileResetInviteCodeOutcome>;
   setAvatar(url: string): Promise<UserProfile>;
   subscribe(listener: (profile: UserProfile) => void): () => void;
+}
+
+export const SIGN_MAKEUP_ITEM_KEY = 'sign_makeup';
+
+export interface ShopSnapshot {
+  coin: number;
+  items: ShopItem[];
+  ownedItems: OwnedShopItem[];
+}
+
+export interface ShopMakeupOutcome {
+  result: UseSignMakeupCardResult;
+  snapshot: ShopSnapshot;
+}
+
+export type PointLogKind = 'experience' | 'coin';
+
+export interface PointLogUseCase {
+  loadPage(kind: PointLogKind, page: number, size?: number): Promise<PointLogPage>;
+}
+
+export interface ShopUseCase {
+  buy(key: string, quantity?: number): Promise<ShopSnapshot>;
+  getSnapshot(): ShopSnapshot | null;
+  load(): Promise<ShopSnapshot>;
+  loadSignInCalendar(year: number, month: number): Promise<SignInCalendar>;
+  subscribe(listener: (snapshot: ShopSnapshot) => void): () => void;
+  useSignMakeupCard(date: string): Promise<ShopMakeupOutcome>;
 }
 
 export interface AuthenticationUseCase {
@@ -911,6 +964,14 @@ export function createCommunityUseCase(api: ApiClient): CommunityUseCase {
         contentHtml,
       });
     },
+    deleteReply(replyId: number) {
+      assertPositiveInteger(replyId, 'A valid Community reply id is required.');
+      return api.deleteCommunityReply(replyId);
+    },
+    deleteThread(threadId: number) {
+      assertPositiveInteger(threadId, 'A valid Community thread id is required.');
+      return api.deleteCommunityThread(threadId);
+    },
     loadFeed(query: CommunityListQuery = {}, signal?: AbortSignal) {
       assertCommunityListQuery(query);
       return api.getCommunityFeed(query, signal ? { signal } : {});
@@ -932,6 +993,9 @@ export function createCommunityUseCase(api: ApiClient): CommunityUseCase {
         assertPositiveInteger(request.page, 'A valid reply page is required.');
       }
       if (request.size !== undefined) assertPageSize(request.size);
+      if (request.afterReplyId !== undefined) {
+        assertNonNegativeInteger(request.afterReplyId, 'A valid reply cursor is required.');
+      }
       return api.getCommunityReplyChildren(request, signal ? { signal } : {});
     },
     loadThread(request: GetCommunityThreadRequest, signal?: AbortSignal) {
@@ -940,7 +1004,14 @@ export function createCommunityUseCase(api: ApiClient): CommunityUseCase {
         assertPositiveInteger(request.replyPage, 'A valid reply page is required.');
       }
       if (request.replySize !== undefined) assertPageSize(request.replySize);
+      if (request.focusReplyId !== undefined) {
+        assertNonNegativeInteger(request.focusReplyId, 'A valid focus reply id is required.');
+      }
       return api.getCommunityThread(request, signal ? { signal } : {});
+    },
+    loadThreadEditInfo(threadId: number, format: 'html' | 'markdown' = 'html') {
+      assertPositiveInteger(threadId, 'A valid Community thread id is required.');
+      return api.getCommunityThreadEditInfo(threadId, format);
     },
     toggleReplyLike(replyId: number) {
       assertPositiveInteger(replyId, 'A valid Community reply id is required.');
@@ -953,6 +1024,25 @@ export function createCommunityUseCase(api: ApiClient): CommunityUseCase {
     toggleThreadLike(threadId: number) {
       assertPositiveInteger(threadId, 'A valid Community thread id is required.');
       return api.toggleCommunityThreadLike(threadId);
+    },
+    updateThread(request: UpdateCommunityThreadInput) {
+      assertPositiveInteger(request.threadId, 'A valid Community thread id is required.');
+      const boardKey = request.boardKey.trim();
+      const title = request.title.trim();
+      const contentText = request.contentText.trim();
+      const contentHtml = request.contentHtml.trim();
+      if (!boardKey || boardKey === 'all') throw new Error('Select a Community board.');
+      if (title.length < 6) throw new Error('The title must be at least 6 characters.');
+      if (title.length > 60) throw new Error('The title cannot exceed 60 characters.');
+      if (contentText.length < 20) throw new Error('The post must be at least 20 characters.');
+      if (!contentHtml) throw new Error('Post content is required.');
+      return api.updateCommunityThread({
+        threadId: request.threadId,
+        boardKey,
+        subCategoryKey: request.subCategoryKey?.trim() ?? '',
+        title,
+        contentHtml,
+      });
     },
   });
 }
@@ -1031,11 +1121,12 @@ export function createProfileUseCase(api: ApiClient): ProfileUseCase {
 
   function enqueueMutation<T>(
     mutate: () => Promise<T>,
+    resolveProfile: (result: T) => Promise<UserProfile> = () => api.getMyProfile(),
   ): Promise<{ result: T; profile: UserProfile }> {
     const mutationGeneration = ++generation;
     const operation = mutationQueue.then(async () => {
       const result = await mutate();
-      const profile = await api.getMyProfile();
+      const profile = await resolveProfile(result);
       if (mutationGeneration === generation) publish(profile);
       return { profile, result };
     });
@@ -1057,6 +1148,15 @@ export function createProfileUseCase(api: ApiClient): ProfileUseCase {
       if (requestGeneration !== generation) return latest ?? profile;
       return publish(profile);
     },
+    resetInviteCode() {
+      return enqueueMutation(
+        () => api.resetInviteCode(),
+        async (result) => ({
+          ...(latest ?? await api.getMyProfile()),
+          inviteCode: result.inviteCode,
+        }),
+      );
+    },
     async setAvatar(url: string) {
       const normalized = url.trim();
       if (!/^https:\/\//i.test(normalized)) {
@@ -1068,6 +1168,165 @@ export function createProfileUseCase(api: ApiClient): ProfileUseCase {
     subscribe(listener: (profile: UserProfile) => void) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+  });
+}
+
+export function createPointLogUseCase(api: ApiClient): PointLogUseCase {
+  return Object.freeze({
+    loadPage(kind: PointLogKind, page: number, size = 20) {
+      if (kind !== 'experience' && kind !== 'coin') {
+        throw new Error('A valid point log kind is required.');
+      }
+      assertPositiveInteger(page, 'A valid point log page is required.');
+      assertPageSize(size);
+      return kind === 'coin'
+        ? api.getCoinLog(page, size)
+        : api.getPointLog(page, size);
+    },
+  });
+}
+
+export function createShopUseCase(api: ApiClient): ShopUseCase {
+  let latest: ShopSnapshot | null = null;
+  let generation = 0;
+  let mutationQueue = Promise.resolve();
+  const listeners = new Set<(snapshot: ShopSnapshot) => void>();
+
+  function publish(snapshot: ShopSnapshot): ShopSnapshot {
+    latest = snapshot;
+    for (const listener of listeners) listener(snapshot);
+    return snapshot;
+  }
+
+  async function fetchSnapshot(): Promise<ShopSnapshot> {
+    const [shop, owned] = await Promise.all([
+      api.getShop(),
+      api.getMyShopItems(),
+    ]);
+    return {
+      coin: shop.coin,
+      items: shop.items,
+      ownedItems: owned.items,
+    };
+  }
+
+  function projectPurchase(result: BuyShopItemResult): ShopSnapshot | null {
+    if (!latest) return null;
+    const purchasedItem = latest.items.find((item) => item.key === result.key);
+    const items = latest.items.map((item) => item.key === result.key
+      ? {
+          ...item,
+          monthlyPurchased: result.monthlyPurchased,
+          owned: result.owned,
+        }
+      : item);
+    const existingOwned = latest.ownedItems.some((item) => item.key === result.key);
+    const ownedItems = existingOwned
+      ? latest.ownedItems.map((item) => item.key === result.key
+          ? { ...item, quantity: result.owned }
+          : item)
+      : purchasedItem
+        ? [...latest.ownedItems, {
+            key: purchasedItem.key,
+            name: purchasedItem.name,
+            description: purchasedItem.description,
+            image: purchasedItem.image,
+            quantity: result.owned,
+          }]
+        : latest.ownedItems;
+    return { coin: result.coin, items, ownedItems };
+  }
+
+  function projectMakeupUse(result: UseSignMakeupCardResult): ShopSnapshot | null {
+    if (!latest) return null;
+    const items = latest.items.map((item) => item.key === SIGN_MAKEUP_ITEM_KEY
+      ? { ...item, owned: result.owned }
+      : item);
+    const ownedItems = result.owned > 0
+      ? latest.ownedItems.some((item) => item.key === SIGN_MAKEUP_ITEM_KEY)
+        ? latest.ownedItems.map((item) => item.key === SIGN_MAKEUP_ITEM_KEY
+            ? { ...item, quantity: result.owned }
+            : item)
+        : latest.ownedItems
+      : latest.ownedItems.filter((item) => item.key !== SIGN_MAKEUP_ITEM_KEY);
+    return { ...latest, items, ownedItems };
+  }
+
+  return Object.freeze({
+    buy(key: string, quantity = 1) {
+      const normalizedKey = key.trim();
+      if (!normalizedKey) throw new Error('A shop item key is required.');
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        throw new Error('A positive shop item quantity is required.');
+      }
+
+      const mutationGeneration = ++generation;
+      const operation = mutationQueue.then(async () => {
+        const result = await api.buyShopItem({ key: normalizedKey, quantity });
+        const confirmed = projectPurchase(result);
+        let snapshot: ShopSnapshot;
+        try {
+          snapshot = await fetchSnapshot();
+        } catch (error) {
+          if (!confirmed) throw error;
+          snapshot = confirmed;
+        }
+        return mutationGeneration === generation ? publish(snapshot) : snapshot;
+      });
+      mutationQueue = operation.then(() => undefined, () => undefined);
+      return operation;
+    },
+    getSnapshot() {
+      return latest;
+    },
+    async load() {
+      await mutationQueue;
+      const requestGeneration = ++generation;
+      const snapshot = await fetchSnapshot();
+      if (requestGeneration !== generation) return latest ?? snapshot;
+      return publish(snapshot);
+    },
+    loadSignInCalendar(year: number, month: number) {
+      if (!Number.isInteger(year) || year < 1) {
+        return Promise.reject(new Error('A valid calendar year is required.'));
+      }
+      if (!Number.isInteger(month) || month < 1 || month > 12) {
+        return Promise.reject(new Error('A valid calendar month is required.'));
+      }
+      return api.getSignInCalendar(year, month);
+    },
+    subscribe(listener: (snapshot: ShopSnapshot) => void) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    useSignMakeupCard(date: string) {
+      const normalizedDate = date.trim();
+      if (!isValidUtcDate(normalizedDate)) {
+        return Promise.reject(new Error('A UTC date in yyyy-MM-dd format is required.'));
+      }
+      if (!latest) {
+        return Promise.reject(new Error('The shop must be loaded before using an item.'));
+      }
+
+      const mutationGeneration = ++generation;
+      const operation = mutationQueue.then(async () => {
+        const result = await api.useSignMakeupCard({ date: normalizedDate });
+        const confirmed = projectMakeupUse(result);
+        let snapshot: ShopSnapshot;
+        try {
+          snapshot = await fetchSnapshot();
+        } catch (error) {
+          if (!confirmed) throw error;
+          snapshot = confirmed;
+        }
+        return {
+          result,
+          snapshot: mutationGeneration === generation ? publish(snapshot) : snapshot,
+        };
+      });
+      mutationQueue = operation.then(() => undefined, () => undefined);
+      return operation;
     },
   });
 }
@@ -1456,6 +1715,13 @@ function assertNonNegativeInteger(value: number, message: string): void {
   if (!Number.isInteger(value) || value < 0) throw new Error(message);
 }
 
+function isValidUtcDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match || Number(match[1]) < 1) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 function assertPageSize(value: number): void {
   if (!Number.isInteger(value) || value < 1 || value > 24) {
     throw new Error('Page size must be between 1 and 24.');
@@ -1565,7 +1831,7 @@ export function createAuthenticationUseCase(
       if (!persisted) return false;
       revision += 1;
       publish({ status: 'authenticated', error: null });
-      await signalR.close();
+      await signalR.close().catch(() => undefined);
       return true;
     } catch (error) {
       if (expectedRevision !== revision) return false;
@@ -1633,7 +1899,7 @@ export function createAuthenticationUseCase(
         throw new Error('Sign in was cancelled.');
       }
       publish({ status: 'authenticated', error: null });
-      await signalR.close();
+      await signalR.close().catch(() => undefined);
     } catch (error) {
       if (expectedRevision === revision) {
         publish({
@@ -1670,7 +1936,7 @@ export function createAuthenticationUseCase(
         throw new Error('Registration was cancelled.');
       }
       publish({ status: 'authenticated', error: null });
-      await signalR.close();
+      await signalR.close().catch(() => undefined);
     } catch (error) {
       if (expectedRevision === revision) {
         publish({

@@ -12,6 +12,13 @@ import {
   decodeComicInfo,
   decodeCommunityHome,
   decodeCommunityThread,
+  decodeBuyShopItemResult,
+  decodeOwnedShopItemsData,
+  decodePointLogPage,
+  decodeResetInviteCodeResult,
+  decodeShopData,
+  decodeSignInCalendar,
+  decodeUseSignMakeupCardResult,
   decodeUserProfile,
   decodeUserShelf,
   extractBlurHashPlaceholder,
@@ -104,6 +111,199 @@ test('decodes the Web-Master profile and growth summary', () => {
   assert.equal(legacyProfile.registeredAt, null);
   assert.equal(legacyProfile.growth.experience, 0);
   assert.equal(legacyProfile.growth.signedToday, false);
+});
+
+test('decodes reset invite code and shop payloads', () => {
+  assert.deepEqual(decodeResetInviteCodeResult({ InviteCode: 'NEW-CODE' }), {
+    inviteCode: 'NEW-CODE',
+  });
+  assert.deepEqual(decodePointLogPage({
+    TotalPages: 2,
+    Page: 1,
+    Data: [{
+      Source: 'SignIn',
+      Amount: 5,
+      Balance: 101,
+      RefId: null,
+      OccurredAt: '2026-08-30T12:00:00.000Z',
+    }],
+  }), {
+    totalPages: 2,
+    page: 1,
+    items: [{
+      source: 'SignIn',
+      amount: 5,
+      balance: 101,
+      refId: null,
+      occurredAt: '2026-08-30T12:00:00.000Z',
+    }],
+  });
+  assert.throws(() => decodePointLogPage({
+    TotalPages: 1,
+    Page: 1,
+    Data: [{ Source: 'SignIn', Amount: 5, Balance: 101 }],
+  }), /invalid text field/);
+  assert.deepEqual(decodeShopData({
+    Coin: 96,
+    Items: [{
+      Key: 'sign_makeup',
+      Name: '补签卡',
+      Description: '补签一天',
+      Image: '/images/sign-makeup.png',
+      Price: 20,
+      Owned: 2,
+      MonthlyLimit: 5,
+      MonthlyPurchased: 1,
+    }],
+  }), {
+    coin: 96,
+    items: [{
+      key: 'sign_makeup',
+      name: '补签卡',
+      description: '补签一天',
+      image: '/images/sign-makeup.png',
+      price: 20,
+      owned: 2,
+      monthlyLimit: 5,
+      monthlyPurchased: 1,
+    }],
+  });
+  assert.deepEqual(decodeOwnedShopItemsData({ Items: [] }), { items: [] });
+  assert.deepEqual(decodeBuyShopItemResult({
+    Key: 'sign_makeup',
+    Owned: 3,
+    Coin: 76,
+    Cost: 20,
+    MonthlyPurchased: 2,
+  }), {
+    key: 'sign_makeup',
+    owned: 3,
+    coin: 76,
+    cost: 20,
+    monthlyPurchased: 2,
+  });
+  assert.deepEqual(decodeUseSignMakeupCardResult({
+    Date: '2026-08-01',
+    Streak: 8,
+    Reward: 12,
+    CoinReward: 3,
+    Owned: 1,
+  }), {
+    date: '2026-08-01',
+    streak: 8,
+    reward: 12,
+    coinReward: 3,
+    owned: 1,
+  });
+  assert.deepEqual(decodeSignInCalendar({
+    Year: 2026,
+    Month: 8,
+    Days: [{ SignDate: '2026-08-01', Streak: 7, Reward: 5 }],
+  }), {
+    year: 2026,
+    month: 8,
+    days: [{ date: '2026-08-01', streak: 7, reward: 5 }],
+  });
+  assert.throws(() => decodeResetInviteCodeResult({ InviteCode: '' }), /invalid text field/);
+  assert.throws(() => decodeShopData({
+    Coin: 96,
+    Items: [{ Key: 'item', Name: 'Item', Description: '', Image: '' }],
+  }), /invalid number field/);
+  assert.throws(() => decodeShopData({
+    Coin: 96,
+    Items: [{
+      Key: 'item', Name: 'Item', Description: null, Image: '', Price: 1,
+      Owned: 0, MonthlyLimit: 1, MonthlyPurchased: 0,
+    }],
+  }), /invalid text field/);
+});
+
+test('maps invite reset and shop operations to Web-Master Hub contracts', async () => {
+  const calls = [];
+  const client = new ApiClient(
+    { async request() { throw new Error('not used'); } },
+    {
+      async connect() {},
+      async close() {},
+      async invoke(method, args) {
+        calls.push({ method, args });
+        if (method === 'ResetInviteCode') {
+          return { Success: true, Response: { InviteCode: 'NEW-CODE' } };
+        }
+        if (method === 'GetShop') {
+          return { Success: true, Response: { Coin: 96, Items: [] } };
+        }
+        if (method === 'GetMyItems') {
+          return { Success: true, Response: { Items: [] } };
+        }
+        if (method === 'BuyShopItem') {
+          return { Success: true, Response: {
+            Key: 'sign_makeup', Owned: 1, Coin: 76, Cost: 20, MonthlyPurchased: 1,
+          } };
+        }
+        if (method === 'UseSignMakeupCard') {
+          return { Success: true, Response: {
+            Date: '2026-08-01', Streak: 8, Reward: 12, CoinReward: 3, Owned: 0,
+          } };
+        }
+        if (method === 'GetSignInCalendar') {
+          return { Success: true, Response: {
+            Year: 2026, Month: 8, Days: [{ SignDate: '2026-08-01', Streak: 7, Reward: 5 }],
+          } };
+        }
+        if (method === 'GetPointLog' || method === 'GetCoinLog') {
+          return { Success: true, Response: {
+            TotalPages: 1, Page: 1, Data: [{
+              Source: 'SignIn', Amount: 5, Balance: 101, RefId: null,
+              OccurredAt: '2026-08-30T12:00:00.000Z',
+            }],
+          } };
+        }
+        return { Success: true, Response: null };
+      },
+    },
+    null,
+    new RateLimitRequestScheduler(20, 10),
+  );
+
+  assert.deepEqual(await client.resetInviteCode(), { inviteCode: 'NEW-CODE' });
+  assert.deepEqual(await client.getShop(), { coin: 96, items: [] });
+  assert.deepEqual(await client.getMyShopItems(), { items: [] });
+  assert.deepEqual(await client.buyShopItem({ key: 'sign_makeup', quantity: 1 }), {
+    key: 'sign_makeup', owned: 1, coin: 76, cost: 20, monthlyPurchased: 1,
+  });
+  assert.deepEqual(await client.useSignMakeupCard({ date: '2026-08-01' }), {
+    date: '2026-08-01', streak: 8, reward: 12, coinReward: 3, owned: 0,
+  });
+  assert.deepEqual(await client.getSignInCalendar(2026, 8), {
+    year: 2026, month: 8, days: [{ date: '2026-08-01', streak: 7, reward: 5 }],
+  });
+  assert.deepEqual(await client.getPointLog(1, 20), {
+    totalPages: 1,
+    page: 1,
+    items: [{
+      source: 'SignIn', amount: 5, balance: 101, refId: null,
+      occurredAt: '2026-08-30T12:00:00.000Z',
+    }],
+  });
+  assert.deepEqual(await client.getCoinLog(2, 10), {
+    totalPages: 1,
+    page: 1,
+    items: [{
+      source: 'SignIn', amount: 5, balance: 101, refId: null,
+      occurredAt: '2026-08-30T12:00:00.000Z',
+    }],
+  });
+  assert.deepEqual(calls, [
+    { method: 'ResetInviteCode', args: [{}, { UseGzip: true }] },
+    { method: 'GetShop', args: [{}, { UseGzip: true }] },
+    { method: 'GetMyItems', args: [{}, { UseGzip: true }] },
+    { method: 'BuyShopItem', args: [{ Key: 'sign_makeup', Quantity: 1 }, { UseGzip: true }] },
+    { method: 'UseSignMakeupCard', args: [{ Date: '2026-08-01' }, { UseGzip: true }] },
+    { method: 'GetSignInCalendar', args: [{ Year: 2026, Month: 8 }, { UseGzip: true }] },
+    { method: 'GetPointLog', args: [{ Page: 1, Size: 20 }, { UseGzip: true }] },
+    { method: 'GetCoinLog', args: [{ Page: 2, Size: 10 }, { UseGzip: true }] },
+  ]);
 });
 
 test('maps profile, avatar, and check-in to Web-Master Hub contracts', async () => {
@@ -884,7 +1084,9 @@ test('decodes Community home, nested replies, nullable metadata, and missing thr
     ...item,
     Liked: true,
     Favorited: false,
-    BodyHtml: '<p>Hello</p>',
+    EditedAt: '2026-08-30T12:00:00.000Z',
+    CanEdit: true,
+    Content: '<p>Hello</p>',
     RepliesPage: { Page: 1, Size: 5, Total: 1, TotalPages: 1, HasMore: false },
     ReplyItems: [{
       Id: 10,
@@ -893,6 +1095,7 @@ test('decodes Community home, nested replies, nullable metadata, and missing thr
       Content: 'Reply',
       Likes: 1,
       Liked: true,
+      CanDelete: true,
       ReplyTo: { Id: 9, AuthorName: '', AuthorIsDeleted: true },
       ChildReplies: [],
       ChildPage: { Page: 1, Size: 3, Total: 0, TotalPages: 0, HasMore: false },
@@ -900,6 +1103,10 @@ test('decodes Community home, nested replies, nullable metadata, and missing thr
     RelatedThreads: [],
   });
   assert.equal(thread.replyItems[0].authorBadge, null);
+  assert.equal(thread.replyItems[0].canDelete, true);
+  assert.equal(thread.canEdit, true);
+  assert.equal(thread.editedAt, '2026-08-30T12:00:00.000Z');
+  assert.equal(thread.content, '<p>Hello</p>');
   assert.equal(thread.replyItems[0].replyTo.authorIsDeleted, true);
   assert.equal(decodeCommunityThread(null), null);
   assert.equal(decodeCommunityThread({}), null);
@@ -910,7 +1117,7 @@ test('maps every Community and notification operation to the gzip Hub contract',
   const feedItem = communityFeedItem();
   const thread = {
     ...feedItem,
-    BodyHtml: '<p>Body</p>',
+    Content: '<p>Body</p>',
     RepliesPage: { Page: 1, Size: 5, Total: 0, TotalPages: 0, HasMore: false },
     ReplyItems: [],
     RelatedThreads: [],
@@ -929,6 +1136,13 @@ test('maps every Community and notification operation to the gzip Hub contract',
           },
           GetCommunityFeed: { SubCategories: [], Feed: [] },
           GetCommunityThread: thread,
+          GetCommunityThreadEditInfo: {
+            Id: 3, BoardKey: 'general', SubCategoryKey: 'news', Title: 'A title',
+            Content: '<p>Body</p>', Format: 'html',
+          },
+          UpdateCommunityThread: { Id: 3 },
+          DeleteCommunityThread: { Id: 3 },
+          DeleteCommunityReply: { Id: 4, Removed: 1 },
           CreateCommunityThread: thread,
           CreateCommunityReply: { Id: 4, Content: 'reply' },
           ToggleCommunityThreadLike: { Liked: true, Likes: 2 },
@@ -948,13 +1162,22 @@ test('maps every Community and notification operation to the gzip Hub contract',
 
   await client.getCommunityHome();
   await client.getCommunityFeed({ boardKey: 'general', order: 'hot', scope: 'week', page: 2, size: 7 });
-  await client.getCommunityThread({ threadId: 3, replyPage: 2, trackView: false });
+  await client.getCommunityThread({ threadId: 3, replyPage: 2, trackView: false, focusReplyId: 9 });
+  assert.deepEqual(await client.getCommunityThreadEditInfo(3), {
+    id: 3, boardKey: 'general', subCategoryKey: 'news', title: 'A title',
+    content: '<p>Body</p>', format: 'html',
+  });
+  assert.deepEqual(await client.updateCommunityThread({
+    threadId: 3, boardKey: 'general', subCategoryKey: 'news', title: 'A title', contentHtml: '<p>Body</p>',
+  }), { id: 3 });
+  assert.deepEqual(await client.deleteCommunityThread(3), { id: 3 });
+  assert.deepEqual(await client.deleteCommunityReply(4), { id: 4, removed: 1 });
   await client.createCommunityThread({ boardKey: 'general', title: 'A title', contentHtml: '<p>Body</p>' });
   await client.createCommunityReply({ threadId: 3, content: 'reply', replyToId: 4 });
   assert.deepEqual(await client.toggleCommunityThreadLike(3), { liked: true, likes: 2 });
   assert.deepEqual(await client.toggleCommunityThreadFavorite(3), { favorited: true, favorites: 3 });
   assert.deepEqual(await client.toggleCommunityReplyLike(4), { liked: false, likes: 1 });
-  await client.getCommunityReplyChildren({ threadId: 3, parentReplyId: 4, page: 2 });
+  await client.getCommunityReplyChildren({ threadId: 3, parentReplyId: 4, page: 2, afterReplyId: 8 });
   await client.getMyCommunityOverview();
   await client.getNotifications();
   await client.markNotifications([7, 8]);
@@ -963,6 +1186,10 @@ test('maps every Community and notification operation to the gzip Hub contract',
     'GetCommunityHome',
     'GetCommunityFeed',
     'GetCommunityThread',
+    'GetCommunityThreadEditInfo',
+    'UpdateCommunityThread',
+    'DeleteCommunityThread',
+    'DeleteCommunityReply',
     'CreateCommunityThread',
     'CreateCommunityReply',
     'ToggleCommunityThreadLike',
@@ -980,12 +1207,24 @@ test('maps every Community and notification operation to the gzip Hub contract',
     BoardKey: 'general', SubCategoryKey: '', Order: 'hot', Scope: 'week', Page: 2, Size: 7,
   });
   assert.deepEqual(calls[2].args[0], {
-    ThreadId: 3, ReplyPage: 2, ReplySize: 5, TrackView: false,
+    ThreadId: 3, ReplyPage: 2, ReplySize: 5, TrackView: false, FocusReplyId: 9,
   });
-  assert.deepEqual(calls[4].args[0], { ThreadId: 3, Content: 'reply', ReplyToId: 4 });
-  assert.deepEqual(calls[8].args[0], { ThreadId: 3, ParentReplyId: 4, Page: 2, Size: 3 });
-  assert.deepEqual(calls[10].args[0], { Page: 1, Size: 20 });
-  assert.deepEqual(calls[11].args[0], { Ids: [7, 8] });
+  assert.deepEqual(calls[3].args[0], { ThreadId: 3, Format: 'html' });
+  assert.deepEqual(calls[4].args[0], {
+    ThreadId: 3, BoardKey: 'general', SubCategoryKey: 'news',
+    Title: 'A title', ContentHtml: '<p>Body</p>',
+  });
+  assert.deepEqual(calls[5].args[0], { ThreadId: 3 });
+  assert.deepEqual(calls[6].args[0], { ReplyId: 4 });
+  assert.deepEqual(calls[7].args[0], {
+    BoardKey: 'general', SubCategoryKey: '', Title: 'A title', ContentHtml: '<p>Body</p>',
+  });
+  assert.deepEqual(calls[8].args[0], { ThreadId: 3, Content: 'reply', ReplyToId: 4 });
+  assert.deepEqual(calls[12].args[0], {
+    ThreadId: 3, ParentReplyId: 4, Page: 2, Size: 3, AfterReplyId: 8,
+  });
+  assert.deepEqual(calls[14].args[0], { Page: 1, Size: 20 });
+  assert.deepEqual(calls[15].args[0], { Ids: [7, 8] });
 });
 
 test('decodes notification reply focus, Series targets, and unknown future kinds safely', () => {
