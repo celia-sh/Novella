@@ -42,6 +42,7 @@ const icons: Partial<Record<NativeIconName, SystemName>> = {
   search: 'magnifyingglass',
   settings: 'gearshape',
   shop: 'bag.fill',
+  sideload: 'arrow.down.app',
   website: 'globe',
 };
 

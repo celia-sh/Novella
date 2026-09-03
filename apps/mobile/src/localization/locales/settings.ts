@@ -205,6 +205,8 @@ export const zhCNSettings = {
     changelogsTitle: '更新日志',
     changelogsDescription: '在 GitHub 查看版本说明',
     externalLinks: {
+      sideloadTitle: '侧载',
+      sideloadDescription: 'sideload.celia.sh',
       lightNovelShelfTitle: '轻书架',
       lightNovelShelfDescription: 'www.lightnovel.app',
       lightNovelGroupTitle: '轻书架留学生',
@@ -629,6 +631,8 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
     changelogsTitle: '版本資訊',
     changelogsDescription: '在 GitHub 查看版本說明',
     externalLinks: {
+      sideloadTitle: '側載',
+      sideloadDescription: 'sideload.celia.sh',
       lightNovelShelfTitle: '輕書架',
       lightNovelShelfDescription: 'www.lightnovel.app',
       lightNovelGroupTitle: '輕書架留學生',

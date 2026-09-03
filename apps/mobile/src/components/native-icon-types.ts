@@ -64,6 +64,7 @@ export type NativeIconName =
   | 'settings'
   | 'shop'
   | 'sidePadding'
+  | 'sideload'
   | 'signOut'
   | 'sourceCode'
   | 'telegram'
