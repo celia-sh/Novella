@@ -9,7 +9,6 @@ import { runManualAppUpdateCheck } from '@/services/app-update-alerts';
 import { updateAppSettings, useAppSettings } from '@/services/settings';
 
 const repositoryUrl = 'https://github.com/celia-sh/Novella';
-const novellaUrl = 'https://novella.celia.sh';
 const lightNovelShelfUrl = 'https://www.lightnovel.app';
 const lightNovelGroupUrl = 'https://t.me/+zD4ACGdOROs3MmI1';
 const developerGroupUrl = 'https://t.me/+rZYx8H_TvUpmZjJh';
@@ -71,12 +70,6 @@ export function AboutSettingsScreen() {
         />
       </NativeGroupedListSection>
       <NativeGroupedListSection title={t('about.sections.externalLinks')}>
-        <NativeGroupedListRow
-          description={t('about.externalLinks.novellaDescription')}
-          icon="website"
-          onPress={() => void Linking.openURL(novellaUrl)}
-          title={t('about.externalLinks.novellaTitle')}
-        />
         <NativeGroupedListRow
           description={t('about.externalLinks.lightNovelShelfDescription')}
           icon="books"

@@ -11,7 +11,6 @@
     "check": "npm run check:boundaries && npm run typecheck",
     "check:boundaries": "node scripts/check-boundaries.mjs",
     "dev:mobile": "npm run dev --workspace @novella/mobile",
-    "dev:site": "npm run dev --workspace @novella/site",
     "start": "npm run dev:mobile",
     "ios": "npm run ios --workspace @novella/mobile",
     "test:client": "npm run test --workspace @novella/client-core && npm run test --workspace @novella/api-client && npm run test --workspace @novella/reader-engine && npm run test:image --workspace @novella/mobile && npm run test:navigation --workspace @novella/mobile && npm run test:shelf --workspace @novella/mobile && npm run test:community --workspace @novella/mobile && npm run test:settings --workspace @novella/mobile",

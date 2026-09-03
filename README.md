@@ -18,7 +18,6 @@
 本仓库正在从 Dart 迁移到 TypeScript：
 
 - `apps/mobile`：基于 React Native + Expo 的 iOS 客户端。
-- `apps/site`：React 静态网站。
 - `packages/*`：与平台无关的客户端核心、协议。
 
 原有的 Flutter 实现保留在 `archive/flutter` 分支上。

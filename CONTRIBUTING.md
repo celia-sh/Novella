@@ -5,7 +5,6 @@
 ## 项目结构
 
 - `apps/mobile`：React Native + Expo 移动端
-- `apps/site`：React 静态网站
 - `packages/*`：与平台无关的客户端核心与协议
 - `apps/mobile/modules/novella-ui`：自定义 Expo 原生模块，封装 iOS UIKit/SwiftUI 组件，并与 `@expo/ui` 混合使用
 

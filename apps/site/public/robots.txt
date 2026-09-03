@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://novella.celia.sh/sitemap.xml

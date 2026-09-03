@@ -1,7 +1,6 @@
 import {
   IconAlertCircle,
   IconChevronRight,
-  IconDeviceMobile,
   IconRefresh,
   IconSpeakerphone,
   IconWorld,
@@ -34,7 +33,6 @@ export function AnnouncementCenterScreen() {
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
   const {
-    appError,
     items,
     loadMore,
     loading,
@@ -43,7 +41,6 @@ export function AnnouncementCenterScreen() {
     refresh,
     refreshing,
     retry,
-    retryApp,
     retryLoadMore,
     retryServer,
     serverError,
@@ -63,10 +60,7 @@ export function AnnouncementCenterScreen() {
           ? <AnnouncementListSkeleton />
           : (
               <AnnouncementEmptyContent
-                appError={appError}
-                onRetryAll={retry}
-                onRetryApp={retryApp}
-                onRetryServer={retryServer}
+                onRetry={retry}
                 serverError={serverError}
               />
             )}
@@ -80,21 +74,13 @@ export function AnnouncementCenterScreen() {
                 />
               )
             : null}
-        ListHeaderComponent={items.length > 0 && (appError || serverError)
+        ListHeaderComponent={items.length > 0 && serverError
           ? (
               <View style={styles.warningStack}>
-                {appError ? (
-                  <SourceWarning
-                    message={t('announcements.errors.partialApp')}
-                    onRetry={() => void retryApp()}
-                  />
-                ) : null}
-                {serverError ? (
-                  <SourceWarning
-                    message={t('announcements.errors.partialSite')}
-                    onRetry={() => void retryServer()}
-                  />
-                ) : null}
+                <SourceWarning
+                  message={t('announcements.errors.partialSite')}
+                  onRetry={() => void retryServer()}
+                />
               </View>
             )
           : null}
@@ -117,50 +103,29 @@ export function AnnouncementCenterScreen() {
 }
 
 function AnnouncementEmptyContent({
-  appError,
-  onRetryAll,
-  onRetryApp,
-  onRetryServer,
+  onRetry,
   serverError,
 }: {
-  appError: string | null;
-  onRetryAll(): void;
-  onRetryApp(): void;
-  onRetryServer(): void;
+  onRetry(): void;
   serverError: string | null;
 }) {
-  const styles = useAnnouncementCenterStyles();
   const { t } = useTranslation('community');
-  if (appError && serverError) {
+  if (serverError) {
     return (
       <AnnouncementState
-        description={`${appError}\n${serverError}`}
+        description={serverError}
         icon="error"
-        onRetry={onRetryAll}
+        onRetry={onRetry}
         title={t('announcements.errors.list')}
       />
     );
   }
   return (
-    <View style={styles.emptyStack}>
-      {appError ? (
-        <SourceWarning
-          message={t('announcements.errors.partialApp')}
-          onRetry={onRetryApp}
-        />
-      ) : null}
-      {serverError ? (
-        <SourceWarning
-          message={t('announcements.errors.partialSite')}
-          onRetry={onRetryServer}
-        />
-      ) : null}
-      <AnnouncementState
-        description={t('announcements.empty')}
-        icon="empty"
-        title={t('announcements.empty')}
-      />
-    </View>
+    <AnnouncementState
+      description={t('announcements.empty')}
+      icon="empty"
+      title={t('announcements.empty')}
+    />
   );
 }
 
@@ -169,11 +134,7 @@ function AnnouncementCard({ item }: { item: AnnouncementListEntry }) {
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
   const locale = useAppLocale();
-  const isApp = item.source === 'app';
-  const SourceIcon = isApp ? IconDeviceMobile : IconWorld;
-  const sourceLabel = isApp
-    ? t('announcements.appSource')
-    : t('announcements.siteSource');
+  const sourceLabel = t('announcements.siteSource');
   const date = formatDate(item.publishedAt, locale, {
     day: '2-digit',
     month: '2-digit',
@@ -200,7 +161,7 @@ function AnnouncementCard({ item }: { item: AnnouncementListEntry }) {
         <Card.Body style={styles.cardBody}>
           <View style={styles.cardTopRow}>
             <View style={styles.iconBox}>
-              <SourceIcon color={colors.onPrimaryContainer as string} size={21} strokeWidth={2} />
+              <IconWorld color={colors.onPrimaryContainer as string} size={21} strokeWidth={2} />
             </View>
             <View style={styles.cardCopy}>
               <Text numberOfLines={1} style={styles.cardTitle}>{item.title}</Text>
@@ -324,7 +285,6 @@ const useAnnouncementCenterStyles = createThemedStyles((colors) => ({
   cardTopRow: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   content: { gap: 10, paddingBottom: 48, paddingHorizontal: 12, paddingTop: 10 },
   emptyContent: { flexGrow: 1, justifyContent: 'center' },
-  emptyStack: { gap: 12 },
   iconBox: {
     alignItems: 'center',
     backgroundColor: colors.primaryContainer,

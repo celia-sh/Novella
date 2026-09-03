@@ -5,31 +5,17 @@ import { useTranslation } from 'react-i18next';
 import type { AnnouncementItem } from '@novella/api-client';
 
 import { announcements as announcementUseCase } from '@/services/client';
-import {
-  loadAppAnnouncements,
-  type AppAnnouncement,
-} from '@/services/app-announcements';
 
-export type AnnouncementListEntry =
-  | {
-      id: string;
-      publishedAt: string;
-      source: 'app';
-      summary: string;
-      title: string;
-    }
-  | {
-      id: string;
-      publishedAt: string;
-      serverId: number;
-      source: 'server';
-      summary: string;
-      title: string;
-    };
+export type AnnouncementListEntry = {
+  id: string;
+  publishedAt: string;
+  serverId: number;
+  source: 'server';
+  summary: string;
+  title: string;
+};
 
 interface AnnouncementCenterState {
-  appError: string | null;
-  appItems: AppAnnouncement[];
   loading: boolean;
   loadingMore: boolean;
   loadMoreError: string | null;
@@ -41,8 +27,6 @@ interface AnnouncementCenterState {
 }
 
 const INITIAL_STATE: AnnouncementCenterState = {
-  appError: null,
-  appItems: [],
   loading: true,
   loadingMore: false,
   loadMoreError: null,
@@ -60,32 +44,11 @@ export function useAnnouncements() {
   const [state, setState] = useState(INITIAL_STATE);
   const stateRef = useRef(state);
   const loadGenerationRef = useRef(0);
-  const appGenerationRef = useRef(0);
   const serverGenerationRef = useRef(0);
   const serverOperationRef = useRef<'idle' | 'loadMore' | 'reload'>('idle');
   const mountedRef = useRef(true);
-  const appControllerRef = useRef<AbortController | null>(null);
   const serverControllerRef = useRef<AbortController | null>(null);
   stateRef.current = state;
-
-  const reloadApp = useCallback(async () => {
-    const generation = ++appGenerationRef.current;
-    appControllerRef.current?.abort();
-    const controller = new AbortController();
-    appControllerRef.current = controller;
-    setState((current) => ({ ...current, appError: null }));
-    try {
-      const appItems = await loadAppAnnouncements(controller.signal);
-      if (!mountedRef.current || generation !== appGenerationRef.current) return;
-      setState((current) => ({ ...current, appError: null, appItems }));
-    } catch {
-      if (controller.signal.aborted || generation !== appGenerationRef.current) return;
-      setState((current) => ({
-        ...current,
-        appError: t('announcements.errors.app'),
-      }));
-    }
-  }, [t]);
 
   const reloadServer = useCallback(async () => {
     const generation = ++serverGenerationRef.current;
@@ -128,15 +91,15 @@ export function useAnnouncements() {
     const generation = ++loadGenerationRef.current;
     setState((current) => ({
       ...current,
-      loading: !refreshing && current.appItems.length === 0 && current.serverItems.length === 0,
+      loading: !refreshing && current.serverItems.length === 0,
       loadingMore: false,
       loadMoreError: null,
       refreshing,
     }));
-    await Promise.all([reloadApp(), reloadServer()]);
+    await reloadServer();
     if (!mountedRef.current || generation !== loadGenerationRef.current) return;
     setState((current) => ({ ...current, loading: false, refreshing: false }));
-  }, [reloadApp, reloadServer]);
+  }, [reloadServer]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -144,10 +107,8 @@ export function useAnnouncements() {
     return () => {
       mountedRef.current = false;
       loadGenerationRef.current += 1;
-      appGenerationRef.current += 1;
       serverGenerationRef.current += 1;
       serverOperationRef.current = 'idle';
-      appControllerRef.current?.abort();
       serverControllerRef.current?.abort();
     };
   }, [load]);
@@ -203,8 +164,8 @@ export function useAnnouncements() {
   }, [t]);
 
   const items = useMemo(
-    () => mergeAnnouncementSources(state.appItems, state.serverItems),
-    [state.appItems, state.serverItems],
+    () => mergeAnnouncementSources(state.serverItems),
+    [state.serverItems],
   );
 
   return {
@@ -213,33 +174,24 @@ export function useAnnouncements() {
     loadMore,
     refresh: () => load(true),
     retry: () => load(false),
-    retryApp: reloadApp,
     retryLoadMore: loadMore,
     retryServer: reloadServer,
   };
 }
 
 function mergeAnnouncementSources(
-  appItems: AppAnnouncement[],
   serverItems: AnnouncementItem[],
 ): AnnouncementListEntry[] {
-  return [
-    ...appItems.map((item): AnnouncementListEntry => ({
-      id: item.id,
-      publishedAt: item.publishedAt,
-      source: 'app',
-      summary: item.summary,
-      title: item.title,
-    })),
-    ...serverItems.map((item): AnnouncementListEntry => ({
+  return serverItems
+    .map((item): AnnouncementListEntry => ({
       id: String(item.id),
       publishedAt: item.createdAt,
       serverId: item.id,
       source: 'server',
       summary: createAnnouncementPreview(item.contentHtml),
       title: item.title,
-    })),
-  ].sort((left, right) => timestamp(right.publishedAt) - timestamp(left.publishedAt));
+    }))
+    .sort((left, right) => timestamp(right.publishedAt) - timestamp(left.publishedAt));
 }
 
 function mergeServerAnnouncements(

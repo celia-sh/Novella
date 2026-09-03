@@ -5,7 +5,6 @@ import {
 } from '@tabler/icons-react-native';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { Card, Skeleton } from 'heroui-native';
-import { marked } from 'marked';
 import { memo, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AnnouncementDetail } from '@novella/api-client';
@@ -43,55 +42,11 @@ export function AnnouncementDetailScreen({
   id: string;
   source: string;
 }) {
-  if (source === 'app' && id.trim()) {
-    return <AppAnnouncementDetail id={id} />;
-  }
   const serverId = Number(id);
   if (source === 'server' && Number.isSafeInteger(serverId) && serverId > 0) {
     return <SiteAnnouncementDetail id={id} />;
   }
   return <InvalidAnnouncementDetail />;
-}
-
-function AppAnnouncementDetail({ id }: { id: string }) {
-  const styles = useAnnouncementDetailStyles();
-  const { t } = useTranslation('community');
-  const { retry, state } = useAnnouncementDetail('app', id);
-  const html = useMemo(
-    () => state.data?.source === 'app'
-      ? marked.parse(state.data.markdown, { async: false }) as string
-      : '',
-    [state.data],
-  );
-
-  return (
-
-      <>
-        <Stack.Screen options={{ title: '' }} />
-        <ScrollView
-          contentContainerStyle={styles.detailContent}
-          contentInsetAdjustmentBehavior="automatic"
-          showsVerticalScrollIndicator={false}
-          style={styles.root}
-        >
-          {state.status === 'loading' ? (
-            <AnnouncementDetailSkeleton />
-          ) : state.status === 'error' ? (
-            <DetailError message={state.error} onRetry={retry} />
-          ) : state.data.source !== 'app' ? (
-            <DetailError message={t('announcements.errors.invalid')} onRetry={retry} />
-          ) : (
-            <AnnouncementArticle
-              html={html}
-              publishedAt={state.data.publishedAt}
-              source="app"
-              title={state.data.title}
-            />
-          )}
-        </ScrollView>
-      </>
-
-  );
 }
 
 function SiteAnnouncementDetail({ id }: { id: string }) {
@@ -307,7 +262,7 @@ const AnnouncementArticle = memo(function AnnouncementArticle({
   html: string;
   publishedAt: string;
   showHeader?: boolean;
-  source: 'app' | 'server';
+  source: 'server';
   title: string;
 }) {
   const styles = useAnnouncementDetailStyles();
@@ -315,9 +270,7 @@ const AnnouncementArticle = memo(function AnnouncementArticle({
   const { t } = useTranslation('community');
   const locale = useAppLocale();
   const { width } = useWindowDimensions();
-  const sourceLabel = source === 'app'
-    ? t('announcements.appSource')
-    : t('announcements.siteSource');
+  const sourceLabel = t('announcements.siteSource');
   const date = formatDate(publishedAt, locale, {
     day: '2-digit',
     month: '2-digit',
