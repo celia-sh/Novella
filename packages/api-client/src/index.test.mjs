@@ -11,6 +11,7 @@ import {
   decodeComicContent,
   decodeComicInfo,
   decodeComicSeriesDetail,
+  decodeCommentPage,
   decodeCommunityHome,
   decodeCommunityThread,
   decodeBuyShopItemResult,
@@ -694,6 +695,73 @@ test('maps novel and comic search to their Web-Master Hub contracts', async () =
   ]);
 });
 
+test('keeps valid comments when a paged response has sparse commentary maps', () => {
+  const page = decodeCommentPage({
+    Page: 2,
+    TotalPages: 3,
+    Users: {
+      '4': { Id: 4, UserName: 'reader', Avatar: '' },
+      '5': { Id: 5, UserName: 'reply-author', Avatar: '' },
+    },
+    Commentaries: {
+      '20': {
+        UserId: 4,
+        Content: 'Second page comment',
+        CreatedAt: '2026-08-30T12:00:00.000Z',
+        CanEdit: false,
+      },
+      '21': {
+        UserId: 5,
+        Content: 'Reply with a missing target',
+        CreatedAt: '2026-08-30T12:01:00.000Z',
+        CanEdit: false,
+        ReplyId: 999,
+      },
+    },
+    Data: [
+      { Id: 20, Reply: [21, 22] },
+      { Id: 30, Reply: [] },
+    ],
+  });
+
+  assert.deepEqual(page.items.map(({ id }) => id), [20]);
+  assert.equal(page.items[0].replies.length, 1);
+  assert.equal(page.items[0].replies[0].replyToUser, null);
+});
+
+test('decodes a later Web-Master comment page without losing its page metadata', () => {
+  const page = decodeCommentPage({
+    Page: 2,
+    TotalPages: 3,
+    Users: {
+      '4': { Id: 4, UserName: 'reader', Avatar: '' },
+      '5': { Id: 5, UserName: 'reply-author', Avatar: '' },
+    },
+    Commentaries: {
+      '20': {
+        UserId: 4,
+        Content: 'Second page comment',
+        CreatedAt: '2026-08-30T12:00:00.000Z',
+        CanEdit: false,
+      },
+      '21': {
+        UserId: 5,
+        Content: 'Reply on second page',
+        CreatedAt: '2026-08-30T12:01:00.000Z',
+        CanEdit: false,
+        ReplyId: 20,
+      },
+    },
+    Data: [{ Id: 20, Reply: [21] }],
+  });
+
+  assert.equal(page.page, 2);
+  assert.equal(page.totalPages, 3);
+  assert.equal(page.items[0].id, 20);
+  assert.equal(page.items[0].replies[0].id, 21);
+  assert.equal(page.items[0].replies[0].replyToUser?.id, 4);
+});
+
 test('maps comic comments to the official Web series Hub contract', async () => {
   const calls = [];
   const client = new ApiClient(
@@ -706,7 +774,13 @@ test('maps comic comments to the official Web series Hub contract', async () => 
         return {
           Success: true,
           Response: method === 'GetComments'
-            ? { Page: 1, TotalPages: 0, Users: {}, Commentaries: {}, Data: [] }
+            ? {
+                Page: args[0].Page,
+                TotalPages: 2,
+                Users: {},
+                Commentaries: {},
+                Data: [],
+              }
             : null,
         };
       },
@@ -716,7 +790,8 @@ test('maps comic comments to the official Web series Hub contract', async () => 
   );
   const target = { type: 'Series', id: 0, seriesTitle: 'Comic series' };
 
-  await client.getComments({ ...target, page: 1 });
+  const firstPage = await client.getComments({ ...target, page: 1 });
+  const secondPage = await client.getComments({ ...target, page: 2 });
   await client.postComment({ ...target, content: 'Root comment' });
   await client.replyComment({
     ...target,
@@ -725,6 +800,8 @@ test('maps comic comments to the official Web series Hub contract', async () => 
     replyId: 8,
   });
 
+  assert.equal(firstPage.page, 1);
+  assert.equal(secondPage.page, 2);
   assert.deepEqual(calls, [
     {
       method: 'GetComments',
@@ -732,6 +809,16 @@ test('maps comic comments to the official Web series Hub contract', async () => 
         Type: 'Series',
         Id: 0,
         Page: 1,
+        Size: 10,
+        SeriesTitle: 'Comic series',
+      }, { UseGzip: true }],
+    },
+    {
+      method: 'GetComments',
+      args: [{
+        Type: 'Series',
+        Id: 0,
+        Page: 2,
         Size: 10,
         SeriesTitle: 'Comic series',
       }, { UseGzip: true }],

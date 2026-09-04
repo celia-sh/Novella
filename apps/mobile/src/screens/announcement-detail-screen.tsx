@@ -21,6 +21,7 @@ import {
 
 import { BookHtmlContent } from '@/components/book-html-content';
 import {
+  CommentThreadLoadingFooter,
   CommentThreadSkeleton,
   type CommentReplyTarget,
 } from '@/components/comment-thread-item';
@@ -169,6 +170,7 @@ function SiteAnnouncementContent({
     loadMore,
     page,
     refresh: refreshComments,
+    retryLoadMore,
   } = useComments({ type: 'Announcement', id: serverId });
   const hasFocused = useRef(false);
   const rows = useMemo(() => flattenCommentRows(page?.items ?? []), [page?.items]);
@@ -216,15 +218,15 @@ function SiteAnnouncementContent({
       data={rows}
       initialNumToRender={8}
       keyExtractor={(item) => item.key}
-      maxToRenderPerBatch={6}
+      maxToRenderPerBatch={10}
       ListEmptyComponent={commentsLoading
         ? <CommentThreadSkeleton palette={commentPalette} />
         : commentsError
           ? <CommentsError message={commentsError} onRetry={refreshComments} />
           : <CommentsEmpty />}
-      ListFooterComponent={isLoadingMore
-        ? <CommentThreadSkeleton palette={commentPalette} rows={1} />
-        : null}
+      ListFooterComponent={
+        <CommentThreadLoadingFooter loading={isLoadingMore} palette={commentPalette} />
+      }
       ListHeaderComponent={
         <View style={styles.headerContent}>
           <AnnouncementArticle
@@ -237,16 +239,16 @@ function SiteAnnouncementContent({
             <Text style={styles.commentsTitle}>{t('announcements.comments')}</Text>
           </View>
           {commentsError && page ? (
-            <CommentsError message={commentsError} onRetry={refreshComments} />
+            <CommentsError message={commentsError} onRetry={retryLoadMore} />
           ) : null}
         </View>
       }
       onEndReached={loadMore}
-      onEndReachedThreshold={0.35}
+      onEndReachedThreshold={0.65}
       renderItem={renderComment}
       showsVerticalScrollIndicator={false}
-      updateCellsBatchingPeriod={32}
-      windowSize={7}
+      updateCellsBatchingPeriod={16}
+      windowSize={11}
       style={styles.root}
     />
   );

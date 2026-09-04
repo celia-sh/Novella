@@ -2595,10 +2595,11 @@ export function decodeCommentPage(value: unknown): CommentPage {
   const response = asRecord(value, 'comments response');
   const users = asRecord(response.Users, 'comment users');
   const commentaries = asRecord(response.Commentaries, 'commentaries');
-  const roots = asArray(response.Data, 'comment roots');
 
-  function getUser(userId: number): CommentUser {
-    const user = asRecord(users[String(userId)], 'comment user');
+  function getUser(userId: number): CommentUser | null {
+    const rawUser = users[String(userId)];
+    if (rawUser === null || rawUser === undefined) return null;
+    const user = asRecord(rawUser, 'comment user');
     return {
       id: asNumber(user.Id, userId),
       userName: asString(user.UserName),
@@ -2606,39 +2607,53 @@ export function decodeCommentPage(value: unknown): CommentPage {
     };
   }
 
-  function getCommentary(commentId: number): Record<string, unknown> {
-    return asRecord(commentaries[String(commentId)], 'commentary');
+  function getCommentary(commentId: number): Record<string, unknown> | null {
+    const rawCommentary = commentaries[String(commentId)];
+    if (rawCommentary === null || rawCommentary === undefined) return null;
+    return asRecord(rawCommentary, 'commentary');
   }
 
+  const roots = asArray(response.Data, 'comment roots');
   return {
     page: asNumber(response.Page, 1),
     totalPages: asNumber(response.TotalPages, 0),
-    items: roots.map((rootValue) => {
+    items: roots.flatMap((rootValue) => {
       const root = asRecord(rootValue, 'comment root');
       const id = asNumber(root.Id);
       const commentary = getCommentary(id);
-      const replies = Array.isArray(root.Reply) ? root.Reply.map((value) => asNumber(value)) : [];
-      return {
+      if (commentary === null) return [];
+      const user = getUser(asNumber(commentary.UserId));
+      // Deleted or concurrently removed records can remain in Data while the
+      // denormalized maps have already dropped their commentary/user entry.
+      if (user === null) return [];
+      const replies = Array.isArray(root.Reply) ? root.Reply : [];
+      return [{
         id,
-        user: getUser(asNumber(commentary.UserId)),
+        user,
         content: asStringOrEmpty(commentary.Content),
         createdAt: asDateString(commentary.CreatedAt),
         canEdit: commentary.CanEdit === true,
-        replies: replies.map((replyId) => {
+        replies: replies.flatMap((value) => {
+          const replyId = asNumber(value);
           const reply = getCommentary(replyId);
+          if (reply === null) return [];
+          const replyUser = getUser(asNumber(reply.UserId));
+          if (replyUser === null) return [];
           const replyToId = asNullableNumber(reply.ReplyId);
           const replyTo = replyToId === null ? null : getCommentary(replyToId);
-          return {
+          return [{
             id: replyId,
-            user: getUser(asNumber(reply.UserId)),
+            user: replyUser,
             content: asStringOrEmpty(reply.Content),
             createdAt: asDateString(reply.CreatedAt),
             canEdit: reply.CanEdit === true,
+            // The reply target may belong to another page or have been
+            // removed. The reply itself remains renderable without that label.
             replyToUser:
               replyTo === null ? null : getUser(asNumber(replyTo.UserId)),
-          };
+          }];
         }),
-      };
+      }];
     }),
   };
 }

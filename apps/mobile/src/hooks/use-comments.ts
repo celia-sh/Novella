@@ -4,7 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { ApiError, type CommentPage, type PostCommentRequest } from '@novella/api-client';
 
 import { comments } from '@/services/client';
-import { mergeCommunityItems } from '@/services/community-utils';
+import {
+  appendCommentPage,
+  nextCommentPage,
+  normalizeCommentPage,
+} from '@/services/comment-pagination';
 import type { CommentTarget } from '@/services/comment-target';
 import { waitForMinimumDisplay } from '@/services/min-skeleton-display';
 
@@ -36,12 +40,22 @@ export function useComments(target: CommentTarget) {
   // skeleton is on screen without being recreated on every state change.
   const stateRef = useRef(state);
   const loadingMoreRef = useRef(false);
+  const requestGenerationRef = useRef(0);
+  const operationRef = useRef<'idle' | 'loadMore' | 'reload'>('idle');
+  const nextPageRef = useRef(1);
+  const hasMoreRef = useRef(true);
+  const loadMoreErrorRef = useRef(false);
   stateRef.current = state;
 
   const load = useCallback(async (pageNumber = 1, append = false, silent = false) => {
+    if (append && (loadingMoreRef.current || operationRef.current !== 'idle')) return null;
+
+    const requestGeneration = ++requestGenerationRef.current;
+    operationRef.current = append ? 'loadMore' : 'reload';
     if (append) {
-      if (loadingMoreRef.current) return null;
       loadingMoreRef.current = true;
+    } else {
+      loadMoreErrorRef.current = false;
     }
     const startedAt = Date.now();
     const showSkeleton = !append && !(silent && stateRef.current.page !== null);
@@ -60,20 +74,35 @@ export function useComments(target: CommentTarget) {
         page: pageNumber,
         ...(seriesTitle === undefined ? {} : { seriesTitle }),
       });
+      if (requestGeneration !== requestGenerationRef.current) return null;
       if (showSkeleton) await waitForMinimumDisplay(startedAt);
-      setState((current) => ({
-        ...current,
+      if (requestGeneration !== requestGenerationRef.current) return null;
+
+      const normalized = normalizeCommentPage(next, pageNumber);
+      const current = stateRef.current.page;
+      const appended = append && current
+        ? appendCommentPage(current, normalized, pageNumber)
+        : null;
+      const committed = appended?.page ?? normalized;
+      hasMoreRef.current = appended?.hasMore
+        ?? nextCommentPage(normalized, pageNumber) !== null;
+      nextPageRef.current = pageNumber + 1;
+      loadMoreErrorRef.current = false;
+      operationRef.current = 'idle';
+      setState((currentState) => ({
+        ...currentState,
         error: null,
         isLoading: false,
         isLoadingMore: false,
-        page:
-          append && current.page
-            ? { ...next, items: mergeCommunityItems(current.page.items, next.items) }
-            : next,
+        page: committed,
       }));
-      return next;
+      return committed;
     } catch (error) {
+      if (requestGeneration !== requestGenerationRef.current) return null;
+      operationRef.current = 'idle';
+      if (append) loadMoreErrorRef.current = true;
       if (showSkeleton) await waitForMinimumDisplay(startedAt);
+      if (requestGeneration !== requestGenerationRef.current) return null;
       setState((current) => ({
         ...current,
         error: localizeError(error),
@@ -113,10 +142,21 @@ export function useComments(target: CommentTarget) {
     if (
       !current.page
       || loadingMoreRef.current
-      || current.page.page >= current.page.totalPages
+      || operationRef.current !== 'idle'
+      || loadMoreErrorRef.current
+      || !hasMoreRef.current
     ) return;
-    void load(current.page.page + 1, true);
+    void load(nextPageRef.current, true);
   }, [load]);
+
+  const retryLoadMore = useCallback(() => {
+    if (loadMoreErrorRef.current) {
+      loadMoreErrorRef.current = false;
+      loadMore();
+      return;
+    }
+    void load(1, false, true);
+  }, [load, loadMore]);
 
   // Deletes go through their own reconcile flow because the server's
   // DeleteComment hub method is void: it deletes the comment, then answers with
@@ -170,6 +210,7 @@ export function useComments(target: CommentTarget) {
     ...state,
     deleteComment,
     loadMore,
+    retryLoadMore,
     postComment: (content: string) =>
       mutate(() => comments.post({
         type,

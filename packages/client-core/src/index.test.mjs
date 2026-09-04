@@ -374,12 +374,14 @@ test('comments use case accepts the official series target and preserves book va
   const seriesTarget = { type: 'Series', id: 0, seriesTitle: 'Comic series' };
 
   await useCase.load({ ...seriesTarget, page: 1 });
+  await useCase.load({ ...seriesTarget, page: 2 });
   await useCase.post({ ...seriesTarget, content: 'Root comment' });
   await useCase.reply({ ...seriesTarget, content: 'Reply', parentId: 7 });
   await useCase.load({ type: 'Book', id: 12, page: 1 });
 
   assert.deepEqual(calls, [
     ['load', { ...seriesTarget, page: 1 }],
+    ['load', { ...seriesTarget, page: 2 }],
     ['post', { ...seriesTarget, content: 'Root comment' }],
     ['reply', { ...seriesTarget, content: 'Reply', parentId: 7 }],
     ['load', { type: 'Book', id: 12, page: 1 }],

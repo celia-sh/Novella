@@ -68,7 +68,7 @@
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
     "start": "expo start --dev-client",
-    "test:community": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/services/comment-list-rows.test.mjs src/services/comment-target.test.mjs src/services/community-thread-rows.test.mjs src/services/community-utils.test.mjs src/services/community-board-icon-keys.test.mjs",
+    "test:community": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/services/comment-list-rows.test.mjs src/services/comment-pagination.test.mjs src/services/comment-target.test.mjs src/services/community-thread-rows.test.mjs src/services/community-utils.test.mjs src/services/community-board-icon-keys.test.mjs",
     "test:settings": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/services/app-settings.test.mjs src/services/shop-images.test.mjs src/services/shop-dates.test.mjs src/services/shop-purchase.test.mjs",
     "test:image": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/services/image-sizing.test.mjs",
     "test:localization": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/localization/locale.test.mjs src/localization/formatters.test.mjs src/localization/resources.test.mjs",

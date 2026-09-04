@@ -128,6 +128,20 @@ export function CommentThreadSkeleton({
   );
 }
 
+export function CommentThreadLoadingFooter({
+  loading,
+  palette,
+}: {
+  loading: boolean;
+  palette: CommentThreadPalette;
+}) {
+  return (
+    <View pointerEvents="none" style={styles.loadingFooter}>
+      {loading ? <CommentThreadSkeleton palette={palette} rows={1} /> : null}
+    </View>
+  );
+}
+
 const CommentReplyItem = memo(function CommentReplyItem({
   onDelete,
   onReply,
@@ -166,6 +180,7 @@ const CommentReplyItem = memo(function CommentReplyItem({
 
 const styles = StyleSheet.create({
   commentBlock: { paddingBottom: 8 },
+  loadingFooter: { height: 96 },
   skeletonAction: { height: 11, marginTop: 4, width: '32%' },
   skeletonAvatar: { borderRadius: 20, height: 40, overflow: 'hidden', width: 40 },
   skeletonBody: { flex: 1, gap: 7, paddingTop: 3 },

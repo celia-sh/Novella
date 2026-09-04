@@ -16,6 +16,7 @@ import { PaperProvider } from 'react-native-paper';
 import { BookCommentsNavigation } from '@/components/book-comments-navigation';
 import type { CommentThreadPalette } from '@/components/comment-thread';
 import {
+  CommentThreadLoadingFooter,
   CommentThreadSkeleton,
   type CommentReplyTarget,
 } from '@/components/comment-thread-item';
@@ -55,6 +56,7 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
     loadMore,
     page,
     refresh,
+    retryLoadMore,
   } = useComments(stableCommentTarget);
   const hasFocused = useRef(false);
   const rows = useMemo(() => flattenCommentRows(page?.items ?? []), [page?.items]);
@@ -122,7 +124,7 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
           data={rows}
           initialNumToRender={8}
           keyExtractor={(item) => item.key}
-          maxToRenderPerBatch={6}
+          maxToRenderPerBatch={10}
           ListEmptyComponent={
             isLoading ? (
               <CommentThreadSkeleton palette={commentPalette} />
@@ -147,7 +149,7 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
             )
           }
           ListFooterComponent={
-            isLoadingMore ? <CommentThreadSkeleton palette={commentPalette} rows={1} /> : null
+            <CommentThreadLoadingFooter loading={isLoadingMore} palette={commentPalette} />
           }
           ListHeaderComponent={
             error && page ? (
@@ -157,7 +159,7 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
                   <Pressable
                     accessibilityLabel={t('accessibility.reloadComments')}
                     accessibilityRole="button"
-                    onPress={() => void refresh()}
+                    onPress={() => void retryLoadMore()}
                     style={({ pressed }) => [styles.inlineButton, pressed && styles.pressed]}
                   >
                     <IconRefresh color={palette.primary} size={17} strokeWidth={2} />
@@ -168,11 +170,11 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
             ) : null
           }
           onEndReached={loadMore}
-          onEndReachedThreshold={0.35}
+          onEndReachedThreshold={0.65}
           renderItem={renderComment}
           showsVerticalScrollIndicator={false}
-          updateCellsBatchingPeriod={32}
-          windowSize={7}
+          updateCellsBatchingPeriod={16}
+          windowSize={11}
         />
 
     </PaperProvider>
