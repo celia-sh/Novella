@@ -14,6 +14,7 @@ import {
   createNotificationsUseCase,
   createPointLogUseCase,
   createProfileUseCase,
+  createPublicProfileUseCase,
   createReaderUseCase,
   createShopUseCase,
   createShelfDraft,
@@ -25,6 +26,7 @@ import {
   getShelfSelectionBookCount,
   moveShelfBooks,
   parseAvatarSource,
+  PUBLIC_USER_SUMMARY_CACHE_MILLISECONDS,
   removeShelfItems,
   renameShelfFolder,
   reorderShelfSiblings,
@@ -646,6 +648,8 @@ test('profile repository publishes refreshed avatar and check-in state', async (
     growth: {
       experience: 10,
       coin: 0,
+      comicQuota: 0,
+      comicQuotaToday: 0,
       level: 1,
       growthLevel: 1,
       currentLevelExperience: 0,
@@ -685,6 +689,58 @@ test('profile repository publishes refreshed avatar and check-in state', async (
   assert.equal(reset.profile.inviteCode, 'NEW-CODE');
   assert.equal(useCase.getSnapshot().inviteCode, 'NEW-CODE');
   assert.equal(published.length, 4);
+});
+
+test('public profile use case validates, deduplicates, caches, and retries loads', async () => {
+  let now = 1_000;
+  let calls = 0;
+  const first = deferred();
+  const summary = {
+    id: 9,
+    userName: 'reader',
+    avatarUrl: '',
+    role: 'Member',
+    level: 3,
+    registeredAt: '2026-01-02T00:00:00.000Z',
+    bookCount: 1,
+    communityThreadCount: 2,
+    communityReplyCount: 3,
+    commentCount: 4,
+  };
+  const useCase = createPublicProfileUseCase({
+    async getPublicUserSummary(userId) {
+      calls += 1;
+      assert.equal(userId, 9);
+      if (calls === 1) return first.promise;
+      return summary;
+    },
+  }, () => now);
+
+  assert.throws(() => useCase.load(0), /valid user id/);
+  const pendingA = useCase.load(9);
+  const pendingB = useCase.load(9);
+  assert.equal(pendingA, pendingB);
+  assert.equal(calls, 1);
+  first.resolve(summary);
+  assert.equal(await pendingA, summary);
+
+  assert.equal(await useCase.load(9), summary);
+  assert.equal(calls, 1);
+  now += PUBLIC_USER_SUMMARY_CACHE_MILLISECONDS + 1;
+  assert.equal(await useCase.load(9), summary);
+  assert.equal(calls, 2);
+
+  let retryCalls = 0;
+  const retrying = createPublicProfileUseCase({
+    async getPublicUserSummary() {
+      retryCalls += 1;
+      if (retryCalls === 1) throw new Error('offline');
+      return summary;
+    },
+  });
+  await assert.rejects(retrying.load(9), /offline/);
+  assert.equal(await retrying.load(9), summary);
+  assert.equal(retryCalls, 2);
 });
 
 test('shop repository serializes purchases and publishes authoritative snapshots', async () => {
@@ -809,6 +865,76 @@ test('shop repository serializes purchases and publishes authoritative snapshots
   assert.throws(() => useCase.buy('sign_makeup', 0), /positive/);
   await assert.rejects(useCase.useSignMakeupCard('2026/08/01'), /yyyy-MM-dd/);
   await assert.rejects(useCase.useSignMakeupCard('2026-02-31'), /yyyy-MM-dd/);
+});
+
+test('shop repository preserves confirmed quota-card state when refresh fails', async () => {
+  let quota = 25;
+  let quotaOwned = 2;
+  let failNextShopLoad = false;
+  let failQuotaUse = false;
+  const api = {
+    async getShop() {
+      if (failNextShopLoad) {
+        failNextShopLoad = false;
+        throw new Error('shop refresh failed');
+      }
+      return {
+        coin: 100,
+        items: [{
+          key: 'comic_quota_50',
+          name: '漫画额度卡',
+          description: '增加漫画额度',
+          image: '/images/comic-quota.png',
+          price: 20,
+          owned: quotaOwned,
+          monthlyLimit: null,
+          monthlyPurchased: 0,
+        }],
+      };
+    },
+    async getMyShopItems() {
+      return {
+        items: quotaOwned > 0 ? [{
+          key: 'comic_quota_50',
+          name: '漫画额度卡',
+          description: '增加漫画额度',
+          image: '/images/comic-quota.png',
+          quantity: quotaOwned,
+        }] : [],
+      };
+    },
+    async useComicQuotaCard() {
+      if (failQuotaUse) throw new Error('quota use failed');
+      quotaOwned -= 1;
+      quota += 50;
+      return {
+        key: 'comic_quota_50',
+        granted: 50,
+        quota,
+        owned: quotaOwned,
+      };
+    },
+  };
+  const useCase = createShopUseCase(api);
+  await assert.rejects(useCase.useComicQuotaCard(), /shop must be loaded/);
+  await useCase.load();
+
+  failNextShopLoad = true;
+  const fallback = await useCase.useComicQuotaCard();
+  assert.equal(fallback.result.quota, 75);
+  assert.equal(fallback.snapshot.items[0].owned, 1);
+  assert.equal(fallback.snapshot.ownedItems[0].quantity, 1);
+  assert.equal(useCase.getSnapshot(), fallback.snapshot);
+
+  const refreshed = await useCase.useComicQuotaCard();
+  assert.equal(refreshed.result.quota, 125);
+  assert.equal(refreshed.snapshot.items[0].owned, 0);
+  assert.deepEqual(refreshed.snapshot.ownedItems, []);
+
+  failQuotaUse = true;
+  const confirmed = useCase.getSnapshot();
+  await assert.rejects(useCase.useComicQuotaCard(), /quota use failed/);
+  assert.equal(useCase.getSnapshot(), confirmed);
 });
 
 test('shelf repository publishes one shared snapshot after load and save', async () => {

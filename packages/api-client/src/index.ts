@@ -15,6 +15,7 @@ export const SERVICE_ENDPOINTS = Object.freeze({
   sendResetEmailPath: '/api/user/send_reset_email',
   resetPasswordPath: '/api/user/reset_password',
   refreshTokenPath: '/api/user/refresh_token',
+  publicUserSummaryPath: '/api/user/summary',
   signalRHub: 'https://api.lightnovel.life/hub/api',
 });
 
@@ -413,6 +414,7 @@ export interface ComicSeriesVolume {
   id: number;
   title: string;
   uploader: {
+    id: number;
     userName: string;
     avatarUrl: string;
   };
@@ -457,6 +459,8 @@ export interface ComicContent {
   chapter: ComicContentChapter;
   readPosition: BookReadPosition | null;
 }
+
+export const COMIC_CONTENT_BATCH_SIZE = 6;
 
 export interface ComicContentRequest {
   chapterId: number;
@@ -527,6 +531,7 @@ export interface OnlineInfo {
 
 export interface PointLogItem {
   source: string;
+  sourceLabel: string;
   amount: number;
   balance: number;
   refId: number | null;
@@ -542,12 +547,27 @@ export interface PointLogPage {
 export interface UserGrowth {
   experience: number;
   coin: number;
+  comicQuota: number;
+  comicQuotaToday: number;
   level: number;
   growthLevel: number;
   currentLevelExperience: number;
   nextLevelExperience: number | null;
   signInStreak: number;
   signedToday: boolean;
+}
+
+export interface PublicUserSummary {
+  id: number;
+  userName: string;
+  avatarUrl: string;
+  role: string;
+  level: number;
+  registeredAt: string;
+  bookCount: number;
+  communityThreadCount: number;
+  communityReplyCount: number;
+  commentCount: number;
 }
 
 export interface UserProfile {
@@ -580,7 +600,7 @@ export interface ShopItem {
   image: string;
   price: number;
   owned: number;
-  monthlyLimit: number;
+  monthlyLimit: number | null;
   monthlyPurchased: number;
 }
 
@@ -623,6 +643,13 @@ export interface UseSignMakeupCardResult {
   streak: number;
   reward: number;
   coinReward: number;
+  owned: number;
+}
+
+export interface UseComicQuotaCardResult {
+  key: string;
+  granted: number;
+  quota: number;
   owned: number;
 }
 
@@ -698,6 +725,7 @@ export interface CommunityFeedItem {
   subCategoryLabel: string | null;
   title: string;
   excerpt: string;
+  authorId: number;
   authorName: string;
   authorIsDeleted: boolean;
   authorAvatar: string;
@@ -738,6 +766,7 @@ export interface CommunityReplyTarget {
 
 export interface CommunityThreadReply {
   id: number;
+  authorId: number;
   authorName: string;
   authorIsDeleted: boolean;
   authorBadge: string | null;
@@ -1193,7 +1222,7 @@ export class ApiClient {
       {
         Cid: request.chapterId,
         Skip: request.skip ?? 0,
-        Take: request.take ?? 12,
+        Take: request.take ?? COMIC_CONTENT_BATCH_SIZE,
       },
       decodeComicContent,
     );
@@ -1529,6 +1558,29 @@ export class ApiClient {
     return this.invoke('GetMyInfo', {}, decodeUserProfile);
   }
 
+  async getPublicUserSummary(userId: number): Promise<PublicUserSummary> {
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      throw new TypeError('A valid user id is required.');
+    }
+    const response = await this.request<unknown>({
+      headers: { Accept: 'application/json' },
+      method: 'GET',
+      path: SERVICE_ENDPOINTS.publicUserSummaryPath,
+      query: { id: String(userId) },
+    });
+    if (response.status < 200 || response.status >= 300) {
+      throw new ApiError(
+        'Unable to load the public user profile.',
+        response.status === 401 ? 'auth' : 'server',
+        { status: response.status },
+      );
+    }
+    return decodePublicUserSummary(decodeSuccessfulResponse(
+      response.body,
+      'Unable to load the public user profile.',
+    ));
+  }
+
   resetInviteCode(): Promise<ResetInviteCodeResult> {
     return this.invoke('ResetInviteCode', {}, decodeResetInviteCodeResult);
   }
@@ -1563,6 +1615,10 @@ export class ApiClient {
       { Date: request.date },
       decodeUseSignMakeupCardResult,
     );
+  }
+
+  useComicQuotaCard(): Promise<UseComicQuotaCardResult> {
+    return this.invoke('UseComicQuotaCard', {}, decodeUseComicQuotaCardResult);
   }
 
   getSignInCalendar(year: number, month: number): Promise<SignInCalendar> {
@@ -1774,6 +1830,8 @@ export function decodeUserProfile(value: unknown): UserProfile {
     growth: {
       experience: asNumber(growth.Exp, 0),
       coin: asNumber(growth.Coin, 0),
+      comicQuota: asNumber(growth.ComicQuota),
+      comicQuotaToday: asNumber(growth.ComicQuotaToday),
       level: asNumber(growth.Level, 0),
       growthLevel: asNumber(growth.GrowthLevel, 0),
       currentLevelExperience: asNumber(growth.CurrentLevelExp, 0),
@@ -1781,6 +1839,22 @@ export function decodeUserProfile(value: unknown): UserProfile {
       signInStreak: asNumber(growth.SignStreak, 0),
       signedToday: asBoolean(growth.TodaySigned, false),
     },
+  };
+}
+
+export function decodePublicUserSummary(value: unknown): PublicUserSummary {
+  const summary = asRecord(value, 'public user summary');
+  return {
+    id: asPositiveInteger(summary.Id),
+    userName: asString(summary.UserName),
+    avatarUrl: asPresentString(summary.Avatar),
+    role: asString(summary.Role),
+    level: asNonNegativeInteger(summary.Level),
+    registeredAt: asValidDateString(summary.RegisterAt),
+    bookCount: asNonNegativeInteger(summary.BookCount),
+    communityThreadCount: asNonNegativeInteger(summary.CommunityThreadCount),
+    communityReplyCount: asNonNegativeInteger(summary.CommunityReplyCount),
+    commentCount: asNonNegativeInteger(summary.CommentCount),
   };
 }
 
@@ -1808,6 +1882,7 @@ export function decodePointLogPage(value: unknown): PointLogPage {
       const entry = asRecord(item, 'point log item');
       return {
         source: asString(entry.Source),
+        sourceLabel: asString(entry.SourceLabel),
         amount: asNumber(entry.Amount),
         balance: asNumber(entry.Balance),
         refId: asNullableNumber(entry.RefId),
@@ -1854,6 +1929,16 @@ export function decodeUseSignMakeupCardResult(value: unknown): UseSignMakeupCard
   };
 }
 
+export function decodeUseComicQuotaCardResult(value: unknown): UseComicQuotaCardResult {
+  const record = asRecord(value, 'use comic quota card response');
+  return {
+    key: asString(record.Key),
+    granted: asNumber(record.Granted),
+    quota: asNumber(record.Quota),
+    owned: asNumber(record.Owned),
+  };
+}
+
 export function decodeSignInCalendar(value: unknown): SignInCalendar {
   const record = asRecord(value, 'sign-in calendar response');
   return {
@@ -1879,7 +1964,7 @@ function decodeShopItem(value: unknown): ShopItem {
     image: asPresentString(record.Image),
     price: asNumber(record.Price),
     owned: asNumber(record.Owned),
-    monthlyLimit: asNumber(record.MonthlyLimit),
+    monthlyLimit: asNullableNumber(record.MonthlyLimit),
     monthlyPurchased: asNumber(record.MonthlyPurchased),
   };
 }
@@ -2218,6 +2303,7 @@ function decodeCommunityFeedItem(value: unknown): CommunityFeedItem {
     subCategoryLabel: asNullableString(item.SubCategoryLabel),
     title: asString(item.Title),
     excerpt: asStringOrEmpty(item.Excerpt),
+    authorId: asPositiveInteger(item.AuthorId),
     authorName: asStringOrEmpty(item.AuthorName),
     authorIsDeleted: asBoolean(item.AuthorIsDeleted, false),
     authorAvatar: asStringOrEmpty(item.AuthorAvatar),
@@ -2263,6 +2349,7 @@ function decodeCommunityThreadReply(value: unknown): CommunityThreadReply {
   const reply = asRecord(value, 'community reply');
   return {
     id: asNumber(reply.Id),
+    authorId: asPositiveInteger(reply.AuthorId),
     authorName: asStringOrEmpty(reply.AuthorName),
     authorIsDeleted: asBoolean(reply.AuthorIsDeleted, false),
     authorBadge: asNullableString(reply.AuthorBadge),
@@ -2751,6 +2838,7 @@ function decodeComicSeriesVolume(value: unknown): ComicSeriesVolume {
     id: asNumber(volume.Id),
     title: asString(volume.Title),
     uploader: {
+      id: asPositiveInteger(uploader.Id),
       userName: asStringOrEmpty(uploader.UserName),
       avatarUrl: asStringOrEmpty(uploader.Avatar),
     },
@@ -2894,6 +2982,22 @@ function asNullableNumber(value: unknown): number | null {
   return value === null || value === undefined ? null : asNumber(value);
 }
 
+function asPositiveInteger(value: unknown): number {
+  const number = asNumber(value);
+  if (!Number.isSafeInteger(number) || number <= 0) {
+    throw new ApiError('The server returned an invalid identifier.', 'server');
+  }
+  return number;
+}
+
+function asNonNegativeInteger(value: unknown): number {
+  const number = asNumber(value);
+  if (!Number.isSafeInteger(number) || number < 0) {
+    throw new ApiError('The server returned an invalid count.', 'server');
+  }
+  return number;
+}
+
 function asBoolean(value: unknown, fallback?: boolean): boolean {
   if (typeof value === 'boolean') return value;
   if (fallback !== undefined) return fallback;
@@ -2903,6 +3007,14 @@ function asBoolean(value: unknown, fallback?: boolean): boolean {
 function asDateString(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
   return asString(value);
+}
+
+function asValidDateString(value: unknown): string {
+  const date = asDateString(value);
+  if (Number.isNaN(Date.parse(date))) {
+    throw new ApiError('The server returned an invalid date field.', 'server');
+  }
+  return date;
 }
 
 function asNullableDateString(value: unknown): string | null {

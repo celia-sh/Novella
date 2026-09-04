@@ -44,10 +44,12 @@ import {
   type OwnedShopItem,
   type PointLogPage,
   type PostCommentRequest,
+  type PublicUserSummary,
   type ReadHistory,
   type ResetInviteCodeResult,
   type ShopItem,
   type SignInCalendar,
+  type UseComicQuotaCardResult,
   type UseSignMakeupCardResult,
   type SaveReadPositionRequest,
   type ShelfItem,
@@ -299,6 +301,13 @@ export interface ProfileUseCase {
   subscribe(listener: (profile: UserProfile) => void): () => void;
 }
 
+export const PUBLIC_USER_SUMMARY_CACHE_MILLISECONDS = 5 * 60 * 1_000;
+
+export interface PublicProfileUseCase {
+  load(userId: number): Promise<PublicUserSummary>;
+}
+
+export const COMIC_QUOTA_ITEM_KEY = 'comic_quota_50';
 export const SIGN_MAKEUP_ITEM_KEY = 'sign_makeup';
 
 export interface ShopSnapshot {
@@ -309,6 +318,11 @@ export interface ShopSnapshot {
 
 export interface ShopMakeupOutcome {
   result: UseSignMakeupCardResult;
+  snapshot: ShopSnapshot;
+}
+
+export interface ShopQuotaOutcome {
+  result: UseComicQuotaCardResult;
   snapshot: ShopSnapshot;
 }
 
@@ -324,6 +338,7 @@ export interface ShopUseCase {
   load(): Promise<ShopSnapshot>;
   loadSignInCalendar(year: number, month: number): Promise<SignInCalendar>;
   subscribe(listener: (snapshot: ShopSnapshot) => void): () => void;
+  useComicQuotaCard(): Promise<ShopQuotaOutcome>;
   useSignMakeupCard(date: string): Promise<ShopMakeupOutcome>;
 }
 
@@ -1172,6 +1187,37 @@ export function createProfileUseCase(api: ApiClient): ProfileUseCase {
   });
 }
 
+export function createPublicProfileUseCase(
+  api: ApiClient,
+  now: () => number = Date.now,
+): PublicProfileUseCase {
+  const cache = new Map<number, { expiresAt: number; value: PublicUserSummary }>();
+  const requests = new Map<number, Promise<PublicUserSummary>>();
+
+  return Object.freeze({
+    load(userId: number) {
+      assertPositiveInteger(userId, 'A valid user id is required.');
+      const cached = cache.get(userId);
+      if (cached && cached.expiresAt > now()) return Promise.resolve(cached.value);
+
+      const pending = requests.get(userId);
+      if (pending) return pending;
+
+      const request = api.getPublicUserSummary(userId)
+        .then((value) => {
+          cache.set(userId, {
+            expiresAt: now() + PUBLIC_USER_SUMMARY_CACHE_MILLISECONDS,
+            value,
+          });
+          return value;
+        })
+        .finally(() => requests.delete(userId));
+      requests.set(userId, request);
+      return request;
+    },
+  });
+}
+
 export function createPointLogUseCase(api: ApiClient): PointLogUseCase {
   return Object.freeze({
     loadPage(kind: PointLogKind, page: number, size = 20) {
@@ -1238,19 +1284,37 @@ export function createShopUseCase(api: ApiClient): ShopUseCase {
     return { coin: result.coin, items, ownedItems };
   }
 
-  function projectMakeupUse(result: UseSignMakeupCardResult): ShopSnapshot | null {
+  function projectOwnedItemUse(itemKey: string, owned: number): ShopSnapshot | null {
     if (!latest) return null;
-    const items = latest.items.map((item) => item.key === SIGN_MAKEUP_ITEM_KEY
-      ? { ...item, owned: result.owned }
+    const shopItem = latest.items.find((item) => item.key === itemKey);
+    const items = latest.items.map((item) => item.key === itemKey
+      ? { ...item, owned }
       : item);
-    const ownedItems = result.owned > 0
-      ? latest.ownedItems.some((item) => item.key === SIGN_MAKEUP_ITEM_KEY)
-        ? latest.ownedItems.map((item) => item.key === SIGN_MAKEUP_ITEM_KEY
-            ? { ...item, quantity: result.owned }
+    const hasOwnedItem = latest.ownedItems.some((item) => item.key === itemKey);
+    const ownedItems = owned <= 0
+      ? latest.ownedItems.filter((item) => item.key !== itemKey)
+      : hasOwnedItem
+        ? latest.ownedItems.map((item) => item.key === itemKey
+            ? { ...item, quantity: owned }
             : item)
-        : latest.ownedItems
-      : latest.ownedItems.filter((item) => item.key !== SIGN_MAKEUP_ITEM_KEY);
+        : shopItem
+          ? [...latest.ownedItems, {
+              key: shopItem.key,
+              name: shopItem.name,
+              description: shopItem.description,
+              image: shopItem.image,
+              quantity: owned,
+            }]
+          : latest.ownedItems;
     return { ...latest, items, ownedItems };
+  }
+
+  function projectMakeupUse(result: UseSignMakeupCardResult): ShopSnapshot | null {
+    return projectOwnedItemUse(SIGN_MAKEUP_ITEM_KEY, result.owned);
+  }
+
+  function projectQuotaUse(result: UseComicQuotaCardResult): ShopSnapshot | null {
+    return projectOwnedItemUse(result.key, result.owned);
   }
 
   return Object.freeze({
@@ -1299,6 +1363,30 @@ export function createShopUseCase(api: ApiClient): ShopUseCase {
     subscribe(listener: (snapshot: ShopSnapshot) => void) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    useComicQuotaCard() {
+      if (!latest) {
+        return Promise.reject(new Error('The shop must be loaded before using an item.'));
+      }
+
+      const mutationGeneration = ++generation;
+      const operation = mutationQueue.then(async () => {
+        const result = await api.useComicQuotaCard();
+        const confirmed = projectQuotaUse(result);
+        let snapshot: ShopSnapshot;
+        try {
+          snapshot = await fetchSnapshot();
+        } catch (error) {
+          if (!confirmed) throw error;
+          snapshot = confirmed;
+        }
+        return {
+          result,
+          snapshot: mutationGeneration === generation ? publish(snapshot) : snapshot,
+        };
+      });
+      mutationQueue = operation.then(() => undefined, () => undefined);
+      return operation;
     },
     useSignMakeupCard(date: string) {
       const normalizedDate = date.trim();

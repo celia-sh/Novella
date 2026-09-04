@@ -10,14 +10,17 @@ import {
   decodeBookDetail,
   decodeComicContent,
   decodeComicInfo,
+  decodeComicSeriesDetail,
   decodeCommunityHome,
   decodeCommunityThread,
   decodeBuyShopItemResult,
   decodeOwnedShopItemsData,
   decodePointLogPage,
+  decodePublicUserSummary,
   decodeResetInviteCodeResult,
   decodeShopData,
   decodeSignInCalendar,
+  decodeUseComicQuotaCardResult,
   decodeUseSignMakeupCardResult,
   decodeUserProfile,
   decodeUserShelf,
@@ -63,6 +66,38 @@ test('decodes book details whose optional Web-Master text fields are empty', () 
   assert.equal(detail.classification.seriesNameCn, null);
 });
 
+test('strictly decodes the Web-Master public user summary', () => {
+  const payload = {
+    Id: 42,
+    UserName: 'reader',
+    Avatar: 'https://cdn.example/avatar.png',
+    Role: 'Member',
+    Level: 7,
+    RegisterAt: '2026-01-02T00:00:00.000Z',
+    BookCount: 3,
+    CommunityThreadCount: 4,
+    CommunityReplyCount: 5,
+    CommentCount: 6,
+  };
+
+  assert.deepEqual(decodePublicUserSummary(payload), {
+    id: 42,
+    userName: 'reader',
+    avatarUrl: 'https://cdn.example/avatar.png',
+    role: 'Member',
+    level: 7,
+    registeredAt: '2026-01-02T00:00:00.000Z',
+    bookCount: 3,
+    communityThreadCount: 4,
+    communityReplyCount: 5,
+    commentCount: 6,
+  });
+  assert.throws(() => decodePublicUserSummary({ ...payload, Id: 0 }), /invalid identifier/);
+  assert.throws(() => decodePublicUserSummary({ ...payload, RegisterAt: 'not-a-date' }), /invalid date/);
+  assert.throws(() => decodePublicUserSummary({ ...payload, CommentCount: undefined }), /invalid number/);
+  assert.throws(() => decodePublicUserSummary({ ...payload, BookCount: -1 }), /invalid count/);
+});
+
 test('decodes the Web-Master profile and growth summary', () => {
   const profile = decodeUserProfile({
     Id: 42,
@@ -77,6 +112,8 @@ test('decodes the Web-Master profile and growth summary', () => {
     Growth: {
       Exp: 180,
       Coin: 96,
+      ComicQuota: 75,
+      ComicQuotaToday: 12,
       Level: 4,
       GrowthLevel: 3,
       CurrentLevelExp: 150,
@@ -98,6 +135,8 @@ test('decodes the Web-Master profile and growth summary', () => {
     growth: {
       experience: 180,
       coin: 96,
+      comicQuota: 75,
+      comicQuotaToday: 12,
       level: 4,
       growthLevel: 3,
       currentLevelExperience: 150,
@@ -107,10 +146,24 @@ test('decodes the Web-Master profile and growth summary', () => {
     },
   });
 
-  const legacyProfile = decodeUserProfile({ Id: 43, RegisterAt: '' });
-  assert.equal(legacyProfile.registeredAt, null);
-  assert.equal(legacyProfile.growth.experience, 0);
-  assert.equal(legacyProfile.growth.signedToday, false);
+  const baseProfile = decodeUserProfile({
+    Id: 43,
+    RegisterAt: '',
+    Growth: { ComicQuota: 0, ComicQuotaToday: 0 },
+  });
+  assert.equal(baseProfile.registeredAt, null);
+  assert.equal(baseProfile.growth.experience, 0);
+  assert.equal(baseProfile.growth.comicQuota, 0);
+  assert.equal(baseProfile.growth.comicQuotaToday, 0);
+  assert.equal(baseProfile.growth.signedToday, false);
+  assert.throws(
+    () => decodeUserProfile({ Id: 43, Growth: { ComicQuota: 0 } }),
+    /invalid number field/,
+  );
+  assert.throws(
+    () => decodeUserProfile({ Id: 43, Growth: { ComicQuotaToday: 0 } }),
+    /invalid number field/,
+  );
 });
 
 test('decodes reset invite code and shop payloads', () => {
@@ -122,6 +175,7 @@ test('decodes reset invite code and shop payloads', () => {
     Page: 1,
     Data: [{
       Source: 'SignIn',
+      SourceLabel: '签到',
       Amount: 5,
       Balance: 101,
       RefId: null,
@@ -132,6 +186,7 @@ test('decodes reset invite code and shop payloads', () => {
     page: 1,
     items: [{
       source: 'SignIn',
+      sourceLabel: '签到',
       amount: 5,
       balance: 101,
       refId: null,
@@ -141,7 +196,23 @@ test('decodes reset invite code and shop payloads', () => {
   assert.throws(() => decodePointLogPage({
     TotalPages: 1,
     Page: 1,
-    Data: [{ Source: 'SignIn', Amount: 5, Balance: 101 }],
+    Data: [{
+      Source: 'ComicRead', Amount: -1, Balance: 100, RefId: 7,
+      OccurredAt: '2026-08-30T12:00:00.000Z',
+    }],
+  }), /invalid text field/);
+  assert.throws(() => decodePointLogPage({
+    TotalPages: 1,
+    Page: 1,
+    Data: [{
+      Source: 'ComicRead', SourceLabel: '', Amount: -1, Balance: 100, RefId: 7,
+      OccurredAt: '2026-08-30T12:00:00.000Z',
+    }],
+  }), /invalid text field/);
+  assert.throws(() => decodePointLogPage({
+    TotalPages: 1,
+    Page: 1,
+    Data: [{ Source: 'SignIn', SourceLabel: '签到', Amount: 5, Balance: 101 }],
   }), /invalid text field/);
   assert.deepEqual(decodeShopData({
     Coin: 96,
@@ -168,6 +239,27 @@ test('decodes reset invite code and shop payloads', () => {
       monthlyPurchased: 1,
     }],
   });
+  assert.equal(decodeShopData({
+    Coin: 96,
+    Items: [{
+      Key: 'comic_quota_50', Name: '漫画额度卡', Description: '', Image: '',
+      Price: 20, Owned: 1, MonthlyLimit: null, MonthlyPurchased: 0,
+    }],
+  }).items[0].monthlyLimit, null);
+  assert.equal(decodeShopData({
+    Coin: 96,
+    Items: [{
+      Key: 'comic_quota_50', Name: '漫画额度卡', Description: '', Image: '',
+      Price: 20, Owned: 1, MonthlyPurchased: 0,
+    }],
+  }).items[0].monthlyLimit, null);
+  assert.equal(decodeShopData({
+    Coin: 96,
+    Items: [{
+      Key: 'unavailable', Name: '暂不可购买', Description: '', Image: '',
+      Price: 20, Owned: 0, MonthlyLimit: 0, MonthlyPurchased: 0,
+    }],
+  }).items[0].monthlyLimit, 0);
   assert.deepEqual(decodeOwnedShopItemsData({ Items: [] }), { items: [] });
   assert.deepEqual(decodeBuyShopItemResult({
     Key: 'sign_makeup',
@@ -193,6 +285,17 @@ test('decodes reset invite code and shop payloads', () => {
     streak: 8,
     reward: 12,
     coinReward: 3,
+    owned: 1,
+  });
+  assert.deepEqual(decodeUseComicQuotaCardResult({
+    Key: 'comic_quota_50',
+    Granted: 50,
+    Quota: 125,
+    Owned: 1,
+  }), {
+    key: 'comic_quota_50',
+    granted: 50,
+    quota: 125,
     owned: 1,
   });
   assert.deepEqual(decodeSignInCalendar({
@@ -246,6 +349,11 @@ test('maps invite reset and shop operations to Web-Master Hub contracts', async 
             Date: '2026-08-01', Streak: 8, Reward: 12, CoinReward: 3, Owned: 0,
           } };
         }
+        if (method === 'UseComicQuotaCard') {
+          return { Success: true, Response: {
+            Key: 'comic_quota_50', Granted: 50, Quota: 125, Owned: 1,
+          } };
+        }
         if (method === 'GetSignInCalendar') {
           return { Success: true, Response: {
             Year: 2026, Month: 8, Days: [{ SignDate: '2026-08-01', Streak: 7, Reward: 5 }],
@@ -254,7 +362,7 @@ test('maps invite reset and shop operations to Web-Master Hub contracts', async 
         if (method === 'GetPointLog' || method === 'GetCoinLog') {
           return { Success: true, Response: {
             TotalPages: 1, Page: 1, Data: [{
-              Source: 'SignIn', Amount: 5, Balance: 101, RefId: null,
+              Source: 'SignIn', SourceLabel: '签到', Amount: 5, Balance: 101, RefId: null,
               OccurredAt: '2026-08-30T12:00:00.000Z',
             }],
           } };
@@ -275,6 +383,9 @@ test('maps invite reset and shop operations to Web-Master Hub contracts', async 
   assert.deepEqual(await client.useSignMakeupCard({ date: '2026-08-01' }), {
     date: '2026-08-01', streak: 8, reward: 12, coinReward: 3, owned: 0,
   });
+  assert.deepEqual(await client.useComicQuotaCard(), {
+    key: 'comic_quota_50', granted: 50, quota: 125, owned: 1,
+  });
   assert.deepEqual(await client.getSignInCalendar(2026, 8), {
     year: 2026, month: 8, days: [{ date: '2026-08-01', streak: 7, reward: 5 }],
   });
@@ -282,7 +393,7 @@ test('maps invite reset and shop operations to Web-Master Hub contracts', async 
     totalPages: 1,
     page: 1,
     items: [{
-      source: 'SignIn', amount: 5, balance: 101, refId: null,
+      source: 'SignIn', sourceLabel: '签到', amount: 5, balance: 101, refId: null,
       occurredAt: '2026-08-30T12:00:00.000Z',
     }],
   });
@@ -290,7 +401,7 @@ test('maps invite reset and shop operations to Web-Master Hub contracts', async 
     totalPages: 1,
     page: 1,
     items: [{
-      source: 'SignIn', amount: 5, balance: 101, refId: null,
+      source: 'SignIn', sourceLabel: '签到', amount: 5, balance: 101, refId: null,
       occurredAt: '2026-08-30T12:00:00.000Z',
     }],
   });
@@ -300,6 +411,7 @@ test('maps invite reset and shop operations to Web-Master Hub contracts', async 
     { method: 'GetMyItems', args: [{}, { UseGzip: true }] },
     { method: 'BuyShopItem', args: [{ Key: 'sign_makeup', Quantity: 1 }, { UseGzip: true }] },
     { method: 'UseSignMakeupCard', args: [{ Date: '2026-08-01' }, { UseGzip: true }] },
+    { method: 'UseComicQuotaCard', args: [{}, { UseGzip: true }] },
     { method: 'GetSignInCalendar', args: [{ Year: 2026, Month: 8 }, { UseGzip: true }] },
     { method: 'GetPointLog', args: [{ Page: 1, Size: 20 }, { UseGzip: true }] },
     { method: 'GetCoinLog', args: [{ Page: 2, Size: 10 }, { UseGzip: true }] },
@@ -316,7 +428,14 @@ test('maps profile, avatar, and check-in to Web-Master Hub contracts', async () 
       async invoke(method, args) {
         calls.push({ method, args });
         if (method === 'GetMyInfo') {
-          return { Success: true, Response: { Id: 8, UserName: 'reader' } };
+          return {
+            Success: true,
+            Response: {
+              Id: 8,
+              UserName: 'reader',
+              Growth: { ComicQuota: 75, ComicQuotaToday: 12 },
+            },
+          };
         }
         if (method === 'SignIn') {
           return { Success: true, Response: { Reward: 5, Streak: 2, Exp: 20, Level: 1 } };
@@ -341,6 +460,69 @@ test('maps profile, avatar, and check-in to Web-Master Hub contracts', async () 
     { method: 'SetAvatar', args: [{ Url: 'https://cdn.example/avatar.png' }, { UseGzip: true }] },
     { method: 'SignIn', args: [{}, { UseGzip: true }] },
   ]);
+});
+
+test('fetches a public user summary through the exact REST route', async () => {
+  const calls = [];
+  const response = {
+    Id: 8,
+    UserName: 'reader',
+    Avatar: '',
+    Role: 'Member',
+    Level: 2,
+    RegisterAt: '2026-01-02T00:00:00.000Z',
+    BookCount: 1,
+    CommunityThreadCount: 2,
+    CommunityReplyCount: 3,
+    CommentCount: 4,
+  };
+  const client = new ApiClient(
+    {
+      async request(request) {
+        calls.push(request);
+        return { body: { Success: true, Response: response }, headers: {}, status: 200 };
+      },
+    },
+    { async connect() {}, async close() {}, async invoke() { throw new Error('not used'); } },
+    null,
+    new RateLimitRequestScheduler(20, 10),
+  );
+
+  assert.equal((await client.getPublicUserSummary(8)).userName, 'reader');
+  assert.deepEqual(calls, [{
+    headers: { Accept: 'application/json' },
+    method: 'GET',
+    url: 'https://api.lightnovel.life/api/user/summary?id=8',
+  }]);
+  await assert.rejects(client.getPublicUserSummary(0), /valid user id/);
+});
+
+test('decodes comic-series uploader ids for public-profile navigation', () => {
+  const detail = decodeComicSeriesDetail({
+    Series: {
+      Id: 'series-1', Title: 'Series', OriginalTitle: '', Cover: 'https://cdn.example/series.png',
+      Author: '', Views: 1, Favorite: 2, Introduction: '', CreatedAt: '2026-01-01T00:00:00.000Z',
+      LastUpdatedChapter: '', LastUpdatedAt: '2026-01-02T00:00:00.000Z', Extra: {},
+    },
+    Books: [{
+      Id: 3, Title: 'Volume 1', Uploader: { Id: 8, UserName: 'reader', Avatar: '' },
+      Cover: 'https://cdn.example/volume.png', CreatedAt: '2026-01-01T00:00:00.000Z',
+      LastUpdatedChapter: '', LastUpdatedAt: '2026-01-02T00:00:00.000Z', ReadPosition: null, Chapters: [],
+    }],
+  });
+
+  assert.equal(detail.volumes[0].uploader.id, 8);
+  assert.throws(() => decodeComicSeriesDetail({
+    Series: {
+      Id: 'series-1', Title: 'Series', Cover: 'https://cdn.example/series.png',
+      CreatedAt: '2026-01-01T00:00:00.000Z', LastUpdatedAt: '2026-01-02T00:00:00.000Z',
+    },
+    Books: [{
+      Id: 3, Title: 'Volume 1', Uploader: { UserName: 'reader', Avatar: '' },
+      Cover: 'https://cdn.example/volume.png', CreatedAt: '2026-01-01T00:00:00.000Z',
+      LastUpdatedAt: '2026-01-02T00:00:00.000Z', Chapters: [],
+    }],
+  }), /invalid number/);
 });
 
 test('decodes Web-Master comic info and preserves the reader position', () => {
@@ -369,6 +551,41 @@ test('decodes Web-Master comic info and preserves the reader position', () => {
   assert.equal(info.classification.author, 'Classified author');
   assert.equal(info.chapters[0].pageCount, 3);
   assert.deepEqual(info.readPosition, { chapterId: 100, position: '2' });
+});
+
+test('requests comic content in six-page batches by default', async () => {
+  const calls = [];
+  const client = new ApiClient(
+    { async request() { throw new Error('not used'); } },
+    {
+      async connect() {},
+      async close() {},
+      async invoke(method, args) {
+        calls.push({ method, args });
+        return { Success: true, Response: {
+          Chapter: {
+            Id: 100,
+            BookId: 12,
+            BookName: 'Comic',
+            Title: 'Chapter 1',
+            SortNum: 1,
+            Total: 20,
+            Skip: 0,
+            Images: [],
+          },
+          ReadPosition: null,
+        } };
+      },
+    },
+    null,
+    new RateLimitRequestScheduler(20, 10),
+  );
+
+  await client.getComicContent({ chapterId: 100 });
+  assert.deepEqual(calls, [{
+    method: 'GetComicContent',
+    args: [{ Cid: 100, Skip: 0, Take: 6 }, { UseGzip: true }],
+  }]);
 });
 
 test('maps novel and comic search to their Web-Master Hub contracts', async () => {
@@ -1090,6 +1307,7 @@ test('decodes Community home, nested replies, nullable metadata, and missing thr
     RepliesPage: { Page: 1, Size: 5, Total: 1, TotalPages: 1, HasMore: false },
     ReplyItems: [{
       Id: 10,
+      AuthorId: 4,
       AuthorName: 'Reply author',
       AuthorBadge: '',
       Content: 'Reply',
@@ -1102,6 +1320,8 @@ test('decodes Community home, nested replies, nullable metadata, and missing thr
     }],
     RelatedThreads: [],
   });
+  assert.equal(home.feed[0].authorId, 7);
+  assert.equal(thread.replyItems[0].authorId, 4);
   assert.equal(thread.replyItems[0].authorBadge, null);
   assert.equal(thread.replyItems[0].canDelete, true);
   assert.equal(thread.canEdit, true);
@@ -1144,7 +1364,7 @@ test('maps every Community and notification operation to the gzip Hub contract',
           DeleteCommunityThread: { Id: 3 },
           DeleteCommunityReply: { Id: 4, Removed: 1 },
           CreateCommunityThread: thread,
-          CreateCommunityReply: { Id: 4, Content: 'reply' },
+          CreateCommunityReply: { Id: 4, AuthorId: 7, Content: 'reply' },
           ToggleCommunityThreadLike: { Liked: true, Likes: 2 },
           ToggleCommunityThreadFavorite: { Favorited: true, Favorites: 3 },
           ToggleCommunityReplyLike: { Liked: false, Likes: 1 },
@@ -1274,6 +1494,7 @@ function communityFeedItem(overrides = {}) {
     SubCategoryLabel: 'News',
     Title: 'Hello',
     Excerpt: 'Excerpt',
+    AuthorId: 7,
     AuthorName: 'Reader',
     AuthorIsDeleted: false,
     AuthorAvatar: '',
