@@ -8,8 +8,6 @@ export const zhCNReader = {
     nextChapter: '下一章',
     nextPage: '下一页',
     openChapter: '打开第 {{number}} 章：{{title}}',
-    openFootnote: '打开脚注',
-    openFootnoteHint: '在底部弹窗中打开脚注',
     previousChapter: '上一章',
     previousPage: '上一页',
     readingMode: '阅读模式',
@@ -71,7 +69,6 @@ export const zhCNReader = {
   titles: {
     chapters: '章节',
     comicReader: '漫画阅读器',
-    footnote: '脚注',
     reader: '阅读器',
   },
 } as const;
@@ -84,8 +81,6 @@ export const zhTWReader: TranslationShape<typeof zhCNReader> = {
     nextChapter: '下一章',
     nextPage: '下一頁',
     openChapter: '開啟第 {{number}} 章：{{title}}',
-    openFootnote: '開啟註腳',
-    openFootnoteHint: '在底部彈出視窗中開啟註腳',
     previousChapter: '上一章',
     previousPage: '上一頁',
     readingMode: '閱讀模式',
@@ -147,7 +142,6 @@ export const zhTWReader: TranslationShape<typeof zhCNReader> = {
   titles: {
     chapters: '章節',
     comicReader: '漫畫閱讀器',
-    footnote: '註腳',
     reader: '閱讀器',
   },
 };

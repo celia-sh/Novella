@@ -249,17 +249,6 @@ function RootLayoutContent() {
                   title: t('routes.reading'),
                 }}
               />
-              <Stack.Screen
-                name="reader/[bookId]/footnote"
-                options={{
-                  headerShown: false,
-                  presentation: 'formSheet',
-                  sheetAllowedDetents: [0.5, 1],
-                  sheetGrabberVisible: true,
-                  sheetInitialDetentIndex: 0,
-                  title: t('routes.footnote'),
-                }}
-              />
             </Stack.Protected>
             <Stack.Protected guard={!hasAuthenticatedSession}>
               <Stack.Screen name="sign-in" options={{ headerShown: false }} />

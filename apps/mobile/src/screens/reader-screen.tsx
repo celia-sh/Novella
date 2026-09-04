@@ -32,8 +32,6 @@ import { useReaderFont } from '@/hooks/use-reader-font';
 import { useReaderPositionSaver } from '@/hooks/use-reader-position-saver';
 import { useReaderWindowDimensions } from '@/hooks/use-reader-window-dimensions';
 import { useReadiumPublication } from '@/hooks/use-readium-publication';
-import { readerFontDataUrl } from '@/services/reader-font-loader';
-import { presentReaderFootnote } from '@/services/reader-footnote-session';
 import { subscribeReaderChapterSelection } from '@/services/reader-chapter-selection';
 import {
   type ReaderProgressCheckpoint,
@@ -118,11 +116,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     );
     return inlineNovelFootnotesAfterBlocks(sourceBlocks, footnotes.notesById);
   }, [content, footnotes.html, footnotes.notesById]);
-  const fontDataUrl = useMemo(() => {
-    if (!requiresReaderFont || readerFont.status !== 'loaded') return null;
-    return readerFontDataUrl(content?.chapter.fontUrl);
-  }, [content?.chapter.fontUrl, readerFont.status, requiresReaderFont]);
-
   const publication = useReadiumPublication({
     bookId,
     content,
@@ -310,24 +303,9 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     });
   }, [bookId, route.key, sortNum]);
 
-  const openFootnote = useCallback((id: string, body?: string) => {
-    const noteContent = body ?? footnotes.notesById[id];
-    if (!noteContent) return;
-    presentReaderFootnote({
-      content: noteContent,
-      ...(fontDataUrl ? { fontDataUrl } : {}),
-    });
-    router.push({ pathname: '/reader/[bookId]/footnote', params: { bookId: String(bookId) } });
-  }, [bookId, fontDataUrl, footnotes.notesById]);
-
   const openReadiumLink = useCallback((link: ReadiumLinkEvent) => {
-    if (openReadiumChapterHref(link.href)) return;
-    if (link.content && link.href.startsWith('#')) {
-      openFootnote(link.href.slice(1), link.content);
-      return;
-    }
-    if (link.href.startsWith('#')) openFootnote(link.href.slice(1));
-  }, [openFootnote, openReadiumChapterHref]);
+    openReadiumChapterHref(link.href);
+  }, [openReadiumChapterHref]);
 
   const handleBoundary = useCallback(({ direction }: { direction: 'next' | 'previous' }) => {
     if (direction === 'previous' && previousSortNum !== null) {

@@ -8,7 +8,6 @@ import RenderHTML, {
 import { SERVICE_ENDPOINTS } from '@novella/api-client';
 
 import { createHtmlPreviewSource } from '@/components/html-preview-source';
-import { createReaderFootnoteRenderer } from '@/components/reader-footnote-renderer';
 import { createReaderHtmlImageRenderer } from '@/components/reader-html-image';
 import { createHtmlRubyRenderers } from '@/components/html-ruby-renderer';
 import type { ReaderImageDimensions } from '@/services/reader-image-dimensions';
@@ -16,7 +15,6 @@ import { useAppTheme } from '@/theme/app-theme';
 
 const selectableHtmlRenderers = createHtmlRubyRenderers({ selectable: true });
 const previewHtmlRenderers = createHtmlRubyRenderers({ preview: true, selectable: false });
-const EMPTY_FOOTNOTES: Readonly<Record<string, string>> = {};
 const readerHtmlRenderersProps = { img: { enableExperimentalPercentWidth: true } };
 const previewIgnoredDomTags = ['script', 'style', 'img'];
 const readerIgnoredDomTags = ['script', 'style'];
@@ -45,14 +43,12 @@ export interface BookHtmlContentProps {
   firstLineIndent?: boolean;
   fontFamily?: string;
   fontSize?: number;
-  footnotes?: Readonly<Record<string, string>>;
   html: string;
   imageDimensions?: Readonly<Record<string, ReaderImageDimensions>>;
   imageDimensionsLocked?: boolean;
   imageMaxHeight?: number;
   imageMeasurementOnly?: boolean;
   lineHeight?: number;
-  onOpenFootnote?: (id: string) => void;
   preview?: boolean;
   textColor?: string;
 }
@@ -62,14 +58,12 @@ export function BookHtmlContent({
   firstLineIndent = false,
   fontFamily,
   fontSize = 16,
-  footnotes,
   html,
   imageDimensions,
   imageDimensionsLocked = false,
   imageMaxHeight,
   imageMeasurementOnly = false,
   lineHeight = 28.8,
-  onOpenFootnote,
   preview = false,
   textColor,
 }: BookHtmlContentProps) {
@@ -93,11 +87,6 @@ export function BookHtmlContent({
       ? previewHtmlRenderers
       : {
           ...selectableHtmlRenderers,
-          a: createReaderFootnoteRenderer(
-            footnotes ?? EMPTY_FOOTNOTES,
-            bodyFontSize,
-            onOpenFootnote,
-          ),
           img: createReaderHtmlImageRenderer({
             contentWidth,
             ...(imageDimensions ? { dimensions: imageDimensions } : {}),
@@ -109,12 +98,10 @@ export function BookHtmlContent({
     [
       bodyFontSize,
       contentWidth,
-      footnotes,
       imageDimensions,
       imageDimensionsLocked,
       imageMaxHeight,
       imageMeasurementOnly,
-      onOpenFootnote,
       preview,
     ],
   );
