@@ -26,6 +26,7 @@ import {
   updateComicVersionInDetail,
   type RootStackNavigation,
 } from '@/services/book-version-navigation';
+import { useAppTheme } from '@/theme/app-theme';
 
 export interface BookVersionsScreenProps {
   /** Id of the version currently open in the detail page below. */
@@ -36,6 +37,7 @@ export interface BookVersionsScreenProps {
 export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenProps) {
   const { t } = useTranslation('book');
   const { t: tCommon } = useTranslation('common');
+  const { colors } = useAppTheme();
   const navigation = useNavigation<RootStackNavigation>('/');
   const { palette } = useBookDetailRouteTheme(bookId, null, null, true);
   const [detail, setDetail] = useState<ComicSeriesDetail | null>(null);
@@ -85,7 +87,7 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
       showsVerticalScrollIndicator={false}
       style={[
         styles.scroll,
-        { backgroundColor: palette.surface },
+        { backgroundColor: colors.background },
       ]}
     >
       {isLoading ? (

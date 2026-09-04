@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { BookDetailPalette } from '@/theme/book-detail-theme';
+import { useAppTheme } from '@/theme/app-theme';
 
 const CHAPTER_ROW_HEIGHT = 58;
 const CHAPTER_SEPARATOR_HEIGHT = StyleSheet.hairlineWidth;
@@ -26,6 +27,7 @@ export interface ReaderChapterListProps {
 
 /** Virtualized chapter list styled with the shared book-detail palette. */
 export function ReaderChapterList({ emptyState, header, items, onSelect, palette }: ReaderChapterListProps) {
+  const { colors } = useAppTheme();
   const { t } = useTranslation('reader');
   return (
     <FlatList
@@ -100,7 +102,7 @@ export function ReaderChapterList({ emptyState, header, items, onSelect, palette
       showsVerticalScrollIndicator={false}
       style={[
         styles.list,
-        { backgroundColor: palette.surface },
+        { backgroundColor: colors.background },
       ]}
     />
   );

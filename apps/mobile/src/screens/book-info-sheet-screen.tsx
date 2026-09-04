@@ -29,6 +29,7 @@ import {
 import { useBookInfo } from '@/hooks/use-book-info';
 import type { BookDetailKind } from '@/hooks/use-book-detail';
 import type { BookDetailPalette } from '@/theme/book-detail-theme';
+import { useAppTheme } from '@/theme/app-theme';
 
 export type BookInfoSheetVariant = 'introduction' | 'tags' | 'uploader';
 
@@ -41,6 +42,7 @@ export interface BookInfoSheetScreenProps {
 export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScreenProps) {
   const { t } = useTranslation('book');
   const { t: tCommon } = useTranslation('common');
+  const { colors } = useAppTheme();
   const { book, error, isLoading, reload } = useBookInfo(bookId, kind);
   const [contentWidth, setContentWidth] = useState(1);
   const { palette } = useBookDetailRouteTheme(
@@ -68,7 +70,7 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
       showsVerticalScrollIndicator={false}
       style={[
         styles.scroll,
-        { backgroundColor: palette.surface },
+        { backgroundColor: colors.background },
         variant === 'introduction' && styles.scrollFill,
       ]}
     >
