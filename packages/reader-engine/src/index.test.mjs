@@ -146,6 +146,20 @@ test('extracts Web-Master footnotes and removes hidden note bodies from reader f
   assert.doesNotMatch(result.html, /<ol/);
 });
 
+test('does not confuse data-footnote-id with an id attribute', () => {
+  const result = processNovelFootnotes(
+    '<p>正文<a class="duokan-footnote" data-footnote-id="note-1" href="#note-1"><sup>[1]</sup></a>段末。</p>' +
+      '<pre><code>console.log(1)</code></pre>' +
+      '<section class="footnotes"><aside id="note-1"><p>注释内容</p></aside></section>',
+    { markerContent: 'placeholder' },
+  );
+
+  assert.equal(result.notesById['note-1'], '<p>注释内容</p>');
+  assert.match(result.html, /<p>正文<a data-reader-footnote-id="note-1">\*<\/a>段末。<\/p>/);
+  assert.match(result.html, /<pre><code>console\.log\(1\)<\/code><\/pre>/);
+  assert.doesNotMatch(result.html, /data-footnote-id|<aside|注释内容/);
+});
+
 test('can remove source footnote marker content for inline notes', () => {
   const result = processNovelFootnotes(
     '<p>正文。<a class="duokan-footnote" href="#note-1"><sup><img class="footnote" src="marker.png" /></sup></a></p>' +

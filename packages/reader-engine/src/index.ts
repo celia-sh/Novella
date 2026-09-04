@@ -533,7 +533,7 @@ function isInvisibleReaderCodepoint(
 function readHtmlAttribute(tag: string, name: string): string | undefined {
   const escapedName = escapeRegExp(name);
   const match = tag.match(new RegExp(
-    `\\b${escapedName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`,
+    `(?:^|\\s)${escapedName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`,
     'iu',
   ));
   return match?.[1] ?? match?.[2] ?? match?.[3];
