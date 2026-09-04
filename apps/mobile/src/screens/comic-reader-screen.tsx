@@ -14,7 +14,12 @@ import {
   type NativeSyntheticEvent,
   type ViewToken,
 } from 'react-native';
-import { ApiError, type ComicContent, type ComicInfo } from '@novella/api-client';
+import {
+  ApiError,
+  COMIC_CONTENT_BATCH_SIZE,
+  type ComicContent,
+  type ComicInfo,
+} from '@novella/api-client';
 import { createComicPageSlots, mergeComicPageBatch, resolveReaderInitialIndex, resolveReaderRestorePosition, type ComicPageSlot, type ReaderMode, type ReaderOpenPosition } from '@novella/reader-engine';
 
 import { createComicBlurHashPlaceholder } from '@/services/blurhash';
@@ -70,8 +75,10 @@ import {
 import { resolveComicPageProgress } from '@/services/reader-page-progress';
 import { useAppColorScheme, useAppTheme } from '@/theme/app-theme';
 
-const PAGE_BATCH = 12;
-const COMIC_DISK_LOOKAHEAD = 4;
+const PAGE_BATCH = COMIC_CONTENT_BATCH_SIZE;
+// The immediate tier already includes the next page; three farther pages keep
+// decoded-image prefetch bounded to four pages in the active direction.
+const COMIC_DISK_LOOKAHEAD = 3;
 // Keep real ComicPage/Image cells mounted ahead of the viewport. Fetch-only
 // preloading does not guarantee that the native image has decoded and painted.
 const COMIC_PAGED_INITIAL_RENDER_COUNT = 5;

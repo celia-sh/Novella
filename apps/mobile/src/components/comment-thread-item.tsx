@@ -41,6 +41,7 @@ export const CommentThreadItem = memo(function CommentThreadItem({
         onDelete={() => onDelete(item.id)}
         onReply={() => onReply({ parentId: item.id, userName: item.user.userName })}
         palette={palette}
+        userId={item.user.id}
         userName={item.user.userName}
       />
       {item.replies.length > 0 ? (
@@ -156,6 +157,7 @@ const CommentReplyItem = memo(function CommentReplyItem({
       })}
       palette={palette}
       replyToName={reply.replyToUser?.userName ?? null}
+      userId={reply.user.id}
       userName={reply.user.userName}
       variant="reply"
     />

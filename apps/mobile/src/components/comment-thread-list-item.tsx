@@ -34,6 +34,7 @@ export const CommentThreadListItem = memo(function CommentThreadListItem({
           onDelete={() => onDelete(item.id)}
           onReply={() => onReply({ parentId: item.id, userName: item.user.userName })}
           palette={palette}
+          userId={item.user.id}
           userName={item.user.userName}
         />
       </View>
@@ -64,6 +65,7 @@ export const CommentThreadListItem = memo(function CommentThreadListItem({
         })}
         palette={palette}
         replyToName={reply.replyToUser?.userName ?? null}
+        userId={reply.user.id}
         userName={reply.user.userName}
         variant="reply"
       />

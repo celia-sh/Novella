@@ -19,7 +19,7 @@ import {
 
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { BookHtmlContent } from '@/components/book-html-content';
-import { ProfileAvatar } from '@/components/profile-avatar';
+import { PublicUserAvatar } from '@/components/public-user-avatar';
 import {
   BOOK_SEARCH_ROUTE,
   normalizeQuickSearchTags,
@@ -140,6 +140,7 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
             <UploaderAvatar
               avatarUrl={book.user?.avatarUrl ?? ''}
               palette={palette}
+              userId={book.user?.id ?? 0}
               userName={book.user?.userName ?? ''}
             />
             <View style={styles.uploaderText}>
@@ -190,18 +191,21 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
 function UploaderAvatar({
   avatarUrl,
   palette,
+  userId,
   userName,
 }: {
   avatarUrl: string;
   palette: BookDetailPalette;
+  userId: number;
   userName: string;
 }) {
   return (
-    <ProfileAvatar
+    <PublicUserAvatar
       avatarUrl={avatarUrl}
       fallbackBackground={palette.surfaceContainerHighest}
       fallbackColor={palette.onSurface}
       size={56}
+      userId={userId}
       userName={userName}
     />
   );

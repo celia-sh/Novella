@@ -32,6 +32,7 @@ test('comic page indexes and batches clamp to chapter bounds', () => {
   assert.equal(clampComicPageIndex(105, 100), 99);
   assert.equal(clampComicPageIndex(Number.NaN, 100), 0);
   assert.equal(clampComicPageIndex(8, 0), 0);
+  assert.equal(getComicPageBatchStart(8, 100, 6), 6);
   assert.equal(getComicPageBatchStart(83, 100, 12), 72);
   assert.equal(getComicPageBatchStart(105, 100, 12), 96);
   assert.equal(getComicPageBatchStart(5, 100, 0), 5);
@@ -44,10 +45,10 @@ test('comic batches report whether they contain the requested page', () => {
   assert.equal(doesComicBatchContainPage(12, 12, 0), false);
 });
 
-test('comic prefetch separates immediate pages from forward disk lookahead', () => {
-  assert.deepEqual(createComicPrefetchPlan(5, 12, 1), {
+test('comic prefetch combines one immediate page with three farther pages', () => {
+  assert.deepEqual(createComicPrefetchPlan(5, 12, 1, 3), {
     immediate: [4, 5, 6],
-    directional: [7, 8, 9, 10],
+    directional: [7, 8, 9],
   });
   assert.deepEqual(createComicPrefetchPlan(10, 12, 1), {
     immediate: [9, 10, 11],

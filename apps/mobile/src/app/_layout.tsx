@@ -213,6 +213,17 @@ function RootLayoutContent() {
                 }}
               />
               <Stack.Screen
+                name="user/[id]"
+                options={{
+                  headerShown: false,
+                  presentation: 'formSheet',
+                  sheetAllowedDetents: [0.5, 1],
+                  sheetGrabberVisible: true,
+                  sheetInitialDetentIndex: 0,
+                  title: '',
+                }}
+              />
+              <Stack.Screen
                 name="reader/[bookId]/[sortNum]"
                 options={{ headerShown: false }}
               />

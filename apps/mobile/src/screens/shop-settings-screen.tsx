@@ -14,13 +14,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { OwnedShopItem, ShopItem, SignInCalendar } from '@novella/api-client';
-import { SIGN_MAKEUP_ITEM_KEY } from '@novella/client-core';
+import { COMIC_QUOTA_ITEM_KEY, SIGN_MAKEUP_ITEM_KEY } from '@novella/client-core';
 
 import { showAlert } from '@/components/native-alert-dialog';
 import { useShop } from '@/hooks/use-shop';
 import { useAppLocale } from '@/localization/localization-provider';
 import { shop as shopUseCase, profile as profileUseCase } from '@/services/client';
 import { resolveShopImageUrl } from '@/services/shop-images';
+import { resolveShopPurchaseAvailability } from '@/services/shop-purchase';
 import {
   formatUtcDate,
   markSignInCalendarDate,
@@ -42,6 +43,7 @@ export function ShopSettingsScreen() {
   const { t: tCommon } = useTranslation('common');
   const { error, reload, snapshot, status } = useShop();
   const [buyingKeys, setBuyingKeys] = useState<ReadonlySet<string>>(new Set());
+  const [usingQuota, setUsingQuota] = useState(false);
   const [makeupDate, setMakeupDate] = useState(() => utcDateAtNoon(-1));
   const [usingMakeup, setUsingMakeup] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => utcDateAtNoon(0));
@@ -110,8 +112,12 @@ export function ShopSettingsScreen() {
   }, [calendarMonthNumber, calendarReload, calendarYear, hasMakeupCard]);
 
   function confirmPurchase(item: ShopItem) {
-    const remaining = Math.max(0, item.monthlyLimit - item.monthlyPurchased);
-    if (remaining === 0 || buyingKeys.has(item.key)) return;
+    const availability = resolveShopPurchaseAvailability(item);
+    if (
+      availability.state === 'unavailable' ||
+      availability.state === 'limitReached' ||
+      buyingKeys.has(item.key)
+    ) return;
 
     showAlert(
       t('shop.confirmTitle'),
@@ -204,6 +210,42 @@ export function ShopSettingsScreen() {
         },
       ],
     );
+  }
+
+  function confirmQuotaUse() {
+    if (
+      usingQuota ||
+      !snapshot?.ownedItems.some((item) => item.key === COMIC_QUOTA_ITEM_KEY)
+    ) return;
+    showAlert(t('shop.quotaConfirmTitle'), t('shop.quotaConfirmMessage'), [
+      { style: 'cancel', text: tCommon('actions.cancel') },
+      {
+        text: tCommon('actions.confirm'),
+        onPress: () => {
+          setUsingQuota(true);
+          void shopUseCase.useComicQuotaCard()
+            .then(async (outcome) => {
+              await profileUseCase.load().catch(() => undefined);
+              showAlert(
+                t('shop.quotaSuccessTitle'),
+                t('shop.quotaSuccessMessage', {
+                  granted: numberFormatter.format(outcome.result.granted),
+                  quota: numberFormatter.format(outcome.result.quota),
+                }),
+              );
+            })
+            .catch((quotaError) => {
+              showAlert(
+                t('shop.quotaFailedTitle'),
+                quotaError instanceof Error
+                  ? quotaError.message
+                  : tCommon('states.unknownError'),
+              );
+            })
+            .finally(() => setUsingQuota(false));
+        },
+      },
+    ]);
   }
 
   function shiftCalendarMonth(delta: number) {
@@ -305,7 +347,17 @@ export function ShopSettingsScreen() {
         ) : (
           <View style={styles.ownedList}>
             {snapshot.ownedItems.map((item) => (
-              <OwnedItemRow item={item} key={item.key} numberFormatter={numberFormatter} />
+              <OwnedItemRow
+                item={item}
+                key={item.key}
+                numberFormatter={numberFormatter}
+                {...(item.key === COMIC_QUOTA_ITEM_KEY
+                  ? {
+                      onUse: confirmQuotaUse,
+                      using: usingQuota,
+                    }
+                  : {})}
+              />
             ))}
           </View>
         )}
@@ -438,8 +490,10 @@ function ShopItemCard({
   const styles = useShopSettingsStyles();
   const { colors } = useAppTheme();
   const { t } = useTranslation('settings');
-  const remaining = Math.max(0, item.monthlyLimit - item.monthlyPurchased);
-  const disabled = remaining === 0 || buying;
+  const availability = resolveShopPurchaseAvailability(item);
+  const disabled = availability.state === 'unavailable'
+    || availability.state === 'limitReached'
+    || buying;
 
   return (
     <View style={styles.itemCard}>
@@ -452,13 +506,14 @@ function ShopItemCard({
             {t('shop.price', { price: numberFormatter.format(item.price) })}
           </Text>
           <Text style={styles.itemMeta}>
-            {t('shop.owned', { quantity: numberFormatter.format(item.owned) })}
-          </Text>
-          <Text style={styles.itemMeta}>
-            {t('shop.remaining', {
-              limit: numberFormatter.format(item.monthlyLimit),
-              remaining: numberFormatter.format(remaining),
-            })}
+            {availability.state === 'unlimited'
+              ? t('shop.unlimited')
+              : availability.state === 'unavailable'
+                ? t('shop.unavailable')
+                : t('shop.remaining', {
+                    limit: numberFormatter.format(item.monthlyLimit ?? 0),
+                    remaining: numberFormatter.format(availability.remaining ?? 0),
+                  })}
           </Text>
         </View>
         <Pressable
@@ -473,7 +528,13 @@ function ShopItemCard({
         >
           {buying ? <ActivityIndicator color={resolveOnAccentHex(colors.accent)} size="small" /> : null}
           <Text style={styles.buyLabel}>
-            {buying ? t('shop.buying') : remaining === 0 ? t('shop.limitReached') : t('shop.buy')}
+            {buying
+              ? t('shop.buying')
+              : availability.state === 'unavailable'
+                ? t('shop.unavailable')
+                : availability.state === 'limitReached'
+                  ? t('shop.limitReached')
+                  : t('shop.buy')}
           </Text>
         </Pressable>
       </View>
@@ -484,11 +545,16 @@ function ShopItemCard({
 function OwnedItemRow({
   item,
   numberFormatter,
+  onUse,
+  using = false,
 }: {
   item: OwnedShopItem;
   numberFormatter: Intl.NumberFormat;
+  onUse?: () => void;
+  using?: boolean;
 }) {
   const styles = useShopSettingsStyles();
+  const { colors } = useAppTheme();
   const { t } = useTranslation('settings');
   return (
     <View style={styles.ownedRow}>
@@ -499,9 +565,29 @@ function OwnedItemRow({
           <Text numberOfLines={2} style={styles.itemDescription}>{item.description}</Text>
         ) : null}
       </View>
-      <Text style={styles.ownedQuantity}>
-        {t('shop.owned', { quantity: numberFormatter.format(item.quantity) })}
-      </Text>
+      <View style={styles.ownedActions}>
+        <Text style={styles.ownedQuantity}>
+          {t('shop.owned', { quantity: numberFormatter.format(item.quantity) })}
+        </Text>
+        {onUse ? (
+          <Pressable
+            accessibilityLabel={t('shop.useQuota')}
+            accessibilityRole="button"
+            disabled={using}
+            onPress={onUse}
+            style={({ pressed }) => [
+              styles.useItemButton,
+              using && styles.buyButtonDisabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            {using ? <ActivityIndicator color={resolveAccentHex(colors.accent)} size="small" /> : null}
+            <Text style={styles.useItemLabel}>
+              {using ? t('shop.usingQuota') : t('shop.useQuota')}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -554,7 +640,8 @@ const useShopSettingsStyles = createThemedStyles((colors) => ({
   balanceCard: {
     alignItems: 'center',
     backgroundColor: colors.card,
-    borderRadius: 18,
+    borderCurve: 'continuous',
+    borderRadius: 24,
     flexDirection: 'row',
     gap: 14,
     padding: 18,
@@ -563,7 +650,8 @@ const useShopSettingsStyles = createThemedStyles((colors) => ({
   balanceIcon: {
     alignItems: 'center',
     backgroundColor: colors.primaryContainer,
-    borderRadius: 14,
+    borderCurve: 'continuous',
+    borderRadius: 16,
     height: 52,
     justifyContent: 'center',
     width: 52,
@@ -573,7 +661,8 @@ const useShopSettingsStyles = createThemedStyles((colors) => ({
     alignItems: 'center',
     alignSelf: 'flex-start',
     backgroundColor: colors.accent,
-    borderRadius: 10,
+    borderCurve: 'continuous',
+    borderRadius: 12,
     flexDirection: 'row',
     gap: 7,
     minHeight: 38,
@@ -601,7 +690,8 @@ const useShopSettingsStyles = createThemedStyles((colors) => ({
   emptyCard: {
     alignItems: 'center',
     backgroundColor: colors.card,
-    borderRadius: 16,
+    borderCurve: 'continuous',
+    borderRadius: 22,
     paddingHorizontal: 20,
     paddingVertical: 28,
   },
@@ -611,7 +701,8 @@ const useShopSettingsStyles = createThemedStyles((colors) => ({
   inlineError: {
     alignItems: 'center',
     backgroundColor: colors.card,
-    borderRadius: 14,
+    borderCurve: 'continuous',
+    borderRadius: 18,
     flexDirection: 'row',
     gap: 12,
     padding: 14,
@@ -620,13 +711,14 @@ const useShopSettingsStyles = createThemedStyles((colors) => ({
   itemCard: {
     alignItems: 'flex-start',
     backgroundColor: colors.card,
-    borderRadius: 18,
+    borderCurve: 'continuous',
+    borderRadius: 22,
     flexDirection: 'row',
     gap: 15,
     padding: 16,
   },
   itemDescription: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 18 },
-  itemImage: { borderRadius: 14, height: 88, width: 88 },
+  itemImage: { borderCurve: 'continuous', borderRadius: 16, height: 88, width: 88 },
   itemMeta: { color: colors.secondaryLabel, fontSize: 12, lineHeight: 17 },
   itemMetadata: { gap: 2 },
   itemName: { color: colors.label, fontSize: 16, fontWeight: '700', lineHeight: 21 },
@@ -635,11 +727,12 @@ const useShopSettingsStyles = createThemedStyles((colors) => ({
   makeupButton: { flexShrink: 0 },
   makeupDatePicker: { flex: 1, minWidth: 0 },
   makeupDescription: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 19 },
-  makeupPanel: { backgroundColor: colors.card, borderRadius: 16, gap: 10, padding: 16 },
+  makeupPanel: { backgroundColor: colors.card, borderCurve: 'continuous', borderRadius: 22, gap: 10, padding: 16 },
   makeupTitle: { color: colors.label, fontSize: 16, fontWeight: '700', lineHeight: 21 },
+  ownedActions: { alignItems: 'flex-end', flexShrink: 0, gap: 7 },
   ownedCopy: { flex: 1, gap: 2 },
-  ownedImage: { borderRadius: 10, height: 48, width: 48 },
-  ownedList: { backgroundColor: colors.card, borderRadius: 18, overflow: 'hidden' },
+  ownedImage: { borderCurve: 'continuous', borderRadius: 12, height: 48, width: 48 },
+  ownedList: { backgroundColor: colors.card, borderCurve: 'continuous', borderRadius: 22, overflow: 'hidden' },
   ownedQuantity: { color: colors.secondaryLabel, fontSize: 13, fontWeight: '600' },
   ownedRow: {
     alignItems: 'center',
@@ -668,6 +761,19 @@ const useShopSettingsStyles = createThemedStyles((colors) => ({
     padding: 24,
   },
   stateTitle: { color: colors.label, fontSize: 16, lineHeight: 22, textAlign: 'center' },
+  useItemButton: {
+    alignItems: 'center',
+    borderColor: colors.accent,
+    borderCurve: 'continuous',
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    minHeight: 30,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  useItemLabel: { color: colors.accent, fontSize: 13, fontWeight: '700' },
 }));
 
 function createCalendarCells(year: number, month: number): Array<number | null> {

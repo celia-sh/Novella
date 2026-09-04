@@ -13,11 +13,11 @@ import {
   IconBooks,
   IconCheck,
   IconRefresh,
-  IconUserCircle,
 } from '@tabler/icons-react-native';
 
 import type { ComicSeriesDetail } from '@novella/api-client';
 
+import { PublicUserAvatar } from '@/components/public-user-avatar';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import type { BookUserMessage } from '@/hooks/use-book-detail';
 import { reader } from '@/services/client';
@@ -145,9 +145,14 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
                     pressed && styles.pressed,
                   ]}
                 >
-                  <View style={styles.versionIcon}>
-                    <IconUserCircle color={palette.onSurfaceVariant} size={22} strokeWidth={1.8} />
-                  </View>
+                  <PublicUserAvatar
+                    avatarUrl={version.uploader.avatarUrl}
+                    fallbackBackground={palette.surfaceContainerHighest}
+                    fallbackColor={palette.onSurface}
+                    size={40}
+                    userId={version.uploader.id}
+                    userName={version.uploader.userName}
+                  />
                   <View style={styles.versionText}>
                     <Text numberOfLines={2} style={[styles.versionTitle, { color: palette.onSurface }]}>
                       {version.title}
@@ -194,7 +199,6 @@ const styles = StyleSheet.create({
   sheetSection: { gap: 16 },
   sheetTitle: { fontSize: 17, fontWeight: '700', lineHeight: 22 },
   state: { alignItems: 'center', gap: 12, paddingVertical: 48 },
-  versionIcon: { alignItems: 'center', height: 40, justifyContent: 'center', width: 40 },
   versionList: { borderRadius: 16, overflow: 'hidden' },
   versionMeta: { fontSize: 13, lineHeight: 18 },
   versionRow: {

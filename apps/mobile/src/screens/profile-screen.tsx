@@ -27,6 +27,7 @@ export function ProfileScreen() {
   const { t } = useTranslation('settings');
   const { t: tCommon } = useTranslation('common');
   const { error, profile, reload, status } = useProfile();
+  const numberFormatter = new Intl.NumberFormat(locale);
   const [copiedField, setCopiedField] = useState<CopyableProfileField | null>(null);
   const [checkingIn, setCheckingIn] = useState(false);
   const [resettingInviteCode, setResettingInviteCode] = useState(false);
@@ -199,14 +200,23 @@ export function ProfileScreen() {
               icon="experience"
               label={t('profile.fields.experience')}
               onPress={() => openPointLogs('experience')}
-              value={new Intl.NumberFormat(locale).format(profile.growth.experience)}
+              value={numberFormatter.format(profile.growth.experience)}
             />
             <StaticValueRow
               description={t('profile.tapToViewLogs')}
               icon="coins"
               label={t('profile.fields.coins')}
               onPress={() => openPointLogs('coin')}
-              value={new Intl.NumberFormat(locale).format(profile.growth.coin)}
+              value={numberFormatter.format(profile.growth.coin)}
+            />
+            <StaticValueRow
+              description={t('profile.fields.comicQuotaDescription')}
+              icon="reader"
+              label={t('profile.fields.comicQuota')}
+              value={t('profile.fields.comicQuotaValue', {
+                permanent: numberFormatter.format(profile.growth.comicQuota),
+                today: numberFormatter.format(profile.growth.comicQuotaToday),
+              })}
             />
             <NativeGroupedListRow
               description={t('profile.shopDescription')}
@@ -285,7 +295,7 @@ function StaticValueRow({
   value,
 }: {
   description?: string;
-  icon: 'coins' | 'experience' | 'level' | 'registered' | 'userGroup';
+  icon: 'coins' | 'experience' | 'level' | 'reader' | 'registered' | 'userGroup';
   label: string;
   onPress?: () => void;
   value: string;

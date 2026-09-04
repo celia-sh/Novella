@@ -14,6 +14,7 @@ import {
   createNotificationsUseCase,
   createPointLogUseCase,
   createProfileUseCase,
+  createPublicProfileUseCase,
   createReaderUseCase,
   createShopUseCase,
   createShelfUseCase,
@@ -29,6 +30,7 @@ import {
   type NotificationsUseCase,
   type PointLogUseCase,
   type ProfileUseCase,
+  type PublicProfileUseCase,
   type ReaderUseCase,
   type ShopUseCase,
   type ShelfUseCase,
@@ -81,6 +83,7 @@ export const notifications: NotificationsUseCase = createNotificationsUseCase(ap
 export const pointLogs: PointLogUseCase = createPointLogUseCase(api);
 export const history: HistoryUseCase = createHistoryUseCase(api);
 export const profile: ProfileUseCase = createProfileUseCase(api);
+export const publicProfiles: PublicProfileUseCase = createPublicProfileUseCase(api);
 export const reader: ReaderUseCase = createReaderUseCase(api);
 export const shop: ShopUseCase = createShopUseCase(api);
 export const shelf: ShelfUseCase = createShelfUseCase(api);

@@ -25,7 +25,7 @@ import { useTranslation } from "react-i18next";
 
 import type { CommunityFeedItem } from "@novella/api-client";
 
-import { ProfileAvatar } from "@/components/profile-avatar";
+import { PublicUserAvatar } from "@/components/public-user-avatar";
 import { useAppLocale } from "@/localization/localization-provider";
 import {
   formatCommunityCount,
@@ -95,9 +95,10 @@ export function CommunityThreadCard({
       <Card mode="outlined" style={styles.card}>
         <Card.Content style={styles.cardBody}>
           <View style={styles.cardTopRow}>
-            <ProfileAvatar
+            <PublicUserAvatar
               avatarUrl={item.authorAvatar}
               size={42}
+              userId={item.authorIsDeleted ? 0 : item.authorId}
               userName={authorName}
             />
             <View style={styles.cardMain}>

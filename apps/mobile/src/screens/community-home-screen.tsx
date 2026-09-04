@@ -20,7 +20,7 @@ import {
 } from '@tabler/icons-react-native';
 import { router } from 'expo-router';
 import { Skeleton } from 'heroui-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import {
@@ -32,7 +32,6 @@ import {
   View,
 } from 'react-native';
 import {
-  Avatar,
   Button,
   Divider,
   MD3DarkTheme,
@@ -51,6 +50,7 @@ import type {
   CommunitySubCategorySummary,
 } from '@novella/api-client';
 
+import { PublicUserAvatar } from '@/components/public-user-avatar';
 import { CommunityHomeNavigation } from '@/components/community/community-navigation';
 import { useCommunityHome, type CommunityHomeQuery } from '@/hooks/use-community-home';
 import { useAppLocale } from '@/localization/localization-provider';
@@ -653,7 +653,12 @@ function MaterialCommunityThreadCard({
       >
         <View style={styles.threadBody}>
           <View style={styles.threadBodyRow}>
-            <MaterialAvatar imageUrl={item.authorAvatar} name={authorName} size={42} />
+            <PublicUserAvatar
+              avatarUrl={item.authorAvatar}
+              size={42}
+              userId={item.authorIsDeleted ? 0 : item.authorId}
+              userName={authorName}
+            />
             <View style={styles.threadMain}>
             <View style={styles.threadTitleRow}>
               <View style={styles.threadTitleCopy}>
@@ -718,42 +723,6 @@ function TinyStat({ icon, value }: { icon: ReactNode; value: string }) {
       {icon}
       <Text style={styles.tinyStatText}>{value}</Text>
     </View>
-  );
-}
-
-function MaterialAvatar({
-  imageUrl,
-  name,
-  size,
-}: {
-  imageUrl: string;
-  name: string;
-  size: number;
-}) {
-  const styles = useCommunityHomeStyles();
-  const { colors } = useAppTheme();
-  const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [imageUrl]);
-  const initial = name.trim().slice(0, 1).toUpperCase() || '?';
-
-  if (imageUrl.trim() && !failed) {
-    return (
-      <Avatar.Image
-        onError={() => setFailed(true)}
-        size={size}
-        source={{ uri: imageUrl.trim() }}
-        style={[styles.avatar, { backgroundColor: colors.surfaceContainerHighest }]}
-      />
-    );
-  }
-  return (
-    <Avatar.Text
-      color={colors.label as string}
-      label={initial}
-      labelStyle={styles.avatarLabel}
-      size={size}
-      style={[styles.avatar, { backgroundColor: colors.surfaceContainerHighest }]}
-    />
   );
 }
 
@@ -938,8 +907,6 @@ const useCommunityHomeStyles = createThemedStyles((colors) => ({
   announcementText: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 19 },
   announcementViewAll: { alignItems: 'center', flexDirection: 'row', gap: 2, paddingVertical: 8 },
   announcementViewAllText: { color: colors.accent, fontSize: 13, fontWeight: '700' },
-  avatar: { overflow: 'hidden' },
-  avatarLabel: { fontSize: 14, fontWeight: '700' },
   boardStrip: { paddingTop: 8 },
   categorySkeletonPill: { borderRadius: 999, height: 34, width: '100%' },
   categorySkeletonRow: { paddingHorizontal: 12 },

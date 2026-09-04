@@ -8,7 +8,7 @@ import {
   IconRefresh,
 } from '@tabler/icons-react-native';
 import { router, Stack, useFocusEffect } from 'expo-router';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import {
@@ -20,7 +20,6 @@ import {
   View,
 } from 'react-native';
 import {
-  Avatar,
   Button,
   MD3DarkTheme,
   MD3LightTheme,
@@ -31,6 +30,7 @@ import {
 import type { CommunityThreadReply } from '@novella/api-client';
 
 import { CommunityHtmlContent } from '@/components/community/community-html-content';
+import { PublicUserAvatar } from '@/components/public-user-avatar';
 import { CommunityThreadNavigation } from '@/components/community/community-navigation';
 import { showAlert } from '@/components/native-alert-dialog';
 import {
@@ -226,10 +226,11 @@ export function CommunityThreadScreen({
         <View style={styles.postBody}>
           <Text style={styles.title}>{thread.title}</Text>
           <View style={styles.authorRow}>
-            <ThreadAvatar
+            <PublicUserAvatar
               avatarUrl={thread.authorAvatar}
-              name={thread.authorIsDeleted ? t('labels.deletedUser') : thread.authorName || t('labels.unknownUser')}
               size={38}
+              userId={thread.authorIsDeleted ? 0 : thread.authorId}
+              userName={thread.authorIsDeleted ? t('labels.deletedUser') : thread.authorName || t('labels.unknownUser')}
             />
             <View style={styles.authorCopy}>
               <Text style={styles.authorName}>
@@ -433,42 +434,6 @@ function ThreadTagPill({ label, variant }: { label: string; variant: 'accent' | 
   );
 }
 
-function ThreadAvatar({
-  avatarUrl,
-  name,
-  size,
-}: {
-  avatarUrl: string;
-  name: string;
-  size: number;
-}) {
-  const styles = useCommunityThreadStyles();
-  const { colors } = useAppTheme();
-  const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [avatarUrl]);
-  const initial = name.trim().slice(0, 1).toUpperCase() || '?';
-
-  if (avatarUrl.trim() && !failed) {
-    return (
-      <Avatar.Image
-        onError={() => setFailed(true)}
-        size={size}
-        source={{ uri: avatarUrl.trim() }}
-        style={[styles.avatar, { backgroundColor: colors.surfaceContainerHighest }]}
-      />
-    );
-  }
-  return (
-    <Avatar.Text
-      color={colors.label as string}
-      label={initial}
-      labelStyle={styles.avatarLabel}
-      size={size}
-      style={[styles.avatar, { backgroundColor: colors.surfaceContainerHighest }]}
-    />
-  );
-}
-
 function ThreadNotice({ icon, text }: { icon: ReactNode; text: string }) {
   const styles = useCommunityThreadStyles();
   return (
@@ -649,6 +614,7 @@ const ThreadReplyRow = memo(function ThreadReplyRow({
         onDelete={() => onDelete(reply)}
         palette={palette}
         replyToName={replyToName}
+        userId={reply.authorIsDeleted ? 0 : reply.authorId}
         userName={reply.authorName}
         {...(isChild ? { variant: 'reply' as const } : {})}
       />
@@ -676,8 +642,6 @@ const useCommunityThreadStyles = createThemedStyles((colors) => ({
   authorCopy: { flex: 1 },
   authorName: { color: colors.label, fontSize: 14, fontWeight: '700' },
   authorRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
-  avatar: { overflow: 'hidden' },
-  avatarLabel: { fontSize: 13, fontWeight: '700' },
   childMoreButton: { alignSelf: 'flex-start', marginLeft: 6 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 14, paddingTop: 14 },
   content: { paddingBottom: 42, paddingHorizontal: 16 },

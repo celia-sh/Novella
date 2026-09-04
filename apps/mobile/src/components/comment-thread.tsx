@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { ColorValue } from 'react-native';
 
-import { CommentAvatar } from '@/components/comment-avatar';
+import { PublicUserAvatar } from '@/components/public-user-avatar';
 
 export interface CommentThreadPalette {
   accent: ColorValue;
@@ -40,6 +40,7 @@ export interface CommentThreadRowProps {
   palette: CommentThreadPalette;
   replyToName?: string | null;
   userName: string;
+  userId?: number;
   variant?: 'comment' | 'reply';
 }
 
@@ -66,6 +67,7 @@ export function CommentThreadRow({
   palette,
   replyToName,
   userName,
+  userId,
   variant = 'comment',
 }: CommentThreadRowProps) {
   const { t } = useTranslation('community');
@@ -91,11 +93,12 @@ export function CommentThreadRow({
         ) : null}
 
         <View style={styles.replyIdentity}>
-          <CommentAvatar
+          <PublicUserAvatar
             avatarUrl={avatarUrl}
-            backgroundColor={palette.surfaceContainerHighest}
-            color={palette.label}
+            fallbackBackground={palette.surfaceContainerHighest}
+            fallbackColor={palette.label}
             size={24}
+            userId={deleted ? 0 : (userId ?? 0)}
             userName={displayName}
           />
           <Text style={[styles.replyIdentityText, { color: palette.label }]}>
@@ -148,11 +151,12 @@ export function CommentThreadRow({
         />
       ) : null}
 
-      <CommentAvatar
+      <PublicUserAvatar
         avatarUrl={avatarUrl}
-        backgroundColor={palette.surfaceContainerHighest}
-        color={palette.label}
+        fallbackBackground={palette.surfaceContainerHighest}
+        fallbackColor={palette.label}
         size={40}
+        userId={deleted ? 0 : (userId ?? 0)}
         userName={displayName}
       />
       <View style={styles.commentBody}>

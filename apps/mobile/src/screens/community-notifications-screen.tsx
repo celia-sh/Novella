@@ -26,7 +26,7 @@ import {
   CommunityPaperProvider,
 } from '@/components/community/community-ui';
 import { showAlert } from '@/components/native-alert-dialog';
-import { ProfileAvatar } from '@/components/profile-avatar';
+import { PublicUserAvatar } from '@/components/public-user-avatar';
 import { useCommunityNotifications } from '@/hooks/use-community-notifications';
 import { useAppLocale } from '@/localization/localization-provider';
 import {
@@ -234,9 +234,10 @@ const NotificationCard = memo(function NotificationCard({
       >
         <View style={styles.cardBody}>
           <View style={styles.topRow}>
-            <ProfileAvatar
+            <PublicUserAvatar
               avatarUrl={item.actor?.avatar ?? ''}
               size={38}
+              userId={item.actor?.id ?? 0}
               userName={actorName}
             />
             <View style={styles.copy}>

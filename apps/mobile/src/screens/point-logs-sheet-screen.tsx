@@ -21,25 +21,6 @@ import { createThemedStyles, resolveAccentHex, useAppTheme } from '@/theme/app-t
 
 const PAGE_SIZE = 20;
 
-const SOURCE_LABEL_KEYS = {
-  SignIn: 'pointLogs.sources.signIn',
-  Read: 'pointLogs.sources.read',
-  PublishNovel: 'pointLogs.sources.publishNovel',
-  PublishComic: 'pointLogs.sources.publishComic',
-  Thread: 'pointLogs.sources.thread',
-  Reply: 'pointLogs.sources.reply',
-  BookComment: 'pointLogs.sources.bookComment',
-  Invite: 'pointLogs.sources.invite',
-  DownloadNovel: 'pointLogs.sources.downloadNovel',
-  DownloadComic: 'pointLogs.sources.downloadComic',
-  ShareNovel: 'pointLogs.sources.shareNovel',
-  ShareComic: 'pointLogs.sources.shareComic',
-  ShopPurchase: 'pointLogs.sources.shopPurchase',
-  Admin: 'pointLogs.sources.admin',
-} as const;
-
-const SPEND_SOURCES = new Set(['DownloadNovel', 'DownloadComic', 'ShopPurchase']);
-
 export interface PointLogsSheetScreenProps {
   kind: PointLogKind;
 }
@@ -185,18 +166,13 @@ function PointLogRow({
   const styles = usePointLogsStyles();
   const { colors } = useAppTheme();
   const { t } = useTranslation('settings');
-  const sourceKey = SOURCE_LABEL_KEYS[item.source as keyof typeof SOURCE_LABEL_KEYS];
-  const source = sourceKey ? t(sourceKey) : item.source;
-  const label = item.amount < 0 && !SPEND_SOURCES.has(item.source)
-    ? `${source}${t('pointLogs.reclaimedSuffix')}`
-    : source;
   const occurredAt = formatRelativeTime(item.occurredAt, locale)
     || formatDate(item.occurredAt, locale, { dateStyle: 'medium', timeStyle: 'short' });
 
   return (
     <View style={[styles.row, { borderBottomColor: colors.separator }]}>
       <View style={styles.copy}>
-        <Text style={styles.source}>{label}</Text>
+        <Text style={styles.source}>{item.sourceLabel}</Text>
         <Text style={styles.time}>{occurredAt}</Text>
       </View>
       <View style={styles.amountColumn}>

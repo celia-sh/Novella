@@ -12,7 +12,7 @@ import type {
   CommunityHotRankItem,
 } from '@novella/api-client';
 
-import { ProfileAvatar } from '@/components/profile-avatar';
+import { PublicUserAvatar } from '@/components/public-user-avatar';
 import { useAppLocale } from '@/localization/localization-provider';
 import {
   formatCommunityCount,
@@ -86,7 +86,12 @@ export function CommunityActiveMembers({ users }: { users: CommunityActiveUserIt
           <View key={user.id}>
             {index > 0 ? <Divider style={styles.divider} /> : null}
             <View style={styles.row}>
-              <ProfileAvatar avatarUrl={user.avatar} size={36} userName={user.name} />
+              <PublicUserAvatar
+                avatarUrl={user.avatar}
+                size={36}
+                userId={user.id}
+                userName={user.name}
+              />
               <View style={styles.copy}>
                 <Text numberOfLines={1} style={styles.rowTitle}>{user.name}</Text>
                 <Text numberOfLines={2} style={styles.rowSubtitle}>

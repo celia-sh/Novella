@@ -6,6 +6,7 @@ import { zhCNLibrary, zhTWLibrary } from './locales/library.ts';
 import { zhCNNavigation, zhTWNavigation } from './locales/navigation.ts';
 import { zhCNReader, zhTWReader } from './locales/reader.ts';
 import { zhCNSettings, zhTWSettings } from './locales/settings.ts';
+import { zhCNUser, zhTWUser } from './locales/user.ts';
 
 export const zhCNResources = {
   auth: zhCNAuth,
@@ -16,6 +17,7 @@ export const zhCNResources = {
   navigation: zhCNNavigation,
   reader: zhCNReader,
   settings: zhCNSettings,
+  user: zhCNUser,
 } as const;
 
 export const zhTWResources = {
@@ -27,6 +29,7 @@ export const zhTWResources = {
   navigation: zhTWNavigation,
   reader: zhTWReader,
   settings: zhTWSettings,
+  user: zhTWUser,
 } as const;
 
 export type TranslationNamespace = keyof typeof zhCNResources;
