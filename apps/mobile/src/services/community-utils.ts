@@ -103,7 +103,6 @@ export function findCommunityReply(
 export type NotificationActionTarget =
   | { kind: 'book'; bookId: number }
   | { kind: 'announcement'; announcementId: number }
-  | { kind: 'series'; seriesTitle: string }
   | { kind: 'communityThread'; threadId: number; replyId: number | null };
 
 export function resolveNotificationAction(
@@ -118,10 +117,6 @@ export function resolveNotificationAction(
     case 'open_announcement': {
       const announcementId = positiveInteger(action.data.announcement_id);
       return announcementId === null ? null : { announcementId, kind: 'announcement' };
-    }
-    case 'open_series': {
-      const seriesTitle = nonEmptyString(action.data.series_title);
-      return seriesTitle === null ? null : { kind: 'series', seriesTitle };
     }
     case 'open_community_thread': {
       const threadId = positiveInteger(action.data.thread_id);
@@ -141,10 +136,4 @@ function positiveInteger(value: unknown): number | null {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
     ? value
     : null;
-}
-
-function nonEmptyString(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const normalized = value.trim();
-  return normalized.length > 0 ? normalized : null;
 }

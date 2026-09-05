@@ -12,51 +12,31 @@ import {
   toCommentTargetRouteParams,
 } from './comment-target.ts';
 
-test('comic comments route to the official series target', () => {
-  const routeParams = toBookCommentRouteParams({
-    bookId: 42,
-    bookType: 'Comic',
-    seriesTitle: '  Comic series  ',
-  });
-  assert.deepEqual(routeParams, {
-    commentType: 'Series',
-    id: '42',
-    seriesTitle: 'Comic series',
-  });
+test('comic comments use the Book target namespace', () => {
+  const routeParams = toBookCommentRouteParams({ bookId: 42 });
+  assert.deepEqual(routeParams, { commentType: 'Book', id: '42' });
 
   const target = resolveBookCommentTarget({
     bookId: Number(routeParams.id),
     commentType: routeParams.commentType,
-    seriesTitle: routeParams.seriesTitle,
   });
-  assert.deepEqual(target, {
-    type: 'Series',
-    id: 0,
-    seriesTitle: 'Comic series',
-  });
-  assert.equal(getCommentTargetKey(target), 'Series:0:Comic series');
-  assert.deepEqual(toCommentTargetRouteParams(target), {
-    commentType: 'Series',
-    seriesTitle: 'Comic series',
-  });
+  assert.deepEqual(target, { type: 'Book', id: 42 });
+  assert.equal(getCommentTargetKey(target), 'Book:42');
+  assert.deepEqual(toCommentTargetRouteParams(target), { commentType: 'Book' });
 });
 
-test('series comment refresh signals cannot cross series namespaces', () => {
-  const firstSeries = { type: 'Series', id: 0, seriesTitle: 'First series' };
-  const secondSeries = { type: 'Series', id: 0, seriesTitle: 'Second series' };
+test('comment refresh signals are scoped by book id', () => {
+  const firstBook = { type: 'Book', id: 41 };
+  const secondBook = { type: 'Book', id: 42 };
 
-  markCommentsChanged(firstSeries);
-  assert.equal(consumeCommentsChanged(secondSeries), false);
-  assert.equal(consumeCommentsChanged(firstSeries), true);
-  assert.equal(consumeCommentsChanged(firstSeries), false);
+  markCommentsChanged(firstBook);
+  assert.equal(consumeCommentsChanged(secondBook), false);
+  assert.equal(consumeCommentsChanged(firstBook), true);
+  assert.equal(consumeCommentsChanged(firstBook), false);
 });
 
-test('novel comments retain their positive book target', () => {
-  const routeParams = toBookCommentRouteParams({
-    bookId: 17,
-    bookType: 'Novel',
-    seriesTitle: 'Ignored series',
-  });
+test('novel and comic comments retain their positive book target', () => {
+  const routeParams = toBookCommentRouteParams({ bookId: 17 });
   assert.deepEqual(routeParams, { commentType: 'Book', id: '17' });
   assert.deepEqual(resolveBookCommentTarget({
     bookId: Number(routeParams.id),
@@ -64,14 +44,9 @@ test('novel comments retain their positive book target', () => {
   }), { type: 'Book', id: 17 });
 });
 
-test('malformed series route params cannot silently enter the book namespace', () => {
-  assert.deepEqual(resolveBookCommentTarget({
-    bookId: 9,
-    commentType: 'Series',
-    seriesTitle: ' ',
-  }), { type: 'Series', id: 0 });
+test('removed series comment route params are rejected', () => {
   assert.throws(
-    () => resolveBookCommentTarget({ bookId: 9, commentType: 'series' }),
+    () => resolveBookCommentTarget({ bookId: 9, commentType: 'Series' }),
     /unknown comment target type/i,
   );
 });

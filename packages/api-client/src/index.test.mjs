@@ -14,6 +14,7 @@ import {
   decodeCommentPage,
   decodeCommunityHome,
   decodeCommunityThread,
+  decodeCommunityThreadLockResult,
   decodeBuyShopItemResult,
   decodeOwnedShopItemsData,
   decodePointLogPage,
@@ -47,7 +48,15 @@ test('decodes book details whose optional Web-Master text fields are empty', () 
       Favorite: 0,
       Views: 0,
       CanEdit: false,
-      Chapter: [{ Id: 100, Title: 'Chapter 1' }],
+      Chapters: [{
+        Id: 100,
+        SortNum: 3,
+        Title: 'Chapter 1',
+        CreatedAt: '2026-01-01T00:00:00.000Z',
+        UpdatedAt: null,
+        PageCount: 12,
+        DownloadCost: 0,
+      }],
       User: { Id: 4, UserName: 'uploader', Avatar: '' },
       Extra: {
         classification: {
@@ -66,6 +75,8 @@ test('decodes book details whose optional Web-Master text fields are empty', () 
   assert.equal(detail.lastUpdatedChapter, null);
   assert.equal(detail.classification.seriesName, null);
   assert.equal(detail.classification.seriesNameCn, null);
+  assert.equal(detail.chapters[0].sortNum, 3);
+  assert.equal(detail.chapters[0].pageCount, 12);
 });
 
 test('strictly decodes the Web-Master public user summary', () => {
@@ -788,7 +799,7 @@ test('decodes a later Web-Master comment page without losing its page metadata',
   assert.equal(page.items[0].replies[0].replyToUser?.id, 4);
 });
 
-test('maps comic comments to the official Web series Hub contract', async () => {
+test('maps comic comments to the current Book comment Hub contract', async () => {
   const calls = [];
   const client = new ApiClient(
     { async request() { throw new Error('not used'); } },
@@ -814,7 +825,7 @@ test('maps comic comments to the official Web series Hub contract', async () => 
     null,
     new RateLimitRequestScheduler(20, 10),
   );
-  const target = { type: 'Series', id: 0, seriesTitle: 'Comic series' };
+  const target = { type: 'Book', id: 42 };
 
   const firstPage = await client.getComments({ ...target, page: 1 });
   const secondPage = await client.getComments({ ...target, page: 2 });
@@ -831,43 +842,19 @@ test('maps comic comments to the official Web series Hub contract', async () => 
   assert.deepEqual(calls, [
     {
       method: 'GetComments',
-      args: [{
-        Type: 'Series',
-        Id: 0,
-        Page: 1,
-        Size: 10,
-        SeriesTitle: 'Comic series',
-      }, { UseGzip: true }],
+      args: [{ Type: 'Book', Id: 42, Page: 1, Size: 10 }, { UseGzip: true }],
     },
     {
       method: 'GetComments',
-      args: [{
-        Type: 'Series',
-        Id: 0,
-        Page: 2,
-        Size: 10,
-        SeriesTitle: 'Comic series',
-      }, { UseGzip: true }],
+      args: [{ Type: 'Book', Id: 42, Page: 2, Size: 10 }, { UseGzip: true }],
     },
     {
       method: 'PostComment',
-      args: [{
-        Type: 'Series',
-        Id: 0,
-        Content: 'Root comment',
-        SeriesTitle: 'Comic series',
-      }, { UseGzip: true }],
+      args: [{ Type: 'Book', Id: 42, Content: 'Root comment' }, { UseGzip: true }],
     },
     {
       method: 'ReplyComment',
-      args: [{
-        Type: 'Series',
-        Id: 0,
-        Content: 'Reply',
-        SeriesTitle: 'Comic series',
-        ParentId: 7,
-        ReplyId: 8,
-      }, { UseGzip: true }],
+      args: [{ Type: 'Book', Id: 42, Content: 'Reply', ParentId: 7, ReplyId: 8 }, { UseGzip: true }],
     },
   ]);
 });
@@ -1475,6 +1462,7 @@ test('maps every Community and notification operation to the gzip Hub contract',
           },
           UpdateCommunityThread: { Id: 3 },
           DeleteCommunityThread: { Id: 3 },
+          SetCommunityThreadLocked: { Id: 3, Locked: true },
           DeleteCommunityReply: { Id: 4, Removed: 1 },
           CreateCommunityThread: thread,
           CreateCommunityReply: { Id: 4, AuthorId: 7, Content: 'reply' },
@@ -1504,6 +1492,7 @@ test('maps every Community and notification operation to the gzip Hub contract',
     threadId: 3, boardKey: 'general', subCategoryKey: 'news', title: 'A title', contentHtml: '<p>Body</p>',
   }), { id: 3 });
   assert.deepEqual(await client.deleteCommunityThread(3), { id: 3 });
+  assert.deepEqual(await client.setCommunityThreadLocked(3, true), { id: 3, locked: true });
   assert.deepEqual(await client.deleteCommunityReply(4), { id: 4, removed: 1 });
   await client.createCommunityThread({ boardKey: 'general', title: 'A title', contentHtml: '<p>Body</p>' });
   await client.createCommunityReply({ threadId: 3, content: 'reply', replyToId: 4 });
@@ -1522,6 +1511,7 @@ test('maps every Community and notification operation to the gzip Hub contract',
     'GetCommunityThreadEditInfo',
     'UpdateCommunityThread',
     'DeleteCommunityThread',
+    'SetCommunityThreadLocked',
     'DeleteCommunityReply',
     'CreateCommunityThread',
     'CreateCommunityReply',
@@ -1548,16 +1538,17 @@ test('maps every Community and notification operation to the gzip Hub contract',
     Title: 'A title', ContentHtml: '<p>Body</p>',
   });
   assert.deepEqual(calls[5].args[0], { ThreadId: 3 });
-  assert.deepEqual(calls[6].args[0], { ReplyId: 4 });
-  assert.deepEqual(calls[7].args[0], {
+  assert.deepEqual(calls[6].args[0], { ThreadId: 3, Locked: true });
+  assert.deepEqual(calls[7].args[0], { ReplyId: 4 });
+  assert.deepEqual(calls[8].args[0], {
     BoardKey: 'general', SubCategoryKey: '', Title: 'A title', ContentHtml: '<p>Body</p>',
   });
-  assert.deepEqual(calls[8].args[0], { ThreadId: 3, Content: 'reply', ReplyToId: 4 });
-  assert.deepEqual(calls[12].args[0], {
+  assert.deepEqual(calls[9].args[0], { ThreadId: 3, Content: 'reply', ReplyToId: 4 });
+  assert.deepEqual(calls[13].args[0], {
     ThreadId: 3, ParentReplyId: 4, Page: 2, Size: 3, AfterReplyId: 8,
   });
-  assert.deepEqual(calls[14].args[0], { Page: 1, Size: 20 });
-  assert.deepEqual(calls[15].args[0], { Ids: [7, 8] });
+  assert.deepEqual(calls[15].args[0], { Page: 1, Size: 20 });
+  assert.deepEqual(calls[16].args[0], { Ids: [7, 8] });
 });
 
 test('decodes the Web-Master notification contract and safely degrades tone', () => {

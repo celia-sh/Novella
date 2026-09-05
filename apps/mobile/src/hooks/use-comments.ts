@@ -30,7 +30,7 @@ const initialState: CommentsState = {
 
 export function useComments(target: CommentTarget) {
   const { t } = useTranslation('community');
-  const { id, seriesTitle, type } = target;
+  const { id, type } = target;
   const localizeError = useCallback(
     (error: unknown) => getCommentErrorMessage(error, (key) => t(key)),
     [t],
@@ -72,7 +72,6 @@ export function useComments(target: CommentTarget) {
         type,
         id,
         page: pageNumber,
-        ...(seriesTitle === undefined ? {} : { seriesTitle }),
       });
       if (requestGeneration !== requestGenerationRef.current) return null;
       if (showSkeleton) await waitForMinimumDisplay(startedAt);
@@ -113,7 +112,7 @@ export function useComments(target: CommentTarget) {
     } finally {
       if (append) loadingMoreRef.current = false;
     }
-  }, [id, localizeError, seriesTitle, type]);
+  }, [id, localizeError, type]);
 
   useEffect(() => {
     void load();
@@ -216,7 +215,6 @@ export function useComments(target: CommentTarget) {
         type,
         id,
         content,
-        ...(seriesTitle === undefined ? {} : { seriesTitle }),
       })),
     refresh,
     replyToComment: (
@@ -228,7 +226,6 @@ export function useComments(target: CommentTarget) {
         type,
         id,
         content,
-        ...(seriesTitle === undefined ? {} : { seriesTitle }),
         parentId,
         ...(replyId === undefined ? {} : { replyId }),
       };

@@ -242,6 +242,9 @@ export interface BookSearchRequest {
 }
 
 export interface ComicSeriesListItem {
+  /** Concrete comic volume/book id used by GetBookInfo. */
+  bookId: number;
+  /** Stable display title for the grouped comic series. */
   id: number;
   title: string;
   originalTitle: string | null;
@@ -261,7 +264,7 @@ export interface ComicSeriesListPage {
  * novels and comics render through the same grid card. */
 export function comicToBookListItem(comic: ComicSeriesListItem): BookListItem {
   return {
-    id: comic.id,
+    id: comic.bookId,
     type: 'Comic',
     title: comic.title,
     seriesTitle: null,
@@ -309,6 +312,16 @@ export interface UserShelf {
 export interface BookChapter {
   id: number;
   title: string;
+  sortNum: number;
+  pageCount: number;
+  downloadCost: number;
+}
+
+export interface BookSeriesItem {
+  id: number;
+  title: string;
+  coverUrl: string;
+  coverPlaceholder: string | null;
 }
 
 export interface BookClassification {
@@ -335,6 +348,8 @@ export interface BookDetail {
   coverUrl: string;
   coverPlaceholder: string | null;
   title: string;
+  seriesTitle: string | null;
+  series: BookSeriesItem[];
   authorName: string | null;
   category: BookCategory | null;
   introduction: string;
@@ -344,6 +359,8 @@ export interface BookDetail {
   favoriteCount: number;
   viewCount: number;
   canEdit: boolean;
+  canDownload: boolean;
+  downloadCost: number;
   chapters: BookChapter[];
   user: BookDetailUser | null;
   classification: BookClassification;
@@ -474,7 +491,7 @@ export interface SaveReadPositionRequest {
   position: string;
 }
 
-export type CommentTargetType = 'Book' | 'Announcement' | 'Series';
+export type CommentTargetType = 'Book' | 'Announcement';
 
 export interface CommentUser {
   id: number;
@@ -510,14 +527,12 @@ export interface GetCommentsRequest {
   type: CommentTargetType;
   id: number;
   page: number;
-  seriesTitle?: string;
 }
 
 export interface PostCommentRequest {
   type: CommentTargetType;
   id: number;
   content: string;
-  seriesTitle?: string;
   parentId?: number;
   replyId?: number;
 }
@@ -807,6 +822,11 @@ export interface UpdateCommunityThreadRequest extends CreateCommunityThreadReque
 
 export interface CommunityThreadMutationResult {
   id: number;
+}
+
+export interface CommunityThreadLockResult {
+  id: number;
+  locked: boolean;
 }
 
 export interface CommunityReplyDeletionResult {
@@ -1192,21 +1212,6 @@ export class ApiClient {
     );
   }
 
-  getComicInfo(id: number): Promise<ComicInfo> {
-    return this.invoke('GetComicInfo', { Id: id }, decodeComicInfo);
-  }
-
-  getComicSeriesInfo(
-    seriesTitle: string,
-    order: ComicOrder = 'latest',
-  ): Promise<ComicSeriesDetail> {
-    return this.invoke(
-      'GetComicSeriesInfo',
-      { SeriesTitle: seriesTitle, Order: order },
-      decodeComicSeriesDetail,
-    );
-  }
-
   getComicContent(request: ComicContentRequest): Promise<ComicContent> {
     return this.invoke(
       'GetComicContent',
@@ -1239,9 +1244,6 @@ export class ApiClient {
         Id: request.id,
         Page: request.page,
         Size: COMMENTS_PAGE_SIZE,
-        ...(request.seriesTitle === undefined
-          ? {}
-          : { SeriesTitle: request.seriesTitle }),
       },
       decodeCommentPage,
     );
@@ -1336,6 +1338,17 @@ export class ApiClient {
       'DeleteCommunityThread',
       { ThreadId: threadId },
       decodeCommunityThreadMutationResult,
+    );
+  }
+
+  setCommunityThreadLocked(
+    threadId: number,
+    locked: boolean,
+  ): Promise<CommunityThreadLockResult> {
+    return this.invoke(
+      'SetCommunityThreadLocked',
+      { ThreadId: threadId, Locked: locked },
+      decodeCommunityThreadLockResult,
     );
   }
 
@@ -2136,6 +2149,13 @@ export function decodeCommunityThreadMutationResult(
   return { id: asNumber(response.Id) };
 }
 
+export function decodeCommunityThreadLockResult(
+  value: unknown,
+): CommunityThreadLockResult {
+  const response = asRecord(value, 'community thread lock response');
+  return { id: asNumber(response.Id), locked: asBoolean(response.Locked, false) };
+}
+
 export function decodeCommunityReplyDeletionResult(
   value: unknown,
 ): CommunityReplyDeletionResult {
@@ -2491,6 +2511,8 @@ export function decodeBookDetail(value: unknown): BookDetail {
     coverUrl: normalizeCoverUrl(rawCoverUrl),
     coverPlaceholder: extractBlurHashPlaceholder(rawCoverUrl),
     title: asString(book.Title),
+    seriesTitle: asNullableString(response.SeriesTitle),
+    series: decodeBookSeries(response.Series),
     authorName: asNullableString(book.Author),
     category,
     introduction: asStringOrEmpty(book.Introduction),
@@ -2500,7 +2522,9 @@ export function decodeBookDetail(value: unknown): BookDetail {
     favoriteCount: asNumber(book.Favorite, 0),
     viewCount: asNumber(book.Views, 0),
     canEdit: book.CanEdit === true,
-    chapters: decodeBookChapters(book.Chapter),
+    canDownload: book.CanDownload === true,
+    downloadCost: Math.max(0, asNumber(book.DownloadCost, 0)),
+    chapters: decodeBookChapters(book.Chapters ?? book.Chapter),
     user: decodeBookDetailUser(book.User),
     classification,
     readPosition: decodeBookReadPosition(response.ReadPosition),
@@ -2664,9 +2688,6 @@ function encodeCommentRequest(request: PostCommentRequest): JsonValue {
     Type: request.type,
     Id: request.id,
     Content: request.content,
-    ...(request.seriesTitle === undefined
-      ? {}
-      : { SeriesTitle: request.seriesTitle }),
     ...(request.parentId === undefined ? {} : { ParentId: request.parentId }),
     ...(request.replyId === undefined ? {} : { ReplyId: request.replyId }),
   };
@@ -2731,6 +2752,7 @@ function decodeComicSeriesListItem(value: unknown): ComicSeriesListItem {
   const rawCoverUrl = asString(comic.Cover);
   const coverUrl = normalizeCoverUrl(rawCoverUrl);
   return {
+    bookId: asNumber(comic.Id),
     id: asNumber(comic.Id),
     title: asString(comic.Title),
     originalTitle: asNullableString(comic.OriginalTitle),
@@ -2830,9 +2852,29 @@ function decodeBookClassification(value: unknown): BookClassification {
 
 function decodeBookChapters(value: unknown): BookChapter[] {
   if (!Array.isArray(value)) return [];
-  return value.map((item) => {
+  return value.map((item, index) => {
     const chapter = asRecord(item, 'book chapter');
-    return { id: asNumber(chapter.Id), title: asString(chapter.Title) };
+    return {
+      id: asNumber(chapter.Id),
+      title: asString(chapter.Title),
+      sortNum: Math.max(1, asNumber(chapter.SortNum, index + 1)),
+      pageCount: Math.max(0, asNumber(chapter.PageCount, 0)),
+      downloadCost: Math.max(0, asNumber(chapter.DownloadCost, 0)),
+    };
+  });
+}
+
+function decodeBookSeries(value: unknown): BookSeriesItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const series = asRecord(item, 'book series item');
+    const rawCoverUrl = asString(series.Cover);
+    return {
+      id: asNumber(series.Id),
+      title: asString(series.Title),
+      coverUrl: normalizeCoverUrl(rawCoverUrl),
+      coverPlaceholder: extractBlurHashPlaceholder(rawCoverUrl),
+    };
   });
 }
 

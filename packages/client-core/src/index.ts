@@ -14,6 +14,7 @@ import {
   type CommunityReplyDeletionResult,
   type CommunityThreadDetail,
   type CommunityThreadEditInfo,
+  type CommunityThreadLockResult,
   type CommunityThreadMutationResult,
   type CommunityThreadReply,
   type CreateCommunityReplyRequest,
@@ -30,9 +31,7 @@ import {
   type BuyShopItemResult,
   type ComicContent,
   type ComicContentRequest,
-  type ComicInfo,
   type ComicOrder,
-  type ComicSeriesDetail,
   type ComicSeriesListPage,
   type ComicSeriesListItem,
   type CommentPage,
@@ -175,10 +174,7 @@ export interface BookDetailUseCase {
   load(bookId: number): Promise<BookDetail>;
 }
 
-export interface ComicDetailUseCase {
-  load(bookId: number): Promise<BookDetail>;
-  resolveSeriesTitle(bookId: number): Promise<string>;
-}
+export interface ComicDetailUseCase extends BookDetailUseCase {}
 
 export interface BookSearchUseCase {
   searchNovels(request: BookSearchRequest, signal?: AbortSignal): Promise<BookListPage>;
@@ -195,8 +191,6 @@ export interface HistoryUseCase {
 export interface ReaderUseCase {
   loadChapter(request: NovelContentRequest): Promise<NovelContent>;
   preloadChapter(request: NovelContentRequest, signal?: AbortSignal): Promise<NovelContent>;
-  loadComicInfo(bookId: number): Promise<ComicInfo>;
-  loadComicSeriesInfo(seriesTitle: string): Promise<ComicSeriesDetail>;
   loadComicContent(request: ComicContentRequest): Promise<ComicContent>;
   savePosition(request: SaveReadPositionRequest): Promise<void>;
 }
@@ -221,6 +215,7 @@ export interface CommunityUseCase {
   createThread(request: CreateCommunityThreadInput): Promise<CommunityThreadDetail>;
   deleteReply(replyId: number): Promise<CommunityReplyDeletionResult>;
   deleteThread(threadId: number): Promise<CommunityThreadMutationResult>;
+  setThreadLocked(threadId: number, locked: boolean): Promise<CommunityThreadLockResult>;
   loadFeed(query?: CommunityListQuery, signal?: AbortSignal): Promise<CommunityFeedPayload>;
   loadHome(query?: CommunityListQuery, signal?: AbortSignal): Promise<CommunityHomePayload>;
   loadMyOverview(signal?: AbortSignal): Promise<CommunityMyOverview>;
@@ -781,43 +776,9 @@ export function createComicDetailUseCase(api: ApiClient): ComicDetailUseCase {
   return Object.freeze({
     load(bookId: number) {
       assertValidBookId(bookId);
-      return api.getComicInfo(bookId).then(toBookDetail);
-    },
-    async resolveSeriesTitle(bookId: number) {
-      assertValidBookId(bookId);
-      const page = await api.getComicSeriesByIds([bookId]);
-      const seriesTitle = page.items[0]?.title.trim();
-      if (!seriesTitle) throw new Error('The comic series title is unavailable.');
-      return seriesTitle;
+      return api.getBookInfo(bookId);
     },
   });
-}
-
-/** Normalize the comic detail payload into the shared `BookDetail` shape so
- * the detail page renders one UI for novels and comics alike. Comic chapters
- * carry their own `sortNum`, but the detail page derives the sort number from
- * the chapter order (contiguous 1..N), which the reader resolves the same way. */
-export function toBookDetail(info: ComicInfo): BookDetail {
-  return {
-    id: info.id,
-    type: 'Comic',
-    coverUrl: info.coverUrl,
-    coverPlaceholder: info.coverPlaceholder,
-    title: info.title,
-    authorName: info.authorName,
-    category: null,
-    introduction: info.introduction,
-    lastUpdatedChapter: info.lastUpdatedChapter,
-    lastUpdatedAt: info.lastUpdatedAt,
-    createdAt: info.createdAt,
-    favoriteCount: info.favoriteCount,
-    viewCount: info.views,
-    canEdit: false,
-    chapters: info.chapters.map((chapter) => ({ id: chapter.id, title: chapter.title })),
-    user: info.user,
-    classification: info.classification,
-    readPosition: info.readPosition,
-  };
 }
 
 export function createBookSearchUseCase(api: ApiClient): BookSearchUseCase {
@@ -906,16 +867,6 @@ export function createReaderUseCase(api: ApiClient): ReaderUseCase {
     preloadChapter(request: NovelContentRequest, signal?: AbortSignal) {
       return loadChapter(request, 'preload', signal);
     },
-    loadComicInfo(bookId: number) {
-      assertValidBookId(bookId);
-      return api.getComicInfo(bookId);
-    },
-    loadComicSeriesInfo(seriesTitle: string) {
-      if (!seriesTitle.trim()) {
-        return Promise.reject(new Error('A comic series title is required.'));
-      }
-      return api.getComicSeriesInfo(seriesTitle);
-    },
     loadComicContent(request: ComicContentRequest) {
       assertPositiveInteger(request.chapterId, 'A valid comic chapter id is required.');
       if (request.skip !== undefined) assertNonNegativeInteger(request.skip, 'A valid image offset is required.');
@@ -997,6 +948,11 @@ export function createCommunityUseCase(api: ApiClient): CommunityUseCase {
     deleteThread(threadId: number) {
       assertPositiveInteger(threadId, 'A valid Community thread id is required.');
       return api.deleteCommunityThread(threadId);
+    },
+    setThreadLocked(threadId: number, locked: boolean) {
+      assertPositiveInteger(threadId, 'A valid Community thread id is required.');
+      if (typeof locked !== 'boolean') throw new Error('A valid thread lock state is required.');
+      return api.setCommunityThreadLocked(threadId, locked);
     },
     loadFeed(query: CommunityListQuery = {}, signal?: AbortSignal) {
       assertCommunityListQuery(query);
@@ -1849,17 +1805,8 @@ function assertPageSize(value: number): void {
 }
 
 function assertCommentTarget(
-  request: Pick<GetCommentsRequest, 'id' | 'seriesTitle' | 'type'>,
+  request: Pick<GetCommentsRequest, 'id' | 'type'>,
 ): void {
-  if (request.type === 'Series') {
-    if (request.id !== 0) {
-      throw new Error('A series comment target id must be zero.');
-    }
-    if (!request.seriesTitle?.trim()) {
-      throw new Error('A series title is required for series comments.');
-    }
-    return;
-  }
   assertPositiveInteger(request.id, 'A valid comment target id is required.');
 }
 

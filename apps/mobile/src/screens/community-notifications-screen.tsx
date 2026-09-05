@@ -38,7 +38,7 @@ import {
   formatCommunityTime,
   resolveNotificationAction,
 } from '@/services/community-utils';
-import { reader } from '@/services/client';
+import { bookDetails } from '@/services/client';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 import { resolveStringColor } from '@/theme/color-values';
 
@@ -50,25 +50,24 @@ export function CommunityNotificationsScreen() {
   const { loadMore, mark, markAll, refresh, retry, state } = useCommunityNotifications();
   const hasUnread = state.items.some((item) => !item.isRead);
 
-  const openSeries = useCallback(async (seriesTitle: string) => {
+  const openBook = useCallback(async (bookId: number) => {
     try {
-      const series = await reader.loadComicSeriesInfo(seriesTitle);
-      const volume = series.volumes[0];
-      if (!volume) throw new Error('empty-series');
+      const book = await bookDetails.load(bookId);
+      if (book.type === null) throw new Error('The book type is unavailable.');
       router.push({
         pathname: '/book/[id]',
         params: {
-          cover: volume.coverUrl,
-          id: String(volume.id),
-          placeholder: volume.coverPlaceholder ?? '',
-          seriesTitle,
-          title: volume.title,
-          type: 'Comic',
+          cover: book.coverUrl,
+          id: String(book.id),
+          placeholder: book.coverPlaceholder ?? '',
+          ...(book.seriesTitle === null ? {} : { seriesTitle: book.seriesTitle }),
+          title: book.title,
+          type: book.type,
         },
       });
     } catch {
       showAlert(
-        seriesTitle,
+        t('notifications.fallbackTitle'),
         t('notifications.targetUnavailable'),
         [{ text: tCommon('actions.confirm') }],
       );
@@ -99,10 +98,7 @@ export function CommunityNotificationsScreen() {
         });
         return;
       case 'book':
-        router.push({
-          pathname: '/book/[id]',
-          params: { id: String(target.bookId), type: 'Novel' },
-        });
+        void openBook(target.bookId);
         return;
       case 'announcement':
         router.push({
@@ -110,11 +106,8 @@ export function CommunityNotificationsScreen() {
           params: { id: String(target.announcementId), source: 'server' },
         });
         return;
-      case 'series':
-        void openSeries(target.seriesTitle);
-        return;
     }
-  }, [mark, openSeries, t, tCommon]);
+  }, [mark, openBook, t, tCommon]);
 
   const renderNotification = useCallback(
     ({ item }: { item: AppNotificationItem }) => (

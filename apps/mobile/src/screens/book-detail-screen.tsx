@@ -172,6 +172,8 @@ function createLoadingBookDetail({
     coverUrl: coverUrl ?? '',
     coverPlaceholder: null,
     title: initialTitle?.trim() ?? '',
+    seriesTitle: null,
+    series: [],
     authorName: null,
     category: null,
     introduction: '',
@@ -181,6 +183,8 @@ function createLoadingBookDetail({
     favoriteCount: 0,
     viewCount: 0,
     canEdit: false,
+    canDownload: false,
+    downloadCost: 0,
     chapters: [],
     user: null,
     classification: { author: null, seriesName: null, seriesNameCn: null, tags: [] },
@@ -220,7 +224,9 @@ function BookDetailContent({
   const horizontalPadding = Math.max(20, (width - 640) / 2);
   const contentWidth = Math.max(1, width - horizontalPadding * 2);
   const currentSortNum = getCurrentSortNum(book);
-  const resumeChapter = currentSortNum ? book.chapters[currentSortNum - 1] : undefined;
+  const resumeChapter = currentSortNum
+    ? book.chapters.find((chapter) => chapter.sortNum === currentSortNum)
+    : undefined;
   const settings = useAppSettings();
   const searchFormat = book.type === 'Comic' || bookType === 'Comic' ? 'Comic' : 'Novel';
   const titleSearchTarget = resolveBookQuickSearch(book, 'title', settings.seriesSearchMode);
@@ -838,8 +844,8 @@ function BookDetailError({
 
 function getCurrentSortNum(book: BookDetail): number | null {
   if (!book.readPosition) return null;
-  const index = book.chapters.findIndex((chapter) => chapter.id === book.readPosition?.chapterId);
-  return index < 0 ? null : index + 1;
+  const chapter = book.chapters.find((item) => item.id === book.readPosition?.chapterId);
+  return chapter?.sortNum ?? null;
 }
 
 function openReader(bookId: number, type: 'Novel' | 'Comic', sortNum: number) {

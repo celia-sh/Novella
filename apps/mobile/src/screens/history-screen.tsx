@@ -91,7 +91,7 @@ export function HistoryScreen() {
       pathname: '/book/[id]',
       params: {
         cover: item.coverUrl,
-        id: String(item.id),
+        id: String(item.bookId),
         placeholder: item.coverPlaceholder ?? '',
         seriesTitle: item.title,
         title: item.title,

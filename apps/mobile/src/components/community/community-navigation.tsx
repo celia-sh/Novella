@@ -35,12 +35,16 @@ export function CommunityHomeNavigation() {
 
 export function CommunityThreadNavigation({
   disabled,
+  locked,
   onDelete,
   onEdit,
+  onToggleLocked,
 }: {
   disabled: boolean;
+  locked: boolean;
   onDelete(): void;
   onEdit(): void;
+  onToggleLocked(): void;
 }) {
   const { t } = useTranslation('community');
   return (
@@ -52,6 +56,13 @@ export function CommunityThreadNavigation({
           onPress={onEdit}
         >
           {t('actions.editThread')}
+        </Stack.Toolbar.MenuAction>
+        <Stack.Toolbar.MenuAction
+          disabled={disabled}
+          icon={locked ? 'lock.open' : 'lock'}
+          onPress={onToggleLocked}
+        >
+          {locked ? t('actions.unlockThread') : t('actions.lockThread')}
         </Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction
           destructive
