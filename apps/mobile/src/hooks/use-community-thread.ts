@@ -54,6 +54,7 @@ export function useCommunityThread({
   const focusGenerationRef = useRef(0);
   const operationRef = useRef<'idle' | 'loadMore' | 'reload'>('idle');
   const replyOperationRef = useRef<string | null>(null);
+  const focusTargetKeyRef = useRef<string | null>(null);
 
   const load = useCallback(async ({
     append = false,
@@ -123,8 +124,15 @@ export function useCommunityThread({
   }, [load]);
 
   useEffect(() => {
+    focusTargetKeyRef.current = null;
+  }, [parentReplyId, replyId, threadId]);
+
+  useEffect(() => {
     const initialThread = state.thread;
     if (!replyId || !initialThread) return;
+    const focusKey = `${threadId}:${parentReplyId ?? 0}:${replyId}`;
+    if (focusTargetKeyRef.current === focusKey) return;
+    focusTargetKeyRef.current = focusKey;
     const focusGeneration = ++focusGenerationRef.current;
     void (async () => {
       let thread: CommunityThreadDetail = initialThread;

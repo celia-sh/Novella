@@ -178,6 +178,7 @@ function MyReplyCard({ reply }: { reply: CommunityMyReplyItem }) {
           pathname: "/thread/[id]",
           params: {
             id: String(reply.threadId),
+            replyId: String(reply.id),
           },
         })
       }
