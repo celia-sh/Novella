@@ -344,7 +344,8 @@ export interface ShopUseCase {
   getSnapshot(): ShopSnapshot | null;
   load(): Promise<ShopSnapshot>;
   loadSignInCalendar(year: number, month: number): Promise<SignInCalendar>;
-  subscribe(listener: (snapshot: ShopSnapshot) => void): () => void;
+  reset(): void;
+  subscribe(listener: (snapshot: ShopSnapshot | null) => void): () => void;
   useComicQuotaCard(): Promise<ShopQuotaOutcome>;
   useSignMakeupCard(date: string): Promise<ShopMakeupOutcome>;
 }
@@ -1263,7 +1264,7 @@ export function createShopUseCase(api: ApiClient): ShopUseCase {
   let latest: ShopSnapshot | null = null;
   let generation = 0;
   let mutationQueue = Promise.resolve();
-  const listeners = new Set<(snapshot: ShopSnapshot) => void>();
+  const listeners = new Set<(snapshot: ShopSnapshot | null) => void>();
 
   function publish(snapshot: ShopSnapshot): ShopSnapshot {
     latest = snapshot;
@@ -1386,7 +1387,12 @@ export function createShopUseCase(api: ApiClient): ShopUseCase {
       }
       return api.getSignInCalendar(year, month);
     },
-    subscribe(listener: (snapshot: ShopSnapshot) => void) {
+    reset() {
+      generation += 1;
+      latest = null;
+      for (const listener of listeners) listener(null);
+    },
+    subscribe(listener: (snapshot: ShopSnapshot | null) => void) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },

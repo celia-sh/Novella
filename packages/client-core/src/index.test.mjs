@@ -943,6 +943,10 @@ test('shop repository serializes purchases and publishes authoritative snapshots
   assert.throws(() => useCase.buy('sign_makeup', 0), /positive/);
   await assert.rejects(useCase.useSignMakeupCard('2026/08/01'), /yyyy-MM-dd/);
   await assert.rejects(useCase.useSignMakeupCard('2026-02-31'), /yyyy-MM-dd/);
+
+  useCase.reset();
+  assert.equal(useCase.getSnapshot(), null);
+  assert.equal(published.at(-1), null);
 });
 
 test('shop repository preserves confirmed quota-card state when refresh fails', async () => {

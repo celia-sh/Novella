@@ -93,6 +93,11 @@ authentication = createAuthenticationUseCase(
   credentials,
   signalR,
 );
+authentication.subscribe(({ status }) => {
+  if (status === 'signingIn' || status === 'registering' || status === 'signedOut') {
+    shop.reset();
+  }
+});
 
 export { authentication, storage };
 
