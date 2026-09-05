@@ -116,7 +116,6 @@ export function SignInCredentialsScreen({ initialEmail = '' }: { initialEmail?: 
     setIsSubmitting(true);
     try {
       await authentication.signIn(normalizedEmail, password);
-      router.replace('/');
     } catch (submitError) {
       setError(submitError instanceof Error
         ? { kind: 'raw', text: submitError.message }

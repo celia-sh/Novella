@@ -60,7 +60,6 @@ export default function RegisterVerifyRoute() {
     try {
       await authentication.register({ ...draft, code });
       authFlowSession.clearRegistration();
-      router.replace('/');
     } catch (submitError) {
       setError(getRegisterVerifyError(submitError, 'register.errors.createAccountFailed'));
     } finally {

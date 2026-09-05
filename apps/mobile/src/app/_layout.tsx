@@ -19,6 +19,7 @@ import { ClientRealtimeEvents } from '@/components/client-realtime-events';
 import { ClientSessionFeedback } from '@/components/client-session-feedback';
 import { AppLocalizationProvider } from '@/localization/localization-provider';
 import { useAuthentication } from '@/hooks/use-authentication';
+import { shouldShowAuthenticatedRoutes } from '@/services/auth-route-guard';
 import { hasStoredSession, startClient } from '@/services/client';
 import { loadAppSettings } from '@/services/settings';
 import { AppThemeProvider, useAppTheme } from '@/theme/app-theme';
@@ -81,11 +82,14 @@ function RootLayoutContent() {
     if (authentication.status === 'authenticated') setHadAuthenticatedSession(true);
   }, [authentication.status]);
 
-  const hasAuthenticatedSession = authentication.status === 'authenticated'
-    ? true
-    : authentication.status === 'signedOut'
-      ? false
-      : hadAuthenticatedSession;
+  // A transient refresh keeps an established app route mounted. Credential
+  // acquisition stays in the auth stack until it publishes `authenticated`,
+  // which prevents protected requests during sign-in. Manual sign-out keeps
+  // the current route until it finishes or definitively publishes `signedOut`.
+  const hasAuthenticatedSession = shouldShowAuthenticatedRoutes(
+    authentication.status,
+    hadAuthenticatedSession,
+  );
   const navigationTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
   if (!sessionDecided) {
     // A plain themed frame for the sub-frame probe window (local read only,
