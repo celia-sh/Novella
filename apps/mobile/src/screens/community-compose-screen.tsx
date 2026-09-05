@@ -128,7 +128,6 @@ export function CommunityComposeScreen({
       interactiveTouchRef.current = false;
       return;
     }
-    editorRef.current?.blur();
     void KeyboardController.dismiss();
   }, []);
 
@@ -234,6 +233,7 @@ export function CommunityComposeScreen({
             disableScrollOnKeyboardHide
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
+            mode="layout"
             onTouchEnd={handleScrollTouchEnd}
             style={styles.root}
           >
