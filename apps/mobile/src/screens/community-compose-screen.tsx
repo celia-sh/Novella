@@ -8,10 +8,9 @@ import {
   TextField,
 } from 'heroui-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { KeyboardAwareScrollView, KeyboardController } from 'react-native-keyboard-controller';
 import { useTranslation } from 'react-i18next';
 import {
-  KeyboardAvoidingView,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -48,6 +47,7 @@ export function CommunityComposeScreen({
   const { t } = useTranslation('community');
   const { t: tCommon } = useTranslation('common');
   const editorRef = useRef<CommunityRichEditorHandle>(null);
+  const interactiveTouchRef = useRef(false);
   const [boards, setBoards] = useState<CommunityCatalogBoard[]>([]);
   const [boardKey, setBoardKey] = useState(initialBoardKey);
   const [subCategoryKey, setSubCategoryKey] = useState(initialSubCategoryKey);
@@ -112,6 +112,33 @@ export function CommunityComposeScreen({
     contentText.trim().length >= 20 &&
     (!selectedBoard?.subCategories.length || subCategoryKey),
   );
+
+  const markInteractiveTouch = useCallback(() => {
+    interactiveTouchRef.current = true;
+  }, []);
+
+  const clearInteractiveTouch = useCallback(() => {
+    setTimeout(() => {
+      interactiveTouchRef.current = false;
+    }, 0);
+  }, []);
+
+  const dismissEditorKeyboard = useCallback(() => {
+    if (interactiveTouchRef.current) {
+      interactiveTouchRef.current = false;
+      return;
+    }
+    editorRef.current?.blur();
+    void KeyboardController.dismiss();
+  }, []);
+
+  const handleScrollTouchEnd = useCallback(() => {
+    if (interactiveTouchRef.current) {
+      interactiveTouchRef.current = false;
+      return;
+    }
+    dismissEditorKeyboard();
+  }, [dismissEditorKeyboard]);
 
   async function acceptNotice() {
     setError(null);
@@ -197,19 +224,20 @@ export function CommunityComposeScreen({
       <>
         <Stack.Screen options={{ title: isEditing ? t('navigation.editPost') : t('navigation.newPost') }} />
 
-          <KeyboardAvoidingView
-            behavior="padding"
-            keyboardVerticalOffset={88}
+        <View style={styles.root}>
+          {loading ? (
+            <View style={styles.center}><Spinner /></View>
+          ) : (
+          <KeyboardAwareScrollView
+            bottomOffset={16}
+            contentInsetAdjustmentBehavior="automatic"
+            disableScrollOnKeyboardHide
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+            onTouchEnd={handleScrollTouchEnd}
             style={styles.root}
           >
-        {loading ? (
-          <View style={styles.center}><Spinner /></View>
-        ) : (
-          <ScrollView
-            contentContainerStyle={styles.content}
-            contentInsetAdjustmentBehavior="automatic"
-            keyboardShouldPersistTaps="handled"
-          >
+            <View style={styles.content}>
             {error ? (
               <CommunityErrorState
                 description={error}
@@ -277,6 +305,8 @@ export function CommunityComposeScreen({
                 editable={!publishing}
                 maxLength={60}
                 onChangeText={setTitle}
+                onTouchEnd={clearInteractiveTouch}
+                onTouchStart={markInteractiveTouch}
                 placeholder={t('compose.titlePlaceholder')}
                 value={title}
               />
@@ -295,6 +325,8 @@ export function CommunityComposeScreen({
                 editable={!publishing}
                 initialHtml={initialHtml}
                 onTextChange={setContentText}
+                onTouchEnd={clearInteractiveTouch}
+                onTouchStart={markInteractiveTouch}
                 placeholder={t('compose.postPlaceholder')}
                 ref={editorRef}
               />
@@ -304,9 +336,10 @@ export function CommunityComposeScreen({
                 </View>
               </>
             ) : null}
-          </ScrollView>
+            </View>
+          </KeyboardAwareScrollView>
         )}
-          </KeyboardAvoidingView>
+        </View>
 
         <CommunityPublishNavigation
           accessibilityLabel={isEditing ? t('accessibility.saveThread') : t('accessibility.publishDiscussion')}
