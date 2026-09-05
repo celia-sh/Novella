@@ -356,28 +356,21 @@ test('reader preload marks chapter Hub work as cancellable preload priority', as
   ]]);
 });
 
-test('comic detail resolves the canonical series title from a volume id', async () => {
+test('comic detail loads the unified BookInfo contract by volume id', async () => {
   const requestedIds = [];
-  let items = [{ title: 'Canonical series' }];
+  const detail = { id: 42, type: 'Comic', title: 'Volume', seriesTitle: 'Canonical series' };
   const useCase = createComicDetailUseCase({
-    async getComicSeriesByIds(ids) {
-      requestedIds.push(ids);
-      return { page: 1, totalPages: 1, items };
+    async getBookInfo(id) {
+      requestedIds.push(id);
+      return { ...detail, id };
     },
   });
 
-  assert.equal(await useCase.resolveSeriesTitle(42), 'Canonical series');
-  assert.deepEqual(requestedIds, [[42]]);
-
-  items = [];
-  await assert.rejects(
-    () => useCase.resolveSeriesTitle(42),
-    /series title is unavailable/i,
-  );
-  await assert.rejects(() => useCase.resolveSeriesTitle(0), /valid book id/i);
+  assert.deepEqual(await useCase.load(42), detail);
+  assert.deepEqual(requestedIds, [42]);
 });
 
-test('comments use case accepts the official series target and preserves book validation', async () => {
+test('comments use case accepts comic Book targets and validates ids', async () => {
   const calls = [];
   const useCase = createCommentsUseCase({
     async getComments(request) {
@@ -391,29 +384,19 @@ test('comments use case accepts the official series target and preserves book va
       calls.push(['reply', request]);
     },
   });
-  const seriesTarget = { type: 'Series', id: 0, seriesTitle: 'Comic series' };
+  const bookTarget = { type: 'Book', id: 42 };
 
-  await useCase.load({ ...seriesTarget, page: 1 });
-  await useCase.load({ ...seriesTarget, page: 2 });
-  await useCase.post({ ...seriesTarget, content: 'Root comment' });
-  await useCase.reply({ ...seriesTarget, content: 'Reply', parentId: 7 });
-  await useCase.load({ type: 'Book', id: 12, page: 1 });
+  await useCase.load({ ...bookTarget, page: 1 });
+  await useCase.load({ ...bookTarget, page: 2 });
+  await useCase.post({ ...bookTarget, content: 'Root comment' });
+  await useCase.reply({ ...bookTarget, content: 'Reply', parentId: 7 });
 
   assert.deepEqual(calls, [
-    ['load', { ...seriesTarget, page: 1 }],
-    ['load', { ...seriesTarget, page: 2 }],
-    ['post', { ...seriesTarget, content: 'Root comment' }],
-    ['reply', { ...seriesTarget, content: 'Reply', parentId: 7 }],
-    ['load', { type: 'Book', id: 12, page: 1 }],
+    ['load', { ...bookTarget, page: 1 }],
+    ['load', { ...bookTarget, page: 2 }],
+    ['post', { ...bookTarget, content: 'Root comment' }],
+    ['reply', { ...bookTarget, content: 'Reply', parentId: 7 }],
   ]);
-  assert.throws(
-    () => useCase.load({ type: 'Series', id: 1, seriesTitle: 'Comic series', page: 1 }),
-    /must be zero/i,
-  );
-  assert.throws(
-    () => useCase.load({ type: 'Series', id: 0, seriesTitle: ' ', page: 1 }),
-    /series title is required/i,
-  );
   assert.throws(
     () => useCase.load({ type: 'Book', id: 0, page: 1 }),
     /valid comment target id/i,
@@ -1513,6 +1496,10 @@ test('Community use case validates input and forwards cancellation and mutations
       calls.push(['deleteReply', id]);
       return Promise.resolve({ id, removed: 1 });
     },
+    setCommunityThreadLocked(id, locked) {
+      calls.push(['threadLocked', id, locked]);
+      return Promise.resolve({ id, locked });
+    },
     toggleCommunityThreadLike(id) {
       calls.push(['threadLike', id]);
       return Promise.resolve({ liked: true, likes: 1 });
@@ -1555,6 +1542,7 @@ test('Community use case validates input and forwards cancellation and mutations
   await useCase.toggleThreadLike(3);
   await useCase.toggleThreadFavorite(3);
   await useCase.toggleReplyLike(4);
+  await useCase.setThreadLocked(3, true);
 
   assert.equal(calls[0][2].signal, signal);
   assert.equal(calls[2][2].signal, signal);
@@ -1575,7 +1563,12 @@ test('Community use case validates input and forwards cancellation and mutations
   });
   assert.deepEqual(calls[9], ['deleteThread', 3]);
   assert.deepEqual(calls[10], ['deleteReply', 4]);
-  assert.throws(() => useCase.loadThread({ threadId: 0 }), /valid Community thread id/i);
+  assert.deepEqual(calls[11], ['threadLike', 3]);
+  assert.deepEqual(calls[12], ['threadFavorite', 3]);
+  assert.deepEqual(calls[13], ['replyLike', 4]);
+  assert.deepEqual(calls[14], ['threadLocked', 3, true]);
+  assert.throws(() => useCase.setThreadLocked(0, true), /valid Community thread id/i);
+  assert.throws(() => useCase.setThreadLocked(3, 'true'), /valid thread lock state/i);
   assert.throws(() => useCase.deleteThread(0), /valid Community thread id/i);
   assert.throws(() => useCase.deleteReply(0), /valid Community reply id/i);
   await assert.rejects(() => useCase.createThread({

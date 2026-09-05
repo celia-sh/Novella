@@ -73,13 +73,10 @@ export function useBookDetail(
         ?? (stateRef.current.status === 'ready' && stateRef.current.book.id === bookId
           ? stateRef.current.seriesTitle
           : null);
-      const [serverBook, isInShelf, cachedPosition, seriesTitle] = await Promise.all([
+      const [serverBook, isInShelf, cachedPosition] = await Promise.all([
         (type === 'Comic' ? comicDetails : bookDetails).load(bookId),
         shelf.contains(bookId),
         getCachedReaderPosition(bookId),
-        type === 'Comic'
-          ? retainedSeriesTitle ?? comicDetails.resolveSeriesTitle(bookId).catch(() => null)
-          : Promise.resolve(null),
       ]);
       if (showSkeleton) await waitForMinimumDisplay(startedAt);
       const hasCachedChapter = cachedPosition
@@ -96,7 +93,7 @@ export function useBookDetail(
         error: null,
         isInShelf,
         isShelfLoading: false,
-        seriesTitle,
+        seriesTitle: serverBook.seriesTitle ?? retainedSeriesTitle,
         shelfError: null,
       });
     } catch (error) {

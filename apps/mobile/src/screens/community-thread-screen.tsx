@@ -98,6 +98,7 @@ export function CommunityThreadScreen({
     toggleReplyLike,
     toggleThreadFavorite,
     toggleThreadLike,
+    toggleThreadLocked,
   } = useCommunityThread({ parentReplyId, replyId, threadId });
 
   // Refresh only when a reply was actually posted from the composer bottom
@@ -147,6 +148,21 @@ export function CommunityThreadScreen({
       ],
     );
   }, [deleteThread, state.threadActionId, t, tCommon, thread]);
+
+  const handleToggleLocked = useCallback(() => {
+    if (!thread?.canEdit || state.threadActionId) return;
+    showAlert(
+      thread.locked ? t('thread.unlockTitle') : t('thread.lockTitle'),
+      thread.locked ? t('thread.unlockMessage') : t('thread.lockMessage'),
+      [
+        { style: 'cancel', text: tCommon('actions.cancel') },
+        {
+          text: thread.locked ? t('actions.unlockThread') : t('actions.lockThread'),
+          onPress: () => void toggleThreadLocked(),
+        },
+      ],
+    );
+  }, [state.threadActionId, t, tCommon, thread, toggleThreadLocked]);
 
   const handleDeleteReply = useCallback((reply: CommunityThreadReply) => {
     if (!reply.canDelete || state.actionId) return;
@@ -345,11 +361,13 @@ export function CommunityThreadScreen({
         {thread?.canEdit ? (
           <CommunityThreadNavigation
             disabled={state.threadActionId !== null}
+            locked={thread.locked}
             onDelete={handleDeleteThread}
             onEdit={() => router.push({
               pathname: '/thread/[id]/edit',
               params: { id: String(thread.id) },
             })}
+            onToggleLocked={handleToggleLocked}
           />
         ) : null}
 

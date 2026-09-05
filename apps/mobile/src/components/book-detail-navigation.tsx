@@ -61,8 +61,6 @@ export function BookDetailNavigation({
                 pathname: '/book/[id]/comments',
                 params: toBookCommentRouteParams({
                   bookId: book.id,
-                  bookType: book.type,
-                  ...(seriesTitle === undefined ? {} : { seriesTitle }),
                 }),
               })
             }

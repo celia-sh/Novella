@@ -63,17 +63,17 @@ test('Community notification actions validate supported targets', () => {
     threadId: 4,
   });
   assert.deepEqual(resolveNotificationAction({
+    type: 'open_book',
+    data: { book_id: 8 },
+  }), { bookId: 8, kind: 'book' });
+  assert.equal(resolveNotificationAction({
     type: 'open_series',
     data: { series_title: 'Series name' },
-  }), { kind: 'series', seriesTitle: 'Series name' });
+  }), null);
   assert.deepEqual(resolveNotificationAction({
     type: 'open_announcement',
     data: { announcement_id: 7 },
   }), { announcementId: 7, kind: 'announcement' });
-  assert.deepEqual(resolveNotificationAction({
-    type: 'open_book',
-    data: { book_id: 8 },
-  }), { bookId: 8, kind: 'book' });
   assert.equal(resolveNotificationAction(null), null);
   assert.equal(resolveNotificationAction({
     type: 'open_book',

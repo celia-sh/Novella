@@ -4,12 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { ApiError, type BookDetail, type ComicInfo } from '@novella/api-client';
+import { ApiError, type BookDetail } from '@novella/api-client';
 
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { NativeRouteBottomSheet } from '@/components/native-route-bottom-sheet';
 import { ReaderChapterList, type ReaderChapterListItem } from '@/components/reader-chapter-list';
-import { bookDetails, reader } from '@/services/client';
+import { bookDetails } from '@/services/client';
 import {
   publishReaderChapterSelection,
   type ReaderChapterKind,
@@ -36,13 +36,13 @@ export function ReaderChapterSheetScreen() {
   const kind: ReaderChapterKind = rawType === 'Comic' ? 'Comic' : 'Novel';
   const currentSortNum = Number(rawSortNum);
   const palette = useBookDetailRouteTheme(bookId, null, null, true).palette;
-  const [source, setSource] = useState<BookDetail | ComicInfo | null>(null);
+  const [source, setSource] = useState<BookDetail | null>(null);
   const [error, setError] = useState<ChapterSheetMessage | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      setSource(kind === 'Comic' ? await reader.loadComicInfo(bookId) : await bookDetails.load(bookId));
+      setSource(await bookDetails.load(bookId));
     } catch (cause) {
       setError(getChapterSheetMessage(cause));
     }
@@ -54,21 +54,13 @@ export function ReaderChapterSheetScreen() {
 
   const items = useMemo<ReaderChapterListItem[]>(() => {
     if (!source) return [];
-    if (kind === 'Comic') {
-      const info = source as ComicInfo;
-      return info.chapters.map((chapter) => ({
-        id: chapter.id,
-        isCurrent: chapter.sortNum === currentSortNum,
-        sortNum: chapter.sortNum,
-        subtitle: t('chapters.pageCount', { count: chapter.pageCount }),
-        title: chapter.title,
-      }));
-    }
-    const book = source as BookDetail;
-    return book.chapters.map((chapter, index) => ({
+    return source.chapters.map((chapter) => ({
       id: chapter.id,
-      isCurrent: index + 1 === currentSortNum,
-      sortNum: index + 1,
+      isCurrent: chapter.sortNum === currentSortNum,
+      sortNum: chapter.sortNum,
+      ...(kind === 'Comic' && chapter.pageCount > 0
+        ? { subtitle: t('chapters.pageCount', { count: chapter.pageCount }) }
+        : {}),
       title: chapter.title,
     }));
   }, [currentSortNum, kind, source, t]);

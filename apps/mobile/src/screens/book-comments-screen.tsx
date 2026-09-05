@@ -44,10 +44,7 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
   const stableCommentTarget = useMemo<CommentTarget>(() => ({
     id: commentTarget.id,
     type: commentTarget.type,
-    ...(commentTarget.seriesTitle === undefined
-      ? {}
-      : { seriesTitle: commentTarget.seriesTitle }),
-  }), [commentTarget.id, commentTarget.seriesTitle, commentTarget.type]);
+  }), [commentTarget.id, commentTarget.type]);
   const {
     deleteComment,
     error,

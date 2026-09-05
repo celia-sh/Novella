@@ -14,7 +14,7 @@ interface CommentReplyTarget {
 
 export function useCommentSubmission(target: CommentTarget, replyTarget?: CommentReplyTarget) {
   const { t } = useTranslation('community');
-  const { id, seriesTitle, type } = target;
+  const { id, type } = target;
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -26,7 +26,6 @@ export function useCommentSubmission(target: CommentTarget, replyTarget?: Commen
       type,
       id,
       content,
-      ...(seriesTitle === undefined ? {} : { seriesTitle }),
       ...(replyTarget
         ? {
             parentId: replyTarget.parentId,
@@ -40,7 +39,6 @@ export function useCommentSubmission(target: CommentTarget, replyTarget?: Commen
       markCommentsChanged({
         type,
         id,
-        ...(seriesTitle === undefined ? {} : { seriesTitle }),
       });
       return true;
     } catch (nextError) {
@@ -49,7 +47,7 @@ export function useCommentSubmission(target: CommentTarget, replyTarget?: Commen
     } finally {
       setIsSubmitting(false);
     }
-  }, [id, isSubmitting, replyTarget, seriesTitle, t, type]);
+  }, [id, isSubmitting, replyTarget, t, type]);
 
   return { error, isSubmitting, submit };
 }
