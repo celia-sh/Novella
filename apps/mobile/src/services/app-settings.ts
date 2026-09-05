@@ -18,6 +18,7 @@ export type ReaderViewMode = 'paged' | 'scroll';
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type TranslationMode = 'none' | 't2s' | 's2t';
 export type CleanChapterTitleScope = 'continueReading' | 'readerTitle';
+export type PencilDoubleTapAction = 'next' | 'previous' | 'off';
 
 export const CLEAN_CHAPTER_TITLE_SCOPES: readonly CleanChapterTitleScope[] = [
   'continueReading',
@@ -43,6 +44,10 @@ export function isRankPeriod(value: unknown): value is RankPeriod {
   return value === 'daily' || value === 'weekly' || value === 'monthly';
 }
 
+export function isPencilDoubleTapAction(value: unknown): value is PencilDoubleTapAction {
+  return value === 'next' || value === 'previous' || value === 'off';
+}
+
 export const READER_PRELOAD_WINDOW = Object.freeze({ min: 0, max: 3 });
 
 export interface AppSettings {
@@ -62,6 +67,7 @@ export interface AppSettings {
   novelReaderViewMode: ReaderViewMode;
   comicReaderViewMode: ReaderViewMode;
   readerPagedTapNavigation: boolean;
+  pencilDoubleTapAction: PencilDoubleTapAction;
   readerFirstLineIndent: boolean;
   readerImagePreviewOpenOnLongPress: boolean;
   readerLineHeight: number;
@@ -101,6 +107,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   novelReaderViewMode: 'paged',
   comicReaderViewMode: 'paged',
   readerPagedTapNavigation: true,
+  pencilDoubleTapAction: 'next',
   readerSidePadding: 30,
   seedColorValue: DEFAULT_THEME_SEED,
   seriesSearchMode: 'system',
@@ -180,6 +187,9 @@ export function decodeAppSettings(value: unknown): AppSettings {
     novelReaderViewMode,
     comicReaderViewMode,
     readerPagedTapNavigation,
+    ...(isPencilDoubleTapAction(candidate.pencilDoubleTapAction)
+      ? { pencilDoubleTapAction: candidate.pencilDoubleTapAction }
+      : {}),
     ...(typeof candidate.readerImagePreviewOpenOnLongPress === 'boolean'
       ? { readerImagePreviewOpenOnLongPress: candidate.readerImagePreviewOpenOnLongPress }
       : {}),

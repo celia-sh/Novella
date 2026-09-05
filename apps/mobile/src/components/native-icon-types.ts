@@ -49,6 +49,7 @@ export type NativeIconName =
   | 'level6Content'
   | 'level'
   | 'lineHeight'
+  | 'pencilDoubleTap'
   | 'preload'
   | 'profileError'
   | 'profileStatus'

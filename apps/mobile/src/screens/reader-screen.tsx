@@ -26,8 +26,15 @@ import { ReaderNavigation } from '@/components/reader-navigation';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
 import { createReaderChromeInsets } from '@/services/reader-chrome-layout';
 import { shouldUseReaderDoublePage } from '@/services/reader-display-layout';
-import { useReaderChapter, type ReaderUserMessage } from '@/hooks/use-reader-chapter';
+import {
+  useReaderChapter,
+  type ReaderUserMessage,
+} from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
+import {
+  usePencilDoubleTap,
+  type PencilDoubleTapDirection,
+} from '@/hooks/use-pencil-double-tap';
 import { useReaderFont } from '@/hooks/use-reader-font';
 import { useReaderPositionSaver } from '@/hooks/use-reader-position-saver';
 import { useReaderWindowDimensions } from '@/hooks/use-reader-window-dimensions';
@@ -314,6 +321,23 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       openChapter(nextSortNum, 'start');
     }
   }, [nextSortNum, openChapter, previousSortNum]);
+
+  // Apple Pencil double-tap advances the Readium navigator inside the chapter
+  // and falls through to the adjacent chapter when the navigator is at its
+  // edge, mirroring the native boundary taps and swipes.
+  const handlePencilPageTurn = useCallback(async (direction: PencilDoubleTapDirection) => {
+    if (!preparedPublication) return;
+    const reader = nativeReaderRef.current;
+    if (!reader) return;
+    const moved = direction === 1 ? await reader.goForward() : await reader.goBackward();
+    if (moved) return;
+    if (direction === 1 && nextSortNum !== null) {
+      openChapter(nextSortNum, 'start');
+    } else if (direction === -1 && previousSortNum !== null) {
+      openChapter(previousSortNum, 'end');
+    }
+  }, [nextSortNum, openChapter, preparedPublication, previousSortNum]);
+  usePencilDoubleTap(handlePencilPageTurn);
 
   const handleProgressChange = useCallback((progress: number) => {
     const safeProgress = Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 0;

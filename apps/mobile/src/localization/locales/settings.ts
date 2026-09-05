@@ -151,6 +151,13 @@ export const zhCNSettings = {
       comicDoublePageOffsetDescription: '双页阅读时，开篇页面单独占一页，后续页面成对显示',
       pagedTapTitle: '边缘点击翻页',
       pagedTapDescription: '在分页模式点击屏幕左右边缘翻页',
+      pencilDoubleTapTitle: 'Apple Pencil 轻点两下',
+      pencilDoubleTapDescription: '使用 Apple Pencil 轻点两下在阅读器中翻页',
+      pencilDoubleTapOptions: {
+        next: '下一页',
+        previous: '上一页',
+        off: '关闭',
+      },
       modeOptions: {
         paged: '翻页',
         scroll: '滚动',
@@ -566,6 +573,13 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
       comicDoublePageOffsetDescription: '雙頁閱讀時，開篇頁面單獨佔一頁，後續頁面成對顯示',
       pagedTapTitle: '邊緣點選翻頁',
       pagedTapDescription: '在分頁模式點選螢幕左右邊緣翻頁',
+      pencilDoubleTapTitle: 'Apple Pencil 輕點兩下',
+      pencilDoubleTapDescription: '使用 Apple Pencil 輕點兩下在閱讀器中翻頁',
+      pencilDoubleTapOptions: {
+        next: '下一頁',
+        previous: '上一頁',
+        off: '關閉',
+      },
       modeOptions: {
         paged: '翻頁',
         scroll: '捲動',

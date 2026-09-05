@@ -60,6 +60,10 @@ import {
 } from '@/services/reader-progress-sync';
 import type { ReaderMessageKey, ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import {
+  usePencilDoubleTap,
+  type PencilDoubleTapDirection,
+} from '@/hooks/use-pencil-double-tap';
+import {
   useReaderChromeVisibility,
   type ReaderPageSwipeHandler,
   type ReaderPageTapHandler,
@@ -820,6 +824,68 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       targetItem?.segmentIndex,
     );
   }, [activeSlots.length, mode, pagedDisplaySlots, recordVisiblePage]);
+
+  // Apple Pencil double-tap mirrors the paged tap zones: advance or step back
+  // one display slot, falling through to the adjacent chapter at the edges.
+  // In scroll mode it jumps a full page instead of relying on edge taps.
+  const handlePencilPageTurn = useCallback((direction: PencilDoubleTapDirection) => {
+    if (activeSlots.length === 0) return;
+    if (mode === 'paged') {
+      const currentDisplay = pagedTapTargetRef.current
+        ?? visibleDisplayIndexRef.current
+        ?? resolveComicDisplaySlotIndex(lastVisiblePageRef.current, pagedDisplaySlots);
+      const targetDisplay = Math.min(
+        Math.max(0, currentDisplay + direction),
+        Math.max(0, pagedDisplaySlots.length - 1),
+      );
+      if (targetDisplay !== currentDisplay) {
+        turnComicPage(direction);
+        return;
+      }
+      if (direction < 0 && previousChapter) {
+        openChapter(previousChapter.sortNum, 'end');
+      } else if (direction > 0 && nextChapter) {
+        openChapter(nextChapter.sortNum, 'start');
+      }
+      return;
+    }
+    const currentIndex = lastVisiblePageRef.current;
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0) {
+      if (previousChapter) openChapter(previousChapter.sortNum, 'end');
+      return;
+    }
+    if (targetIndex >= activeSlots.length) {
+      if (nextChapter) openChapter(nextChapter.sortNum, 'start');
+      return;
+    }
+    const targetDisplay = resolveComicDisplaySlotIndex(targetIndex, scrollDisplaySlots);
+    const targetSlot = scrollDisplaySlots[targetDisplay];
+    const targetPage = targetSlot?.pages.find((page) => page.index === targetIndex)
+      ?? targetSlot?.pages.at(-1);
+    const targetItem = targetSlot?.items.find((item) => item.page.index === targetPage?.index);
+    if (!targetSlot || !targetPage) return;
+    clearPendingScrollEndRestore();
+    scrollListRef.current?.scrollToIndex({ animated: false, index: targetDisplay });
+    recordVisiblePage(
+      targetPage.index,
+      targetSlot.pages.map((page) => page.index),
+      undefined,
+      targetItem?.segmentIndex,
+    );
+  }, [
+    activeSlots.length,
+    clearPendingScrollEndRestore,
+    mode,
+    nextChapter,
+    openChapter,
+    pagedDisplaySlots,
+    previousChapter,
+    recordVisiblePage,
+    scrollDisplaySlots,
+    turnComicPage,
+  ]);
+  usePencilDoubleTap(handlePencilPageTurn);
 
   const handlePagedTap = useCallback<ReaderPageTapHandler>((event) => {
     if (mode !== 'paged' || !settings.readerPagedTapNavigation) {

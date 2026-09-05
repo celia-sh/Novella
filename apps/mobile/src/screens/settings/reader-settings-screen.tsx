@@ -173,6 +173,18 @@ export function ReaderSettingsContent() {
           title={t('reader.behavior.pagedTapTitle')}
           value={settings.readerPagedTapNavigation}
         />
+        <NativePickerRow
+          description={t('reader.behavior.pencilDoubleTapDescription')}
+          icon="pencilDoubleTap"
+          onValueChange={(value) => void updateAppSettings({ pencilDoubleTapAction: value })}
+          options={[
+            { label: t('reader.behavior.pencilDoubleTapOptions.next'), value: 'next' },
+            { label: t('reader.behavior.pencilDoubleTapOptions.previous'), value: 'previous' },
+            { label: t('reader.behavior.pencilDoubleTapOptions.off'), value: 'off' },
+          ] as const}
+          selectedValue={settings.pencilDoubleTapAction}
+          title={t('reader.behavior.pencilDoubleTapTitle')}
+        />
         <NativeSliderRow
           description={t('reader.behavior.preloadDescription')}
           formatValue={(value) => {

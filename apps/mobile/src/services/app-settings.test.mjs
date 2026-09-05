@@ -9,6 +9,13 @@ test('comic double-page offset is opt-in and survives settings decoding', () => 
   assert.equal(decodeAppSettings({ comicDoublePageOffset: 'true' }).comicDoublePageOffset, false);
 });
 
+test('pencil double-tap action defaults to next page and rejects unknown values', () => {
+  assert.equal(decodeAppSettings(null).pencilDoubleTapAction, 'next');
+  assert.equal(decodeAppSettings({ pencilDoubleTapAction: 'previous' }).pencilDoubleTapAction, 'previous');
+  assert.equal(decodeAppSettings({ pencilDoubleTapAction: 'off' }).pencilDoubleTapAction, 'off');
+  assert.equal(decodeAppSettings({ pencilDoubleTapAction: 'zoom' }).pencilDoubleTapAction, 'next');
+});
+
 test('legacy appearance fields are ignored without losing current settings', () => {
   const settings = decodeAppSettings({
     fontSize: 22,
