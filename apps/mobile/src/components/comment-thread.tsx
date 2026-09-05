@@ -9,7 +9,7 @@ import { PublicUserAvatar } from '@/components/public-user-avatar';
 export interface CommentThreadPalette {
   accent: ColorValue;
   error: ColorValue;
-  highlightBackground: ColorValue;
+  highlightColor: ColorValue;
   label: ColorValue;
   onSurfaceVariant: ColorValue;
   separator: ColorValue;
@@ -79,12 +79,15 @@ export function CommentThreadRow({
       <View
         style={[
           styles.replyRow,
-          highlighted && [
-            styles.highlightedRow,
-            { backgroundColor: palette.highlightBackground },
-          ],
+          highlighted && styles.highlightedRow,
         ]}
       >
+        {highlighted ? (
+          <View
+            pointerEvents="none"
+            style={[styles.highlightOverlay, { backgroundColor: palette.highlightColor }]}
+          />
+        ) : null}
         {highlighted ? (
           <View
             pointerEvents="none"
@@ -138,12 +141,15 @@ export function CommentThreadRow({
       style={[
         styles.commentRow,
         { paddingHorizontal: horizontalInset },
-        highlighted && [
-          styles.highlightedRow,
-          { backgroundColor: palette.highlightBackground },
-        ],
+        highlighted && styles.highlightedRow,
       ]}
     >
+      {highlighted ? (
+        <View
+          pointerEvents="none"
+          style={[styles.highlightOverlay, { backgroundColor: palette.highlightColor }]}
+        />
+      ) : null}
       {highlighted ? (
         <View
           pointerEvents="none"
@@ -331,11 +337,21 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.42 },
   commentText: { fontSize: 14, lineHeight: 19 },
   highlightBar: {
-    bottom: 0,
-    left: 0,
+    bottom: 2,
+    borderRadius: 999,
+    left: -8,
     position: 'absolute',
-    top: 0,
+    top: 2,
     width: 3,
+  },
+  highlightOverlay: {
+    borderRadius: 14,
+    bottom: -4,
+    left: -8,
+    opacity: 0.1,
+    position: 'absolute',
+    right: 0,
+    top: -4,
   },
   highlightedRow: { position: 'relative' },
   identityRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 7 },

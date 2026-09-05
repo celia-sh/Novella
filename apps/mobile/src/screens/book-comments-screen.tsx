@@ -185,7 +185,7 @@ function toCommentThreadPalette(palette: BookDetailPalette): CommentThreadPalett
   return {
     accent: palette.primary,
     error: palette.error,
-    highlightBackground: palette.primaryContainer,
+    highlightColor: palette.primary,
     label: palette.onSurface,
     onSurfaceVariant: palette.onSurfaceVariant,
     separator: palette.outlineVariant,

@@ -628,7 +628,7 @@ function toCommunityCommentPalette(
   return {
     accent: colors.accent,
     error: colors.error,
-    highlightBackground: colors.primaryContainer,
+    highlightColor: colors.accent,
     label: colors.label,
     onSurfaceVariant: colors.secondaryLabel,
     separator: colors.separator,
