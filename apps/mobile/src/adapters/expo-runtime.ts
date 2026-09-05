@@ -32,6 +32,7 @@ import { AUTH_CREDENTIAL_KEYS } from '@novella/client-core';
 
 const BACKEND_HOST = 'api.lightnovel.life';
 const REQUEST_TIMEOUT_MS = 30_000;
+const SIGNALR_INVOKE_TIMEOUT_MS = 60_000;
 const VISITOR_ID_KEY = 'novella.visitor-id';
 type SignalREventListener = (payload: unknown) => void;
 
@@ -159,18 +160,18 @@ export class ExpoHttpTransport implements HttpTransport {
           ? {}
           : { body: typeof request.body === 'string' ? request.body : JSON.stringify(request.body) }),
       });
+
+      const body = (request.responseType === 'text'
+        ? await response.text()
+        : await response.json().catch(() => undefined)) as T;
+      return {
+        body,
+        headers: Object.fromEntries(response.headers.entries()),
+        status: response.status,
+      };
     } finally {
       requestTimeout.dispose();
     }
-
-    const body = (request.responseType === 'text'
-      ? await response.text()
-      : await response.json().catch(() => undefined)) as T;
-    return {
-      body,
-      headers: Object.fromEntries(response.headers.entries()),
-      status: response.status,
-    };
   }
 }
 
@@ -234,7 +235,22 @@ export class ExpoSignalRTransport implements SignalRTransport {
   async invoke<T>(methodName: string, args: readonly unknown[]): Promise<T> {
     await this.connect();
     const connection = await this.#getConnection();
-    return connection.invoke<T>(methodName, ...args);
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => {
+        reject(new Error(`SignalR operation timed out: ${methodName}.`));
+        void this.close().catch(() => undefined);
+      }, SIGNALR_INVOKE_TIMEOUT_MS);
+    });
+
+    try {
+      return await Promise.race([
+        connection.invoke<T>(methodName, ...args),
+        timeoutPromise,
+      ]);
+    } finally {
+      if (timeout !== null) clearTimeout(timeout);
+    }
   }
 
   subscribe(methodName: string, listener: (payload: unknown) => void): Unsubscribe {
