@@ -53,6 +53,7 @@ import {
   type UseSignMakeupCardResult,
   type SaveReadPositionRequest,
   type ShelfItem,
+  type UserGrowth,
   type UserProfile,
 } from '@novella/api-client';
 import type {
@@ -292,7 +293,13 @@ export interface ProfileResetInviteCodeOutcome {
   profile: UserProfile;
 }
 
+export interface ProfileGrowthDelta {
+  experienceDelta: number;
+  coinDelta: number;
+}
+
 export interface ProfileUseCase {
+  applyGrowth(growth: UserGrowth): ProfileGrowthDelta | null;
   checkIn(): Promise<ProfileCheckInOutcome>;
   getSnapshot(): UserProfile | null;
   load(): Promise<UserProfile>;
@@ -579,6 +586,9 @@ export function createClientSessionController(
     async invoke<T>(methodName: string, args: readonly unknown[]): Promise<T> {
       await gate.promise;
       return dependencies.signalR.invoke<T>(methodName, args);
+    },
+    subscribe(methodName: string, listener: (payload: unknown) => void) {
+      return dependencies.signalR.subscribe(methodName, listener);
     },
     close() {
       return dependencies.signalR.close();
@@ -1126,6 +1136,7 @@ export function createProfileUseCase(api: ApiClient): ProfileUseCase {
   let latest: UserProfile | null = null;
   let generation = 0;
   let mutationQueue = Promise.resolve();
+  let loadPromise: Promise<UserProfile> | null = null;
   const listeners = new Set<(profile: UserProfile) => void>();
 
   function publish(profile: UserProfile): UserProfile {
@@ -1150,18 +1161,33 @@ export function createProfileUseCase(api: ApiClient): ProfileUseCase {
   }
 
   return Object.freeze({
+    applyGrowth(growth: UserGrowth) {
+      if (!latest) return null;
+      generation += 1;
+      const experienceDelta = growth.experience - latest.growth.experience;
+      const coinDelta = growth.coin - latest.growth.coin;
+      publish({ ...latest, growth });
+      return { coinDelta, experienceDelta };
+    },
     checkIn() {
       return enqueueMutation(() => api.checkIn());
     },
     getSnapshot() {
       return latest;
     },
-    async load() {
-      await mutationQueue;
-      const requestGeneration = ++generation;
-      const profile = await api.getMyProfile();
-      if (requestGeneration !== generation) return latest ?? profile;
-      return publish(profile);
+    load() {
+      if (loadPromise) return loadPromise;
+      const request = (async () => {
+        await mutationQueue;
+        const requestGeneration = ++generation;
+        const profile = await api.getMyProfile();
+        if (requestGeneration !== generation) return latest ?? profile;
+        return publish(profile);
+      })().finally(() => {
+        if (loadPromise === request) loadPromise = null;
+      });
+      loadPromise = request;
+      return request;
     },
     resetInviteCode() {
       return enqueueMutation(

@@ -1,11 +1,13 @@
 import {
-  IconBook,
+  IconAlertCircle,
+  IconAlertTriangle,
+  IconBell,
   IconChevronRight,
-  IconMessageCircle,
-  IconSpeakerphone,
+  IconCircleCheck,
+  IconInfoCircle,
 } from '@tabler/icons-react-native';
 import { router, Stack } from 'expo-router';
-import { Button, Chip, Skeleton, Spinner } from 'heroui-native';
+import { Button, Skeleton, Spinner } from 'heroui-native';
 import { memo, useCallback } from 'react';
 import {
   FlatList,
@@ -17,7 +19,10 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import type { AppNotificationItem } from '@novella/api-client';
+import type {
+  AppNotificationItem,
+  AppNotificationTone,
+} from '@novella/api-client';
 
 import { CommunityNotificationsNavigation } from '@/components/community/community-navigation';
 import {
@@ -31,9 +36,11 @@ import { useCommunityNotifications } from '@/hooks/use-community-notifications';
 import { useAppLocale } from '@/localization/localization-provider';
 import {
   formatCommunityTime,
-  notificationTargetParams,
+  resolveNotificationAction,
 } from '@/services/community-utils';
+import { reader } from '@/services/client';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
+import { resolveStringColor } from '@/theme/color-values';
 
 export function CommunityNotificationsScreen() {
   const styles = useCommunityNotificationsStyles();
@@ -43,32 +50,71 @@ export function CommunityNotificationsScreen() {
   const { loadMore, mark, markAll, refresh, retry, state } = useCommunityNotifications();
   const hasUnread = state.items.some((item) => !item.isRead);
 
-  const openNotification = useCallback((item: AppNotificationItem) => {
-    void mark(item);
-    const target = notificationTargetParams(item);
-    if (item.objectType === 'CommunityThread' && target.id > 0) {
-      router.push({
-        pathname: '/thread/[id]',
-        // Notifications open the discussion itself, not a specific reply.
-        params: {
-          id: String(target.id),
-        },
-      });
-      return;
-    }
-    if (item.objectType === 'Book' && target.id > 0) {
+  const openSeries = useCallback(async (seriesTitle: string) => {
+    try {
+      const series = await reader.loadComicSeriesInfo(seriesTitle);
+      const volume = series.volumes[0];
+      if (!volume) throw new Error('empty-series');
       router.push({
         pathname: '/book/[id]',
-        params: { id: String(target.id), title: item.extra.objectTitle, type: 'Novel' },
+        params: {
+          cover: volume.coverUrl,
+          id: String(volume.id),
+          placeholder: volume.coverPlaceholder ?? '',
+          seriesTitle,
+          title: volume.title,
+          type: 'Comic',
+        },
       });
+    } catch {
+      showAlert(
+        seriesTitle,
+        t('notifications.targetUnavailable'),
+        [{ text: tCommon('actions.confirm') }],
+      );
+    }
+  }, [t, tCommon]);
+
+  const openNotification = useCallback((item: AppNotificationItem) => {
+    void mark(item);
+    const target = resolveNotificationAction(item.action);
+    if (!target) {
+      if (item.action !== null) {
+        showAlert(
+          item.title || t('notifications.fallbackTitle'),
+          t('notifications.targetUnavailable'),
+          [{ text: tCommon('actions.confirm') }],
+        );
+      }
       return;
     }
-    showAlert(
-      item.extra.objectTitle || t('notifications.fallbackTitle'),
-      t('notifications.targetUnavailable'),
-      [{ text: tCommon('actions.confirm') }],
-    );
-  }, [mark, t, tCommon]);
+    switch (target.kind) {
+      case 'communityThread':
+        router.push({
+          pathname: '/thread/[id]',
+          params: {
+            id: String(target.threadId),
+            ...(target.replyId === null ? {} : { replyId: String(target.replyId) }),
+          },
+        });
+        return;
+      case 'book':
+        router.push({
+          pathname: '/book/[id]',
+          params: { id: String(target.bookId), type: 'Novel' },
+        });
+        return;
+      case 'announcement':
+        router.push({
+          pathname: '/announcement/[source]/[id]',
+          params: { id: String(target.announcementId), source: 'server' },
+        });
+        return;
+      case 'series':
+        void openSeries(target.seriesTitle);
+        return;
+    }
+  }, [mark, openSeries, t, tCommon]);
 
   const renderNotification = useCallback(
     ({ item }: { item: AppNotificationItem }) => (
@@ -208,19 +254,34 @@ const NotificationCard = memo(function NotificationCard({
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
   const locale = useAppLocale();
-  const actorName = item.actor?.userName || 'Novella';
-  const action = notificationAction(item, (key) => t(key));
-  const Icon = item.objectType === 'Book'
-    ? IconBook
-    : item.objectType === 'Announcement'
-      ? IconSpeakerphone
-      : IconMessageCircle;
+  const actorName = item.actor?.userName || t('notifications.systemActor');
+  const actionTarget = resolveNotificationAction(item.action);
+  const toneColor = item.tone === 'danger'
+    ? colors.error
+    : item.tone === 'neutral'
+      ? colors.secondaryLabel
+      : item.tone === 'info'
+        ? colors.accent
+        : item.tone === 'success'
+          ? '#2f8f5b'
+          : '#b36b00';
+  const toneIconColor = resolveStringColor(toneColor, item.tone === 'danger'
+    ? '#c9342f'
+    : item.tone === 'warning'
+      ? '#a35f00'
+      : item.tone === 'success'
+        ? '#247446'
+        : item.tone === 'info'
+          ? '#1769aa'
+          : '#6e6e73');
+  const secondaryColor = resolveStringColor(colors.secondaryLabel, '#6e6e73');
+
   return (
     <Pressable
       accessibilityLabel={t('accessibility.notification', {
-        action,
         actor: actorName,
         status: item.isRead ? t('accessibility.read') : t('accessibility.unread'),
+        title: item.title,
       })}
       accessibilityRole="button"
       onPress={() => onPress(item)}
@@ -230,37 +291,39 @@ const NotificationCard = memo(function NotificationCard({
         style={[
           styles.card,
           item.isRead ? styles.readCard : styles.unreadCard,
+          { borderColor: toneColor },
         ]}
       >
         <View style={styles.cardBody}>
           <View style={styles.topRow}>
-            <PublicUserAvatar
-              avatarUrl={item.actor?.avatar ?? ''}
-              size={38}
-              userId={item.actor?.id ?? 0}
-              userName={actorName}
-            />
+            {item.actor ? (
+              <PublicUserAvatar
+                avatarUrl={item.actor.avatar}
+                size={38}
+                userId={item.actor.id}
+                userName={actorName}
+              />
+            ) : (
+              <View style={styles.systemIcon}>
+                <NotificationToneIcon color={toneIconColor} tone={item.tone} />
+              </View>
+            )}
             <View style={styles.copy}>
               <View style={styles.actorRow}>
                 <Text numberOfLines={1} style={styles.actor}>{actorName}</Text>
                 {!item.isRead ? <View accessibilityLabel={t('accessibility.unread')} style={styles.unreadDot} /> : null}
               </View>
-              <Text style={styles.action}>{action}</Text>
+              <Text numberOfLines={2} style={styles.title}>{item.title}</Text>
             </View>
-            <Icon color={colors.secondaryLabel as string} size={20} />
           </View>
-          {item.extra.objectTitle ? (
-            <Text numberOfLines={2} style={styles.targetTitle}>{item.extra.objectTitle}</Text>
-          ) : null}
-          {item.extra.preview || item.extra.replyPreview ? (
-            <Text numberOfLines={3} style={styles.preview}>
-              {item.extra.replyPreview || item.extra.preview}
-            </Text>
+          {item.body ? (
+            <Text numberOfLines={4} style={styles.body}>{item.body}</Text>
           ) : null}
           <View style={styles.metaRow}>
-            <Chip size="sm" variant="soft">{notificationObjectLabel(item, (key) => t(key))}</Chip>
             <Text style={styles.time}>{formatCommunityTime(item.createdAt, locale)}</Text>
-            <IconChevronRight color={colors.secondaryLabel as string} size={17} />
+            {actionTarget ? (
+              <IconChevronRight color={secondaryColor} size={17} />
+            ) : null}
           </View>
         </View>
       </View>
@@ -268,51 +331,27 @@ const NotificationCard = memo(function NotificationCard({
   );
 });
 
-type NotificationActionKey =
-  | 'notifications.action.comment'
-  | 'notifications.action.commentReply'
-  | 'notifications.action.threadReply'
-  | 'notifications.action.childReply'
-  | 'notifications.action.unknown';
-
-type NotificationObjectKey =
-  | 'notifications.object.community'
-  | 'notifications.object.book'
-  | 'notifications.object.announcement'
-  | 'notifications.object.series'
-  | 'notifications.object.notification';
-
-function notificationAction(
-  item: AppNotificationItem,
-  translate: (key: NotificationActionKey) => string,
-): string {
-  switch (item.type) {
-    case 'Comment': return translate('notifications.action.comment');
-    case 'CommentReply': return translate('notifications.action.commentReply');
-    case 'CommunityThreadReply': return translate('notifications.action.threadReply');
-    case 'CommunityThreadChildReply': return translate('notifications.action.childReply');
-    case 'Unknown': return translate('notifications.action.unknown');
-  }
-}
-
-function notificationObjectLabel(
-  item: AppNotificationItem,
-  translate: (key: NotificationObjectKey) => string,
-): string {
-  switch (item.objectType) {
-    case 'CommunityThread': return translate('notifications.object.community');
-    case 'Book': return translate('notifications.object.book');
-    case 'Announcement': return translate('notifications.object.announcement');
-    case 'Series': return translate('notifications.object.series');
-    case 'Unknown': return translate('notifications.object.notification');
+function NotificationToneIcon({
+  color,
+  tone,
+}: {
+  color: string;
+  tone: AppNotificationTone;
+}) {
+  switch (tone) {
+    case 'info': return <IconInfoCircle color={color} size={21} />;
+    case 'success': return <IconCircleCheck color={color} size={21} />;
+    case 'warning': return <IconAlertTriangle color={color} size={21} />;
+    case 'danger': return <IconAlertCircle color={color} size={21} />;
+    case 'neutral': return <IconBell color={color} size={21} />;
   }
 }
 
 const useCommunityNotificationsStyles = createThemedStyles((colors) => ({
-  action: { color: colors.secondaryLabel, fontSize: 13, marginTop: 2 },
   actor: { color: colors.label, flexShrink: 1, fontSize: 14, fontWeight: '700' },
   actorRow: { alignItems: 'center', flexDirection: 'row', gap: 7 },
-  card: { borderCurve: 'continuous', borderRadius: 18, overflow: 'hidden' },
+  body: { color: colors.secondaryLabel, fontSize: 14, lineHeight: 20 },
+  card: { borderCurve: 'continuous', borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   cardBody: { gap: 10, padding: 15 },
   readCard: { backgroundColor: colors.card },
   content: { padding: 16, paddingBottom: 40 },
@@ -320,7 +359,6 @@ const useCommunityNotificationsStyles = createThemedStyles((colors) => ({
   loadingMore: { alignItems: 'center', padding: 16 },
   metaRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   pressed: { opacity: 0.68 },
-  preview: { color: colors.secondaryLabel, fontSize: 14, lineHeight: 20 },
   root: { backgroundColor: colors.background, flex: 1 },
   separator: { height: 11 },
   skeletonAction: { borderRadius: 5, height: 11, width: '58%' },
@@ -334,8 +372,16 @@ const useCommunityNotificationsStyles = createThemedStyles((colors) => ({
   skeletonTime: { borderRadius: 5, height: 11, width: 76 },
   skeletonTitle: { borderRadius: 6, height: 15, width: '72%' },
   skeletons: { gap: 11 },
-  targetTitle: { color: colors.label, fontSize: 15, fontWeight: '600' },
+  systemIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceContainerHighest,
+    borderRadius: 19,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
   time: { color: colors.secondaryLabel, flex: 1, fontSize: 12 },
+  title: { color: colors.label, flexShrink: 1, fontSize: 15, fontWeight: '600', lineHeight: 20 },
   topRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   unreadCard: {
     backgroundColor: colors.surfaceContainerHighest,

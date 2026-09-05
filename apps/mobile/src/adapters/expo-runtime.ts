@@ -33,6 +33,7 @@ import { AUTH_CREDENTIAL_KEYS } from '@novella/client-core';
 const BACKEND_HOST = 'api.lightnovel.life';
 const REQUEST_TIMEOUT_MS = 30_000;
 const VISITOR_ID_KEY = 'novella.visitor-id';
+type SignalREventListener = (payload: unknown) => void;
 
 const SIGNALR_RETRY_POLICY: IRetryPolicy = Object.freeze({
   nextRetryDelayInMilliseconds({ previousRetryCount }: RetryContext) {
@@ -186,6 +187,7 @@ export class ExpoSignalRTransport implements SignalRTransport {
   #stopPromise: Promise<void> | null = null;
   #generation = 0;
   #desiredConnected = false;
+  readonly #eventListeners = new Map<string, Set<SignalREventListener>>();
 
   constructor(
     credentials: CredentialStore,
@@ -233,6 +235,23 @@ export class ExpoSignalRTransport implements SignalRTransport {
     await this.connect();
     const connection = await this.#getConnection();
     return connection.invoke<T>(methodName, ...args);
+  }
+
+  subscribe(methodName: string, listener: (payload: unknown) => void): Unsubscribe {
+    let listeners = this.#eventListeners.get(methodName);
+    if (!listeners) {
+      listeners = new Set<SignalREventListener>();
+      this.#eventListeners.set(methodName, listeners);
+    }
+    listeners.add(listener);
+    this.#connection?.on(methodName, listener);
+
+    return () => {
+      const current = this.#eventListeners.get(methodName);
+      if (!current?.delete(listener)) return;
+      this.#connection?.off(methodName, listener);
+      if (current.size === 0) this.#eventListeners.delete(methodName);
+    };
   }
 
   close(): Promise<void> {
@@ -309,6 +328,9 @@ export class ExpoSignalRTransport implements SignalRTransport {
       connection.onreconnecting(() => this.#ensureReconnectGate());
       connection.onreconnected(() => this.#releaseReconnectGate());
       connection.onclose(() => this.#releaseReconnectGate());
+      for (const [methodName, listeners] of this.#eventListeners) {
+        for (const listener of listeners) connection.on(methodName, listener);
+      }
       this.#connection = connection;
       return connection;
     })().finally(() => {

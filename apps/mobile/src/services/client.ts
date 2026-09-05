@@ -135,6 +135,13 @@ export function subscribeClientLifecycle(
   return lifecycle.subscribe(listener);
 }
 
+export function subscribeClientRealtime(
+  methodName: string,
+  listener: (payload: unknown) => void,
+) {
+  return session.transport.subscribe(methodName, listener);
+}
+
 export async function closeClient(): Promise<void> {
   await session.close();
 }

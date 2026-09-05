@@ -15,6 +15,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 
 import { BookDetailThemeProvider } from '@/components/book-detail-theme-provider';
+import { ClientRealtimeEvents } from '@/components/client-realtime-events';
 import { ClientSessionFeedback } from '@/components/client-session-feedback';
 import { AppLocalizationProvider } from '@/localization/localization-provider';
 import { useAuthentication } from '@/hooks/use-authentication';
@@ -279,6 +280,7 @@ function RootLayoutContent() {
             </Stack.Protected>
           </Stack>
           <ClientSessionFeedback sessionDecided={sessionDecided} />
+          <ClientRealtimeEvents />
         </BookDetailThemeProvider>
       </ThemeProvider>
     </HeroUINativeProvider>

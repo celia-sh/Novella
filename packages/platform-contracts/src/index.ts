@@ -55,6 +55,7 @@ export interface HttpTransport {
 export interface SignalRTransport {
   connect(): Promise<void>;
   invoke<T>(methodName: string, args: readonly unknown[]): Promise<T>;
+  subscribe(methodName: string, listener: (payload: unknown) => void): Unsubscribe;
   close(): Promise<void>;
 }
 

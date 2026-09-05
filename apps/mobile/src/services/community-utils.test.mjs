@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   findCommunityReply,
   mergeCommunityItems,
-  notificationTargetParams,
+  resolveNotificationAction,
   removeCommunityReply,
   updateCommunityReply,
 } from './community-utils.ts';
@@ -53,13 +53,34 @@ test('Community reply removal updates root and child collections', () => {
   assert.deepEqual(unchanged.replies, replies);
 });
 
-test('Community notification target prefers decoded Extra ids', () => {
-  assert.deepEqual(notificationTargetParams({
-    objectId: 4,
-    extra: { objectId: 9, replyId: 11, parentReplyId: 10 },
+test('Community notification actions validate supported targets', () => {
+  assert.deepEqual(resolveNotificationAction({
+    type: 'open_community_thread',
+    data: { thread_id: 4, reply_id: 9 },
   }), {
-    id: 9,
-    replyId: 11,
-    parentReplyId: 10,
+    kind: 'communityThread',
+    replyId: 9,
+    threadId: 4,
   });
+  assert.deepEqual(resolveNotificationAction({
+    type: 'open_series',
+    data: { series_title: 'Series name' },
+  }), { kind: 'series', seriesTitle: 'Series name' });
+  assert.deepEqual(resolveNotificationAction({
+    type: 'open_announcement',
+    data: { announcement_id: 7 },
+  }), { announcementId: 7, kind: 'announcement' });
+  assert.deepEqual(resolveNotificationAction({
+    type: 'open_book',
+    data: { book_id: 8 },
+  }), { bookId: 8, kind: 'book' });
+  assert.equal(resolveNotificationAction(null), null);
+  assert.equal(resolveNotificationAction({
+    type: 'open_book',
+    data: { book_id: 0 },
+  }), null);
+  assert.equal(resolveNotificationAction({
+    type: 'future_action',
+    data: {},
+  }), null);
 });

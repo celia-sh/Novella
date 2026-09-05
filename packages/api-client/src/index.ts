@@ -900,46 +900,37 @@ export interface CommunityFavoriteToggleResult {
   favorites: number;
 }
 
-export type AppNotificationType =
-  | 'Comment'
-  | 'CommentReply'
-  | 'CommunityThreadReply'
-  | 'CommunityThreadChildReply'
-  | 'Unknown';
-
-export type AppNotificationObjectType =
-  | 'Book'
-  | 'Announcement'
-  | 'CommunityThread'
-  | 'Series'
-  | 'Unknown';
-
 export interface AppNotificationActor {
   id: number;
   userName: string;
   avatar: string;
 }
 
-export interface AppNotificationExtra {
-  objectId: number;
-  objectTitle: string;
-  seriesTitle: string | null;
-  preview: string;
-  replyId: number | null;
-  parentReplyId: number | null;
-  replyToReplyId: number | null;
-  replyPreview: string | null;
+export type AppNotificationTone =
+  | 'neutral'
+  | 'info'
+  | 'success'
+  | 'warning'
+  | 'danger';
+
+export interface AppNotificationAction {
+  type: string;
+  data: Record<string, unknown>;
 }
 
 export interface AppNotificationItem {
   id: number;
   actor: AppNotificationActor | null;
-  type: AppNotificationType;
-  objectType: AppNotificationObjectType;
-  objectId: number;
+  kind: string;
+  schemaVersion: number;
+  title: string;
+  body: string;
+  tone: AppNotificationTone;
+  action: AppNotificationAction | null;
+  data: Record<string, unknown>;
   isRead: boolean;
-  createdAt: string | null;
-  extra: AppNotificationExtra;
+  readAt: string | null;
+  createdAt: string;
 }
 
 export interface AppNotificationPage {
@@ -1827,18 +1818,31 @@ export function decodeUserProfile(value: unknown): UserProfile {
     groupName: asStringOrEmpty(role.Name),
     unreadNotificationCount: asNumber(record.UnreadNotificationCount, 0),
     registeredAt: asNullableDateString(record.RegisterAt),
-    growth: {
-      experience: asNumber(growth.Exp, 0),
-      coin: asNumber(growth.Coin, 0),
-      comicQuota: asNumber(growth.ComicQuota),
-      comicQuotaToday: asNumber(growth.ComicQuotaToday),
-      level: asNumber(growth.Level, 0),
-      growthLevel: asNumber(growth.GrowthLevel, 0),
-      currentLevelExperience: asNumber(growth.CurrentLevelExp, 0),
-      nextLevelExperience: asNullableNumber(growth.NextLevelExp),
-      signInStreak: asNumber(growth.SignStreak, 0),
-      signedToday: asBoolean(growth.TodaySigned, false),
-    },
+    growth: decodeUserGrowthRecord(growth, false),
+  };
+}
+
+export function decodeUserGrowth(value: unknown): UserGrowth {
+  return decodeUserGrowthRecord(asRecord(value, 'growth'), true);
+}
+
+function decodeUserGrowthRecord(
+  growth: Record<string, unknown>,
+  strict: boolean,
+): UserGrowth {
+  const number = (value: unknown, fallback: number): number =>
+    strict ? asNumber(value) : asNumber(value, fallback);
+  return {
+    experience: number(growth.Exp, 0),
+    coin: number(growth.Coin, 0),
+    comicQuota: asNumber(growth.ComicQuota),
+    comicQuotaToday: asNumber(growth.ComicQuotaToday),
+    level: number(growth.Level, 0),
+    growthLevel: number(growth.GrowthLevel, 0),
+    currentLevelExperience: number(growth.CurrentLevelExp, 0),
+    nextLevelExperience: asNullableNumber(growth.NextLevelExp),
+    signInStreak: number(growth.SignStreak, 0),
+    signedToday: strict ? asBoolean(growth.TodaySigned) : asBoolean(growth.TodaySigned, false),
   };
 }
 
@@ -2409,58 +2413,55 @@ function decodeCommunityFavoriteToggle(
 
 function decodeAppNotificationItem(value: unknown): AppNotificationItem {
   const item = asRecord(value, 'notification');
-  const actor = isRecord(item.Actor) ? item.Actor : null;
-  const extra = isRecord(item.Extra) ? item.Extra : {};
+  const actor = item.Actor === null || item.Actor === undefined
+    ? null
+    : decodeAppNotificationActor(item.Actor);
+  const action = item.Action === null || item.Action === undefined
+    ? null
+    : decodeAppNotificationAction(item.Action);
   return {
-    id: asNumber(item.Id),
-    actor: actor === null
-      ? null
-      : {
-          id: asNumber(actor.Id),
-          userName: asStringOrEmpty(actor.UserName),
-          avatar: asStringOrEmpty(actor.Avatar),
-        },
-    type: decodeAppNotificationType(item.Type),
-    objectType: decodeAppNotificationObjectType(item.ObjectType),
-    objectId: asNumber(item.ObjectId, 0),
-    isRead: asBoolean(item.IsRead, false),
-    createdAt: asNullableDateString(item.CreatedAt),
-    extra: {
-      objectId: asNumber(extra.object_id, 0),
-      objectTitle: asStringOrEmpty(extra.object_title),
-      seriesTitle: asNullableString(extra.series_title),
-      preview: asStringOrEmpty(extra.preview),
-      replyId: asNullableNumber(extra.reply_id),
-      parentReplyId: asNullableNumber(extra.parent_reply_id),
-      replyToReplyId: asNullableNumber(extra.reply_to_reply_id),
-      replyPreview: asNullableString(extra.reply_preview),
-    },
+    id: asPositiveInteger(item.Id),
+    actor,
+    kind: asString(item.Kind),
+    schemaVersion: asNonNegativeInteger(item.SchemaVersion),
+    title: asString(item.Title),
+    body: asPresentString(item.Body),
+    tone: decodeAppNotificationTone(item.Tone),
+    action,
+    data: asRecord(item.Data, 'notification data'),
+    isRead: asBoolean(item.IsRead),
+    readAt: asNullableDateString(item.ReadAt),
+    createdAt: asValidDateString(item.CreatedAt),
   };
 }
 
-function decodeAppNotificationType(value: unknown): AppNotificationType {
-  switch (value) {
-    case 'Comment':
-    case 'CommentReply':
-    case 'CommunityThreadReply':
-    case 'CommunityThreadChildReply':
-      return value;
-    default:
-      return 'Unknown';
-  }
+function decodeAppNotificationActor(value: unknown): AppNotificationActor {
+  const actor = asRecord(value, 'notification actor');
+  return {
+    id: asPositiveInteger(actor.Id),
+    userName: asString(actor.UserName),
+    avatar: asPresentString(actor.Avatar),
+  };
 }
 
-function decodeAppNotificationObjectType(
-  value: unknown,
-): AppNotificationObjectType {
+function decodeAppNotificationAction(value: unknown): AppNotificationAction {
+  const action = asRecord(value, 'notification action');
+  return {
+    type: asString(action.Type),
+    data: asRecord(action.Data, 'notification action data'),
+  };
+}
+
+function decodeAppNotificationTone(value: unknown): AppNotificationTone {
   switch (value) {
-    case 'Book':
-    case 'Announcement':
-    case 'CommunityThread':
-    case 'Series':
+    case 'neutral':
+    case 'info':
+    case 'success':
+    case 'warning':
+    case 'danger':
       return value;
     default:
-      return 'Unknown';
+      return 'neutral';
   }
 }
 

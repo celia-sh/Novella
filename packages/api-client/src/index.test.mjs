@@ -23,6 +23,7 @@ import {
   decodeSignInCalendar,
   decodeUseComicQuotaCardResult,
   decodeUseSignMakeupCardResult,
+  decodeUserGrowth,
   decodeUserProfile,
   decodeUserShelf,
   extractBlurHashPlaceholder,
@@ -146,6 +147,31 @@ test('decodes the Web-Master profile and growth summary', () => {
       signedToday: true,
     },
   });
+
+  assert.deepEqual(decodeUserGrowth({
+    Exp: 180,
+    Coin: 96,
+    ComicQuota: 75,
+    ComicQuotaToday: 12,
+    Level: 4,
+    GrowthLevel: 3,
+    CurrentLevelExp: 150,
+    NextLevelExp: 240,
+    SignStreak: 7,
+    TodaySigned: true,
+  }), profile.growth);
+
+  assert.equal(decodeUserGrowth({
+    Exp: 180,
+    Coin: 96,
+    ComicQuota: 75,
+    ComicQuotaToday: 12,
+    Level: 4,
+    GrowthLevel: 3,
+    CurrentLevelExp: 150,
+    SignStreak: 7,
+    TodaySigned: true,
+  }).nextLevelExperience, null);
 
   const baseProfile = decodeUserProfile({
     Id: 43,
@@ -1534,42 +1560,94 @@ test('maps every Community and notification operation to the gzip Hub contract',
   assert.deepEqual(calls[15].args[0], { Ids: [7, 8] });
 });
 
-test('decodes notification reply focus, Series targets, and unknown future kinds safely', () => {
+test('decodes the Web-Master notification contract and safely degrades tone', () => {
   const page = decodeAppNotificationPage({
     Page: 2,
     TotalPages: 3,
     Data: [{
       Id: 9,
       Actor: { Id: 5, UserName: 'Reader', Avatar: '' },
-      Type: 'CommunityThreadChildReply',
-      ObjectType: 'Series',
-      ObjectId: 22,
-      IsRead: false,
-      CreatedAt: '',
-      Extra: {
-        object_id: 22,
-        object_title: 'Thread',
-        series_title: 'Series name',
-        preview: 'Preview',
-        reply_id: 30,
-        parent_reply_id: 29,
-        reply_to_reply_id: null,
-        reply_preview: '',
+      Kind: 'community.reply',
+      SchemaVersion: 1,
+      Title: '有人回复了你的主题',
+      Body: '请查看新的回复。',
+      Tone: 'info',
+      Action: {
+        Type: 'open_community_thread',
+        Data: { thread_id: 22, reply_id: 30 },
       },
+      Data: { thread_id: 22, reply_id: 30 },
+      IsRead: false,
+      ReadAt: null,
+      CreatedAt: '2026-08-30T12:00:00.000Z',
     }, {
       Id: 10,
-      Type: 'FutureNotification',
-      ObjectType: 'FutureObject',
-      Extra: {},
+      Actor: null,
+      Kind: 'future.notification',
+      SchemaVersion: 7,
+      Title: '未来通知',
+      Body: '',
+      Tone: 'future-tone',
+      Action: null,
+      Data: {},
+      IsRead: true,
+      ReadAt: '2026-08-29T12:00:00.000Z',
+      CreatedAt: '2026-08-30T13:00:00.000Z',
     }],
   });
 
-  assert.equal(page.items[0].objectType, 'Series');
-  assert.equal(page.items[0].extra.replyId, 30);
-  assert.equal(page.items[0].extra.parentReplyId, 29);
-  assert.equal(page.items[0].extra.replyPreview, null);
-  assert.equal(page.items[1].type, 'Unknown');
-  assert.equal(page.items[1].objectType, 'Unknown');
+  assert.deepEqual(page.items[0], {
+    id: 9,
+    actor: { id: 5, userName: 'Reader', avatar: '' },
+    kind: 'community.reply',
+    schemaVersion: 1,
+    title: '有人回复了你的主题',
+    body: '请查看新的回复。',
+    tone: 'info',
+    action: {
+      type: 'open_community_thread',
+      data: { thread_id: 22, reply_id: 30 },
+    },
+    data: { thread_id: 22, reply_id: 30 },
+    isRead: false,
+    readAt: null,
+    createdAt: '2026-08-30T12:00:00.000Z',
+  });
+  assert.equal(page.items[1].kind, 'future.notification');
+  assert.equal(page.items[1].tone, 'neutral');
+  assert.equal(page.items[1].action, null);
+  assert.equal(page.items[1].body, '');
+  assert.throws(() => decodeAppNotificationPage({
+    Page: 1,
+    TotalPages: 1,
+    Data: [{
+      Id: 1,
+      Actor: null,
+      Type: 'Comment',
+      ObjectType: 'Book',
+      Action: null,
+      Data: {},
+      Extra: {},
+    }],
+  }), /invalid text field/);
+  assert.throws(() => decodeAppNotificationPage({
+    Page: 1,
+    TotalPages: 1,
+    Data: [{
+      Id: 1,
+      Actor: null,
+      Kind: 'kind',
+      SchemaVersion: 1,
+      Title: 'Title',
+      Body: '',
+      Tone: 'neutral',
+      Action: null,
+      Data: null,
+      IsRead: false,
+      ReadAt: null,
+      CreatedAt: '2026-08-30T12:00:00.000Z',
+    }],
+  }), /Invalid notification data/);
 });
 
 function communityFeedItem(overrides = {}) {

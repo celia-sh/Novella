@@ -58,6 +58,7 @@ class FakeSignalR {
   connectCalls = 0;
   closeCalls = 0;
   invokeCalls = 0;
+  subscriptions = new Map();
   connectImplementation = async () => undefined;
 
   async connect() {
@@ -67,6 +68,17 @@ class FakeSignalR {
 
   async close() {
     this.closeCalls += 1;
+  }
+
+  subscribe(methodName, listener) {
+    const listeners = this.subscriptions.get(methodName) ?? new Set();
+    listeners.add(listener);
+    this.subscriptions.set(methodName, listeners);
+    return () => listeners.delete(listener);
+  }
+
+  emit(methodName, payload) {
+    for (const listener of this.subscriptions.get(methodName) ?? []) listener(payload);
   }
 
   async invoke(methodName, args) {
@@ -152,6 +164,14 @@ test('client startup bootstraps auth before one shared SignalR connection', asyn
   assert.deepEqual(await first, { status: 'ready', error: null });
   assert.deepEqual(order, ['auth', 'connect']);
   assert.equal(signalR.connectCalls, 1);
+
+  const events = [];
+  const unsubscribe = session.transport.subscribe('OnMessage', (message) => events.push(message));
+  signalR.emit('OnMessage', 'hello');
+  assert.deepEqual(events, ['hello']);
+  unsubscribe();
+  signalR.emit('OnMessage', 'ignored');
+  assert.deepEqual(events, ['hello']);
 
   await session.close();
 });
@@ -686,11 +706,67 @@ test('profile repository publishes refreshed avatar and check-in state', async (
   assert.equal(outcome.result.reward, 5);
   assert.equal(outcome.profile.growth.signedToday, true);
   assert.equal(useCase.getSnapshot().growth.signInStreak, 1);
+  const growthDelta = useCase.applyGrowth({
+    ...useCase.getSnapshot().growth,
+    experience: 22,
+    coin: 3,
+  });
+  assert.deepEqual(growthDelta, { experienceDelta: 7, coinDelta: 3 });
+  assert.equal(useCase.getSnapshot().growth.experience, 22);
+  assert.equal(useCase.getSnapshot().growth.coin, 3);
   const reset = await useCase.resetInviteCode();
   assert.equal(reset.result.inviteCode, 'NEW-CODE');
   assert.equal(reset.profile.inviteCode, 'NEW-CODE');
   assert.equal(useCase.getSnapshot().inviteCode, 'NEW-CODE');
-  assert.equal(published.length, 4);
+  assert.equal(published.length, 5);
+});
+
+test('profile growth wins over a stale in-flight profile load', async () => {
+  const initial = {
+    id: 1,
+    userName: 'reader',
+    avatarUrl: '',
+    email: '',
+    inviteCode: '',
+    groupName: 'Member',
+    unreadNotificationCount: 0,
+    registeredAt: null,
+    growth: {
+      experience: 10,
+      coin: 2,
+      comicQuota: 0,
+      comicQuotaToday: 0,
+      level: 1,
+      growthLevel: 1,
+      currentLevelExperience: 0,
+      nextLevelExperience: 100,
+      signInStreak: 0,
+      signedToday: false,
+    },
+  };
+  const staleLoad = deferred();
+  let calls = 0;
+  const useCase = createProfileUseCase({
+    async getMyProfile() {
+      calls += 1;
+      return calls === 1 ? structuredClone(initial) : staleLoad.promise;
+    },
+  });
+
+  await useCase.load();
+  const firstLoad = useCase.load();
+  const secondLoad = useCase.load();
+  await nextTask();
+  assert.equal(calls, 2);
+  assert.equal(useCase.applyGrowth({
+    ...initial.growth,
+    experience: 20,
+    coin: 4,
+  }).experienceDelta, 10);
+  staleLoad.resolve(structuredClone(initial));
+  await Promise.all([firstLoad, secondLoad]);
+  assert.equal(useCase.getSnapshot().growth.experience, 20);
+  assert.equal(useCase.getSnapshot().growth.coin, 4);
 });
 
 test('public profile use case validates, deduplicates, caches, and retries loads', async () => {
