@@ -280,8 +280,6 @@ export const zhCNSettings = {
       done: '已完成',
       signedDescription: '连续 {{days}} 天 · 今日已签到',
       availableDescription: '连续 {{days}} 天 · 签到可获得经验值',
-      successTitle: '签到成功',
-      successMessage: '连续第 {{streak}} 天 · 经验值 +{{reward}}',
       failedTitle: '无法签到',
     },
     signOut: {
@@ -318,8 +316,6 @@ export const zhCNSettings = {
     imageUnavailable: '暂无图片',
     confirmTitle: '确认购买',
     confirmMessage: '花费 {{price}} 金币购买 1 个「{{name}}」？',
-    successTitle: '购买成功',
-    successMessage: '现在持有 {{quantity}} 个「{{name}}」',
     failedTitle: '无法购买',
     calendar: {
       loading: '正在加载签到记录…',
@@ -353,8 +349,6 @@ export const zhCNSettings = {
     quotaFailedTitle: '无法使用漫画额度卡',
     makeupConfirmTitle: '使用补签卡',
     makeupConfirmMessage: '消耗 1 张补签卡补签 {{date}}？',
-    makeupSuccessTitle: '补签成功',
-    makeupSuccessMessage: '连续签到 {{streak}} 天 · 经验值 +{{reward}}',
     makeupFailedTitle: '无法补签',
   },
   pointLogs: {
@@ -701,8 +695,6 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
       done: '已完成',
       signedDescription: '連續 {{days}} 天 · 今日已簽到',
       availableDescription: '連續 {{days}} 天 · 簽到可獲得經驗值',
-      successTitle: '簽到成功',
-      successMessage: '連續第 {{streak}} 天 · 經驗值 +{{reward}}',
       failedTitle: '無法簽到',
     },
     signOut: {
@@ -739,8 +731,6 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
     imageUnavailable: '暫無圖片',
     confirmTitle: '確認購買',
     confirmMessage: '花費 {{price}} 金幣購買 1 個「{{name}}」？',
-    successTitle: '購買成功',
-    successMessage: '目前持有 {{quantity}} 個「{{name}}」',
     failedTitle: '無法購買',
     calendar: {
       loading: '正在載入簽到記錄…',
@@ -774,8 +764,6 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
     quotaFailedTitle: '無法使用漫畫額度卡',
     makeupConfirmTitle: '使用補簽卡',
     makeupConfirmMessage: '消耗 1 張補簽卡補簽 {{date}}？',
-    makeupSuccessTitle: '補簽成功',
-    makeupSuccessMessage: '連續簽到 {{streak}} 天 · 經驗值 +{{reward}}',
     makeupFailedTitle: '無法補簽',
   },
   pointLogs: {

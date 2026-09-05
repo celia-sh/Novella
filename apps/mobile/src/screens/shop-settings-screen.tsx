@@ -131,19 +131,8 @@ export function ShopSettingsScreen() {
           text: tCommon('actions.confirm'),
           onPress: () => {
             setBuyingKeys((current) => new Set(current).add(item.key));
+            // The item projection and the growth delta are the success feedback.
             void shopUseCase.buy(item.key)
-              .then((next) => {
-                const owned = next.items.find((candidate) => candidate.key === item.key)?.owned
-                  ?? next.ownedItems.find((candidate) => candidate.key === item.key)?.quantity
-                  ?? 0;
-                showAlert(
-                  t('shop.successTitle'),
-                  t('shop.successMessage', {
-                    name: item.name,
-                    quantity: numberFormatter.format(owned),
-                  }),
-                );
-              })
               .catch((purchaseError) => {
                 showAlert(
                   t('shop.failedTitle'),
@@ -189,13 +178,6 @@ export function ShopSettingsScreen() {
                   : current);
                 setCalendarReload((current) => current + 1);
                 await profileUseCase.load().catch(() => undefined);
-                showAlert(
-                  t('shop.makeupSuccessTitle'),
-                  t('shop.makeupSuccessMessage', {
-                    reward: outcome.result.reward,
-                    streak: outcome.result.streak,
-                  }),
-                );
               })
               .catch((makeupError) => {
                 showAlert(

@@ -51,14 +51,8 @@ export function ProfileScreen() {
     if (!profile || profile.growth.signedToday || checkingIn) return;
     setCheckingIn(true);
     try {
-      const outcome = await profileUseCase.checkIn();
-      showAlert(
-        t('profile.checkIn.successTitle'),
-        t('profile.checkIn.successMessage', {
-          reward: outcome.result.reward,
-          streak: outcome.result.streak,
-        }),
-      );
+      // OnGrowthUpdate owns the success feedback for the growth mutation.
+      await profileUseCase.checkIn();
     } catch (checkInError) {
       showAlert(
         t('profile.checkIn.failedTitle'),
