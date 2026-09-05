@@ -76,7 +76,7 @@
     "test:reader": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/services/comic-reader-layout.test.mjs src/services/reader-boundary-gesture.test.mjs src/services/reader-chrome-layout.test.mjs src/services/reader-display-layout.test.mjs src/services/reader-image-format.test.mjs src/services/reader-page-progress.test.mjs src/services/readium-publication.test.mjs src/services/reader-locator-mapping.test.mjs",
     "test:shelf": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/services/shelf-grid-reorder.test.mjs src/services/shelf-editing.test.mjs src/services/book-grid-layout.test.mjs src/services/chapter-title.test.mjs src/services/content-filter.test.mjs src/services/book-badge-definitions.test.mjs",
     "test:theme": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/theme/auth-theme.test.mjs src/theme/book-detail-profile.test.mjs src/theme/hero-ui-theme.test.mjs src/theme/reader-theme.test.mjs src/theme/theme-mode.test.mjs src/services/debounced-commit.test.mjs",
-    "test:update": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/services/app-update.test.mjs",
+    "test:update": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/services/app-update.test.mjs src/services/app-update-destination.test.mjs",
     "typecheck": "tsc -p tsconfig.json"
   },
   "private": true

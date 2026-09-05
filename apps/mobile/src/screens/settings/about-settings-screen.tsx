@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { NativeGroupedList, NativeGroupedListRow, NativeGroupedListSection } from '@/components/native-grouped-list';
-import { NativeToggleRow, NativeValueRow } from '@/components/native-setting-controls';
+import { NativePickerRow, NativeToggleRow, NativeValueRow } from '@/components/native-setting-controls';
+import { APP_UPDATE_DESTINATIONS } from '@/services/app-update-destination';
 import { runManualAppUpdateCheck } from '@/services/app-update-alerts';
 import { updateAppSettings, useAppSettings } from '@/services/settings';
 
@@ -56,6 +57,17 @@ export function AboutSettingsScreen() {
           onValueChange={(value) => void updateAppSettings({ autoCheckUpdate: value })}
           title={t('about.update.checkTitle')}
           value={settings.autoCheckUpdate}
+        />
+        <NativePickerRow
+          description={t('about.update.destinationDescription')}
+          icon="sideload"
+          onValueChange={(value) => void updateAppSettings({ updateLinkDestination: value })}
+          options={APP_UPDATE_DESTINATIONS.map((value) => ({
+            label: t(`about.update.destinations.${value}`),
+            value,
+          }))}
+          selectedValue={settings.updateLinkDestination}
+          title={t('about.update.destinationTitle')}
         />
         <NativeGroupedListRow
           description={t('about.sourceDescription')}

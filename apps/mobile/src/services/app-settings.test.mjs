@@ -9,6 +9,14 @@ test('comic double-page offset is opt-in and survives settings decoding', () => 
   assert.equal(decodeAppSettings({ comicDoublePageOffset: 'true' }).comicDoublePageOffset, false);
 });
 
+test('update destination accepts supported sideload apps and rejects unknown values', () => {
+  assert.equal(decodeAppSettings(null).updateLinkDestination, 'github');
+  assert.equal(decodeAppSettings({ updateLinkDestination: 'altstore' }).updateLinkDestination, 'altstore');
+  assert.equal(decodeAppSettings({ updateLinkDestination: 'sidestore' }).updateLinkDestination, 'sidestore');
+  assert.equal(decodeAppSettings({ updateLinkDestination: 'feather' }).updateLinkDestination, 'feather');
+  assert.equal(decodeAppSettings({ updateLinkDestination: 'altstore-classic' }).updateLinkDestination, 'github');
+});
+
 test('legacy appearance fields are ignored without losing current settings', () => {
   const settings = decodeAppSettings({
     fontSize: 22,

@@ -4,6 +4,10 @@ import * as Linking from 'expo-linking';
 import { showAlert } from '@/components/native-alert-dialog';
 import { checkForAppUpdate, type AppUpdateCheckResult } from '@/services/app-update';
 import {
+  resolveAppUpdateDestinationURL,
+  type AppUpdateDestination,
+} from '@/services/app-update-destination';
+import {
   getSnapshot,
   loadAppSettings,
 } from '@/services/settings';
@@ -14,13 +18,16 @@ type AppUpdateTextKey =
   | 'about.update.availableTitle'
   | 'about.update.availableMessage'
   | 'about.update.cancel'
-  | 'about.update.confirm'
   | 'about.update.currentTitle'
   | 'about.update.currentMessage'
   | 'about.update.failedTitle'
   | 'about.update.failedMessage'
   | 'about.update.openFailedTitle'
-  | 'about.update.openFailedMessage';
+  | 'about.update.openFailedMessage'
+  | 'about.update.openGitHub'
+  | 'about.update.openAltStore'
+  | 'about.update.openSideStore'
+  | 'about.update.openFeather';
 
 export type AppUpdateTranslator = (key: AppUpdateTextKey) => string;
 
@@ -52,8 +59,10 @@ async function runAppUpdateCheck(
   manual: boolean,
 ): Promise<void> {
   try {
+    await loadAppSettings();
     const result = await requestUpdateCheck();
     if (result.status === 'available') {
+      const destination = getSnapshot().updateLinkDestination;
       showAlert(
         translate('about.update.availableTitle'),
         translate('about.update.availableMessage'),
@@ -64,14 +73,14 @@ async function runAppUpdateCheck(
           },
           {
             onPress: () => {
-              void Linking.openURL(result.releaseUrl).catch(() => {
+              void Linking.openURL(resolveAppUpdateDestinationURL(destination, result.releaseUrl)).catch(() => {
                 showAlert(
                   translate('about.update.openFailedTitle'),
                   translate('about.update.openFailedMessage'),
                 );
               });
             },
-            text: translate('about.update.confirm'),
+            text: translate(destinationButtonKey(destination)),
           },
         ],
       );
@@ -90,6 +99,21 @@ async function runAppUpdateCheck(
         translate('about.update.failedMessage'),
       );
     }
+  }
+}
+
+function destinationButtonKey(
+  destination: AppUpdateDestination,
+): AppUpdateTextKey {
+  switch (destination) {
+    case 'github':
+      return 'about.update.openGitHub';
+    case 'altstore':
+      return 'about.update.openAltStore';
+    case 'sidestore':
+      return 'about.update.openSideStore';
+    case 'feather':
+      return 'about.update.openFeather';
   }
 }
 
