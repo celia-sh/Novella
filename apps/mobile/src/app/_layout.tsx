@@ -19,6 +19,7 @@ import { ClientRealtimeEvents } from '@/components/client-realtime-events';
 import { ClientSessionFeedback } from '@/components/client-session-feedback';
 import { AppLocalizationProvider } from '@/localization/localization-provider';
 import { useAuthentication } from '@/hooks/use-authentication';
+import { runAutomaticAppUpdateCheck } from '@/services/app-update-alerts';
 import { shouldShowAuthenticatedRoutes } from '@/services/auth-route-guard';
 import { hasStoredSession, startClient } from '@/services/client';
 import { loadAppSettings } from '@/services/settings';
@@ -49,6 +50,7 @@ function RootLayoutContent() {
   const authentication = useAuthentication();
   const { t } = useTranslation('navigation');
   const { t: tAuth } = useTranslation('auth');
+  const { t: tSettings } = useTranslation('settings');
   const { colorScheme, colors } = useAppTheme();
   const systemScreenStackPreset = useSystemScreenStackPreset();
   // False until the local session probe resolves. The probe decides the very
@@ -77,6 +79,10 @@ function RootLayoutContent() {
   useEffect(() => {
     void startClient().catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    void runAutomaticAppUpdateCheck((key) => tSettings(key));
+  }, [tSettings]);
 
   useEffect(() => {
     if (authentication.status === 'authenticated') setHadAuthenticatedSession(true);

@@ -1,21 +1,14 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useProfile } from '@/hooks/use-profile';
-import { runAutomaticAppUpdateCheck } from '@/services/app-update-alerts';
 import { useAppTheme } from '@/theme/app-theme';
 
 export default function TabsLayout() {
   const { colors } = useAppTheme();
   const { t } = useTranslation('navigation');
-  const { t: tSettings } = useTranslation('settings');
   const { profile } = useProfile();
   const unreadNotifications = profile?.unreadNotificationCount ?? 0;
-
-  useEffect(() => {
-    void runAutomaticAppUpdateCheck((key) => tSettings(key));
-  }, [tSettings]);
 
   return (
     <NativeTabs
