@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { resolveBookColorProfile } from './book-detail-profile.ts';
 
-test('dark iOS book details keep the internal OLED profile without a setting', () => {
-  assert.equal(resolveBookColorProfile('dark'), 'oledBlack');
+test('book details use the active appearance profile directly', () => {
+  assert.equal(resolveBookColorProfile('dark'), 'dark');
   assert.equal(resolveBookColorProfile('light'), 'light');
 });

@@ -1,5 +1,6 @@
 import {
   hexFromArgb,
+  Score,
 } from '@material/material-color-utilities';
 import { MD3DarkTheme, MD3LightTheme, type MD3Theme } from 'react-native-paper';
 import { extractBlurHashPlaceholder } from '@novella/api-client';
@@ -10,10 +11,9 @@ import {
   type MaterialSchemeVariant,
 } from '@/theme/material-theme';
 import type { BookColorProfile } from '@/theme/book-detail-profile';
+import { sampleBlurHashColors } from '@/services/blurhash';
 
 export type { BookColorProfile } from '@/theme/book-detail-profile';
-
-const BASE83 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[]^_{|}~';
 
 export interface BookDetailPalette {
   background: string;
@@ -129,9 +129,12 @@ export function createBookDetailTheme({
   const isDark = colorProfile !== 'light';
   const scheme = createMaterialScheme({
     isDark,
+    // Keep the raw cover color as the Material seed. Presentation adjustments
+    // belong to the hero background, not the semantic primary roles used by
+    // buttons and navigation.
     seedColor: extractedSeed === null
       ? normalizeThemeSeed(themeSeedColor)
-      : coverSeedForProfile(extractedSeed, colorProfile),
+      : extractedSeed,
     variant: extractedSeed === null ? dynamicSchemeVariant : 'tonalSpot',
   });
   const base = isDark ? MD3DarkTheme : MD3LightTheme;
@@ -167,17 +170,17 @@ export function createBookDetailTheme({
     scrim: hexFromArgb(scheme.scrim),
   };
 
-  const surface = colorProfile === 'oledBlack' ? '#000000' : schemeColors.surface;
-  const surfaceContainerHighest = colorProfile === 'oledBlack'
+  // Dark detail pages keep the deep-black treatment as part of the normal
+  // dark profile; there is no separate persisted background mode.
+  const surface = colorProfile === 'dark' ? '#000000' : schemeColors.surface;
+  const surfaceContainerHighest = colorProfile === 'dark'
     ? '#1A1A1A'
     : hexFromArgb(scheme.surfaceContainerHighest);
-  const onSurface = colorProfile === 'oledBlack' ? '#EFEFEF' : schemeColors.onSurface;
-  const onSurfaceVariant = colorProfile === 'oledBlack'
+  const onSurface = colorProfile === 'dark' ? '#EFEFEF' : schemeColors.onSurface;
+  const onSurfaceVariant = colorProfile === 'dark'
     ? '#C7C7C7'
     : schemeColors.onSurfaceVariant;
-  const outlineVariant = colorProfile === 'oledBlack'
-    ? '#252525'
-    : schemeColors.outlineVariant;
+  const outlineVariant = colorProfile === 'dark' ? '#252525' : schemeColors.outlineVariant;
   const [middleAlpha, lowerAlpha, bottomAlpha] = colorProfile === 'dark'
     ? [56 / 255, 144 / 255, 216 / 255]
     : [40 / 255, 120 / 255, 200 / 255];
@@ -227,6 +230,11 @@ export function createBookDetailTheme({
   };
 }
 
+/**
+ * Selects a raw theme seed from the complete low-resolution BlurHash preview.
+ * Background-specific saturation/lightness changes intentionally happen later
+ * in [coverGradientColors], so Material semantic roles keep the source hue.
+ */
 export function extractCoverSeedColor(
   coverUrl: string | null,
   coverPlaceholder: string | null = null,
@@ -235,15 +243,52 @@ export function extractCoverSeedColor(
   // fallback (legacy/raw URLs can carry base83 chars like `+` that URL parsing
   // corrupts).
   const hash = coverPlaceholder ?? (coverUrl ? extractBlurHashPlaceholder(coverUrl) : null);
-  if (!hash) return null;
-  const dc = decode83(hash.slice(2, 6));
-  const raw = `#${dc.toString(16).padStart(6, '0')}`;
-  const hsl = rgbToHsl(hexToRgb(raw));
-  return rgbToHex(hslToRgb({
-    h: hsl.h,
-    s: Math.min(1, hsl.s * 1.5 + 0.1),
-    l: clamp(hsl.l * 0.9, 0.15, 0.75),
-  }));
+  const samples = sampleBlurHashColors(hash);
+  if (!samples || samples.length === 0) return null;
+
+  const buckets = new Map<number, ColorBucket>();
+  for (const argb of samples) {
+    const red = (argb >>> 16) & 0xff;
+    const green = (argb >>> 8) & 0xff;
+    const blue = argb & 0xff;
+    const key = (red >> 4) << 8 | (green >> 4) << 4 | (blue >> 4);
+    const bucket = buckets.get(key);
+    if (bucket) {
+      bucket.blue += blue;
+      bucket.green += green;
+      bucket.red += red;
+      bucket.population += 1;
+    } else {
+      buckets.set(key, { blue, green, population: 1, red });
+    }
+  }
+
+  const colorsToPopulation = new Map<number, number>();
+  for (const bucket of buckets.values()) {
+    const argb =
+      0xff000000
+      | (Math.round(bucket.red / bucket.population) << 16)
+      | (Math.round(bucket.green / bucket.population) << 8)
+      | Math.round(bucket.blue / bucket.population);
+    colorsToPopulation.set(argb >>> 0, bucket.population);
+  }
+  if (colorsToPopulation.size === 0) return null;
+
+  const scored = Score.score(colorsToPopulation, { desired: 1 });
+  const best = scored[0];
+  const selected = best !== undefined && colorsToPopulation.has(best)
+    ? best
+    : [...colorsToPopulation.entries()].reduce((current, candidate) =>
+        candidate[1] > current[1] ? candidate : current,
+      )[0];
+  return hexFromArgb(selected);
+}
+
+interface ColorBucket {
+  blue: number;
+  green: number;
+  population: number;
+  red: number;
 }
 
 function rgbaFromHex(hex: string, alpha: number): string {
@@ -303,30 +348,23 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function decode83(value: string): number {
-  let result = 0;
-  for (const character of value) {
-    const digit = BASE83.indexOf(character);
-    if (digit < 0) return 0;
-    result = result * 83 + digit;
-  }
-  return result;
+function enhanceCoverForBackground(seed: string): string {
+  const hsl = rgbToHsl(hexToRgb(seed));
+  return rgbToHex(hslToRgb({
+    h: hsl.h,
+    s: Math.min(1, hsl.s * 1.5 + 0.1),
+    l: clamp(hsl.l * 0.9, 0.15, 0.75),
+  }));
 }
 
-function coverSeedForProfile(seed: string, profile: BookColorProfile): string {
+function coverBackgroundSeedForProfile(seed: string, profile: BookColorProfile): string {
   const hsl = rgbToHsl(hexToRgb(seed));
   switch (profile) {
-    case 'oledBlack':
+    case 'dark':
       return rgbToHex(hslToRgb({
         h: hsl.h,
         l: clamp(hsl.l * 0.22, 0.035, 0.12),
         s: clamp(hsl.s * 0.9, 0, 0.9),
-      }));
-    case 'dark':
-      return rgbToHex(hslToRgb({
-        h: hsl.h,
-        l: clamp(hsl.l * 0.4, 0.05, 0.25),
-        s: clamp(hsl.s * 1.1, 0, 1),
       }));
     case 'light':
       return rgbToHex(hslToRgb({
@@ -341,12 +379,16 @@ function coverGradientColors(
   seed: string,
   profile: BookColorProfile,
 ): readonly [string, string, string] {
-  const first = coverSeedForProfile(seed, profile);
+  const backgroundSeed = enhanceCoverForBackground(seed);
+  const first = coverBackgroundSeedForProfile(backgroundSeed, profile);
   const target = profile === 'light' ? '#FFFFFF' : '#000000';
-  const blendAmount = profile === 'oledBlack' ? 0.72 : 0.4;
-  const last = coverSeedForProfile(rgbToHex(lerpRgb(hexToRgb(seed), hexToRgb(target), blendAmount)), profile);
+  const blendAmount = profile === 'dark' ? 0.72 : 0.4;
+  const last = coverBackgroundSeedForProfile(
+    rgbToHex(lerpRgb(hexToRgb(backgroundSeed), hexToRgb(target), blendAmount)),
+    profile,
+  );
   const middle = rgbToHex(lerpRgb(hexToRgb(first), hexToRgb(last), 0.5));
-  if (profile === 'oledBlack') {
+  if (profile === 'dark') {
     return [
       rgbToHex(lerpRgb(hexToRgb(first), hexToRgb('#000000'), 0.18)),
       middle,
