@@ -47,12 +47,8 @@ export default function AnnouncementCommentComposeRoute() {
       onSubmitted={() => router.back()}
       palette={{
         error: colors.error,
-        label: colors.label,
         onPrimary: resolveOnAccentHex(colors.accent),
         primary: colors.accent,
-        secondaryLabel: colors.secondaryLabel,
-        surface: colors.surface,
-        surfaceContainerHighest: colors.surfaceContainerHighest,
       }}
       {...(replyTarget ? { replyTarget } : {})}
       target={{ type: 'Announcement', id: announcementId }}

@@ -116,11 +116,11 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
         <View style={styles.sheetSection}>
           <View style={styles.sheetHeading}>
             <IconBooks color={palette.primary} size={22} strokeWidth={2} />
-            <Text style={[styles.sheetTitle, { color: palette.onSurface }]}>
+            <Text style={[styles.sheetTitle, { color: colors.label }]}>
               {t('versions.title')}
             </Text>
           </View>
-          <Text style={[styles.description, { color: palette.onSurfaceVariant }]}>
+          <Text style={[styles.description, { color: colors.secondaryLabel }]}>
             {t('versions.summary', { count: detail.series.length, title: detail.seriesTitle ?? seriesTitle })}
           </Text>
           <View style={styles.versionList}>
@@ -142,12 +142,12 @@ export function BookVersionsScreen({ bookId, seriesTitle }: BookVersionsScreenPr
                   )}
                   style={({ pressed }) => [
                     styles.versionRow,
-                    { backgroundColor: palette.surfaceContainerHighest },
+                    { backgroundColor: colors.card },
                     pressed && styles.pressed,
                   ]}
                 >
                   <View style={styles.versionText}>
-                    <Text numberOfLines={2} style={[styles.versionTitle, { color: palette.onSurface }]}>
+                    <Text numberOfLines={2} style={[styles.versionTitle, { color: colors.label }]}>
                       {version.title}
                     </Text>
                   </View>

@@ -28,7 +28,6 @@ import {
 } from '@/services/book-quick-search';
 import { useBookInfo } from '@/hooks/use-book-info';
 import type { BookDetailKind } from '@/hooks/use-book-detail';
-import type { BookDetailPalette } from '@/theme/book-detail-theme';
 import { useAppTheme } from '@/theme/app-theme';
 
 export type BookInfoSheetVariant = 'introduction' | 'tags' | 'uploader';
@@ -101,7 +100,7 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
         <View style={styles.sheetSection}>
           <View style={styles.sheetHeading}>
             <IconTag color={palette.primary} size={22} strokeWidth={2} />
-            <Text style={[styles.sheetTitle, { color: palette.onSurface }]}>
+            <Text style={[styles.sheetTitle, { color: colors.label }]}>
               {t('info.bookTags')}
             </Text>
           </View>
@@ -115,13 +114,13 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
                 style={({ pressed }) => [
                   styles.tag,
                   {
-                    backgroundColor: palette.surfaceContainerHighest,
-                    borderColor: palette.outlineVariant,
+                    backgroundColor: colors.card,
+                    borderColor: colors.separator,
                   },
                   pressed && styles.pressed,
                 ]}
               >
-                <Text style={[styles.tagLabel, { color: palette.onSurface }]}>{tag}</Text>
+                <Text style={[styles.tagLabel, { color: colors.label }]}>{tag}</Text>
               </Pressable>
             ))}
           </View>
@@ -131,25 +130,24 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
         <View style={styles.sheetSection}>
           <View style={styles.sheetHeading}>
             <IconUserCircle color={palette.primary} size={22} strokeWidth={2} />
-            <Text style={[styles.sheetTitle, { color: palette.onSurface }]}>
+            <Text style={[styles.sheetTitle, { color: colors.label }]}>
               {t('info.uploaderInformation')}
             </Text>
           </View>
-          <Text style={[styles.description, { color: palette.onSurfaceVariant }]}>
+          <Text style={[styles.description, { color: colors.secondaryLabel }]}>
             {t('info.uploaderDescription')}
           </Text>
-          <View style={[styles.uploaderCard, { backgroundColor: palette.surfaceContainerHighest }]}>
+          <View style={[styles.uploaderCard, { backgroundColor: colors.card }]}>
             <UploaderAvatar
               avatarUrl={book.user?.avatarUrl ?? ''}
-              palette={palette}
               userId={book.user?.id ?? 0}
               userName={book.user?.userName ?? ''}
             />
             <View style={styles.uploaderText}>
-              <Text numberOfLines={2} style={[styles.uploaderName, { color: palette.onSurface }]}>
+              <Text numberOfLines={2} style={[styles.uploaderName, { color: colors.label }]}>
                 {book.user?.userName.trim() || t('info.unknownUploader')}
               </Text>
-              <Text style={[styles.description, { color: palette.onSurfaceVariant }]}>
+              <Text style={[styles.description, { color: colors.secondaryLabel }]}>
                 {book.user && book.user.id > 0
                   ? t('info.uploader')
                   : t('info.noUploaderProfile')}
@@ -157,13 +155,13 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
             </View>
           </View>
           {book.user && book.user.id > 0 ? (
-            <View style={[styles.infoItem, { backgroundColor: palette.surfaceContainerHighest }]}>
+            <View style={[styles.infoItem, { backgroundColor: colors.card }]}>
               <IconId color={palette.primary} size={20} strokeWidth={2} />
               <View style={styles.infoText}>
-                <Text style={[styles.infoLabel, { color: palette.onSurfaceVariant }]}>
+                <Text style={[styles.infoLabel, { color: colors.secondaryLabel }]}>
                   {t('info.uid')}
                 </Text>
-                <Text selectable style={[styles.infoValue, { color: palette.onSurface }]}>
+                <Text selectable style={[styles.infoValue, { color: colors.label }]}>
                   {book.user.id}
                 </Text>
               </View>
@@ -175,14 +173,14 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
         <View style={styles.sheetSection}>
           <View style={styles.sheetHeading}>
             <IconFileDescription color={palette.primary} size={22} strokeWidth={2} />
-            <Text style={[styles.sheetTitle, { color: palette.onSurface }]}>
+            <Text style={[styles.sheetTitle, { color: colors.label }]}>
               {t('info.introduction')}
             </Text>
           </View>
           <BookHtmlContent
             contentWidth={contentWidth}
             html={book.introduction}
-            textColor={palette.onSurface}
+            textColor={colors.label as string}
           />
         </View>
       ) : null}
@@ -192,20 +190,19 @@ export function BookInfoSheetScreen({ bookId, kind, variant }: BookInfoSheetScre
 
 function UploaderAvatar({
   avatarUrl,
-  palette,
   userId,
   userName,
 }: {
   avatarUrl: string;
-  palette: BookDetailPalette;
   userId: number;
   userName: string;
 }) {
+  const { colors } = useAppTheme();
   return (
     <PublicUserAvatar
       avatarUrl={avatarUrl}
-      fallbackBackground={palette.surfaceContainerHighest}
-      fallbackColor={palette.onSurface}
+      fallbackBackground={colors.card}
+      fallbackColor={colors.label}
       size={56}
       userId={userId}
       userName={userName}

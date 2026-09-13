@@ -31,12 +31,8 @@ export default function CommentComposeRoute() {
       onSubmitted={() => router.back()}
       palette={{
         error: palette.error,
-        label: palette.onSurface,
         onPrimary: palette.onPrimary,
         primary: palette.primary,
-        secondaryLabel: palette.onSurfaceVariant,
-        surface: palette.surface,
-        surfaceContainerHighest: palette.surfaceContainerHighest,
       }}
       {...(replyTarget ? { replyTarget } : {})}
       target={target}

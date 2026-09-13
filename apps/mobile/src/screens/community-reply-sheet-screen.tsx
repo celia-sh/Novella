@@ -68,7 +68,7 @@ export function CommunityReplySheetScreen({
           style={[
             styles.input,
             {
-              backgroundColor: colors.surfaceContainerHighest as string,
+              backgroundColor: colors.card as string,
               color: colors.label as string,
             },
           ]}

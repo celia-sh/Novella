@@ -172,7 +172,7 @@ function ShelfMoveDestinationList({
 
 const useShelfActionSheetStyles = createThemedStyles((colors) => ({
   destinationGroup: {
-    backgroundColor: colors.surfaceContainerHighest,
+    backgroundColor: colors.card,
     borderRadius: 20,
     overflow: 'hidden',
   },
@@ -186,7 +186,7 @@ const useShelfActionSheetStyles = createThemedStyles((colors) => ({
   },
   disabled: { opacity: 0.45 },
   formContent: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     gap: 16,
     paddingBottom: 28,
     paddingHorizontal: 24,
@@ -194,7 +194,7 @@ const useShelfActionSheetStyles = createThemedStyles((colors) => ({
   },
   heading: { gap: 5 },
   input: {
-    backgroundColor: colors.surfaceContainerHighest,
+    backgroundColor: colors.card,
     borderRadius: 16,
     color: colors.label,
     fontSize: 17,
@@ -209,7 +209,7 @@ const useShelfActionSheetStyles = createThemedStyles((colors) => ({
     paddingTop: 28,
   },
   pressed: { opacity: 0.68 },
-  root: { backgroundColor: colors.surface },
+  root: { backgroundColor: colors.background },
   submitButton: {
     alignItems: 'center',
     borderRadius: 20,

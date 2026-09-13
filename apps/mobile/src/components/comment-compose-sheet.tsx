@@ -14,16 +14,13 @@ import {
 
 import { NativeRouteBottomSheet } from '@/components/native-route-bottom-sheet';
 import { useCommentSubmission } from '@/hooks/use-comment-submission';
+import { useAppTheme } from '@/theme/app-theme';
 import type { CommentTarget } from '@/services/comment-target';
 
 export interface CommentComposePalette {
   error: ColorValue;
-  label: ColorValue;
   onPrimary: ColorValue;
   primary: ColorValue;
-  secondaryLabel: ColorValue;
-  surface: ColorValue;
-  surfaceContainerHighest: ColorValue;
 }
 
 export interface CommentComposeReplyTarget {
@@ -47,6 +44,7 @@ export function CommentComposeSheet({
   userName?: string;
 }) {
   const { t } = useTranslation('community');
+  const { colors } = useAppTheme();
   const [draft, setDraft] = useState('');
   const { error, isSubmitting, submit } = useCommentSubmission(target, replyTarget);
   const canSubmit = draft.trim().length > 0 && !isSubmitting;
@@ -66,7 +64,7 @@ export function CommentComposeSheet({
         keyboardShouldPersistTaps="handled"
         style={[
           styles.root,
-          { backgroundColor: palette.surface },
+          { backgroundColor: colors.background },
         ]}
       >
         <TextInput
@@ -76,12 +74,12 @@ export function CommentComposeSheet({
           multiline
           onChangeText={setDraft}
           placeholder={prompt}
-          placeholderTextColor={palette.secondaryLabel}
+          placeholderTextColor={colors.secondaryLabel}
           style={[
             styles.input,
             {
-              backgroundColor: palette.surfaceContainerHighest,
-              color: palette.label,
+              backgroundColor: colors.card,
+              color: colors.label,
             },
           ]}
           textAlignVertical="top"

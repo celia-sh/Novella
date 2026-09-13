@@ -28,7 +28,7 @@ export function BookBadgeLegendSheetScreen() {
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
       showsVerticalScrollIndicator={false}
-      style={styles.scroll}
+      style={[styles.scroll, { backgroundColor: colors.background }]}
     >
       <View style={styles.sheetSection}>
         <View style={styles.sheetHeading}>
@@ -52,7 +52,7 @@ export function BookBadgeLegendSheetScreen() {
                 key={badge.id}
                 style={[
                   styles.badgeCard,
-                  { backgroundColor: colors.surfaceContainerHighest },
+                  { backgroundColor: colors.card },
                 ]}
               >
                 <View
