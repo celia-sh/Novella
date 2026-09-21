@@ -1,4 +1,4 @@
-import { Skeleton } from 'heroui-native';
+import { Skeleton } from 'panelui-native/components/skeleton';
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -78,48 +78,38 @@ export function CommentThreadSkeleton({
       {Array.from({ length: rows }, (_, index) => (
         <View key={`comment-skeleton-${index}`} style={styles.skeletonRow}>
           <Skeleton
-            animation={{ entering: false, exiting: false }}
             style={[
               styles.skeletonAvatar,
               { backgroundColor: palette.surfaceContainerHighest },
             ]}
-            variant="shimmer"
           />
           <View style={styles.skeletonBody}>
             <Skeleton
-              animation={{ entering: false, exiting: false }}
               style={[
                 styles.skeletonLine,
                 styles.skeletonName,
                 { backgroundColor: palette.surfaceContainerHighest },
               ]}
-              variant="shimmer"
             />
             <Skeleton
-              animation={{ entering: false, exiting: false }}
               style={[
                 styles.skeletonLine,
                 { backgroundColor: palette.surfaceContainerHighest },
               ]}
-              variant="shimmer"
             />
             <Skeleton
-              animation={{ entering: false, exiting: false }}
               style={[
                 styles.skeletonLine,
                 styles.skeletonTextShort,
                 { backgroundColor: palette.surfaceContainerHighest },
               ]}
-              variant="shimmer"
             />
             <Skeleton
-              animation={{ entering: false, exiting: false }}
               style={[
                 styles.skeletonLine,
                 styles.skeletonAction,
                 { backgroundColor: palette.surfaceContainerHighest },
               ]}
-              variant="shimmer"
             />
           </View>
         </View>

@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import { Skeleton } from 'heroui-native';
+import { Skeleton } from 'panelui-native/components/skeleton';
 
 import { BOOK_GRID_ROW_GAP } from '@/services/book-grid-layout';
 import { createThemedStyles } from '@/theme/app-theme';
@@ -54,19 +54,13 @@ export function BookCoverSkeletonTile({ tileWidth }: { tileWidth: number }) {
       style={[styles.tile, { width: tileWidth }]}
     >
       <Skeleton
-        animation={{ entering: false, exiting: false }}
         style={[styles.skeletonBlock, { aspectRatio: 2 / 3, width: tileWidth }]}
-        variant="none"
       />
       <Skeleton
-        animation={{ entering: false, exiting: false }}
         style={[styles.skeletonBlock, styles.skeletonLine, { width: '88%' }]}
-        variant="none"
       />
       <Skeleton
-        animation={{ entering: false, exiting: false }}
         style={[styles.skeletonBlock, styles.skeletonLine, { width: '58%' }]}
-        variant="none"
       />
     </View>
   );

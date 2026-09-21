@@ -1,6 +1,16 @@
-import { Avatar as HeroAvatar } from 'heroui-native';
-import { memo } from 'react';
-import type { ColorValue } from 'react-native';
+import { Avatar } from 'panelui-native/components/avatar';
+import { memo, useEffect, useState } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  type ColorValue,
+  type ImageProps,
+} from 'react-native';
+
+const AVATAR_POINTS = { sm: 32, md: 40, lg: 56 } as const;
+
+type AvatarSize = keyof typeof AVATAR_POINTS;
 
 export interface ProfileAvatarProps {
   avatarUrl: string;
@@ -8,17 +18,12 @@ export interface ProfileAvatarProps {
   fallbackBackground?: ColorValue;
   /** Optional fallback text color for palette-based screens. */
   fallbackColor?: ColorValue;
-  /** Pixel size, or one of heroui's named sizes (sm=40, md=48, lg=64). */
-  size?: number | 'sm' | 'md' | 'lg';
+  /** Pixel size, or one of PanelUI's named sizes (sm=32, md=40, lg=56). */
+  size?: number | AvatarSize;
   userName: string;
 }
 
-/**
- * User avatar backed by heroui's Avatar primitives: the image is rendered
- * with heroui's load/failure handling, and the fallback (initial letter, or
- * the person icon when the name is empty) is heroui's Avatar.Fallback
- * placeholder shown when the image is missing or fails to load.
- */
+/** User avatar with PanelUI image loading and a palette-aware fallback. */
 export const ProfileAvatar = memo(function ProfileAvatar({
   avatarUrl,
   fallbackBackground,
@@ -28,26 +33,59 @@ export const ProfileAvatar = memo(function ProfileAvatar({
 }: ProfileAvatarProps) {
   const initial = userName.trim().slice(0, 1).toUpperCase();
   const trimmedUrl = avatarUrl.trim();
-  const heroSize = typeof size === 'string' ? size : undefined;
-  const numericStyle =
-    typeof size === 'number' ? { borderRadius: size / 2, height: size, width: size } : undefined;
-  const fallbackStyles =
-    fallbackBackground || fallbackColor
-      ? {
-          ...(fallbackBackground ? { container: { backgroundColor: fallbackBackground } } : {}),
-          ...(fallbackColor ? { text: { color: fallbackColor } } : {}),
-        }
-      : undefined;
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const imageSource = trimmedUrl && failedImageUrl !== trimmedUrl
+    ? { uri: trimmedUrl }
+    : undefined;
+  const panelSize: AvatarSize = typeof size === 'string'
+    ? size
+    : size <= AVATAR_POINTS.sm + 4
+      ? 'sm'
+      : size <= AVATAR_POINTS.md + 8
+        ? 'md'
+        : 'lg';
+  const dimension = typeof size === 'number' ? size : AVATAR_POINTS[size];
+  const fallbackVisible = imageSource === undefined;
+  const imageProps: Omit<ImageProps, 'source'> | undefined = imageSource
+    ? { onError: () => setFailedImageUrl(trimmedUrl) }
+    : undefined;
+
+  useEffect(() => {
+    setFailedImageUrl(null);
+  }, [trimmedUrl]);
+
   return (
-    <HeroAvatar
-      animation="disable-all"
-      {...(heroSize ? { size: heroSize } : {})}
-      style={numericStyle}
-    >
-      {trimmedUrl ? <HeroAvatar.Image source={{ uri: trimmedUrl }} /> : null}
-      <HeroAvatar.Fallback {...(fallbackStyles ? { styles: fallbackStyles } : {})}>
-        {initial || undefined}
-      </HeroAvatar.Fallback>
-    </HeroAvatar>
+    <View style={{ height: dimension, width: dimension }}>
+      <Avatar
+        fallback=" "
+        {...(imageProps ? { imageProps } : {})}
+        size={panelSize}
+        {...(imageSource ? { source: imageSource } : {})}
+        style={[
+          StyleSheet.absoluteFill,
+          fallbackBackground ? { backgroundColor: fallbackBackground } : null,
+        ]}
+      />
+      {fallbackVisible ? (
+        <View pointerEvents="none" style={styles.fallbackOverlay}>
+          <Text style={[styles.fallbackText, fallbackColor ? { color: fallbackColor } : null]}>
+            {initial || '?'}
+          </Text>
+        </View>
+      ) : null}
+    </View>
   );
+});
+
+const styles = StyleSheet.create({
+  fallbackOverlay: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fallbackText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+  },
 });

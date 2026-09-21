@@ -19,7 +19,7 @@ import {
   IconStar,
 } from '@tabler/icons-react-native';
 import { router } from 'expo-router';
-import { Skeleton } from 'heroui-native';
+import { Skeleton } from 'panelui-native/components/skeleton';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';

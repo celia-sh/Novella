@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { IconChevronRight } from '@tabler/icons-react-native';
-import { Skeleton } from 'heroui-native';
+import { Skeleton } from 'panelui-native/components/skeleton';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -449,12 +449,10 @@ function BookGridPlaceholder({
           {Array.from({ length: columns }, (_, column) => (
             <View key={`placeholder-${row}-${column}`} style={{ gap: 7, width: tileWidth }}>
               <Skeleton
-                animation={{ entering: false, exiting: false }}
                 style={[
                   styles.skeletonBlock,
                   { aspectRatio: BOOK_COVER_ASPECT_RATIO, width: tileWidth },
                 ]}
-                variant="shimmer"
               />
               <SkeletonLine width="88%" />
               <SkeletonLine width="58%" />
@@ -470,16 +468,8 @@ function MetricPlaceholder() {
   const styles = useHomeScreenStyles();
   return (
     <View style={styles.metric}>
-      <Skeleton
-        animation={{ entering: false, exiting: false }}
-        style={[styles.skeletonBlock, styles.metricValuePlaceholder]}
-        variant="shimmer"
-      />
-      <Skeleton
-        animation={{ entering: false, exiting: false }}
-        style={[styles.skeletonBlock, styles.metricLabelPlaceholder]}
-        variant="shimmer"
-      />
+      <Skeleton style={[styles.skeletonBlock, styles.metricValuePlaceholder]} />
+      <Skeleton style={[styles.skeletonBlock, styles.metricLabelPlaceholder]} />
     </View>
   );
 }
@@ -487,11 +477,7 @@ function MetricPlaceholder() {
 function SkeletonLine({ width }: { width: `${number}%` }) {
   const styles = useHomeScreenStyles();
   return (
-    <Skeleton
-      animation={{ entering: false, exiting: false }}
-      style={[styles.skeletonBlock, styles.skeletonLine, { width }]}
-      variant="shimmer"
-    />
+    <Skeleton style={[styles.skeletonBlock, styles.skeletonLine, { width }]} />
   );
 }
 

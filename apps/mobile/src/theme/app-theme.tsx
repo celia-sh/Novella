@@ -13,7 +13,7 @@ import { usePlatformAppColors } from '@/hooks/use-platform-app-colors';
 import { useAppSettings } from '@/services/settings';
 import type { AppColors } from '@/theme/app-colors';
 import { resolveStringColor } from '@/theme/color-values';
-import { createHeroUIThemeVariables } from '@/theme/hero-ui-theme';
+import { createPanelUIThemeVariables } from '@/theme/panel-ui-theme';
 import { resolveAppColorScheme, type AppColorScheme } from '@/theme/theme-mode';
 
 interface AppThemeContextValue {
@@ -43,14 +43,14 @@ export function AppThemeProvider({
     Uniwind.setTheme(settings.theme);
   }, [settings.theme, syncGlobalStyleTokens]);
 
-  // HeroUI Native derives component states from these semantic roots. Keep
-  // them aligned with the same iOS semantic palette used by RN screens and
-  // native chrome instead of overriding tokens per page.
+  // PanelUI derives component states from these semantic roots. Keep them
+  // aligned with the same iOS semantic palette used by RN screens and native
+  // chrome instead of overriding tokens per page.
   useLayoutEffect(() => {
     if (!syncGlobalStyleTokens) return;
     Uniwind.updateCSSVariables(
       colorScheme === 'dark' ? 'dark' : 'light',
-      createHeroUIThemeVariables(colors, colorScheme),
+      createPanelUIThemeVariables(colors, colorScheme),
     );
   }, [colorScheme, colors, syncGlobalStyleTokens]);
 

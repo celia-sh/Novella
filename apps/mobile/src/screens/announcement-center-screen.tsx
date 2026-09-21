@@ -6,7 +6,8 @@ import {
   IconWorld,
 } from '@tabler/icons-react-native';
 import { router } from 'expo-router';
-import { Card, Skeleton } from 'heroui-native';
+import { Card } from 'panelui-native/components/card';
+import { Skeleton } from 'panelui-native/components/skeleton';
 import { useTranslation } from 'react-i18next';
 import {
   FlatList,
@@ -157,8 +158,8 @@ function AnnouncementCard({ item }: { item: AnnouncementListEntry }) {
       })}
       style={({ pressed }) => pressed && styles.pressed}
     >
-      <Card style={styles.card} variant="secondary">
-        <Card.Body style={styles.cardBody}>
+      <Card style={styles.card}>
+        <Card.Content className="p-0" style={styles.cardBody}>
           <View style={styles.cardTopRow}>
             <View style={styles.iconBox}>
               <IconWorld color={colors.onPrimaryContainer as string} size={21} strokeWidth={2} />
@@ -174,7 +175,7 @@ function AnnouncementCard({ item }: { item: AnnouncementListEntry }) {
           <Text numberOfLines={1} style={styles.metaText}>
             {t('announcements.sourceMeta', { date, source: sourceLabel })}
           </Text>
-        </Card.Body>
+        </Card.Content>
       </Card>
     </Pressable>
   );
@@ -190,8 +191,8 @@ function AnnouncementListSkeleton({ rows = 5 }: { rows?: number }) {
       style={styles.skeletonStack}
     >
       {SKELETON_ROWS.slice(0, rows).map((key) => (
-        <Card key={`announcement-skeleton-${key}`} style={styles.card} variant="secondary">
-          <Card.Body style={styles.cardBody}>
+        <Card key={`announcement-skeleton-${key}`} style={styles.card}>
+          <Card.Content className="p-0" style={styles.cardBody}>
             <View style={styles.cardTopRow}>
               <Skeleton style={[styles.skeletonIcon, { backgroundColor: colors.card }]} />
               <View style={styles.cardCopy}>
@@ -202,7 +203,7 @@ function AnnouncementListSkeleton({ rows = 5 }: { rows?: number }) {
               <Skeleton style={[styles.skeletonChevron, { backgroundColor: colors.card }]} />
             </View>
             <Skeleton style={[styles.skeletonMeta, { backgroundColor: colors.card }]} />
-          </Card.Body>
+          </Card.Content>
         </Card>
       ))}
     </View>

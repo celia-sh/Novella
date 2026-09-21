@@ -1,7 +1,7 @@
 import '../global.css';
 
 import { ToastProvider } from '@celia-sh/react-native-pretty-toast';
-import { HeroUINativeProvider } from 'heroui-native';
+import { PanelUIProvider } from 'panelui-native';
 import {
   DarkTheme,
   DefaultTheme,
@@ -9,10 +9,8 @@ import {
 } from 'expo-router/react-navigation';
 import { Stack } from 'expo-router/stack';
 import { StatusBar } from 'expo-status-bar';
-import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 
 import { BookDetailThemeProvider } from '@/components/book-detail-theme-provider';
@@ -37,13 +35,11 @@ export default function RootLayout() {
   return (
     <AppLocalizationProvider>
       <AppThemeProvider>
-        <GestureHandlerRootView style={styles.gestureRoot}>
-          <KeyboardProvider>
-            <ToastProvider maxQueue={3}>
-              <RootLayoutContent />
-            </ToastProvider>
-          </KeyboardProvider>
-        </GestureHandlerRootView>
+        <PanelUIProvider>
+          <ToastProvider maxQueue={3}>
+            <RootLayoutContent />
+          </ToastProvider>
+        </PanelUIProvider>
       </AppThemeProvider>
     </AppLocalizationProvider>
   );
@@ -109,8 +105,7 @@ function RootLayoutContent() {
   }
 
   return (
-    <HeroUINativeProvider config={heroUIConfig}>
-      <ThemeProvider value={navigationTheme}>
+    <ThemeProvider value={navigationTheme}>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         <BookDetailThemeProvider>
           <Stack screenOptions={systemScreenStackPreset}>
@@ -296,16 +291,9 @@ function RootLayoutContent() {
           <ClientRealtimeEvents />
         </BookDetailThemeProvider>
       </ThemeProvider>
-    </HeroUINativeProvider>
   );
 }
 
-const heroUIConfig = {
-  devInfo: { stylingPrinciples: false },
-  toast: 'disabled' as const,
-};
-
 const styles = StyleSheet.create({
-  gestureRoot: { flex: 1 },
   blankRoot: { flex: 1 },
 });

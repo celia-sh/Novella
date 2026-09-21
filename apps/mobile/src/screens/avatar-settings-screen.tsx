@@ -1,4 +1,4 @@
-import { FieldError, Input, Label, TextField } from 'heroui-native';
+import { Input } from 'panelui-native/components/input';
 import type { TFunction } from 'i18next';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -135,28 +135,23 @@ export function AvatarSettingsScreen() {
         />
 
         <View style={styles.fieldGroup}>
-          <TextField isDisabled={saving} isInvalid={error !== null}>
-            <Label>{fieldCopy.label}</Label>
-            <Input
-              accessibilityLabel={fieldCopy.label}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType={source === 'url' ? 'url' : 'number-pad'}
-              onChangeText={(nextValue) => {
-                setDrafts((current) => ({ ...current, [source]: nextValue }));
-                setError(null);
-              }}
-              onSubmitEditing={() => void save()}
-              placeholder={fieldCopy.placeholder}
-              returnKeyType="done"
-              value={value}
-            />
-            {error ? (
-              <FieldError>{error.kind === 'raw' ? error.text : t(error.key)}</FieldError>
-            ) : (
-              <Text style={styles.fieldHint}>{fieldCopy.hint}</Text>
-            )}
-          </TextField>
+          <Input
+            accessibilityLabel={fieldCopy.label}
+            autoCapitalize="none"
+            autoCorrect={false}
+            {...(error ? { errorMessage: error.kind === 'raw' ? error.text : t(error.key) } : { description: fieldCopy.hint })}
+            disabled={saving}
+            keyboardType={source === 'url' ? 'url' : 'number-pad'}
+            label={fieldCopy.label}
+            onChangeText={(nextValue) => {
+              setDrafts((current) => ({ ...current, [source]: nextValue }));
+              setError(null);
+            }}
+            onSubmitEditing={() => void save()}
+            placeholder={fieldCopy.placeholder}
+            returnKeyType="done"
+            value={value}
+          />
         </View>
 
         <Pressable

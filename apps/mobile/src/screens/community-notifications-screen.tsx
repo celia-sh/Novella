@@ -7,7 +7,9 @@ import {
   IconInfoCircle,
 } from '@tabler/icons-react-native';
 import { router, Stack } from 'expo-router';
-import { Button, Skeleton, Spinner } from 'heroui-native';
+import { Button } from 'panelui-native/components/button';
+import { Skeleton } from 'panelui-native/components/skeleton';
+import { Spinner } from 'panelui-native/components/spinner';
 import { memo, useCallback } from 'react';
 import {
   FlatList,
@@ -146,7 +148,7 @@ export function CommunityNotificationsScreen() {
               <CommunityErrorState description={state.error} onRetry={() => void loadMore()} title={t('notifications.loadMoreErrorTitle')} />
             ) : state.page < state.totalPages ? (
               <Button onPress={() => void loadMore()} variant="secondary">
-                <Button.Label>{t('actions.loadMore')}</Button.Label>
+                {t('actions.loadMore')}
               </Button>
             ) : null
           }
@@ -186,50 +188,18 @@ const NotificationSkeleton = memo(function NotificationSkeleton() {
     >
       <View style={styles.cardBody}>
         <View style={styles.topRow}>
-          <Skeleton
-            animation={{ entering: false, exiting: false }}
-            style={styles.skeletonAvatar}
-            variant="shimmer"
-          />
+          <Skeleton style={styles.skeletonAvatar} />
           <View style={styles.skeletonCopy}>
-            <Skeleton
-              animation={{ entering: false, exiting: false }}
-              style={styles.skeletonActor}
-              variant="shimmer"
-            />
-            <Skeleton
-              animation={{ entering: false, exiting: false }}
-              style={styles.skeletonAction}
-              variant="shimmer"
-            />
+            <Skeleton style={styles.skeletonActor} />
+            <Skeleton style={styles.skeletonAction} />
           </View>
-          <Skeleton
-            animation={{ entering: false, exiting: false }}
-            style={styles.skeletonIcon}
-            variant="shimmer"
-          />
+          <Skeleton style={styles.skeletonIcon} />
         </View>
-        <Skeleton
-          animation={{ entering: false, exiting: false }}
-          style={styles.skeletonTitle}
-          variant="shimmer"
-        />
-        <Skeleton
-          animation={{ entering: false, exiting: false }}
-          style={styles.skeletonPreview}
-          variant="shimmer"
-        />
+        <Skeleton style={styles.skeletonTitle} />
+        <Skeleton style={styles.skeletonPreview} />
         <View style={styles.metaRow}>
-          <Skeleton
-            animation={{ entering: false, exiting: false }}
-            style={styles.skeletonChip}
-            variant="shimmer"
-          />
-          <Skeleton
-            animation={{ entering: false, exiting: false }}
-            style={styles.skeletonTime}
-            variant="shimmer"
-          />
+          <Skeleton style={styles.skeletonChip} />
+          <Skeleton style={styles.skeletonTime} />
         </View>
       </View>
     </View>

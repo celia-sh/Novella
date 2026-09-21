@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { Skeleton } from 'heroui-native';
+import { Skeleton } from 'panelui-native/components/skeleton';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, StyleSheet, View, type AppStateStatus } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -179,10 +179,7 @@ function CoverTrack({
               />
             ) : (
               <Skeleton
-                animation={{ pulse: { duration: 1_200, minOpacity: 0.55, maxOpacity: 1 } }}
-                isLoading
                 style={[StyleSheet.absoluteFill, { backgroundColor: palette.skeleton }]}
-                variant="pulse"
               />
             )}
           </View>

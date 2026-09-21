@@ -1,4 +1,4 @@
-import { InputOTP, REGEXP_ONLY_DIGITS_AND_CHARS } from 'heroui-native';
+import { OtpInput } from 'panelui-native/components/otp-input';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { IconEye, IconEyeOff } from '@tabler/icons-react-native';
@@ -98,43 +98,21 @@ export function VerificationCodeField({
           </Text>
         </Pressable>
       </View>
-      <InputOTP
-        inputMode="text"
+      <OtpInput
+        accessibilityLabel={t('fields.verificationCode')}
+        autoCapitalize="none"
+        autoComplete="one-time-code"
+        autoCorrect={false}
+        cellClassName="h-[54px] w-[54px] rounded-[13px] bg-card"
+        disabled={isSending}
         {...(error === undefined ? {} : { isInvalid: error })}
-        maxLength={4}
-        onChange={onChangeText}
-        pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
-        textInputProps={{
-          autoCapitalize: 'none',
-          autoComplete: 'one-time-code',
-          autoCorrect: false,
-          spellCheck: false,
-          textContentType: 'oneTimeCode',
-        }}
+        length={4}
+        onChangeText={onChangeText}
+        spellCheck={false}
+        textContentType="oneTimeCode"
+        type="text"
         value={value}
-      >
-        <InputOTP.Group style={styles.otpGroup}>
-          {[0, 1, 2, 3].map((index) => (
-            <InputOTP.Slot
-              background={(
-                <InputOTP.SlotBackground
-                  style={[styles.otpSlotBackground, { backgroundColor: palette.surface }]}
-                />
-              )}
-              index={index}
-              key={index}
-              style={[
-                styles.otpSlot,
-                { borderColor: error ? palette.error : palette.border },
-              ]}
-            >
-              <InputOTP.SlotPlaceholder style={[styles.otpSlotPlaceholder, { color: palette.placeholder }]} />
-              <InputOTP.SlotValue style={[styles.otpSlotValue, { color: palette.foreground }]} />
-              <InputOTP.SlotCaret style={[styles.otpSlotCaret, { backgroundColor: palette.accent }]} />
-            </InputOTP.Slot>
-          ))}
-        </InputOTP.Group>
-      </InputOTP>
+      />
     </View>
   );
 }

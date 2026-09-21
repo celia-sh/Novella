@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { SkeletonGroup } from 'heroui-native';
+import { Skeleton } from 'panelui-native/components/skeleton';
 import { useTranslation } from 'react-i18next';
 import {
   useCallback,
@@ -658,39 +658,19 @@ function BookHeroContent({
         </View>
         <View pointerEvents="box-none" style={styles.heroText}>
           {isLoading ? (
-            <SkeletonGroup
-              animation={{
-                shimmer: {
-                  duration: 1_400,
-                  highlightColor: shimmerHighlightColor(palette.surfaceContainerHighest),
-                },
-              }}
-              isLoading
-              variant="shimmer"
-            >
-              <View style={styles.loadingTextGroup}>
-                {title ? (
-                  <Text numberOfLines={4} style={[styles.bookTitle, { color: palette.onSurface }]}>
-                    {book.title}
-                  </Text>
-                ) : (
-                  <SkeletonGroup.Item
-                    style={[
-                      styles.loadingBlock,
-                      styles.loadingTitle,
-                      { backgroundColor: palette.surfaceContainerHighest },
-                    ]}
-                  />
-                )}
-                <SkeletonGroup.Item
-                  style={[
-                    styles.loadingBlock,
-                    styles.loadingAuthor,
-                    { backgroundColor: palette.surfaceContainerHighest },
-                  ]}
-                />
-              </View>
-            </SkeletonGroup>
+            title ? (
+              <Text numberOfLines={4} style={[styles.bookTitle, { color: palette.onSurface }]}>
+                {book.title}
+              </Text>
+            ) : (
+              <Skeleton
+                style={[
+                  styles.loadingBlock,
+                  styles.loadingTitle,
+                  { backgroundColor: palette.surfaceContainerHighest },
+                ]}
+              />
+            )
           ) : title ? (
             <Pressable
               accessibilityLabel={titleSearchAccessibilityLabel}
@@ -715,7 +695,17 @@ function BookHeroContent({
               {book.title}
             </Text>
           )}
-          {author ? (
+          {isLoading ? (
+            <View style={styles.loadingAuthorSlot}>
+              <Skeleton
+                style={[
+                  styles.loadingBlock,
+                  styles.loadingAuthor,
+                  { backgroundColor: palette.surfaceContainerHighest },
+                ]}
+              />
+            </View>
+          ) : author ? (
             <Pressable
               accessibilityLabel={t('detail.searchAuthor', { author })}
               accessibilityRole="button"
@@ -765,41 +755,17 @@ function BookDetailBodyLoading({
 }) {
   const block = { backgroundColor: palette.surfaceContainerHighest };
   return (
-    <SkeletonGroup
-      animation={{
-        shimmer: {
-          duration: 1_400,
-          highlightColor: shimmerHighlightColor(palette.surfaceContainerHighest),
-        },
-      }}
-      isLoading
-      variant="shimmer"
-    >
-      <View style={[styles.loadingBody, { paddingHorizontal: horizontalPadding }]}>
-        <View style={styles.loadingChipRow}>
-          <SkeletonGroup.Item style={[styles.loadingBlock, styles.loadingChip, block]} />
-          <SkeletonGroup.Item style={[styles.loadingBlock, styles.loadingChip, block]} />
-          <SkeletonGroup.Item style={[styles.loadingBlock, styles.loadingChipWide, block]} />
-        </View>
-        <SkeletonGroup.Item style={[styles.loadingBlock, styles.loadingAction, block]} />
-        <SkeletonGroup.Item style={[styles.loadingBlock, styles.loadingParagraph, block]} />
-        <SkeletonGroup.Item style={[styles.loadingBlock, styles.loadingUpdate, block]} />
+    <View style={[styles.loadingBody, { paddingHorizontal: horizontalPadding }]}>
+      <View style={styles.loadingChipRow}>
+        <Skeleton style={[styles.loadingBlock, styles.loadingChip, block]} />
+        <Skeleton style={[styles.loadingBlock, styles.loadingChip, block]} />
+        <Skeleton style={[styles.loadingBlock, styles.loadingChipWide, block]} />
       </View>
-    </SkeletonGroup>
+      <Skeleton style={[styles.loadingBlock, styles.loadingAction, block]} />
+      <Skeleton style={[styles.loadingBlock, styles.loadingParagraph, block]} />
+      <Skeleton style={[styles.loadingBlock, styles.loadingUpdate, block]} />
+    </View>
   );
-}
-
-/** Pick a shimmer highlight that reads on the detail palette: a bright white
- * sweep on light blocks, a dim one on dark/OLED blocks. */
-function shimmerHighlightColor(blockColor: string): string {
-  const match = /^#([0-9a-f]{6})$/i.exec(blockColor);
-  if (!match) return 'rgba(255, 255, 255, 0.5)';
-  const value = Number.parseInt(match[1] ?? '', 16);
-  const red = (value >> 16) & 0xff;
-  const green = (value >> 8) & 0xff;
-  const blue = value & 0xff;
-  const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-  return luminance > 120 ? 'rgba(255, 255, 255, 0.55)' : 'rgba(255, 255, 255, 0.16)';
 }
 
 function BookDetailError({
@@ -906,7 +872,7 @@ const styles = StyleSheet.create({
   hero: { overflow: 'hidden' },
   heroBackdrop: { left: 0, overflow: 'hidden', position: 'absolute', right: 0, top: 0 },
   heroContent: { alignItems: 'flex-end', bottom: 16, flexDirection: 'row', gap: 16, position: 'absolute' },
-  heroText: { flex: 1, gap: 4, paddingBottom: 1 },
+  heroText: { flex: 1, gap: 4, justifyContent: 'flex-end', minHeight: 150, paddingBottom: 1 },
   inlineHeroClip: { overflow: 'hidden' },
   introductionClip: { maxHeight: 90, overflow: 'hidden' },
   introductionClipWithRuby: { maxHeight: 1000 },
@@ -916,6 +882,7 @@ const styles = StyleSheet.create({
   quickSearchTarget: { borderRadius: 4 },
   loadingAction: { borderRadius: 16, height: 56, width: '100%' },
   loadingAuthor: { height: 15, width: '42%' },
+  loadingAuthorSlot: { height: 20, justifyContent: 'center' },
   loadingBlock: { borderRadius: 8, overflow: 'hidden' },
   loadingBody: { gap: 20, paddingVertical: 20 },
   loadingChip: { height: 26, width: 58 },
@@ -923,8 +890,7 @@ const styles = StyleSheet.create({
   loadingChipWide: { height: 26, width: 92 },
   loadingCover: { height: 150, overflow: 'hidden', width: 100 },
   loadingHero: { alignItems: 'flex-end', flexDirection: 'row', gap: 16, padding: 20, paddingBottom: 16 },
-  loadingParagraph: { height: 88, width: '100%' },
-  loadingTextGroup: { flex: 1, gap: 9, paddingBottom: 1 },
+  loadingParagraph: { borderRadius: 16, height: 88, width: '100%' },
   loadingTitle: { height: 28, width: '88%' },
   loadingUpdate: { borderRadius: 12, height: 42, width: '100%' },
   metaChip: { alignItems: 'center', borderRadius: 8, flexDirection: 'row', gap: 4, height: 26, paddingHorizontal: 10 },

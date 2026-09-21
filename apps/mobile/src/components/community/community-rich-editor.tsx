@@ -7,7 +7,7 @@ import {
   IconStrikethrough,
   IconUnderline,
 } from '@tabler/icons-react-native';
-import { Button } from 'heroui-native';
+import { Button } from 'panelui-native/components/button';
 import {
   forwardRef,
   useImperativeHandle,
@@ -156,14 +156,13 @@ export const CommunityRichEditor = forwardRef<
             <Button
               accessibilityLabel={action.label}
               accessibilityState={{ disabled: !editable || action.blocked, selected: action.active }}
-              isDisabled={!editable || action.blocked}
-              isIconOnly
+              disabled={!editable || action.blocked}
               key={action.id}
               onPress={() => {
                 const editor = editorRef.current;
                 if (editor) action.run(editor);
               }}
-              size="sm"
+              size="icon"
               style={action.active ? { backgroundColor: colors.primaryContainer } : undefined}
               variant={action.active ? 'secondary' : 'ghost'}
             >

@@ -10,7 +10,7 @@ import {
   IconRefresh,
   IconStar,
 } from "@tabler/icons-react-native";
-import { Skeleton } from "heroui-native";
+import { Skeleton } from 'panelui-native/components/skeleton';
 import {
   Button,
   Card,
