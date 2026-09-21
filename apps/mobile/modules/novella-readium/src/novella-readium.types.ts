@@ -60,7 +60,10 @@ export interface ReadiumLinkEvent {
 
 export interface ReadiumImageEvent {
   alt?: string;
+  dataUri?: string;
+  height?: number;
   uri: string;
+  width?: number;
 }
 
 export interface ReadiumTapEvent {

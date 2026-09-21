@@ -16,6 +16,7 @@ import {
   resolveReaderImageUrl,
   type ReaderImageDimensions,
 } from '@/services/reader-image-dimensions';
+import { ReaderImageViewer } from '@/components/reader-image-viewer';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 export interface ReaderHtmlImageRendererOptions {
@@ -155,53 +156,70 @@ function ReaderHtmlImage({
     );
   }
 
+  const imageContent = (
+    <View
+      style={[
+        styles.imageClip,
+        (pageFrame || (!loading && !failed)) && styles.loadedImageClip,
+        { height: size.height, width: size.width },
+      ]}
+    >
+      <Image
+        accessibilityLabel={accessibilityLabel}
+        cachePolicy="memory-disk"
+        contentFit="contain"
+        key={`${uri}:${attempt}`}
+        onDisplay={() => setLoading(false)}
+        onError={() => {
+          setFailed(true);
+          setLoading(false);
+        }}
+        onLoad={handleLoad}
+        placeholderContentFit="contain"
+        recyclingKey={uri}
+        source={{ uri }}
+        style={[styles.image, { height: displayedSize.height, width: displayedSize.width }]}
+        transition={120}
+      />
+      {loading ? (
+        <View pointerEvents="none" style={[styles.overlay, overlayFrame]}>
+          <ActivityIndicator color={colors.accent as string} size="small" />
+        </View>
+      ) : null}
+      {failed ? (
+        <View style={[styles.overlay, overlayFrame]}>
+          <Text selectable style={styles.errorText}>{t('images.unavailableRetry')}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+
   return (
     <View style={[styles.frame, { alignItems: alignment, width: grouped ? size.width : '100%' }]}>
-      <Pressable
-        accessibilityLabel={failed
-          ? t('images.reloadAccessibility', { label: accessibilityLabel })
-          : accessibilityLabel}
-        accessibilityRole={failed ? 'button' : 'image'}
-        disabled={!failed}
-        onPress={() => {
-          setFailed(false);
-          setLoading(true);
-          setAttempt((value) => value + 1);
-        }}
-        style={[
-          styles.imageClip,
-          (pageFrame || (!loading && !failed)) && styles.loadedImageClip,
-          { height: size.height, width: size.width },
-        ]}
-      >
-        <Image
-          accessibilityLabel={accessibilityLabel}
-          cachePolicy="memory-disk"
-          contentFit="contain"
-          key={`${uri}:${attempt}`}
-          onDisplay={() => setLoading(false)}
-          onError={() => {
-            setFailed(true);
-            setLoading(false);
+      {failed ? (
+        <Pressable
+          accessibilityLabel={t('images.reloadAccessibility', { label: accessibilityLabel })}
+          accessibilityRole="button"
+          onPress={() => {
+            setFailed(false);
+            setLoading(true);
+            setAttempt((value) => value + 1);
           }}
-          onLoad={handleLoad}
-          placeholderContentFit="contain"
-          recyclingKey={uri}
-          source={{ uri }}
-          style={[styles.image, { height: displayedSize.height, width: displayedSize.width }]}
-          transition={120}
-        />
-        {loading ? (
-          <View pointerEvents="none" style={[styles.overlay, overlayFrame]}>
-            <ActivityIndicator color={colors.accent as string} size="small" />
-          </View>
-        ) : null}
-        {failed ? (
-          <View style={[styles.overlay, overlayFrame]}>
-            <Text selectable style={styles.errorText}>{t('images.unavailableRetry')}</Text>
-          </View>
-        ) : null}
-      </Pressable>
+          style={[styles.imageClip, { height: size.height, width: size.width }]}
+        >
+          {imageContent}
+        </Pressable>
+      ) : (
+        <ReaderImageViewer
+          alt={accessibilityLabel}
+          height={natural.height}
+          radius={4}
+          source={uri}
+          width={natural.width}
+        >
+          {imageContent}
+        </ReaderImageViewer>
+      )}
     </View>
   );
 }

@@ -79,6 +79,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const { colors } = useAppTheme();
   const [mode, setMode] = useState<ReaderMode>(settings.novelReaderViewMode);
   const [chromeHidden, setChromeHidden] = useState(false);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [previewProgression, setPreviewProgression] = useState(0);
   const [nativeAttempt, setNativeAttempt] = useState(0);
   const [nativeError, setNativeError] = useState<ReaderUserMessage | null>(null);
@@ -391,6 +392,10 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               onImage={(image) => imagePreviewRef.current?.open({
                 uri: image.uri,
                 ...(image.alt ? { alt: image.alt } : {}),
+                ...(image.dataUri ? { dataUri: image.dataUri } : {}),
+                ...(image.height && image.width
+                  ? { height: image.height, width: image.width }
+                  : {}),
               })}
               onLink={openReadiumLink}
               onLocatorChange={saveLocator}
@@ -413,9 +418,12 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
           </View>
         ) : null}
       </View>
-      <ReaderImagePreviewHost ref={imagePreviewRef} />
+      <ReaderImagePreviewHost
+        onVisibilityChange={setImagePreviewOpen}
+        ref={imagePreviewRef}
+      />
       <ReaderNavigation
-        chromeHidden={chromeHidden}
+        chromeHidden={chromeHidden || imagePreviewOpen}
         foregroundColor={readerTextColor}
         onOpenChapters={openChapters}
         onOpenSettings={() => router.push({
@@ -426,7 +434,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         title={readerTitle || t('titles.reader')}
       />
       <ReaderChapterNavigation
-        chromeHidden={chromeHidden || !nativeReady}
+        chromeHidden={chromeHidden || imagePreviewOpen || !nativeReady}
         direction="ltr"
         onPageProgressChange={handleProgressChange}
         pageCurrent={0}

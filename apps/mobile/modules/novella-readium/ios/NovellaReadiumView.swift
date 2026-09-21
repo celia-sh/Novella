@@ -517,6 +517,15 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     }
     var event: [String: Any] = ["uri": uri]
     if let alt = payload["alt"] as? String, !alt.isEmpty { event["alt"] = alt }
+    if let dataUri = payload["dataUri"] as? String, dataUri.hasPrefix("data:image/") {
+      event["dataUri"] = dataUri
+    }
+    if let width = payload["width"] as? NSNumber, width.doubleValue > 0 {
+      event["width"] = width.doubleValue
+    }
+    if let height = payload["height"] as? NSNumber, height.doubleValue > 0 {
+      event["height"] = height.doubleValue
+    }
     onImage(event)
   }
 

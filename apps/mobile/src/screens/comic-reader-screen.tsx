@@ -46,6 +46,7 @@ import {
 } from '@/services/comic-reader-layout';
 import { bookDetails, reader } from '@/services/client';
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
+import { ReaderImageViewer } from '@/components/reader-image-viewer';
 import { ReaderErrorState, ReaderPreparationState } from '@/components/reader-chrome';
 import { ReaderNavigation } from '@/components/reader-navigation';
 import { subscribeReaderChapterSelection } from '@/services/reader-chapter-selection';
@@ -1225,9 +1226,30 @@ function ComicPage({
       transition={80}
     />
   ) : null;
+  const renderedImageContent = segment ? (
+    <View style={[styles.longPageSegment, {
+      backgroundColor: colors.surfaceContainerHighest,
+      height: imageSize.height,
+      width: imageSize.width,
+    }]}
+    >
+      {renderedImage}
+    </View>
+  ) : renderedImage;
+  const renderedImageWithViewer = image ? (
+    <ReaderImageViewer
+      alt={t('accessibility.comicPage', { number: slot.index + 1 })}
+      height={Math.max(1, image.height)}
+      radius={0}
+      source={image.url}
+      width={Math.max(1, image.width)}
+    >
+      {renderedImageContent}
+    </ReaderImageViewer>
+  ) : null;
 
   return (
-    <Pressable
+    <View
       style={[
         styles.pageRow,
         { width: viewportWidth },
@@ -1255,16 +1277,7 @@ function ComicPage({
           <Text style={[styles.retryLabel, { color: colors.label }]}>{tCommon('actions.retry')}</Text>
         </Pressable>
       ) : image ? (
-        segment ? (
-          <View style={[styles.longPageSegment, {
-            backgroundColor: colors.surfaceContainerHighest,
-            height: imageSize.height,
-            width: imageSize.width,
-          }]}
-          >
-            {renderedImage}
-          </View>
-        ) : renderedImage
+        renderedImageWithViewer
       ) : (
         <View style={{
           backgroundColor: colors.surfaceContainerHighest,
@@ -1272,7 +1285,7 @@ function ComicPage({
           width: imageSize.width,
         }} />
       )}
-    </Pressable>
+    </View>
   );
 }
 
