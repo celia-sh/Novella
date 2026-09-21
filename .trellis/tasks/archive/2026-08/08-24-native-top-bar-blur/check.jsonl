@@ -1,0 +1,4 @@
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend quality-gate entry point and required checks."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Verify native header ownership, direct scroll owners, and platform boundaries."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Verify automated checks and distinguish user-owned iOS visual acceptance."}
+{"file":".trellis/tasks/08-24-native-top-bar-blur/research/native-stack-blur.md","reason":"Check the final implementation against the Hot Chocolate native-stack evidence."}

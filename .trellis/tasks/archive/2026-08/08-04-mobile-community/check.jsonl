@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Automated and user-accepted verification policy"}
+{"file": ".trellis/spec/backend/api-response-decoding.md", "reason": "Decoder contract review"}
+{"file": ".trellis/spec/backend/request-scheduling.md", "reason": "Scheduling and cancellation review"}
+{"file": ".trellis/tasks/08-04-mobile-community/research/parity-matrix.md", "reason": "Reference parity audit"}

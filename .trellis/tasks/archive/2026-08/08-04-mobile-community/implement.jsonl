@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Shared client/API contract conventions"}
+{"file": ".trellis/spec/backend/request-scheduling.md", "reason": "SignalR scheduling and cancellation contract"}
+{"file": ".trellis/spec/backend/api-response-decoding.md", "reason": "DTO decoding and null normalization contract"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Mobile and shared presentation boundaries"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Community data crosses API, use case, and mobile layers"}
+{"file": ".trellis/tasks/08-04-mobile-community/research/parity-matrix.md", "reason": "Flutter/Web/API behavior source matrix"}
+{"file": ".trellis/tasks/08-04-mobile-community/research/community-editor-evaluation.md", "reason": "Rich editor compatibility and POC constraints"}

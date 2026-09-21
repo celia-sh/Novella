@@ -1,0 +1,5 @@
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend pre-development checklist and quality gate for the mobile presentation change."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Native navigation, scroll ownership, platform boundary, and component cleanup contracts."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Required automated checks and user-owned native visual acceptance rules."}
+{"file":".trellis/spec/guides/index.md","reason":"Shared code-reuse and cross-layer thinking triggers."}
+{"file":".trellis/tasks/08-24-native-top-bar-blur/research/native-stack-blur.md","reason":"Repository and Hot Chocolate evidence for the native-stack migration."}

@@ -1,0 +1,33 @@
+{
+  "id": "mobile-community",
+  "name": "mobile-community",
+  "title": "Plan mobile community feature",
+  "description": "",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "kanscape",
+  "assignee": "kanscape",
+  "createdAt": "2026-08-04",
+  "completedAt": "2026-09-21",
+  "branch": null,
+  "base_branch": "rewrite/react-native-expo",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "08-04-mobile-community-contracts",
+    "08-04-mobile-community-editor-poc",
+    "08-04-mobile-community-home",
+    "08-04-mobile-community-thread",
+    "08-04-mobile-community-compose",
+    "08-04-mobile-community-notifications-mine"
+  ],
+  "parent": "07-30-rn-expo-web-master-migration",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

@@ -64,13 +64,14 @@ apps/desktop/release/
 *.map
 *.symbols
 
-# Local documentation and workspace tooling
+# Local documentation and reference checkouts
 docs/
-.trellis/
-.agents/
-.codex/
-AGENTS.md
 /references/
+
+# Private Trellis workspace and local task/session state
+.trellis/workspace/
+
+# Shared Trellis configuration, tasks, specs, scripts, and platform hooks are tracked.
 /.dart_tool/
 /.fvm/
 /.flutter-plugins-dependencies

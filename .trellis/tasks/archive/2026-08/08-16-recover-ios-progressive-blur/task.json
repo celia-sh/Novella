@@ -1,0 +1,41 @@
+{
+  "id": "recover-ios-progressive-blur",
+  "name": "recover-ios-progressive-blur",
+  "title": "Recover iOS progressive blur rendering",
+  "description": "Recover the confirmed-good RN progressive blur renderer while preserving later navigation, ownership, luma-sensor, reader, and research work. Document and fix the top/bottom cold-start regressions introduced by dynamic replay composition, mean-luma-only content classification, and unsupported UIVisualEffectView intensity/alpha techniques.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": "iOS progressive blur renderer recovery, content-style classification, cold-start verification, and regression containment",
+  "package": null,
+  "priority": "P0",
+  "creator": "kanscape",
+  "assignee": "kanscape",
+  "createdAt": "2026-08-16",
+  "completedAt": "2026-09-21",
+  "branch": "feat/ios-progressive-blur",
+  "base_branch": "feat/ios-progressive-blur",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "07-30-rn-expo-web-master-migration",
+  "relatedFiles": [
+    "apps/mobile/src/components/ios-progressive-blur.ios.tsx",
+    "apps/mobile/src/components/ios-progressive-blur-config.ts",
+    "apps/mobile/src/components/ios-top-bar-background.ios.tsx",
+    "apps/mobile/src/components/ios-bottom-bar-background.ios.tsx",
+    "apps/mobile/src/hooks/use-ios-soft-luma-adaptation.ts",
+    "apps/mobile/src/services/ios-soft-luma.ts",
+    "apps/mobile/modules/novella-ui/ios/NovellaScrollEdgeMarkerView.swift"
+  ],
+  "notes": "Do not commit or continue from the dirty NovellaProgressiveBlurView experiment. Restore the confirmed renderer baseline with targeted edits, then separate content-style classification from mean luma and require cold-installed runtime acceptance.",
+  "meta": {
+    "confirmedBaselineHeadAt1520": "783d4fd",
+    "firstTopRendererRegression": "4c88d6d",
+    "firstBottomRendererRegression": "e1c417b",
+    "stateMathCommit": "74fff3b",
+    "rejectedExperimentCommitted": false,
+    "runtime": "iOS 26.5 / iPhone 17 Pro simulator"
+  }
+}
