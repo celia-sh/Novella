@@ -6,7 +6,7 @@ Keep Novella compatible with the current Web-Master/backend contracts for comic 
 
 ## Background
 
-- The authoritative reference is `the Web-Master reference implementation` at `fb7342b`; the comparison baseline is `5505dd4`.
+- The authoritative reference is `the Web-Master reference implementation` at `[COMMIT]`; the comparison baseline is `[COMMIT]`.
 - Web-Master now requests comic images in batches of 6 and limits image preloading to a small forward window.
 - `GetMyInfo.Growth` now includes permanent and daily comic quota balances.
 - `GetShop.Items[].MonthlyLimit` is nullable and may be omitted by MessagePack/gzip serialization when unlimited. `0` means unavailable, while `null`/missing means unlimited.
@@ -80,4 +80,4 @@ Keep Novella compatible with the current Web-Master/backend contracts for comic 
 - Global Markdown response or storage migration; non-editing content remains HTML.
 - `GetBookCategories`/`CategoryId` category-filter UI.
 - Web-only Quasar layout, dependency, and component refactors.
-- DNS, Cloudflare, deployment, or external repository changes.
+- DNS, external deployment provider, deployment, or external repository changes.

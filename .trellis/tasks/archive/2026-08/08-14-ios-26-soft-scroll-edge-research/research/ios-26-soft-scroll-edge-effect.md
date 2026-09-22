@@ -6,7 +6,7 @@ Updated: 2026-08-16
 
 ## Production Recovery Warning (2026-08-16)
 
-The Apple runtime findings in this report remain research evidence. They do **not** mean the current RN production renderer is accepted. The content-adaptive renderer introduced by `4c88d6d` and extended to the reader bottom by `e1c417b` failed fresh-install cold-start verification. The follow-up uncommitted native-wrapper experiment also failed and must not be committed.
+The Apple runtime findings in this report remain research evidence. They do **not** mean the current RN production renderer is accepted. The content-adaptive renderer introduced by `[COMMIT]` and extended to the reader bottom by `[COMMIT]` failed fresh-install cold-start verification. The follow-up uncommitted native-wrapper experiment also failed and must not be committed.
 
 Current production/recovery source of truth:
 
@@ -72,7 +72,7 @@ The investigation used private runtime objects only from LLDB. Production source
 
 - Xcode: `26.6` (`17F113`)
 - Simulator runtime: iOS `26.5`
-- Device: iPhone 17 Pro
+- Device: [SIMULATOR]
 - Logical screenshot size: `402 x 874`
 - App bundle: `sh.celia.novella`
 - Expo Blur: version bundled with the current Expo SDK 57 workspace
@@ -891,12 +891,12 @@ The interaction layer also has velocity-sensitive visibility-animation branches 
 These sources motivated the runtime investigation but did not provide the exact values recorded above:
 
 - Apple `UIScrollEdgeEffect.Style` documentation: https://developer.apple.com/documentation/uikit/uiscrolledgeeffect/style-swift.class
-- Zenn investigation of `_UIScrollPocketContainerInteraction`: https://zenn.dev/ushisantoasobu/scraps/425e166c349e29
+- Zenn investigation of `_UIScrollPocketContainerInteraction`: https://zenn.dev/ushisantoasobu/scraps/[COMMIT]
 - iOS 26.1 UIKitCore runtime headers: https://developer.limneos.net/?framework=UIKitCore.framework&ios=26.1
-- blacktop UIKitCore symbol diffs: https://github.com/blacktop/ipsw-diffs/blob/main/26_0_23A5308g__vs_26_0_23A5318c/DYLIBS/UIKitCore.md
+- blacktop UIKitCore symbol diffs: https://github.com/blacktop/ipsw-diffs/blob/main/26_0_23A5308g__vs_26_0_[COMMIT]/DYLIBS/UIKitCore.md
 - Sebastian Vidal, UIKit 26 analysis: https://sebvidal.com/blog/whats-new-in-uikit-26/
 - Community variable blur example discussion: https://www.reddit.com/r/SwiftUI/comments/1qjh5nr/how_does_revolut_do_this_progressive_blur/
-- Jens van Steen discussion of `_UIScrollPocketInteraction`: https://www.linkedin.com/posts/jens-van-steen-30368513b_since-ios-26-navigation-bars-are-transparent-activity-7452025075740090369-v7IZ
+- Jens van Steen discussion of `_UIScrollPocketInteraction`: https://www.linkedin.com/posts/jens-van-steen-[COMMIT]_since-ios-26-navigation-bars-are-transparent-activity-7452025075740090369-v7IZ
 
 ## Safety Boundary
 

@@ -58,7 +58,7 @@ Remove the inconvenient catch-all shelf management panel and make shelf actions 
 - Exit does not save, commit, discard, cancel an in-flight save, or roll back anything; it only returns to browse mode and clears transient selection/drag state.
 - There is no Save Changes or Discard Changes command in the new editing flow.
 - Multiple rapid operations must preserve operation order and must not let an older save response overwrite newer local state.
-- A persistence failure keeps the optimistic shelf result visible and presents an explicit Retry action. It must not silently pretend that remote persistence succeeded or discard the user's arrangement.
+- A persistence failure keeps the optimistic shelf result visible and presents an explicit Retry action. It must not silently pretend that remote persistence succeeds or discard the user's arrangement.
 
 ### R5 — Browse/edit behavior
 

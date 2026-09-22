@@ -663,7 +663,7 @@ describe('layoutChapter', () => {
 
 ### 集成测试
 
-- 在 iPhone 17 Pro 模拟器测试
+- 在 [SIMULATOR] 模拟器测试
 - 使用 Instruments 监控性能
 - 测试不同长度章节（2万、5万、10万像素）
 

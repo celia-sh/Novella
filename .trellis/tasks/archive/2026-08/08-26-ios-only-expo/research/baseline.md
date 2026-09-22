@@ -1,11 +1,11 @@
 # iOS-only cleanup baseline
 
-Captured before product-source cleanup on `chore/ios-only-expo`, based on
-`main` at `7c99781`.
+Captured before product-source cleanup on `[BRANCH]`, based on
+`main` at `[COMMIT]`.
 
 ## Repository state
 
-- Branch: `chore/ios-only-expo`
+- Branch: `[BRANCH]`
 - Worktree was clean before the baseline run.
 - The task was activated with `task.py start`; implementation status is now
   `in_progress`.

@@ -2,9 +2,9 @@
 
 ## Boundaries
 
-- The target branch is `feat/server-api-followup`; only its
+- The target branch is `[BRANCH]`; only its
   `packages/api-client` public-summary contract and focused test change.
-- The source branch `feat/sync-web-master-direct-messages` is read-only for this
+- The source branch `[BRANCH]` is read-only for this
   task. Its private-message API/client-core, UI, native composer, and dependency
   changes remain there.
 - `packages/client-core` is not modified: the existing public-profile use case

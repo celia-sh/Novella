@@ -6,7 +6,7 @@ Make the reader's iOS top-edge material explicit and investigate public APIs for
 
 ## Confirmed facts
 
-- Branch: `feat/reader-ui-improvements`, based on `main`.
+- Branch: `[BRANCH]`, based on `main`.
 - Novel and comic readers both render the shared `apps/mobile/src/components/reader-navigation.ios.tsx` component.
 - `react-native-screens` exposes `scrollEdgeEffects` on native stack screen options for iOS 26+, including an explicit `soft` style.
 - The current iOS reader navigation options hide the header shadow but do not set `scrollEdgeEffects`.

@@ -2,12 +2,12 @@
 
 ## 版本与范围
 
-- 参考仓库：`LightNovelShelf/Web`
+- 参考仓库：`[REFERENCE_REPOSITORY]`
 - 更新命令：`git -C the Web-Master reference implementation fetch origin master && git -C the Web-Master reference implementation merge --ff-only origin/master`
-- 本次刷新版本：`5505dd41bb91c45c791fe17b6ec2c092bb16b923` (`5505dd4`)，`2026-08-29 17:36:14 +08:00`
-- 本次刷新前本地版本：`a8c317838ec7` (`a8c3178`)，`2026-08-20`
-- 旧的完整书籍系统审计基线：`c919cd6e130479c5b9729e9c0b38f87aff13952f`
-- 本文重点审计 `a8c3178..5505dd4`；旧基线到 `a8c3178` 的书籍、搜索、历史、漫画系列和阅读器结论继续保留在 `web-complete-book-system-reference.md`。
+- 本次刷新版本：`[COMMIT]` (`[COMMIT]`)，`2026-08-29 17:36:14 +08:00`
+- 本次刷新前本地版本：`[COMMIT]` (`[COMMIT]`)，`2026-08-20`
+- 旧的完整书籍系统审计基线：`[COMMIT]`
+- 本文重点审计 `[COMMIT]..[COMMIT]`；旧基线到 `[COMMIT]` 的书籍、搜索、历史、漫画系列和阅读器结论继续保留在 `web-complete-book-system-reference.md`。
 
 `the Web-Master reference implementation` 仍是本地、被 Git 忽略的研究 checkout，不是运行时依赖。本次快进后工作区干净，`HEAD` 与 `origin/master` 一致。
 
@@ -15,15 +15,15 @@
 
 | 提交 | 变化 | 对 RN 的结论 |
 | --- | --- | --- |
-| `0f86a15` | 社区发帖独立路由；帖子草稿自动备份/恢复；帖子编辑、删除；回复/子回复删除；统一相对时间组件 | 需要跟进社区作者能力和草稿体验；相对时间属于呈现细节 |
-| `eccda5c` | 商城、道具、补签卡、金币入口和金币流水；小说整本与漫画单话下载 | 新业务，当前 RN 没有对应协议、用例或界面 |
-| `ac955d5` | 楼中楼分页增加 `AfterReplyId` 游标 | 需要更新 RN API 和加载逻辑，避免页码与动态插入造成重复/漏楼 |
-| `7cb0b9c` | 通知跳转交给服务端以 `FocusReplyId` 定位，不再逐页扫描 | 需要更新 RN 通知深链与线程加载，避免无界请求 |
-| `dbed727` | 漫画阅读器侧栏移到左侧并隐藏滚动条 | RN 不直接复制 CSS；检查原生章节/设置面板的遮挡和滚动体验 |
-| `f6363c9` | HTML 清理器放行链接 `target`，自动补 `rel=noopener noreferrer` | Web 安全修复；RN 现有 `Linking` 打开 HTTPS 链接，保留独立校验 |
-| `32a4573` | 新增 `ResetInviteCode`，个人资料可重置邀请码 | RN 缺失，属于账号能力补齐 |
-| `4a8d837` | 编辑帖子改用 `GetCommunityThreadEditInfo`；编辑正文统一为 `Content`；补充 turndown 对照 fixture 工具 | RN 现有社区线程仍按 `bodyHtml` 解码，存在协议兼容风险 |
-| `5505dd4` | 搜索、历史、设置的竖向布局增加 `no-wrap`，修复搜索结果被截断 | Web 布局修复；RN FlatList 不需搬运，但应做小屏截断回归 |
+| `[COMMIT]` | 社区发帖独立路由；帖子草稿自动备份/恢复；帖子编辑、删除；回复/子回复删除；统一相对时间组件 | 需要跟进社区作者能力和草稿体验；相对时间属于呈现细节 |
+| `[COMMIT]` | 商城、道具、补签卡、金币入口和金币流水；小说整本与漫画单话下载 | 新业务，当前 RN 没有对应协议、用例或界面 |
+| `[COMMIT]` | 楼中楼分页增加 `AfterReplyId` 游标 | 需要更新 RN API 和加载逻辑，避免页码与动态插入造成重复/漏楼 |
+| `[COMMIT]` | 通知跳转交给服务端以 `FocusReplyId` 定位，不再逐页扫描 | 需要更新 RN 通知深链与线程加载，避免无界请求 |
+| `[COMMIT]` | 漫画阅读器侧栏移到左侧并隐藏滚动条 | RN 不直接复制 CSS；检查原生章节/设置面板的遮挡和滚动体验 |
+| `[COMMIT]` | HTML 清理器放行链接 `target`，自动补 `rel=noopener noreferrer` | Web 安全修复；RN 现有 `Linking` 打开 HTTPS 链接，保留独立校验 |
+| `[COMMIT]` | 新增 `ResetInviteCode`，个人资料可重置邀请码 | RN 缺失，属于账号能力补齐 |
+| `[COMMIT]` | 编辑帖子改用 `GetCommunityThreadEditInfo`；编辑正文统一为 `Content`；补充 turndown 对照 fixture 工具 | RN 现有社区线程仍按 `bodyHtml` 解码，存在协议兼容风险 |
+| `[COMMIT]` | 搜索、历史、设置的竖向布局增加 `no-wrap`，修复搜索结果被截断 | Web 布局修复；RN FlatList 不需搬运，但应做小屏截断回归 |
 
 ## 新增与改变的协议
 

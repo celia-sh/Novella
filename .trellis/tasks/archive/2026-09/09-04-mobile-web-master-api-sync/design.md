@@ -58,7 +58,7 @@ interface UseComicQuotaCardResult {
 
 `ApiClient.useComicQuotaCard()` invokes `UseComicQuotaCard` with `{}` and strictly decodes `Key`, `Granted`, `Quota`, and `Owned`.
 
-Expose `COMIC_QUOTA_ITEM_KEY = 'comic_quota_50'` from client-core, plus a `ShopQuotaOutcome` and `ShopUseCase.useComicQuotaCard()`. It shares the existing mutation queue with purchases and makeup cards. Immediately after the operation succeeds, project `owned` into both shelf and owned-item collections; then reload the full shop snapshot. If refresh fails after the mutation succeeded, publish the projected confirmed state rather than reporting the completed mutation as failed.
+Expose `COMIC_QUOTA_ITEM_KEY = 'comic_quota_50'` from client-core, plus a `ShopQuotaOutcome` and `ShopUseCase.useComicQuotaCard()`. It shares the existing mutation queue with purchases and makeup cards. Immediately after the operation succeeds, project `owned` into both shelf and owned-item collections; then reload the full shop snapshot. If refresh fails after the mutation succeeds, publish the projected confirmed state rather than reporting the completed mutation as failed.
 
 The quota balance itself belongs to `UserProfile`, not `ShopSnapshot`. The screen refreshes the existing profile repository after successful use, as the makeup-card flow already does for growth state.
 

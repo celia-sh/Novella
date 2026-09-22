@@ -38,6 +38,6 @@
 
 ## Completion gates
 
-- Automated implementation and branch review are complete in commit `ae968e2`.
+- Automated implementation and branch review are complete in commit `[COMMIT]`.
 - Keep the task `in_progress` until the user accepts the iOS row order, navigation, alerts, item images, quota state, and one real purchase flow.
 - Automated acceptance criteria are self-verified with command evidence; native interaction remains user-accepted device work.

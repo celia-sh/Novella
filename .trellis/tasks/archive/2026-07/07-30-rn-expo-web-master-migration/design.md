@@ -7,8 +7,8 @@ The migration has two reference sources with different authority:
 | Area | Authority | Use |
 | --- | --- | --- |
 | Backend operations, DTOs, route/feature inventory, and newly added capabilities | `the Web-Master reference implementation` at the locally pinned checkout | Reconstruct current business behavior and protocol contracts |
-| Mobile information hierarchy, gestures, reading controls, spacing, and platform ergonomics | `archive/flutter` | Recreate mobile interaction quality without copying Flutter implementation details |
-| Existing public site behavior and sideload repository output | `apps/site` and its generated scripts | Preserve Cloudflare Pages, announcements, and `repository.json` behavior |
+| Mobile information hierarchy, gestures, reading controls, spacing, and platform ergonomics | `[BRANCH]` | Recreate mobile interaction quality without copying Flutter implementation details |
+| Existing public site behavior and sideload repository output | `apps/site` and its generated scripts | Preserve external deployment service, announcements, and `repository.json` behavior |
 
 Web-Master is a local-only Quasar/Vue reference checkout and is ignored by the
 Novella repository. It must never become a runtime dependency of the mobile or

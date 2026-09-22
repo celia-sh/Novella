@@ -11,7 +11,7 @@
 
 ## Previous Novella Readium implementation in Git history
 
-Commit `4e22c2e^` contained these Novella-owned pieces:
+Commit `[COMMIT]^` contained these Novella-owned pieces:
 
 - `apps/mobile/modules/novella-readium/`: Expo native view and Swift/Android wrappers.
 - `apps/mobile/src/services/readium-publication.ts`: deterministic OPF/nav/XHTML generation, stable chapter hrefs, image URL rebasing, inline footnotes, and image preview user script.

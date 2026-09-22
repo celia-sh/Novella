@@ -48,7 +48,7 @@ The controller receives a small optional authentication-status callback or typed
 
 Add `react-native-pretty-toast` to `apps/mobile` and configure its required iOS Info.plist flag through `app.config.ts` / the existing native configuration path. Mount `<ToastProvider>` once inside `GestureHandlerRootView`, above the navigation stack and alert host.
 
-Create a mobile-only `useClientSessionFeedback` hook or root component that subscribes to the client session and authentication snapshots and uses `toast.show` / `toast.update` / `toast.dismiss` with stable IDs:
+Create a mobile-only `useClientSessionHook` hook or root component that subscribes to the client session and authentication snapshots and uses `toast.show` / `toast.update` / `toast.dismiss` with stable IDs:
 
 - `client-reconnecting`: persistent or long-duration info/loading toast with localized `reconnecting` copy.
 - On ready after reconnect: update/dismiss the reconnect toast and show a short success toast only when an actual recovery was observed.

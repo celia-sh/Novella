@@ -2,14 +2,14 @@
 
 ## Goal
 
-同步 Novella 与 `Web-Master reference snapshot 2c29426` 的最新漫画详情、评论、通知和社区线程管理契约，确保当前后端发布后，漫画详情/阅读/评论/通知跳转继续可用，并让有权限的用户能够锁定或解锁社区帖子。
+同步 Novella 与 `Web-Master reference snapshot [COMMIT]` 的最新漫画详情、评论、通知和社区线程管理契约，确保当前后端发布后，漫画详情/阅读/评论/通知跳转继续可用，并让有权限的用户能够锁定或解锁社区帖子。
 
 ## Background
 
-参考仓库已从 `963eccf` 快进到 `2c29426`，包含两个提交：
+参考仓库已从 `[COMMIT]` 快进到 `[COMMIT]`，包含两个提交：
 
-- `01dbe9b feat: add thread lock action`
-- `2c29426 refactor: unify book and manga detail pages`
+- `[COMMIT] feat: add thread lock action`
+- `[COMMIT] refactor: unify book and manga detail pages`
 
 已确认 Novella 当前状态：
 
@@ -68,7 +68,7 @@
 ## Out of Scope
 
 - Web-only Quasar 页面布局和视觉样式迁移。
-- 后端 API、部署、DNS、Cloudflare 或参考仓库修改。
+- 后端 API、部署、DNS、external deployment provider 或参考仓库修改。
 - 阅读器 HTML 内容模型或全局 Markdown 存储迁移。
 - 与本次两个远端提交无关的通知 envelope、商店、成长值和 public profile 改动。
 
@@ -78,9 +78,9 @@
 - 当前通知旧系列路径位于 `apps/mobile/src/services/community-utils.ts` 与 `apps/mobile/src/screens/community-notifications-screen.tsx`。
 - 当前社区线程已有 `locked` 读状态和互动拦截，新增 mutation 应沿用现有 `threadActionId` 互斥状态。
 
-## Follow-up — `Web-Master reference snapshot 1e5a4e5`
+## Follow-up — `Web-Master reference snapshot [COMMIT]`
 
-参考仓库随后从 `2c29426` 更新到 `1e5a4e5`。移动端需要继续同步两项当前契约：
+参考仓库随后从 `[COMMIT]` 更新到 `[COMMIT]`。移动端需要继续同步两项当前契约：
 
 ### R5 — 公共用户摘要 Hub 迁移
 

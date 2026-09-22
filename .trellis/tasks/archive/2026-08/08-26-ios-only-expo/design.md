@@ -4,7 +4,7 @@
 
 - `apps/mobile` becomes a native iOS-only Expo application. Its app config, local modules, source tree, commands, and native generation path must no longer model Android or Web as supported platforms.
 - `apps/site` remains a separate web application, but its current download surface presents only the iOS app. The release-data fetcher may retain a generic Android platform value so historical GitHub release metadata is not corrupted or discarded unless a later product decision requires removal.
-- `packages/*`, server/API contracts, `archive/flutter`, and historical Trellis task records are outside the product migration and remain unchanged except for references that are part of current contributor/release documentation.
+- `packages/*`, server/API contracts, `[BRANCH]`, and historical Trellis task records are outside the product migration and remain unchanged except for references that are part of current contributor/release documentation.
 - Generated `the generated local iOS project/` and `the generated local Android project/` directories remain ignored. The tracked source of truth is app config, config plugins, Expo modules, and TypeScript/Swift source.
 
 ## Invariants for the current iOS product

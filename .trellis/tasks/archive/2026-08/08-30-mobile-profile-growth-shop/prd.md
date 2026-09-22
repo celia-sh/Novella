@@ -16,7 +16,7 @@ Align the mobile profile experience with the latest Web-Master account and shop 
 - The mobile profile screen is `apps/mobile/src/screens/profile-screen.tsx`.
 - The existing profile use case owns authenticated profile mutations and publishes a refreshed profile after each mutation (`packages/client-core/src/index.ts`).
 - `ApiClient` already owns `GetMyInfo`, `SetAvatar`, and `SignIn` contracts (`packages/api-client/src/index.ts`).
-- Web-Master `5505dd4` exposes `ResetInviteCode`, `GetShop`, `GetMyItems`, `BuyShopItem`, `GetPointLog`, and `GetCoinLog`; shop item images may be absolute URLs or paths relative to the API origin.
+- Web-Master `[COMMIT]` exposes `ResetInviteCode`, `GetShop`, `GetMyItems`, `BuyShopItem`, `GetPointLog`, and `GetCoinLog`; shop item images may be absolute URLs or paths relative to the API origin.
 - Mobile supports Simplified Chinese and Taiwan Traditional Chinese and requires parity for every added translation key.
 
 ## Requirements

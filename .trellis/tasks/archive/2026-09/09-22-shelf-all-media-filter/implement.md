@@ -52,7 +52,7 @@
 - Client-core tests: 44 passed.
 - Mobile typecheck, boundary check, and `git diff --check` passed.
 - Independent check found no blockers.
-- `agent-device` session `shelf-qa` on the iPhone 17 Pro simulator verified
+- `agent-device` session `shelf-qa` on the [SIMULATOR] simulator verified
   the same mixed folder at root in All/Novel/Comic (2/1/1 books), preserved
   the filter while entering it, and showed the two distinct children in All
   versus the matching child in each typed mode; the session was closed.

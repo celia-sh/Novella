@@ -2,8 +2,8 @@
 
 ## 1. Freeze branch evidence
 
-- [x] Record the current target commit and source commit (`72fafcc` and
-  `5cf99dd`) in the task notes before editing.
+- [x] Record the current target commit and source commit (`[COMMIT]` and
+  `[COMMIT]`) in the task notes before editing.
 - [x] Confirm the source branch working tree and ref remain unchanged.
 - [x] Keep the source mixed commit as read-only evidence; do not cherry-pick it.
 
@@ -25,7 +25,7 @@
 - [x] Run workspace typecheck, boundary checks, and `git diff --check`.
 - [x] Audit the target diff by path and content: only the public-summary API
   hunk/test plus task artifacts are new for this task.
-- [x] Verify `feat/sync-web-master-direct-messages` still resolves to `5cf99dd`
+- [x] Verify `[BRANCH]` still resolves to `[COMMIT]`
   and has no working-tree or ref changes from this task.
 - [x] Confirm no direct-message symbols or UI paths were introduced on the
   target branch.
@@ -53,7 +53,7 @@ git diff --check
 - API-client tests: 35 passed.
 - API-client and workspace typechecks passed.
 - Boundary check and `git diff --check` passed.
-- Source ref remains `feat/sync-web-master-direct-messages` at `5cf99dd`.
+- Source ref remains `[BRANCH]` at `[COMMIT]`.
 - Target diff contains no direct-message symbols or UI/package paths.
 
 ## Risk / rollback points

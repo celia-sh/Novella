@@ -9,9 +9,9 @@ substitute for this source analysis.
 
 ## Provenance And Authority
 
-- Primary source: `archive/flutter:lib/features/book/book_detail_page.dart`
-  at archive commit `23934b7e7f86002a448613e27c1f1d1906d6d6ac`.
-- The last commit touching that file on the archive branch is `378ca65`
+- Primary source: `[BRANCH]:lib/features/book/book_detail_page.dart`
+  at archive commit `[COMMIT]`.
+- The last commit touching that file on the archive branch is `[COMMIT]`
   (`Improve detail and reader load scheduling (#125)`).
 - The archive pins Flutter `3.44.0` in `.fvmrc`.
 - Flutter framework behavior below was checked against the locally available

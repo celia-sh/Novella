@@ -6,7 +6,7 @@ Date: 2026-08-25
 
 - The repository already pins Readium Swift Toolkit 3.11.0 in `apps/mobile/app.config.ts` through the `ReadiumShared`, `ReadiumStreamer`, and `ReadiumNavigator` CocoaPods from `https://github.com/readium/podspecs`.
 - Readium Swift Toolkit 3.11.0 supports iOS 15.0 and therefore fits the app's current iOS deployment target of 16.4.
-- The previous Novella Readium integration was removed by the Skia migration commit (`4e22c2e`), but its iOS module, publication cache, preferences, locator mapping, and tests remain available in Git history as an implementation baseline. It must be adapted to current reader behavior, not blindly restored.
+- The previous Novella Readium integration was removed by the Skia migration commit (`[COMMIT]`), but its iOS module, publication cache, preferences, locator mapping, and tests remain available in Git history as an implementation baseline. It must be adapted to current reader behavior, not blindly restored.
 
 ## Navigator APIs confirmed from Readium docs/source
 

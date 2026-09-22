@@ -6,7 +6,7 @@ Convert `apps/mobile` from a dual-platform Expo application into an iOS-only Exp
 
 ## Background and confirmed repository facts
 
-- Planning is being done on the new branch `chore/ios-only-expo` from `main` at `7c99781` (`feat(reader): replace Skia novel renderer with Readium iOS (#193)`).
+- Planning is being done on the new branch `[BRANCH]` from `main` at `[COMMIT]` (`feat(reader): replace Skia novel renderer with Readium iOS (#193)`).
 - `apps/mobile/app.config.ts` currently declares `platforms: ['android', 'ios']`, has Android localization/splash/icon/signing configuration, and has an `android` app-config block.
 - The Expo project uses Continuous Native Generation. `the generated local iOS project/` and `the generated local Android project/` are generated and ignored; the Android directory is present locally but is not a tracked source artifact. The tracked custom Android implementation lives in `apps/mobile/modules/novella-ui/android/`.
 - The iOS Readium module is already registered as iOS-only in `apps/mobile/modules/novella-readium/expo-module.config.json`; its non-iOS TypeScript fallback exists only to keep the former Android bundle safe and can be reconsidered once Android is no longer a target.

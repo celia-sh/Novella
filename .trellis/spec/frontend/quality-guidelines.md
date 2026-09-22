@@ -74,7 +74,7 @@ physical device:
 - Native compile/build/export steps that run headless (e.g. Android
   Gradle compile tasks, Expo prebuild/export) when the toolchain is available.
 - Web/site builds and artifact generation (announcements, `repository.json`,
-  Cloudflare Pages output).
+  external deployment service output).
 
 ### Manual (user-accepted on simulator/device)
 

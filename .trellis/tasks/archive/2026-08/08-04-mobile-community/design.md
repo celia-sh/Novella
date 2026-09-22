@@ -301,7 +301,7 @@ Rules:
 
 Preserve the Flutter contract and current static assets:
 
-- manifest: `https://novella.celia.sh/assets/community-moderation/manifest.json`
+- manifest: `[SITE_DOMAIN]/assets/community-moderation/manifest.json`
 - schema version 1
 - normalization `compact-v1`
 - UTF-8 byte-size validation

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Align the mobile Community thread experience with Web-Master `5505dd4`, including server-authorized thread editing, thread deletion, reply deletion, and the current thread/reply pagination contract.
+Align the mobile Community thread experience with Web-Master `[COMMIT]`, including server-authorized thread editing, thread deletion, reply deletion, and the current thread/reply pagination contract.
 
 ## Requirements
 

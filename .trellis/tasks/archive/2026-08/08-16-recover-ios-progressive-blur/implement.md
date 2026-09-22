@@ -12,7 +12,7 @@
 - [x] Delete untracked `NovellaProgressiveBlurView.swift` and `native-progressive-blur*` files.
 - [x] Remove `ProgressiveBlur` registration from `NovellaUiModule.swift`.
 - [x] Remove the blur-opacity helper and its test.
-- [x] Restore the tracked renderer/config files through targeted edits based on the `783d4fd`/`a6fd61d` file content.
+- [x] Restore the tracked renderer/config files through targeted edits based on the `[COMMIT]`/`[COMMIT]` file content.
 - [x] Confirm no unrelated dirty files are touched.
 
 ## Phase 2: Re-establish The Visual Baseline

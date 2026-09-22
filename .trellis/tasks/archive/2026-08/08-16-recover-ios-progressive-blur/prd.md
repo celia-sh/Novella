@@ -2,13 +2,13 @@
 
 ## Goal
 
-Recover the user-confirmed RN progressive blur appearance, add content-driven top and bottom adaptation without corrupting the blur, and preserve the later navigation, scroll ownership, research, luma-sensor, reader, settings, and theme work already present on `feat/ios-progressive-blur`.
+Recover the user-confirmed RN progressive blur appearance, add content-driven top and bottom adaptation without corrupting the blur, and preserve the later navigation, scroll ownership, research, luma-sensor, reader, settings, and theme work already present on `[BRANCH]`.
 
 ## Confirmed Baseline
 
 - User acceptance time: approximately 2026-08-15 15:20 +0800.
-- The user-provided short identifier `3a643fe` is not resolvable in the current object database. Git reflog shows `HEAD = 783d4fd` from 12:40 until `3c8a68b` at 16:30.
-- The progressive renderer files are byte-equivalent across `783d4fd`, `3c8a68b`, `ec71fe7`, and `a6fd61d`.
+- The user-provided short identifier `[COMMIT]` is not resolvable in the current object database. Git reflog shows `HEAD = [COMMIT]` from 12:40 until `[COMMIT]` at 16:30.
+- The progressive renderer files are byte-equivalent across `[COMMIT]`, `[COMMIT]`, `[COMMIT]`, and `[COMMIT]`.
 - That renderer used RN composition with `MaskedView`, `expo-blur` `BlurView`, a fixed semantic replay layer, and top additional dimming. Its blur appearance was user-confirmed; it did not adapt correctly to underlying content.
 - Recovery must use this renderer state as a visual baseline, not reset the branch or discard unrelated later work.
 

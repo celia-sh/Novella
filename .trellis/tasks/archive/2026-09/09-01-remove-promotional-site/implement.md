@@ -1,24 +1,24 @@
 # 实施计划：移除宣传站点与应用内软件公告
 
-> 实施状态：任务已启动，仓库清理已完成；外部 DNS/Cloudflare 和设备验收仍由用户处理。
+> 实施状态：任务已启动，仓库清理已完成；外部 DNS/external deployment provider 和设备验收仍由用户处理。
 
 ## 0. 前置审阅与发布策略
 
 - [x] 确认本任务按“删除 `apps/site` + 保留站点公告 API”执行。
-- [x] 确认移动端清理版本先于用户删除 DNS/Cloudflare Pages；把域名删除列为仓库外手动步骤。
+- [x] 确认移动端清理版本先于用户删除 DNS/external deployment service；把域名删除列为仓库外手动步骤。
 - [ ] 如需保留应用公告历史，在删除站点文件前完成外部复制。
 
 ## 1. 清理站点 workspace 与 CI
 
 - [x] 删除 `apps/site/` 全目录：`package.json`、`src/`、`scripts/`、`public/` 及静态资源。
-- [x] 删除 `.github/workflows/deploy_site.yml`，包括定时、release、Cloudflare Pages 部署和站点专用 secrets/variables 引用。
+- [x] 删除 `.github/workflows/deploy_site.yml`，包括定时、release、external deployment service 部署和站点专用 secrets/variables 引用。
 - [x] 从 `.github/workflows/validate.yml` 删除 `Build public site` 步骤，保留移动端/共享包的验证步骤。
 - [x] 从根 `package.json` 删除 `dev:site`，保留通用 workspace 脚本。
 - [x] 删除 `.gitignore` 只服务 `apps/site` 生成物的规则，保留通用 `dist/`、`build/` 等忽略规则。
 - [x] 更新 `README.md` 与 `CONTRIBUTING.md` 的目录结构，不再描述已删除站点。
 - [x] 在根目录运行 npm 的 lockfile 更新，确认 `package-lock.json` 删除 `apps/site` workspace/link 及不再需要的站点直接依赖；不要留下手工不一致的 lockfile。
 
-**风险/回滚点**：站点目录删除是最大文件删除点；先确认应用公告历史是否需要存档，并在同一提交前检查 `git diff --stat`。侧载资源迁移已有替代方案，不在本任务处理。若移动端验证失败，先回滚移动端部分或延后外部删除，不要删除 Cloudflare 资源。
+**风险/回滚点**：站点目录删除是最大文件删除点；先确认应用公告历史是否需要存档，并在同一提交前检查 `git diff --stat`。侧载资源迁移已有替代方案，不在本任务处理。若移动端验证失败，先回滚移动端部分或延后外部删除，不要删除 external deployment provider 资源。
 
 ## 2. 删除客户端应用公告来源，保留服务端公告
 
@@ -41,7 +41,7 @@
 
 ## 4. 依赖与残留审计
 
-- [x] 搜索并确认生产代码不再引用：`novella.celia.sh`、`apps/site`、`@novella/site`、`APP_ANNOUNCEMENT`、`AppAnnouncement`、`loadAppAnnouncement`、`source: 'app'`、`partialApp`、`appSource`、`marked`。
+- [x] 搜索并确认生产代码不再引用：`[SITE_DOMAIN]`、`apps/site`、`@novella/site`、`APP_ANNOUNCEMENT`、`AppAnnouncement`、`loadAppAnnouncement`、`source: 'app'`、`partialApp`、`appSource`、`marked`。
 - [x] 正向搜索确认以下保留项仍存在且被使用：`GetAnnouncementList`、`GetAnnouncementDetail`、`Announcement` comment target、`AppNotificationObjectType` 的公告分支、`home.announcement`、GitHub `releases/latest` 更新检查。
 - [x] `git grep` 结果中若只剩 task 文档或 Git 历史，不视为生产残留；不要为了清零而删除站点公告相关 `Announcement` 类型。
 
@@ -70,8 +70,8 @@ git grep -n -I -E 'novella\\.celia\\.sh|@novella/site|apps/site|APP_ANNOUNCEMENT
 ## 6. 人工验收与外部收尾
 
 - [ ] 新移动端版本在 iOS simulator/device 上：公告中心仅加载站点公告，刷新和分页可用，打开详情可评论；社区首页公告摘要仍可进入公告中心；旧 `source=app` 深链显示无效状态且无静态域名请求。
-- [ ] 关于页不再显示 `novella.celia.sh`；GitHub 源码、更新日志和手动更新检查仍可用。
-- [ ] 用户在确认新版本已发布后，自行删除 Cloudflare Pages 项目/custom domain/DNS 记录及确认仅供站点使用的变量、密钥。
+- [ ] 关于页不再显示 `[SITE_DOMAIN]`；GitHub 源码、更新日志和手动更新检查仍可用。
+- [ ] 用户在确认新版本已发布后，自行删除 external deployment service 项目/custom domain/DNS 记录及确认仅供站点使用的变量、密钥。
 - [ ] 外部删除后按用户选择验证旧域名的预期结果，并记录旧版本会显示应用公告不可用的兼容性说明。
 
 ## 7. 提交前回滚检查

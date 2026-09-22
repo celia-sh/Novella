@@ -3,8 +3,8 @@
 ## Purpose and audit boundary
 
 This is a historical read-only audit of `the Web-Master reference implementation` for planning the complete
-React Native book system. The audited checkout was `LightNovelShelf/Web` commit
-`c919cd6e130479c5b9729e9c0b38f87aff13952f` (`master`). The current refreshed
+React Native book system. The audited checkout was `[REFERENCE_REPOSITORY]` commit
+`[COMMIT]` (`master`). The current refreshed
 checkout and incremental changes are recorded in
 [`web-master-latest-delta.md`](web-master-latest-delta.md). The scope is the
 reader-facing novel and comic system; novels and comics are treated as equal
@@ -122,7 +122,7 @@ ship upload/admin UI now.
 
 ### SignalR transport contract
 
-- Origin defaults to `https://api.lightnovel.life` (alternate Cloudflare
+- Origin defaults to `[API_ORIGIN]` (alternate external deployment provider
   origin exists), and the Hub URL is `${origin}/hub/api`
   apiServer.ts:4-12 (the Web-Master reference implementation)
   signalr/index.ts:33-39 (the Web-Master reference implementation).

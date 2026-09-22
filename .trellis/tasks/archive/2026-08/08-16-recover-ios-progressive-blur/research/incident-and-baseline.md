@@ -5,9 +5,9 @@
 Captured 2026-08-16 after the user reinstalled the latest native client.
 
 ```text
-branch:  feat/ios-progressive-blur
-HEAD:    74fff3b fix(mobile): align iOS luma adaptation
-remote:  origin/feat/ios-progressive-blur at 783d4fd
+branch:  [BRANCH]
+HEAD:    [COMMIT] fix(mobile): align iOS luma adaptation
+remote:  origin/feat/ios-progressive-blur at [COMMIT]
 branch:  ahead 6
 push:    none for local commits
 ```
@@ -36,20 +36,20 @@ These files were installed and cold-launched by the user. They are a real failed
 
 The user identified a good state around 2026-08-15 15:20 +0800: blur appearance correct, no automatic content adaptation.
 
-The short identifier `3a643fe` does not resolve in the current repository/reflog/unreachable objects. Time-based reconstruction is unambiguous enough for the renderer:
+The short identifier `[COMMIT]` does not resolve in the current repository/reflog/unreachable objects. Time-based reconstruction is unambiguous enough for the renderer:
 
 ```text
-12:40  783d4fd  stabilize detail scroll edges
-15:20  HEAD still 783d4fd; possible uncommitted work
-16:30  3c8a68b  align top blur with scroll ownership
-17:31  ec71fe7  finish scroll owner edge cases
-17:55  a6fd61d  add system blur research surface
-19:20  4c88d6d  adapt iOS top blur to content luma
-20:57  e1c417b  adapt reader bottom blur to content
-22:53  74fff3b  align iOS luma adaptation
+12:40  [COMMIT]  stabilize detail scroll edges
+15:20  HEAD still [COMMIT]; possible uncommitted work
+16:30  [COMMIT]  align top blur with scroll ownership
+17:31  [COMMIT]  finish scroll owner edge cases
+17:55  [COMMIT]  add system blur research surface
+19:20  [COMMIT]  adapt iOS top blur to content luma
+20:57  [COMMIT]  adapt reader bottom blur to content
+22:53  [COMMIT]  align iOS luma adaptation
 ```
 
-The progressive renderer/config/top-background files did not change from `783d4fd` through `a6fd61d`. Therefore that shared file content is the recovery baseline even if the remembered short identifier came from an uncommitted or rewritten state.
+The progressive renderer/config/top-background files did not change from `[COMMIT]` through `[COMMIT]`. Therefore that shared file content is the recovery baseline even if the remembered short identifier came from an uncommitted or rewritten state.
 
 Baseline renderer:
 
@@ -66,17 +66,17 @@ This is a user-confirmed visual baseline, not proof that every internal Expo int
 
 ## Commit Regression Map
 
-### `4c88d6d`: first top production regression
+### `[COMMIT]`: first top production regression
 
 Added public top luma sampling and a JS state machine. It also made the semantic replay layer dynamic and added black darkening.
 
 Defect: Apple `backgroundReplay` is a backdrop layer, not a semantic solid color. In dark trait, RN `systemGroupedBackground` resolved to black. Lower dynamic replay values exposed the cold-start full material and painted a masked black layer over manga.
 
-### `e1c417b`: bottom regression propagation
+### `[COMMIT]`: bottom regression propagation
 
 Reused the same state/rendering model for reader bottom chrome. It added a second dynamic solid replay and made the reported bottom gray/black band possible.
 
-### `74fff3b`: state math correction without renderer correction
+### `[COMMIT]`: state math correction without renderer correction
 
 Corrected quantization, EMA chaining, light threshold mapping, strict low/middle hysteresis, and conditional settle timer. Those corrections are independently valid, but validation stopped at tests/builds. The renderer and mean-luma-only content-style approximation remained defective.
 
@@ -213,7 +213,7 @@ removed untracked experiment:
   apps/mobile/modules/novella-ui/src/native-progressive-blur.types.ts
 ```
 
-The shared iOS renderer and config have no diff from `a6fd61d`. Top/bottom dynamic luma props are disconnected from rendering. The public sensor, state service, hook, ownership fixes, and reader code remain in the repository. Bottom retains `NativeScrollEdgeMarker hidesAllEdgeEffects` without luma sampling.
+The shared iOS renderer and config have no diff from `[COMMIT]`. Top/bottom dynamic luma props are disconnected from rendering. The public sensor, state service, hook, ownership fixes, and reader code remain in the repository. Bottom retains `NativeScrollEdgeMarker hidesAllEdgeEffects` without luma sampling.
 
 Self-verified evidence:
 

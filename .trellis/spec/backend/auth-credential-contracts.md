@@ -53,13 +53,13 @@ Package ownership:
 
 | Contract | Value |
 | --- | --- |
-| API origin | `https://api.lightnovel.life` |
-| Login | `POST /api/user/login` |
-| Register | `POST /api/user/register` |
-| Refresh | `POST /api/user/refresh_token` with `{ token }` |
-| SignalR hub | `https://api.lightnovel.life/hub/api` |
-| Session key | `novella.session-token` |
-| Refresh key | `novella.refresh-token` |
+| API origin | Deployment-specific configuration |
+| Login | Configured login operation |
+| Register | Configured registration operation |
+| Refresh | Configured refresh operation with `{ token }` |
+| Authenticated hub | Configured hub transport |
+| Session key | Host-managed session credential key |
+| Refresh key | Host-managed refresh credential key |
 
 Login and registration return `{ sessionToken, refreshToken }` after
 `api-client` decodes the server envelope. Refresh returns a replacement session
@@ -90,13 +90,11 @@ token; it does not replace the stored refresh token.
 - An HTTP request that receives 401 may refresh and retry exactly once.
 - A SignalR invocation normalized as an auth error may refresh and retry exactly
   once.
-- `/api/user/refresh_token` uses the raw transport and is never intercepted by
+- The refresh operation uses the raw transport and is never intercepted by
   authenticated retry.
-- `ApiClient` must be constructed with an `AuthRetryHandler` for authenticated
-  app traffic. The current `createClientRuntime()` constructor creates an
-  `ApiClient` without that handler, so mobile must not replace the composition
-  in `apps/mobile/src/services/client.ts` with `createClientRuntime()` until the
-  runtime contract wires retry explicitly.
+- The API client must be composed with an `AuthRetryHandler` for authenticated
+  application traffic. Host composition must not omit this dependency or
+  silently turn recoverable authentication failures into visible failures.
 
 ## 4. Validation & Error Matrix
 

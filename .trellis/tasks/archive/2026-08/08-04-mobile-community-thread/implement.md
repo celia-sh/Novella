@@ -10,7 +10,7 @@
 6. [x] Reconcile reply deletion through a server reload.
 7. [x] Add Simplified Chinese and Taiwan Traditional Chinese text.
 8. [x] Run the full client tests, localization tests, diff checks, task validation, and iOS Expo export.
-9. [x] Review the final diff and commit the Community increment separately (`1fb977e`).
+9. [x] Review the final diff and commit the Community increment separately (`[COMMIT]`).
 
 ## Validation
 

@@ -6,7 +6,7 @@ Allow iOS users to choose and persist the novel reader's page background color w
 
 ## Confirmed facts
 
-- The active implementation branch is `feat/reader-theme`, based on `main`.
+- The active implementation branch is `[BRANCH]`, based on `main`.
 - The current active Trellis task was cleared before creating this task.
 - `@expo/ui` `~57.0.8` is already installed in `apps/mobile`.
 - The installed `@expo/ui/swift-ui` package exports an iOS-only `ColorPicker` whose selection contract is a `#RRGGBB` or `#RRGGBBAA` string and whose callback returns the selected color string.

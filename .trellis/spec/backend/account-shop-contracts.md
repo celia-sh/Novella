@@ -110,7 +110,7 @@ Hub mappings are exact:
 - Good: a held `sign_makeup` item lets the user choose a prior UTC date, the server consumes one card, and the shared snapshot removes the item when `Owned` reaches zero.
 - Good: an omitted `MonthlyLimit` keeps an unlimited quota card purchasable; using it publishes the server-returned ownership even if the immediate shop refresh fails.
 - Base: a current point-log item renders `SourceLabel` exactly as returned, including `ComicRead` charges.
-- Bad: decrement coin or quota in the component before SignalR confirms, or show “purchase failed” after a mutation succeeded only because a later refresh failed.
+- Bad: decrement coin or quota in the component before SignalR confirms, or show “purchase failed” after a mutation succeeds only because a later refresh failed.
 - Bad: call `GetMyInfo` after reset and require that secondary request to succeed before publishing the new code; the old code has already been invalidated.
 
 ## 6. Tests Required

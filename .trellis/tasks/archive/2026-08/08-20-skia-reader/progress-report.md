@@ -240,7 +240,7 @@
    npx expo prebuild --clean
    ```
 
-2. **启动 iPhone 17 Pro 模拟器**
+2. **启动 [SIMULATOR] 模拟器**
    ```bash
    npm run ios
    ```

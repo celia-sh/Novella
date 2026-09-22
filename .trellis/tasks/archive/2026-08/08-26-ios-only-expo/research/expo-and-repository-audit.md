@@ -1,8 +1,8 @@
 # Expo iOS-only and Android-removal audit
 
 Date: 2026-08-26
-Baseline: `main` at `7c99781`
-Branch: `chore/ios-only-expo`
+Baseline: `main` at `[COMMIT]`
+Branch: `[BRANCH]`
 
 ## Official Expo / React Native guidance consulted
 

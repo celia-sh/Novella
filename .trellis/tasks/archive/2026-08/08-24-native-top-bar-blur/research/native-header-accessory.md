@@ -6,7 +6,7 @@ Research only. No implementation is planned in the current reader UI change. Thi
 
 ## Reference inspected
 
-Repository: `Swiftgram/Telegram-iOS` (`Swiftgram/Telegram-iOS`), inspected at commit `cf8b23be`.
+Repository: `Swiftgram/Telegram-iOS` (`Swiftgram/Telegram-iOS`), inspected at commit `[COMMIT]`.
 
 The relevant Swiftgram code was inspected from a local research checkout; its filesystem path is intentionally omitted.
 

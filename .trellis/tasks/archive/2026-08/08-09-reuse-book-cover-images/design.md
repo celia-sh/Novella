@@ -5,7 +5,7 @@
 Metro recorded a list URL failing with HTTP 401 because its raw BlurHash contained `#`:
 
 ```text
-https://img.lightnovel.life/..._md.jpg?placeholder=J8RyW#-=9sR:_NIq&t=...
+[IMAGE_ORIGIN]/..._md.jpg?placeholder=J8RyW#-=9sR:_NIq&t=...
 ```
 
 The URL repair belongs at the API boundary: replace raw `#` inside `placeholder` with `%23` while preserving every other byte and the trailing signature.

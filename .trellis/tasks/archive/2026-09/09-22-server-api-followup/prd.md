@@ -2,7 +2,7 @@
 
 ## Goal
 
-以 `references/web-master` 为只读参考源，将其从 `1e5a4e5` 更新到 `cd1b4b7` 后，对 Novella 需要跟进的书架 API 契约和移动端书架体验建立可执行任务树。
+以 `references/web-master` 为只读参考源，将其从 `[COMMIT]` 更新到 `[COMMIT]` 后，对 Novella 需要跟进的书架 API 契约和移动端书架体验建立可执行任务树。
 
 用户已明确：
 
@@ -15,8 +15,8 @@
 ## Comparison baseline
 
 - 参考仓库：`references/web-master`
-- 更新前：`1e5a4e5`（2026-09-06）
-- 最新：`cd1b4b7`（2026-09-21）
+- 更新前：`[COMMIT]`（2026-09-06）
+- 最新：`[COMMIT]`（2026-09-21）
 - 差异：17 个提交、60 个文件，约 1640 行新增、1652 行删除。
 - 完整提交分类和移动端证据记录在 `research/00-web-master-diff-and-mobile-impact.md`。
 

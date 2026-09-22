@@ -41,7 +41,7 @@
 - [x] Run `npm test --workspace @novella/client-core`.
 - [x] Run mobile reader/settings/localization tests.
 - [x] Run `npm run check` and `git diff --check`.
-- [x] Review the final diff against `Web-Master reference snapshot fb7342b` and confirm category/Markdown changes remain out of scope.
+- [x] Review the final diff against `Web-Master reference snapshot [COMMIT]` and confirm category/Markdown changes remain out of scope.
 - [ ] User verifies the live iOS profile/shop/log interactions.
 
 ## 6. Comment infinite-scroll follow-up

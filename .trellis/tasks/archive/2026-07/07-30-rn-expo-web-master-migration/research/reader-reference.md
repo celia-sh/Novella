@@ -6,7 +6,7 @@
   The current checkout exposes `GetNovelContent` in
   `src/services/chapter/index.ts`, and `GetComicInfo` / `GetComicContent` in
   `src/services/manga/index.ts`.
-- `archive/flutter` is authoritative for mobile reader behavior and content
+- `[BRANCH]` is authoritative for mobile reader behavior and content
   preparation. Relevant files are `lib/features/reader/reader_paged_page.dart`,
   `reader_scroll_page.dart`, and the `shared/reader_*` helpers.
 - Web-Master reader presentation is not a UI reference. Its novel page is a
@@ -74,7 +74,7 @@ Web-Master sends obfuscated chapter content together with an optional dynamic
 WOFF2 `Font` URL. Flutter's current implementation establishes the complete
 mobile behavior:
 
-1. Resolve relative font URLs against `https://api.lightnovel.life` and
+1. Resolve relative font URLs against `[API_ORIGIN]` and
    download WOFF2 bytes.
 2. Convert WOFF2 to TTF with Rust `woofwoof` and cache the TTF.
 3. Inspect the TTF with `ttf-parser` and collect codepoints whose glyph has

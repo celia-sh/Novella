@@ -2,7 +2,7 @@
 
 ## Source Of Truth
 
-1. User-confirmed visual baseline around 2026-08-15 15:20 +0800 (`HEAD` was `783d4fd`; renderer unchanged through `a6fd61d`).
+1. User-confirmed visual baseline around 2026-08-15 15:20 +0800 (`HEAD` was `[COMMIT]`; renderer unchanged through `[COMMIT]`).
 2. Archived UIKitCore/runtime report: `../archive/2026-08/08-14-ios-26-soft-scroll-edge-research/research/ios-26-soft-scroll-edge-effect.md`.
 3. Cold-installed production runtime evidence captured on iOS 26.5, never a mutated process for final acceptance.
 4. User acceptance on the target manga/content frame.
@@ -59,7 +59,7 @@ The manga has a dominant white background plus sparse black ink. Average luma fa
 ### Stage A: Restore The Known Visual Baseline
 
 - Remove only the failed uncommitted native-wrapper files and their registrations/imports/tests.
-- Restore `ios-progressive-blur.ios.tsx` and config behavior to the renderer shared by `783d4fd` through `a6fd61d` using targeted edits, not branch reset or destructive checkout.
+- Restore `ios-progressive-blur.ios.tsx` and config behavior to the renderer shared by `[COMMIT]` through `[COMMIT]` using targeted edits, not branch reset or destructive checkout.
 - Keep current top/bottom ownership, marker APIs, state service, and later screen fixes.
 - Build, install, terminate, cold-launch, and record baseline screenshots before adding adaptation.
 

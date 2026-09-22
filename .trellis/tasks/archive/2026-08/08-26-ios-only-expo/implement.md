@@ -1,6 +1,6 @@
 # iOS-only Expo implementation plan
 
-Implementation starts only after the user reviews and approves this plan. Work remains on `chore/ios-only-expo`.
+Implementation starts only after the user reviews and approves this plan. Work remains on `[BRANCH]`.
 
 ## Phase 0 — Freeze the iOS baseline
 
@@ -61,7 +61,7 @@ Implementation starts only after the user reviews and approves this plan. Work r
 - [ ] Keep historical release-asset classification only if required by the site data shape; ensure no current site UI advertises Android.
 - [ ] Update `README.md` and `CONTRIBUTING.md` to describe an Expo iOS-only app, iOS commands, iOS CNG/prebuild, and iOS-only QA. Remove Android Compose/icon/command instructions.
 - [ ] Update `.github/ISSUE_TEMPLATE/bug_report.md` OS examples and any current release wording to avoid promising Android.
-- [ ] Leave `archive/flutter`, historical task records, and old release metadata untouched unless a current surface explicitly displays them.
+- [ ] Leave `[BRANCH]`, historical task records, and old release metadata untouched unless a current surface explicitly displays them.
 
 ## Phase 5 — Regenerate and verify the clean iOS project
 
@@ -87,7 +87,7 @@ Implementation starts only after the user reviews and approves this plan. Work r
 - [ ] Review the diff against the PRD/design and verify that all promoted iOS files match their pre-change iOS behavior.
 - [ ] Re-run the repository search and dependency/import audit; no Android implementation or dual-platform Expo architecture should remain.
 - [ ] Hand the user the iOS-only manual checklist and record any simulator/device results. The user owns visual/interaction acceptance; no Android smoke test is required.
-- [ ] Only after all checks pass, update task artifacts with evidence, run the Trellis quality/finish flow, and commit the implementation on `chore/ios-only-expo`.
+- [ ] Only after all checks pass, update task artifacts with evidence, run the Trellis quality/finish flow, and commit the implementation on `[BRANCH]`.
 
 ## Implementation evidence (2026-08-26)
 

@@ -54,7 +54,7 @@
 - [ ] Complete the Web-Master route/operation/DTO matrix inventory (manga
       services, reader payloads); mark each item shared / presentation /
       adapter / website-only / deferred authoring-admin.
-- [ ] Flutter screen-state and settings-keys inventory from `archive/flutter`
+- [ ] Flutter screen-state and settings-keys inventory from `[BRANCH]`
       to finish the book-detail parity matrix (implicit Material defaults,
       chapter alignment, bottom safe area, loading/error states, mark state,
       quick search, cover interactions).
@@ -78,7 +78,7 @@
       verification; full workspace checks; headless native compile/export
       (Android Gradle, Expo exports) when the toolchain is present.
 
-### Web-Master 5505dd4 refresh follow-ups (2026-08-29)
+### Web-Master [COMMIT] refresh follow-ups (2026-08-29)
 
 The detailed evidence and current RN comparison live in
 `research/web-master-latest-delta.md`. These items supersede the old Web

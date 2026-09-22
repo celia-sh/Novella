@@ -13,7 +13,7 @@
   - `/announcement/detail/:id` 展示服务端 HTML；
   - 已登录用户在详情下方使用 `CommentType.Announcement` 评论。
 - Flutter 归档实现：
-  - 应用公告来自 `https://novella.celia.sh/assets/announcements/index.json`；详情按 manifest `path` 获取 Markdown；
+  - 应用公告来自 `[SITE_DOMAIN]/assets/announcements/index.json`；详情按 manifest `path` 获取 Markdown；
   - 应用公告与站点公告按发布时间合并排序，列表显示来源、摘要和日期；
   - 应用公告不可评论；
   - 当前线上 manifest 至少包含 `2026-05-28-long-time-no-see`，路径是相对站点根路径。

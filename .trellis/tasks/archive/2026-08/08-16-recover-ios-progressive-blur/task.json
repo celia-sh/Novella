@@ -8,12 +8,12 @@
   "scope": "iOS progressive blur renderer recovery, content-style classification, cold-start verification, and regression containment",
   "package": null,
   "priority": "P0",
-  "creator": "kanscape",
-  "assignee": "kanscape",
+  "creator": "[DEVELOPER]",
+  "assignee": "[DEVELOPER]",
   "createdAt": "2026-08-16",
   "completedAt": "2026-09-21",
-  "branch": "feat/ios-progressive-blur",
-  "base_branch": "feat/ios-progressive-blur",
+  "branch": null,
+  "base_branch": null,
   "worktree_path": null,
   "commit": null,
   "pr_url": null,
@@ -29,13 +29,6 @@
     "apps/mobile/src/services/ios-soft-luma.ts",
     "apps/mobile/modules/novella-ui/ios/NovellaScrollEdgeMarkerView.swift"
   ],
-  "notes": "Do not commit or continue from the dirty NovellaProgressiveBlurView experiment. Restore the confirmed renderer baseline with targeted edits, then separate content-style classification from mean luma and require cold-installed runtime acceptance.",
-  "meta": {
-    "confirmedBaselineHeadAt1520": "783d4fd",
-    "firstTopRendererRegression": "4c88d6d",
-    "firstBottomRendererRegression": "e1c417b",
-    "stateMathCommit": "74fff3b",
-    "rejectedExperimentCommitted": false,
-    "runtime": "iOS 26.5 / iPhone 17 Pro simulator"
-  }
+  "notes": "Task history retained without personal or revision metadata.",
+  "meta": {}
 }

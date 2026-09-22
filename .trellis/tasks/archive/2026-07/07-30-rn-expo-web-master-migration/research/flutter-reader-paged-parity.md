@@ -2,7 +2,7 @@
 
 ## Authority
 
-Primary source: `archive/flutter:lib/features/reader/reader_paged_page.dart`.
+Primary source: `[BRANCH]:lib/features/reader/reader_paged_page.dart`.
 Supporting sources are `reader_scroll_page.dart`, `shared/reader_block_utils.dart`,
 `shared/reader_image_view.dart`, `shared/reader_preload_policy.dart`, and the
 reader settings provider. This document records behavior from the source. A

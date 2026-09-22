@@ -4,7 +4,7 @@
 
 Migrate the Flutter mobile client to a React Native mobile application while
 keeping the existing GitHub repository and commit history, preserving the
-Flutter implementation on `archive/flutter`, and developing the replacement on
+Flutter implementation on `[BRANCH]`, and developing the replacement on
 `rewrite/react-native-expo` until it is ready for a pull request into `main`.
 Android and iOS are the only mobile targets. A future Electron client must be
 able to reuse the platform-neutral application and backend packages.
@@ -13,24 +13,24 @@ able to reuse the platform-neutral application and backend packages.
 
 - Keep the repository and history; do not rewrite the repository into a new
   remote.
-- Keep `archive/flutter` as the historical Flutter reference and use the
+- Keep `[BRANCH]` as the historical Flutter reference and use the
   rewrite branch for the new implementation.
 - Keep API, authentication, synchronization, reader, and other application
   behavior outside React Native and Electron presentation code.
 - Treat Flutter's mobile UI as a reference for mobile interaction, layout, and
   ergonomics.
-- Treat the latest `LightNovelShelf/Web` repository as the source of truth for
+- Treat the latest `[REFERENCE_REPOSITORY]` repository as the source of truth for
   current business behavior and feature scope, including newer capabilities
   such as comic discovery and comic reading.
-- Keep the public site in React and preserve Cloudflare Pages deployment,
+- Keep the public site in React and preserve external deployment service deployment,
   announcements, and generated sideload repository JSON.
 - Do not use EAS; use local Expo development builds for native verification.
 - Keep reference material under `the local reference material`; the latest Web-Master checkout
-  is currently at `the Web-Master reference implementation` from `LightNovelShelf/Web` `master`.
+  is currently at `the Web-Master reference implementation` from `[REFERENCE_REPOSITORY]` `master`.
 
 ## Acceptance Criteria
 
-- [ ] Flutter history remains available on `archive/flutter` and the rewrite
+- [ ] Flutter history remains available on `[BRANCH]` and the rewrite
       branch retains the prior commit ancestry.
 - [ ] Shared packages contain no React Native, Expo, Electron, DOM, or Node
       runtime imports.
@@ -39,7 +39,7 @@ able to reuse the platform-neutral application and backend packages.
       with Flutter behavior used only for mobile presentation decisions.
 - [ ] Android and iOS local development builds can be verified without EAS.
 - [ ] The React site continues to build and generate announcements,
-      `repository.json`, and Cloudflare Pages artifacts correctly.
+      `repository.json`, and external deployment service artifacts correctly.
 - [ ] The completed migration is delivered as a PR into `main`; direct pushes
       to the protected remote branch are not required.
 
@@ -48,7 +48,7 @@ able to reuse the platform-neutral application and backend packages.
 - `the Web-Master reference implementation` is a local-only research checkout and is ignored by
   the Novella repository. It is not a submodule and its source is not copied
   into Novella history.
-- The current local reference is `LightNovelShelf/Web` commit `5505dd4` (`master`), refreshed 2026-08-29; refresh it manually when planning against a newer Web-Master revision.
+- The current local reference is `[REFERENCE_REPOSITORY]` commit `[COMMIT]` (`master`), refreshed 2026-08-29; refresh it manually when planning against a newer Web-Master revision.
 - The old root-level `/Web-master/` ignore rule is removed; all future local
   reference material belongs under the ignored `/the local reference material` directory.
 

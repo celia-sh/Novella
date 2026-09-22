@@ -14,9 +14,9 @@
 
 ## Completed follow-up fixes
 
-- **Required WOFF2 fonts** (`8f622b3`): `apps/mobile/src/services/skia-font-loader.ts` reuses the canonical `readerFontFile()` payload and passes WOFF2 directly to Skia's typeface factory. The JS Brotli/TTF fallback, `woff-lib` dependency, and temporary font diagnostics are removed; direct-loading failures propagate instead of silently falling back to the system font.
-- **Novel mode-switch Metal crash** (`b5b7431`): `packages/reader-layout/src/tile-chapter.ts` partitions scroll content into bounded tiles (maximum `4096pt`) and repeats intersecting long blocks across clipped slices. `apps/mobile/src/screens/reader-screen.tsx` unmounts the old Skia list before changing mode, preventing overlapping old/new Metal drawables.
-- **iOS glass title** (`1d30a37`): `apps/mobile/src/components/reader-navigation.ios.tsx` keeps the glass title inside a conservative explicit native-title slot and truncates long titles with a tail ellipsis. The under-navbar accessory remains deferred.
+- **Required WOFF2 fonts** (`[COMMIT]`): `apps/mobile/src/services/skia-font-loader.ts` reuses the canonical `readerFontFile()` payload and passes WOFF2 directly to Skia's typeface factory. The JS Brotli/TTF fallback, `woff-lib` dependency, and temporary font diagnostics are removed; direct-loading failures propagate instead of silently falling back to the system font.
+- **Novel mode-switch Metal crash** (`[COMMIT]`): `packages/reader-layout/src/tile-chapter.ts` partitions scroll content into bounded tiles (maximum `4096pt`) and repeats intersecting long blocks across clipped slices. `apps/mobile/src/screens/reader-screen.tsx` unmounts the old Skia list before changing mode, preventing overlapping old/new Metal drawables.
+- **iOS glass title** (`[COMMIT]`): `apps/mobile/src/components/reader-navigation.ios.tsx` keeps the glass title inside a conservative explicit native-title slot and truncates long titles with a tail ellipsis. The under-navbar accessory remains deferred.
 
 ## Verification
 

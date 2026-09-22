@@ -3,9 +3,9 @@
 ## 对比基线
 
 - 参考仓库：`references/web-master`
-- 远端：`https://github.com/LightNovelShelf/Web.git`
-- 更新前版本：`1e5a4e5`（2026-09-06，`Revert "refactor: move direct message action into the user card header"`）
-- 最新版本：`cd1b4b7`（2026-09-21，`fix: 书架按类型筛选时递归过滤并隐藏空文件夹`）
+- 远端：`[REFERENCE_REPOSITORY]`
+- 更新前版本：`[COMMIT]`（2026-09-06，`Revert "refactor: move direct message action into the user card header"`）
+- 最新版本：`[COMMIT]`（2026-09-21，`fix: 书架按类型筛选时递归过滤并隐藏空文件夹`）
 - 差异范围：17 个提交、60 个文件，约 1640 行新增、1652 行删除。
 - 参考仓库工作区已干净；本任务只读取参考仓库，不修改它。
 
@@ -13,23 +13,23 @@
 
 | 提交 | 变化 | 移动端/API判断 |
 | --- | --- | --- |
-| `1addb95` | 私信已读后同步用户总未读数 | Web store 修正；私信 Hub 契约在基线前已存在。移动端对应工作已在 `09-06-sync-latest-web-master-contracts` 的私信 follow-up，不在本任务重复实现。 |
-| `3ea0be7` | 系列只有当前作品时隐藏系列按钮 | 移动端可选的详情页 UX 修正，无新 API。 |
-| `d8de64d` | 社区已删除用户显示为“已注销”而非“被封禁” | 仅使用已有 `AuthorIsDeleted` 字段的文案修正。 |
-| `6fa3d24` | 书籍详情评论摘要 CSS 修正 | Web-only 样式。 |
-| `bf7d7c3` | 编辑/发布页改为按书籍类型请求分类；漫画创建分类放宽为字符串 | `GetBookCategories({ Type })` 在基线前已存在；变化是 Web authoring 组合逻辑。当前移动端没有发布/书籍编辑调用路径，暂不纳入。 |
-| `c8d8dea` | Header 搜索复用到社区帖子，按标题/摘要搜索 | 新增 `CommunityListQuery.keyWords?`，请求向 `GetCommunityHome`/`GetCommunityFeed` 发送 `KeyWords`。这是记录中的 Web API 差异；本任务只审计，不在移动端或 API 生产代码中实现。 |
-| `32e5f60` | Markdown 编辑器取消长链接折叠 | Web-only 编辑器行为。 |
-| `e04e95b` | 通过新存储键把所有人的默认编辑器重置为 Markdown | Web-only 本地设置迁移。 |
-| `bea2f94` | 统一 HTML/Markdown 编辑器容器高度 | Web-only 布局。 |
+| `[COMMIT]` | 私信已读后同步用户总未读数 | Web store 修正；私信 Hub 契约在基线前已存在。移动端对应工作已在 `09-06-sync-latest-web-master-contracts` 的私信 follow-up，不在本任务重复实现。 |
+| `[COMMIT]` | 系列只有当前作品时隐藏系列按钮 | 移动端可选的详情页 UX 修正，无新 API。 |
+| `[COMMIT]` | 社区已删除用户显示为“已注销”而非“被封禁” | 仅使用已有 `AuthorIsDeleted` 字段的文案修正。 |
+| `[COMMIT]` | 书籍详情评论摘要 CSS 修正 | Web-only 样式。 |
+| `[COMMIT]` | 编辑/发布页改为按书籍类型请求分类；漫画创建分类放宽为字符串 | `GetBookCategories({ Type })` 在基线前已存在；变化是 Web authoring 组合逻辑。当前移动端没有发布/书籍编辑调用路径，暂不纳入。 |
+| `[COMMIT]` | Header 搜索复用到社区帖子，按标题/摘要搜索 | 新增 `CommunityListQuery.keyWords?`，请求向 `GetCommunityHome`/`GetCommunityFeed` 发送 `KeyWords`。这是记录中的 Web API 差异；本任务只审计，不在移动端或 API 生产代码中实现。 |
+| `[COMMIT]` | Markdown 编辑器取消长链接折叠 | Web-only 编辑器行为。 |
+| `[COMMIT]` | 通过新存储键把所有人的默认编辑器重置为 Markdown | Web-only 本地设置迁移。 |
+| `[COMMIT]` | 统一 HTML/Markdown 编辑器容器高度 | Web-only 布局。 |
 | `2633080` | 列表分页状态写入 URL，并增加分页/无限滚动设置 | Web composition/router 行为；服务端分页字段未改变。移动端已有自己的原生列表加载流程。 |
-| `888bdb8` | 书架支持多层文件夹 | 主要是客户端树操作和页面行为；`parents` 字段本来存在，但移动端应确认递归移动、删除、封面统计语义。 |
-| `5eb0b69` | 系列页参数传递修正 | Web 生命周期/参数适配修正，无移动端 API 变化。 |
-| `980af0f` | `useInitRequest` 回调改为上下文对象 | Web 内部 composition API。 |
-| `a9b13f1` | 格式化 | 无行为/契约变化。 |
-| `d781d1a` | 删除旧书架结构迁移 | 说明参考端已把新书架结构作为当前结构；移动端不能继续只接受旧 `BOOK` 类型。 |
-| `e6990dc` | 书架支持漫画，条目类型改为 `NOVEL`/`COMIC` | 明确的破坏性书架契约变化，结构版本从 `20220211` 升为 `20260921`。 |
-| `cd1b4b7` | 类型筛选时递归统计文件夹并隐藏空文件夹 | 新书架 UI 行为；如果移动端支持类型筛选，应按整棵文件夹子树统计。 |
+| `[COMMIT]` | 书架支持多层文件夹 | 主要是客户端树操作和页面行为；`parents` 字段本来存在，但移动端应确认递归移动、删除、封面统计语义。 |
+| `[COMMIT]` | 系列页参数传递修正 | Web 生命周期/参数适配修正，无移动端 API 变化。 |
+| `[COMMIT]` | `useInitRequest` 回调改为上下文对象 | Web 内部 composition API。 |
+| `[COMMIT]` | 格式化 | 无行为/契约变化。 |
+| `[COMMIT]` | 删除旧书架结构迁移 | 说明参考端已把新书架结构作为当前结构；移动端不能继续只接受旧 `BOOK` 类型。 |
+| `[COMMIT]` | 书架支持漫画，条目类型改为 `NOVEL`/`COMIC` | 明确的破坏性书架契约变化，结构版本从 `20220211` 升为 `20260921`。 |
+| `[COMMIT]` | 类型筛选时递归统计文件夹并隐藏空文件夹 | 新书架 UI 行为；如果移动端支持类型筛选，应按整棵文件夹子树统计。 |
 
 ## 已确认的 API 跟进项
 
@@ -70,7 +70,7 @@
 
 ### D. 不作为本范围新增 API：私信未读数
 
-`1addb95` 只修正 Web 已有私信 store 在 `MarkDirectMessagesRead` 后更新 `GetMyInfo` 返回的 `UnreadDirectMessageCount`。这不是 `1e5a4e5..cd1b4b7` 新增的 Hub 方法或字段；Novella 的 `09-06-sync-latest-web-master-contracts` 已记录公共用户摘要和私信完整 follow-up，应保持任务边界分离。
+`[COMMIT]` 只修正 Web 已有私信 store 在 `MarkDirectMessagesRead` 后更新 `GetMyInfo` 返回的 `UnreadDirectMessageCount`。这不是 `[COMMIT]..[COMMIT]` 新增的 Hub 方法或字段；Novella 的 `09-06-sync-latest-web-master-contracts` 已记录公共用户摘要和私信完整 follow-up，应保持任务边界分离。
 
 ## App 功能候选（等待用户选择）
 
@@ -83,5 +83,5 @@
 
 - `09-22-server-api-followup` 负责本次最新参考差异中已批准的书架 `20260921` API/client-core 契约；社区 `KeyWords` 仅保留为研究记录，若未来实现需另建任务。
 - `09-18-panelui-reader-improvements` 继续负责 PanelUI/reader UI，不把书架或社区搜索视觉迁移混入其中。
-- `09-06-sync-latest-web-master-contracts` 继续负责 1e5a4e5 以前已确认的统一漫画详情、评论、通知、线程锁定、公共用户摘要和私信 follow-up。
+- `09-06-sync-latest-web-master-contracts` 继续负责 [COMMIT] 以前已确认的统一漫画详情、评论、通知、线程锁定、公共用户摘要和私信 follow-up。
 - 参考仓库保持只读；不修改 Web-Master 或后端。

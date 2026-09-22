@@ -34,7 +34,7 @@
 - [x] Focused mobile tests for comments, notifications, comic navigation, and community thread.
 - [x] Workspace type checks and boundary checks.
 - [x] `git diff --check`
-- [x] Review diff against `Web-Master reference snapshot 2c29426`.
+- [x] Review diff against `Web-Master reference snapshot [COMMIT]`.
 
 ## Risk / rollback points
 
@@ -67,5 +67,5 @@
 
 - [ ] API/client-core/mobile focused tests.
 - [ ] Workspace type checks and package-boundary checks.
-- [ ] `git diff --check` and review against `Web-Master reference snapshot 1e5a4e5`.
+- [ ] `git diff --check` and review against `Web-Master reference snapshot [COMMIT]`.
 - [ ] User manual acceptance: start a conversation, send/retry, receive, read receipt, block/unblock, short background return, and long-background resync.

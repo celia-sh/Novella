@@ -4,10 +4,10 @@
 
 本任务把两个有关联但必须分开的能力拆开处理：
 
-1. 删除 `apps/site` React/Vite 宣传站点及其构建、Cloudflare Pages 发布和静态资源生产链路。
+1. 删除 `apps/site` React/Vite 宣传站点及其构建、external deployment service 发布和静态资源生产链路。
 2. 删除移动端从该站点读取的“应用公告”（静态 Markdown manifest），但保留轻书架服务端提供的“站点公告”（API 列表/详情/评论/通知）。
 
-不修改轻书架服务端；仓库没有该服务端实现。DNS、Cloudflare Pages 账号资源、GitHub Actions secrets/variables 由用户在仓库外处理。侧载资源已有替代方案，不属于本任务。
+不修改轻书架服务端；仓库没有该服务端实现。DNS、external deployment service 账号资源、GitHub Actions secrets/variables 由用户在仓库外处理。侧载资源已有替代方案，不属于本任务。
 
 ## 2. 现状数据流
 
@@ -17,7 +17,7 @@
 apps/site/public/assets/announcements/*.md
   -> generate-announcements.mjs
   -> public/assets/announcements/index.json (ignored)
-  -> Cloudflare Pages /assets/announcements/index.json
+  -> external deployment service /assets/announcements/index.json
   -> apps/mobile/src/services/app-announcements.ts
   -> useAnnouncements.reloadApp()
   -> AnnouncementCenterScreen (source = app)
@@ -67,7 +67,7 @@ LightNovelShelf API / SignalR
 - `AnnouncementCenterScreen` 只显示 `IconWorld`/站点公告文案和服务端错误；保留服务端空态、分页失败、刷新和详情导航。
 - 删除 `apps/mobile/src/services/app-announcements.ts` 及测试，并从 `test:community` 移除该测试文件。
 - 从 `apps/mobile/package.json` 删除仅由应用公告详情使用的 `marked`；`htmlparser2` 仍被 HTML 预览和 Readium 资源处理使用，不删除。
-- 关于页删除 `novella.celia.sh` 常量、外部链接行及 `zh-CN`/`zh-TW` 对应文案；GitHub 源码、更新日志、轻书架和群组链接保留。
+- 关于页删除 `[SITE_DOMAIN]` 常量、外部链接行及 `zh-CN`/`zh-TW` 对应文案；GitHub 源码、更新日志、轻书架和群组链接保留。
 
 ### 3.3 明确不得修改的服务端公告契约
 
@@ -87,8 +87,8 @@ LightNovelShelf API / SignalR
 
 代码合并并发布移动端清理版本后，用户再执行：
 
-- 删除/停用 Cloudflare Pages 项目 `novella` 及 `novella.celia.sh` custom domain/DNS 绑定。
-- 审计 `CF_PAGES_PROJECT_NAME`、`SITE_URL`、`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`；只删除或撤销确认仅服务该站点的资源，不影响其他项目。
+- 删除/停用 external deployment service 项目 `novella` 及 `[SITE_DOMAIN]` custom domain/DNS 绑定。
+- 审计 `CF_PAGES_PROJECT_NAME`、`SITE_URL`、`[DEPLOYMENT_VARIABLE]`、`[DEPLOYMENT_VARIABLE]`；只删除或撤销确认仅服务该站点的资源，不影响其他项目。
 - 如需要保留公告历史，应在删除当前路径前把公告内容复制到 GitHub Release/Discussion；Git 历史本身仍保留删除前版本，但不提供运行时 URL。
 
 ### 4.2 旧版本行为与发布顺序
@@ -97,7 +97,7 @@ LightNovelShelf API / SignalR
 
 1. 先合并并发布包含客户端清理的移动端版本。
 2. 验证新版本公告中心只请求轻书架 API，关于页不再展示宣传站点。
-3. 用户删除 Cloudflare/DNS/站点资源。
+3. 用户删除 external deployment provider/DNS/站点资源。
 4. 用旧版/新版本分别确认预期：旧版可能出现应用公告源失败提示；新版不应产生该请求。
 
 如果站点先删除，旧版本仍会在公告中心并发请求静态 manifest，表现为“应用公告暂时不可用”；这是可预见的兼容性结果，不应通过删除站点公告 API 来规避。

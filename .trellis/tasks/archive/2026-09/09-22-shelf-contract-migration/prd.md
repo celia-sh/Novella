@@ -2,11 +2,11 @@
 
 ## Goal
 
-将 Novella 的 `api-client` 与 `client-core` 书架模型迁移到 Web-Master `cd1b4b7` 使用的 `20260921` 结构，使 Novel、Comic 和 Folder 可以被严格解码、类型化 hydrate、编辑和保存，并为移动端分离书架状态提供稳定边界。
+将 Novella 的 `api-client` 与 `client-core` 书架模型迁移到 Web-Master `[COMMIT]` 使用的 `20260921` 结构，使 Novel、Comic 和 Folder 可以被严格解码、类型化 hydrate、编辑和保存，并为移动端分离书架状态提供稳定边界。
 
 ## Background
 
-参考仓库从 `1e5a4e5` 到 `cd1b4b7` 后：
+参考仓库从 `[COMMIT]` 到 `[COMMIT]` 后：
 
 - 书架版本从 `20220211` 变为 `20260921`。
 - 书籍类型从单一 `BOOK` 变为 `NOVEL` / `COMIC`，文件夹仍为 `FOLDER`。
