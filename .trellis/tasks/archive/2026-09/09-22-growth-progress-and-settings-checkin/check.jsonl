@@ -1,0 +1,7 @@
+{"file":".trellis/tasks/09-22-growth-progress-and-settings-checkin/prd.md","reason":"Check dynamic growth copy, Settings-only trigger, no-extra-click behavior, and exclusions."}
+{"file":".trellis/tasks/09-22-growth-progress-and-settings-checkin/design.md","reason":"Check helper ownership, focus lifecycle, duplicate prevention, and rollback boundaries."}
+{"file":".trellis/tasks/09-22-growth-progress-and-settings-checkin/research/00-growth-and-checkin-evidence.md","reason":"Validate the Web-Master formula and existing SignIn/profile contracts against implementation."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Check effects and server-state ownership stay outside presentation duplication."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Check Settings-only focus mutation, idempotency, retry, and profile state ownership."}
+{"file":".trellis/spec/frontend/localization-guidelines.md","reason":"Check Simplified/Traditional keys and interpolation variables remain parallel."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Check automated evidence and explicit user device acceptance reporting."}

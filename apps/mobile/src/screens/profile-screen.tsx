@@ -18,6 +18,7 @@ import { formatDate } from '@/localization/formatters';
 import type { AppLocale } from '@/localization/locale';
 import { useAppLocale } from '@/localization/localization-provider';
 import { authentication, profile as profileUseCase } from '@/services/client';
+import { resolveGrowthLevelDescription } from '@/services/profile-growth';
 
 type CopyableProfileField = 'email' | 'inviteCode' | 'uid' | 'userName';
 
@@ -28,6 +29,16 @@ export function ProfileScreen() {
   const { t: tCommon } = useTranslation('common');
   const { error, profile, reload, status } = useProfile();
   const numberFormatter = new Intl.NumberFormat(locale);
+  const growthDescription = profile ? resolveGrowthLevelDescription(profile.growth) : null;
+  const growthDescriptionText = growthDescription
+    ? growthDescription.kind === 'maxLevel'
+      ? t('profile.fields.maxLevelDescription')
+      : t('profile.fields.levelDescription', {
+          experience: numberFormatter.format(growthDescription.experience),
+          remaining: numberFormatter.format(growthDescription.remainingExperience),
+          nextLevel: growthDescription.nextGrowthLevel,
+        })
+    : undefined;
   const [copiedField, setCopiedField] = useState<CopyableProfileField | null>(null);
   const [checkingIn, setCheckingIn] = useState(false);
   const [resettingInviteCode, setResettingInviteCode] = useState(false);
@@ -184,7 +195,7 @@ export function ProfileScreen() {
 
           <NativeGroupedListSection title={t('profile.sections.growth')}>
             <StaticValueRow
-              description={t('profile.fields.levelDescription')}
+              {...(growthDescriptionText ? { description: growthDescriptionText } : {})}
               icon="level"
               label={t('profile.fields.level')}
               value={t('profile.fields.levelValue', { level: profile.growth.level })}

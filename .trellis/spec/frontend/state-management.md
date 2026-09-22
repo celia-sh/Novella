@@ -108,3 +108,77 @@ const snapshot = decodeAppSettings(JSON.parse(encoded));
   setting only after the control's commit boundary.
 - Shared packages remain independent of React Native, Expo, and mobile storage;
   mobile adapters own persistence and presentation concerns.
+
+## Scenario: Growth description and Settings-entry check-in
+
+### 1. Scope / Trigger
+
+Apply this contract when presenting `UserGrowth` in mobile Settings/profile
+surfaces or triggering the daily growth mutation from navigation focus. The
+client already owns the `SignIn` contract; this is a mobile lifecycle policy,
+not a new API endpoint.
+
+### 2. Signatures
+
+```ts
+function resolveGrowthLevelDescription(
+  growth: Pick<UserGrowth, 'experience' | 'growthLevel' | 'nextLevelExperience'>,
+): { kind: 'nextLevel'; experience: number; remainingExperience: number; nextGrowthLevel: number }
+ | { kind: 'maxLevel' };
+
+function useSettingsCheckIn(): void;
+```
+
+### 3. Contracts
+
+- Next-level copy uses `experience`, `nextLevelExperience - experience`, and
+  `growthLevel + 1`; access `level` remains the separate displayed permission
+  level.
+- `nextLevelExperience === null` produces the localized full-level copy.
+- `useSettingsCheckIn` runs only from the Settings root focus lifecycle. It loads
+  the current profile, calls existing `ProfileUseCase.checkIn()` only when
+  `signedToday` is false, and coalesces a pending attempt with one Promise ref.
+- Automatic failures are quiet and clear the ref so a later Settings entry can
+  retry. Home, tabs, authentication, and the manual profile-row action do not
+  inherit this trigger.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required result |
+| --- | --- |
+| Positive next-level threshold | Show current experience, remaining experience, and `growthLevel + 1` |
+| `nextLevelExperience === null` | Show localized max-level text |
+| Settings focus with `signedToday: true` | Do not call `SignIn` |
+| Settings focus with `signedToday: false` | Call `SignIn` once and let client-core publish refreshed growth |
+| Concurrent Settings focus while attempt is pending | Reuse the same Promise; do not duplicate `SignIn` |
+| Automatic check-in failure | Keep Settings usable and permit retry on a later focus |
+
+### 5. Good / Base / Bad Cases
+
+- **Good:** Entering Settings automatically signs in once, then the profile
+  row reflects the refreshed growth without a tap.
+- **Base:** Home loads the profile for its notification badge but never calls
+  `checkIn()` merely because the tab layout focused.
+- **Bad:** Put the mutation in `useProfile`, login completion, or app root; that
+  turns ordinary app entry into implicit daily sign-in.
+
+### 6. Tests Required
+
+- Pure helper tests cover remaining experience, next growth level, max-level,
+  null profile, and already-signed profile.
+- Localization parity covers both description branches and all interpolation
+  variables.
+- Review or device acceptance must cover Settings focus, repeated/concurrent
+  focus, failure followed by retry, and no check-in from Home.
+
+### 7. Wrong vs Correct
+
+```ts
+// Wrong: every tab/profile load can mutate growth as a side effect.
+useEffect(() => { void profileUseCase.load().then(() => profileUseCase.checkIn()); }, []);
+
+// Correct: scope the idempotent attempt to Settings focus and guard the day.
+useFocusEffect(useCallback(() => {
+  void settingsCheckInAttempt();
+}, [settingsCheckInAttempt]));
+```

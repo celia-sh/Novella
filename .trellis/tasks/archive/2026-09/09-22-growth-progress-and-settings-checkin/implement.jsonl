@@ -1,0 +1,7 @@
+{"file":".trellis/tasks/09-22-growth-progress-and-settings-checkin/prd.md","reason":"Growth copy and Settings-entry check-in requirements, exclusions, and acceptance criteria."}
+{"file":".trellis/tasks/09-22-growth-progress-and-settings-checkin/research/00-growth-and-checkin-evidence.md","reason":"Evidence from current API/client-core/mobile code and Web-Master growth/check-in behavior."}
+{"file":".trellis/spec/frontend/index.md","reason":"Mobile presentation pre-development checklist and required quality gates."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Screen/effect boundaries and shared state ownership for the growth/settings flow."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Settings focus lifecycle, external profile state ownership, and idempotent growth mutation contract."}
+{"file":".trellis/spec/frontend/localization-guidelines.md","reason":"Two-locale resource structure, interpolation parity, and localized formatting requirements."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Automated versus user-accepted validation policy for mobile interaction changes."}
