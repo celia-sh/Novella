@@ -1018,7 +1018,7 @@ test('treats null and empty shelf payloads as an empty shelf', () => {
   }
 });
 
-test('round-trips the versioned shelf document payload', async () => {
+test('round-trips current mixed shelf items with the canonical version and casing', async () => {
   const calls = [];
   const client = new ApiClient(
     { async request() { throw new Error('not used'); } },
@@ -1031,10 +1031,12 @@ test('round-trips the versioned shelf document payload', async () => {
           return {
             Success: true,
             Response: {
-              ver: '20220211',
+              ver: '20260921',
               data: [
-                { type: 'FOLDER', id: 'f1', title: 'Folder', index: 0, parents: [], updateAt: 'a' },
-                { type: 'BOOK', id: 3, index: 0, parents: ['f1'], updateAt: 'b' },
+                { type: 'COMIC', id: 3, index: 4, parents: ['f1'], updateAt: 'comic-time' },
+                { Type: 'FOLDER', Id: 'f1', Title: 'Folder', Index: 2, Parents: [], UpdateAt: 'folder-time' },
+                { type: 'NOVEL', id: 7, index: 5, parents: ['f1'], updateAt: 'novel-time' },
+                { type: 'BOOK', id: 8, index: 6, parents: ['f1'], updateAt: 'legacy-time' },
               ],
             },
           };
@@ -1047,19 +1049,56 @@ test('round-trips the versioned shelf document payload', async () => {
   );
 
   const shelf = await client.getBookShelf();
-  assert.equal(shelf.items[0].type, 'FOLDER');
-  assert.deepEqual(shelf.items[1].parents, ['f1']);
-  await client.saveBookShelf(shelf);
+  assert.deepEqual(shelf, {
+    version: '20260921',
+    items: [
+      { type: 'COMIC', id: 3, index: 4, parents: ['f1'], updatedAt: 'comic-time' },
+      { type: 'FOLDER', id: 'f1', title: 'Folder', index: 2, parents: [], updatedAt: 'folder-time' },
+      { type: 'NOVEL', id: 7, index: 5, parents: ['f1'], updatedAt: 'novel-time' },
+      { type: 'NOVEL', id: 8, index: 6, parents: ['f1'], updatedAt: 'legacy-time' },
+    ],
+  });
+  await client.saveBookShelf({ ...shelf, version: '20220211' });
   assert.deepEqual(calls[1], {
     method: 'SaveBookShelf',
     args: [{
       data: [
-        { type: 'FOLDER', id: 'f1', title: 'Folder', index: 0, parents: [], updateAt: 'a' },
-        { type: 'BOOK', id: 3, index: 0, parents: ['f1'], updateAt: 'b' },
+        { type: 'COMIC', id: 3, index: 4, parents: ['f1'], updateAt: 'comic-time' },
+        { type: 'FOLDER', id: 'f1', title: 'Folder', index: 2, parents: [], updateAt: 'folder-time' },
+        { type: 'NOVEL', id: 7, index: 5, parents: ['f1'], updateAt: 'novel-time' },
+        { type: 'NOVEL', id: 8, index: 6, parents: ['f1'], updateAt: 'legacy-time' },
       ],
-      ver: '20220211',
+      ver: '20260921',
     }, { UseGzip: true }],
   });
+});
+
+test('normalizes every legacy shelf book alias to NOVEL for every rollout version', () => {
+  for (const version of [undefined, '20220211', '20260921']) {
+    const shelf = decodeUserShelf({
+      ...(version === undefined ? {} : { Ver: version }),
+      Data: [
+        { Type: 'BOOK', Id: 1, Index: 0, Parents: [], UpdateAt: 'a' },
+        { type: 'Book', id: 2, index: 1, parents: [], updateAt: 'b' },
+        { type: 0, id: 3, index: 2, parents: [], updateAt: 'c' },
+        { type: 1, id: 4, title: 'Legacy folder', index: 3, parents: [], updateAt: 'd' },
+      ],
+    });
+    assert.equal(shelf.version, version ?? null);
+    assert.deepEqual(shelf.items.map((item) => item.type), [
+      'NOVEL',
+      'NOVEL',
+      'NOVEL',
+      'FOLDER',
+    ]);
+  }
+});
+
+test('rejects unknown shelf item types as server response errors', () => {
+  assert.throws(
+    () => decodeUserShelf({ data: [{ type: 'MANGA', id: 1 }] }),
+    (error) => error?.category === 'server' && /invalid shelf item type/i.test(error.message),
+  );
 });
 
 test('decodes current comic image URL batches using placeholder and size metadata', () => {

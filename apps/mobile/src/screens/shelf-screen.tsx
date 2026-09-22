@@ -20,9 +20,9 @@ import {
 
 import { showAlert } from '@/components/native-alert-dialog';
 
-import type { BookListItem, ShelfItem } from '@novella/api-client';
+import type { BookListItem, ShelfBookItem, ShelfItem } from '@novella/api-client';
 import {
-  getShelfItemsAtPath,
+  shelfBookRefKey,
   shelfItemKey,
   type ShelfItemKey,
   type ShelfSnapshot,
@@ -39,6 +39,7 @@ import {
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
 import { ShelfNavigation } from '@/components/shelf-navigation';
+import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import type { ShelfEditInteraction } from '@/components/shelf-navigation.types';
 import { ReorderableShelfGrid } from '@/components/reorderable-shelf-grid';
 import { SectionCard } from '@/components/section-card';
@@ -55,9 +56,21 @@ import {
   getShelfMoveDestinations,
   resolveShelfSelectionActions,
 } from '@/services/shelf-editing';
+import {
+  projectShelfItems,
+  shelfBookRouteParams,
+  serializeShelfMedia,
+  type ShelfFolderProjection,
+  type ShelfMediaType,
+} from '@/services/shelf-media';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
-export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
+export interface ShelfScreenProps {
+  media?: ShelfMediaType;
+  parents?: string[];
+}
+
+export function ShelfScreen({ media: initialMedia = 'Novel', parents = [] }: ShelfScreenProps) {
   const { t } = useTranslation('library');
   const { t: tCommon } = useTranslation('common');
   const styles = useShelfScreenStyles();
@@ -81,6 +94,7 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
     retrySave,
     snapshot,
   } = useShelf();
+  const [media, setMedia] = useState<ShelfMediaType>(initialMedia);
   const [selectedKeys, setSelectedKeys] = useState<Set<ShelfItemKey>>(new Set());
   const [editInteraction, setEditInteraction] = useState<ShelfEditInteraction>('select');
   const scrollViewRef = useRef<ScrollView>(null);
@@ -90,16 +104,19 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
   const { columns, contentWidth, listKey, tileWidth } = useBookGridLayout(20);
   const isFolder = parents.length > 0;
 
-  const visibleItems = useMemo(
-    () => snapshot ? getShelfItemsAtPath(toDraft(snapshot), parents) : [],
-    [parents, snapshot],
+  const projection = useMemo(
+    () => snapshot
+      ? projectShelfItems(snapshot, parents, mode === 'browse' ? media : null)
+      : null,
+    [media, mode, parents, snapshot],
   );
+  const visibleItems = projection?.items ?? [];
   const selectedItems = useMemo(
     () => visibleItems.filter((item) => selectedKeys.has(shelfItemKey(item))),
     [selectedKeys, visibleItems],
   );
   const selectedBooks = selectedItems.filter(
-    (item): item is Extract<ShelfItem, { type: 'BOOK' }> => item.type === 'BOOK',
+    (item): item is ShelfBookItem => isShelfBookItem(item),
   );
   const selectedFolders = selectedItems.filter(
     (item): item is Extract<ShelfItem, { type: 'FOLDER' }> => item.type === 'FOLDER',
@@ -131,6 +148,10 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
   );
 
   useEffect(() => {
+    setMedia(initialMedia);
+  }, [initialMedia]);
+
+  useEffect(() => {
     const visibleKeys = new Set(visibleItems.map(shelfItemKey));
     setSelectedKeys((current) => {
       const next = new Set([...current].filter((key) => visibleKeys.has(key)));
@@ -154,12 +175,20 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
     leaveEdit();
   });
 
+  const changeMedia = useCallback((nextMedia: ShelfMediaType) => {
+    setMedia(nextMedia);
+    router.setParams({ media: serializeShelfMedia(nextMedia) });
+  }, []);
+
   const openFolder = useCallback((folderId: string) => {
     router.push({
       pathname: '/shelf/folder',
-      params: { path: JSON.stringify([...parents, folderId]) },
+      params: {
+        media: serializeShelfMedia(media),
+        path: JSON.stringify([...parents, folderId]),
+      },
     });
-  }, [parents]);
+  }, [media, parents]);
 
   const enterEdit = useCallback(() => {
     if (!beginEdit()) return;
@@ -209,15 +238,15 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
 
   const openMoveSheet = useCallback(() => {
     if (!canMove) return;
-    const bookIds = selectedBooks.map((book) => book.id);
+    const bookRefs = selectedBooks.map((book) => ({ id: book.id, type: book.type }));
     openShelfActionSession({
       destinations: moveDestinations,
       kind: 'move',
       onSelect: (destination) => {
-        if (moveBooks(bookIds, destination.path)) setSelectedKeys(new Set());
+        if (moveBooks(bookRefs, destination.path)) setSelectedKeys(new Set());
       },
       subtitle: t('shelf.moveSelectedDescription'),
-      title: t('shelf.moveSelectedTitle', { count: bookIds.length }),
+      title: t('shelf.moveSelectedTitle', { count: bookRefs.length }),
     });
     router.push('/shelf/action');
   }, [canMove, moveBooks, moveDestinations, selectedBooks, t]);
@@ -271,6 +300,21 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
             showsVerticalScrollIndicator={false}
             style={styles.scrollView}
           >
+            {mode === 'browse' ? (
+              <View style={styles.tabs}>
+                <NativeSegmentedControl<ShelfMediaType>
+                  accessibilityLabel={t('shelf.mediaTabsAccessibility')}
+                  enabled={!isLoading}
+                  onValueChange={changeMedia}
+                  options={[
+                    { label: t('shelf.novelsTab'), value: 'Novel' },
+                    { label: t('shelf.comicsTab'), value: 'Comic' },
+                  ]}
+                  selectedValue={media}
+                />
+              </View>
+            ) : null}
+
             {parents.length > 1 ? (
               <Text numberOfLines={2} style={styles.breadcrumb}>
                 {getFolderBreadcrumb(
@@ -299,7 +343,9 @@ export function ShelfScreen({ parents = [] }: { parents?: string[] }) {
                 contentWidth={contentWidth}
                 coverViewport={coverViewport}
                 editInteraction={editInteraction}
+                folderProjections={projection?.folderProjections ?? new Map()}
                 listKey={listKey}
+                mediaType={media}
                 mode={mode}
                 onOpenFolder={openFolder}
                 onReorder={reorderSiblings}
@@ -354,7 +400,9 @@ function ShelfContent({
   contentWidth,
   coverViewport,
   editInteraction,
+  folderProjections,
   listKey,
+  mediaType,
   mode,
   onOpenFolder,
   onReorder,
@@ -373,7 +421,9 @@ function ShelfContent({
   contentWidth: number;
   coverViewport: CoverScrollViewportController;
   editInteraction: ShelfEditInteraction;
+  folderProjections: ReadonlyMap<ShelfItemKey, ShelfFolderProjection>;
   listKey: string;
+  mediaType: ShelfMediaType;
   mode: ShelfMode;
   onOpenFolder: (folderId: string) => void;
   onReorder: (parents: readonly string[], keys: readonly ShelfItemKey[]) => void;
@@ -389,7 +439,13 @@ function ShelfContent({
 }) {
   const { t } = useTranslation('library');
   const styles = useShelfScreenStyles();
-  const booksById = new Map(snapshot.books.map((book) => [book.id, book]));
+  const booksByKey = new Map(snapshot.books.map((record) => [
+    shelfBookRefKey(record.ref),
+    record.book,
+  ] as const));
+  const mediaLabel = mode === 'browse'
+    ? mediaType === 'Comic' ? t('shelf.comicsTab') : t('shelf.novelsTab')
+    : undefined;
   const shelfCoverKeys = useMemo(() => visibleItems.map(shelfItemKey), [visibleItems]);
   const coverActivation = useScrollGridCoverActivation({
     columns,
@@ -399,7 +455,7 @@ function ShelfContent({
   });
 
   if (visibleItems.length === 0) {
-    return <EmptyShelfState nested={parents.length > 0} />;
+    return <EmptyShelfState media={mediaType} nested={parents.length > 0} />;
   }
 
   const toggleSelection = (key: ShelfItemKey) => {
@@ -420,50 +476,40 @@ function ShelfContent({
       : 'default' as const;
     const reorderProps = {};
     if (item.type === 'FOLDER') {
-      const folderParents = [...parents, item.id];
-      const previewBooks = snapshot.items
-        .filter(
-          (child): child is Extract<ShelfItem, { type: 'BOOK' }> =>
-            child.type === 'BOOK' && sameParents(child.parents, folderParents),
-        )
-        .map((child) => booksById.get(child.id))
-        .filter((book): book is BookListItem => book !== undefined);
-      const itemCount = snapshot.items.filter((child) =>
-        sameParents(child.parents, folderParents),
-      ).length;
+      const folderProjection = folderProjections.get(key) ?? {
+        bookCount: 0,
+        childFolderCount: 0,
+        itemCount: 0,
+        previewBooks: [],
+      };
       return (
         <ShelfFolderGridItem
           {...reorderProps}
+          childFolderCount={folderProjection.childFolderCount}
           interactionState={interactionState}
-          itemCount={itemCount}
+          itemCount={mode === 'browse'
+            ? folderProjection.bookCount
+            : folderProjection.itemCount}
           key={key}
+          {...(mediaLabel === undefined ? {} : { mediaLabel })}
           networkImageEnabled={coverActivation.activatedKeys.has(key)}
           onPress={() => {
             if (selecting) toggleSelection(key);
             else if (mode === 'browse') onOpenFolder(item.id);
           }}
-          previewBooks={previewBooks}
+          previewBooks={folderProjection.previewBooks}
           tileWidth={tileWidth}
           title={item.title.trim() || t('shelf.unnamedFolder')}
         />
       );
     }
 
-    const book = booksById.get(item.id);
-    // The tile hands back its own book; the route id stays the shelf item id.
-    const handlePress = (pressed: BookListItem) => {
+    const book = booksByKey.get(shelfBookRefKey(item)) ?? null;
+    const handlePress = (_pressed: BookListItem) => {
+      if (!book) return;
       router.push({
         pathname: '/book/[id]',
-        params: {
-          cover: pressed.coverUrl,
-          id: String(item.id),
-          placeholder: pressed.coverPlaceholder ?? '',
-          ...(pressed.type === 'Comic'
-            ? { seriesTitle: pressed.seriesTitle ?? pressed.title }
-            : {}),
-          title: pressed.title,
-          type: pressed.type,
-        },
+        params: { ...shelfBookRouteParams(item, book) },
       });
     };
     return book ? (
@@ -636,19 +682,24 @@ function InlineError({
   );
 }
 
-function EmptyShelfState({ nested }: { nested: boolean }) {
+function EmptyShelfState({ media, nested }: { media: ShelfMediaType; nested: boolean }) {
   const { t } = useTranslation('library');
   const styles = useShelfScreenStyles();
   const { colors } = useAppTheme();
+  const isComic = media === 'Comic';
   return (
     <SectionCard>
       <View style={styles.emptyState}>
         <IconFolderOpen color={colors.accent as string} size={38} strokeWidth={1.8} />
         <Text style={styles.cardTitle}>
-          {nested ? t('shelf.folderEmpty') : t('shelf.shelfEmpty')}
+          {nested
+            ? t(isComic ? 'shelf.folderEmptyComic' : 'shelf.folderEmptyNovel')
+            : t(isComic ? 'shelf.shelfEmptyComic' : 'shelf.shelfEmptyNovel')}
         </Text>
         <Text style={styles.cardDescription}>
-          {nested ? t('shelf.folderEmptyDescription') : t('shelf.shelfEmptyDescription')}
+          {nested
+            ? t(isComic ? 'shelf.folderEmptyComicDescription' : 'shelf.folderEmptyNovelDescription')
+            : t(isComic ? 'shelf.shelfEmptyComicDescription' : 'shelf.shelfEmptyNovelDescription')}
         </Text>
       </View>
     </SectionCard>
@@ -728,12 +779,8 @@ function getFolderBreadcrumb(
   return parents.map((id) => folderTitles.get(id) ?? unavailableFolder).join(' / ');
 }
 
-function toDraft(snapshot: ShelfSnapshot) {
-  return { items: snapshot.items, version: snapshot.version };
-}
-
-function sameParents(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
+function isShelfBookItem(item: ShelfItem): item is ShelfBookItem {
+  return item.type !== 'FOLDER';
 }
 
 function setsEqual<T>(left: ReadonlySet<T>, right: ReadonlySet<T>): boolean {
@@ -768,6 +815,7 @@ const useShelfScreenStyles = createThemedStyles((colors) => ({
   root: { backgroundColor: colors.background, flex: 1 },
   scrollView: { backgroundColor: colors.background, flex: 1 },
   selectedOverlay: { backgroundColor: 'rgba(217, 71, 93, 0.72)' },
+  tabs: { width: '100%' },
   unavailableCover: { alignItems: 'center', backgroundColor: colors.card, borderColor: colors.separator, borderRadius: 12, borderWidth: 0.5, justifyContent: 'center', overflow: 'hidden' },
   unavailableItem: { alignItems: 'center' },
   unavailableOverlay: { alignItems: 'center', bottom: 0, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 },

@@ -112,11 +112,20 @@ components in `apps/site`, and future Electron presentation components.
 ### 2. Signatures
 
 ```ts
+interface ShelfBookRef {
+  id: number;
+  type: 'NOVEL' | 'COMIC';
+}
+
+type ShelfItemKey = `NOVEL:${number}` | `COMIC:${number}` | `FOLDER:${string}`;
+
 interface ShelfUseCase {
+  contains(ref: ShelfBookRef): Promise<boolean>;
   getSnapshot(): ShelfSnapshot | null;
   load(): Promise<ShelfSnapshot>;
   save(draft: ShelfDraft): Promise<ShelfSnapshot>;
   subscribe(listener: (snapshot: ShelfSnapshot) => void): () => void;
+  toggleBook(ref: ShelfBookRef): Promise<boolean>;
 }
 
 type ShelfMode = 'browse' | 'edit';
@@ -128,6 +137,9 @@ type ShelfEditInteraction = 'select' | 'reorder';
 ### 3. Contracts
 
 - `ShelfUseCase` owns one process-wide shelf projection. Every mutation starts from `getSnapshot()`, applies a pure `ShelfDraft` transform, and calls `save()` immediately. Components and per-screen hooks must not own a second discardable shelf draft.
+- Shelf identity is type-qualified: use `NOVEL:<id>`, `COMIC:<id>`, and `FOLDER:<id>` keys throughout card maps, selection, move, delete, reorder, and membership. `ShelfSnapshot.books` is a list of `{ ref, book }` records; a `null` card never removes its typed shelf item.
+- Browse media state is a local `Novel | Comic` projection over the one complete snapshot. It may recursively hide folders without matching descendants and derive counts/previews from that projection. Route it as `media=novel|comic`; changing it must not load, hydrate, save, or mutate indexes.
+- Edit mode is always the complete unfiltered sibling tree. Hide or disable the media control while editing; never reorder or save a filtered sibling list.
 - Complete-shelf saves stay serialized. A response from an older generation may not publish over a newer optimistic projection. The latest successful complete-state save confirms all earlier operations.
 - If the latest save fails, keep that complete optimistic draft as a pending authority barrier. `load()` must return it rather than replacing it with a stale server echo. Retry saves the current complete projection again.
 - Exiting edit mode only clears selection/reorder interaction state. It does not save, discard, cancel a queued write, or clear a failed pending projection.
@@ -146,6 +158,8 @@ type ShelfEditInteraction = 'select' | 'reorder';
 | Latest save fails | Keep optimistic shelf, expose Retry, block stale reload overwrite |
 | Earlier save fails but newer complete save succeeds | Newer snapshot remains visible and clears pending authority |
 | Exit while save is queued | Leave edit mode; write continues |
+| Browse media changes | Recompute only the local projection; do not load, hydrate, save, or change indexes |
+| Same numeric id in Novel and Comic | Keep separate typed keys and membership refs |
 | Nested folder returned by legacy data | Never offer it as a creation or move destination |
 
 ### 5. Good / Base / Bad Cases
@@ -156,8 +170,8 @@ type ShelfEditInteraction = 'select' | 'reorder';
 
 ### 6. Tests Required
 
-- Client-core tests must assert synchronous subscriber publication, normalization, serialized save order, stale-completion suppression, failed-pending `load()` protection, retry confirmation, and a book toggle extending pending optimistic state.
-- Pure mobile tests must assert root/folder destination lists, nested-folder exclusion, and Move/Delete enabled-state rules.
+- Client-core tests must assert synchronous subscriber publication, normalization, serialized save order, stale-completion suppression, failed-pending `load()` protection, retry confirmation, typed duplicate-id membership, and a book toggle extending pending optimistic state.
+- Pure mobile tests must assert root/folder destination lists, recursive Novel/Comic visibility and counts/previews, nested-folder exclusion, route media parsing, unresolved cards, and Move/Delete enabled-state rules without filtering edit siblings.
 - Run workspace checks, shelf tests, localization parity, both Expo exports, and Android `:novella-ui:compileDebugKotlin` when native action icons change.
 - Device acceptance covers both platform toolbars, selection/reorder switching, move/delete/name sheets, immediate updates before Exit, Back-to-exit-edit behavior, and failed-save Retry.
 
@@ -173,6 +187,9 @@ await saveOnlyWhenExitIsPressed(draft);
 const current = shelf.getSnapshot();
 const next = reorderShelfSiblings(createShelfDraft(current), input);
 void shelf.save(next); // optimistic publication is synchronous
+
+// Correct: membership carries media identity; numeric ids are not global keys.
+await shelf.toggleBook({ id: bookId, type: 'COMIC' });
 ```
 
 ## Paged Reader Images

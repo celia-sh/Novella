@@ -168,7 +168,7 @@ const sharedRequestScheduler = new RateLimitRequestScheduler();
 const BLURHASH_BASE83 =
   '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[]^_{|}~';
 
-export const SHELF_STRUCT_VERSION = '20220211';
+export const SHELF_STRUCT_VERSION = '20260921';
 
 export interface ApiRequest extends Omit<HttpRequest, 'url'> {
   path: `/${string}`;
@@ -283,11 +283,12 @@ export interface ReadHistory {
   comicIds: number[];
 }
 
-export type ShelfItemType = 'BOOK' | 'FOLDER';
+export type ShelfBookType = 'NOVEL' | 'COMIC';
+export type ShelfItemType = ShelfBookType | 'FOLDER';
 
 export interface ShelfBookItem {
   id: number;
-  type: 'BOOK';
+  type: ShelfBookType;
   index: number;
   parents: string[];
   updatedAt: string;
@@ -1483,7 +1484,7 @@ export class ApiClient {
       'SaveBookShelf',
       {
         data: shelf.items.map(encodeShelfItem),
-        ver: shelf.version ?? SHELF_STRUCT_VERSION,
+        ver: SHELF_STRUCT_VERSION,
       },
       () => undefined,
     );
@@ -2771,7 +2772,7 @@ function decodeShelfItem(value: unknown): ShelfItem {
   const parents = decodeStringArray(item.parents ?? item.Parents);
   const updatedAt = asStringOrEmpty(item.updateAt ?? item.UpdateAt);
 
-  if (type === 'BOOK') {
+  if (type !== 'FOLDER') {
     return {
       id: asNumber(item.id ?? item.Id),
       index,
@@ -2792,26 +2793,34 @@ function decodeShelfItem(value: unknown): ShelfItem {
 }
 
 function encodeShelfItem(item: ShelfItem): JsonValue {
-  return item.type === 'BOOK'
-    ? {
-        id: item.id,
-        index: item.index,
-        parents: item.parents,
-        type: item.type,
-        updateAt: item.updatedAt,
-      }
-    : {
-        id: item.id,
-        index: item.index,
-        parents: item.parents,
-        title: item.title,
-        type: item.type,
-        updateAt: item.updatedAt,
-      };
+  // Keep the write boundary canonical even if an untyped legacy caller passes
+  // a BOOK item during a rolling client upgrade.
+  const type = normalizeShelfItemType(item.type);
+  if (type !== 'FOLDER') {
+    return {
+      id: item.id,
+      index: item.index,
+      parents: item.parents,
+      type,
+      updateAt: item.updatedAt,
+    };
+  }
+
+  const folder = item as ShelfFolderItem;
+  return {
+    id: folder.id,
+    index: folder.index,
+    parents: folder.parents,
+    title: folder.title,
+    type,
+    updateAt: folder.updatedAt,
+  };
 }
 
 function normalizeShelfItemType(value: unknown): ShelfItemType {
-  if (value === 'BOOK' || value === 'Book' || value === 0) return 'BOOK';
+  if (value === 'NOVEL') return 'NOVEL';
+  if (value === 'COMIC') return 'COMIC';
+  if (value === 'BOOK' || value === 'Book' || value === 0) return 'NOVEL';
   if (value === 'FOLDER' || value === 'Folder' || value === 1) return 'FOLDER';
   throw new ApiError('The server returned an invalid shelf item type.', 'server');
 }

@@ -1,0 +1,8 @@
+{"file":".trellis/tasks/09-22-shelf-contract-migration/prd.md","reason":"Verify every API/client-core acceptance criterion and explicit exclusion."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/design.md","reason":"Review normalized identity, unresolved-card behavior, grouped comic endpoint avoidance, and save compatibility."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/implement.md","reason":"Follow the ordered implementation and handoff gates during checking."}
+{"file":".trellis/spec/backend/api-response-decoding.md","reason":"Audit strict current/legacy decoding, field casing, malformed types, and error category."}
+{"file":".trellis/spec/backend/request-scheduling.md","reason":"Audit that typed hydration and serialized saves preserve existing scheduling semantics."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Audit save retry/error propagation and invalid shelf response handling."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Run package tests, typechecks, and diff hygiene required by the backend layer."}
+{"file":".trellis/tasks/09-22-server-api-followup/research/00-web-master-diff-and-mobile-impact.md","reason":"Compare payload and version behavior against the pinned reference evidence."}

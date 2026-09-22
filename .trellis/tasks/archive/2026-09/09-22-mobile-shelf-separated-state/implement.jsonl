@@ -1,0 +1,14 @@
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/prd.md","reason":"Mobile Novel/Comic state, recursive projection, full-tree editing, routes, localization, Comic membership, and acceptance criteria."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/design.md","reason":"Concrete route state, recursive browse projection, edit boundary, membership mapping, localization, and rollback design."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/implement.md","reason":"Ordered dependency-gated implementation and validation steps."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/research/00-separated-shelf-state.md","reason":"Repository evidence for history segmented state, shelf consumers, recursive folders, and state constraints."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/prd.md","reason":"Upstream normalized model and typed membership dependency."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/design.md","reason":"Exact ShelfBookRef, ShelfItemKey, ShelfBookRecord, and public use-case contract consumed by mobile."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/implement.md","reason":"Upstream implementation order and handoff gate that must complete before mobile implementation."}
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend pre-development checklist and layer boundaries."}
+{"file":".trellis/spec/frontend/hook-guidelines.md","reason":"Hook state ownership, external store subscription, and side-effect boundaries."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Keep one shelf source of truth, optimistic state, and non-persisted view state separate."}
+{"file":".trellis/spec/frontend/localization-guidelines.md","reason":"zh-CN/zh-TW resource parity and localized accessibility requirements."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Typed route params, media state, and normalized API model usage."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Mobile test, typecheck, device/manual, and diff quality gate."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Do not duplicate API decoding or transport logic in mobile screens."}

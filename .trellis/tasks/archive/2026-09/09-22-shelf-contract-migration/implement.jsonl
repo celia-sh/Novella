@@ -1,0 +1,11 @@
+{"file":".trellis/tasks/09-22-shelf-contract-migration/prd.md","reason":"API/client-core requirements, normalized types, typed membership, hydration, save, and acceptance criteria."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/design.md","reason":"Concrete normalized model, decoder/encoder rules, typed hydration, public methods, and verification design."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/implement.md","reason":"Ordered API then client-core implementation steps and handoff gate."}
+{"file":".trellis/tasks/09-22-server-api-followup/research/00-web-master-diff-and-mobile-impact.md","reason":"Pinned reference evidence for 20260921, NOVEL/COMIC/FOLDER, and SaveBookShelf shape."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/research/00-separated-shelf-state.md","reason":"Dependent mobile consumer constraints that the public core API must satisfy."}
+{"file":".trellis/spec/backend/index.md","reason":"API pre-development checklist and boundary conventions."}
+{"file":".trellis/spec/backend/api-response-decoding.md","reason":"Strict decoding, null normalization, casing compatibility, and error classification rules."}
+{"file":".trellis/spec/backend/request-scheduling.md","reason":"Preserve transport scheduling, serialization, and request behavior while changing shelf payloads."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Keep malformed shelf responses and save failures in the existing error categories."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Required package tests, typechecks, and quality checks."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Public contract and downstream consumer impact review."}

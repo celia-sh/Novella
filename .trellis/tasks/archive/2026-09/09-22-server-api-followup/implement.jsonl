@@ -1,0 +1,15 @@
+{"file":".trellis/tasks/09-22-server-api-followup/prd.md","reason":"Parent scope, task ownership, exclusions, dependencies, and cross-layer acceptance criteria."}
+{"file":".trellis/tasks/09-22-server-api-followup/design.md","reason":"Integration boundaries, normalized data flow, rollout order, compatibility, and rollback decisions."}
+{"file":".trellis/tasks/09-22-server-api-followup/research/00-web-master-diff-and-mobile-impact.md","reason":"Evidence for the Web-Master 20260921 shelf contract and mobile impact; reference repository remains read-only."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/research/00-separated-shelf-state.md","reason":"Evidence for the mobile Novel/Comic projection, recursive folders, edit behavior, and route constraints."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/prd.md","reason":"API/client-core child ownership, normalized contract, and acceptance criteria."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/design.md","reason":"API/client-core child contract that the parent integration must consume."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/implement.md","reason":"API/client-core execution order and handoff gate."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/prd.md","reason":"Mobile child ownership and cross-layer acceptance criteria."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/design.md","reason":"Mobile child contract, dependency gate, and presentation data flow."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/implement.md","reason":"Mobile execution order and final validation plan."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Required API-to-client-core-to-mobile contract review and ownership boundaries."}
+{"file":".trellis/spec/backend/index.md","reason":"Backend/API pre-development checklist and contract conventions."}
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend pre-development checklist for the consuming mobile layer."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Backend test and typecheck quality gate."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Mobile automated and manual verification boundary."}

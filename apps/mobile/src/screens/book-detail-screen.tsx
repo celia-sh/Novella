@@ -298,7 +298,6 @@ function BookDetailContent({
         </View>
 
         <View style={styles.actions}>
-          {book.type === 'Comic' ? null : (
           <IconButton
             accessibilityLabel={isInShelf ? t('detail.removeFromShelf') : t('detail.addToShelf')}
             containerColor={isInShelf ? palette.primaryContainer : palette.surfaceContainerHighest}
@@ -315,7 +314,6 @@ function BookDetailContent({
             size={25}
             style={styles.shelfButton}
           />
-          )}
 
           <Button
             accessibilityLabel={resumeChapter

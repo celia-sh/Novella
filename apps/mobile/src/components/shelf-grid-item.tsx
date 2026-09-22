@@ -23,8 +23,10 @@ import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 interface ShelfFolderGridItemProps {
   accessibilityActions?: readonly AccessibilityActionInfo[];
+  childFolderCount?: number;
   interactionState?: 'default' | 'selected' | 'sorting';
   itemCount: number;
+  mediaLabel?: string;
   networkImageEnabled?: boolean;
   onAccessibilityAction?: (event: AccessibilityActionEvent) => void;
   onLongPress?: (event: GestureResponderEvent) => void;
@@ -37,8 +39,10 @@ interface ShelfFolderGridItemProps {
 
 export function ShelfFolderGridItem({
   accessibilityActions,
+  childFolderCount,
   interactionState = 'default',
   itemCount,
+  mediaLabel,
   networkImageEnabled = true,
   onAccessibilityAction,
   onLongPress,
@@ -60,7 +64,14 @@ export function ShelfFolderGridItem({
   return (
     <Pressable
       {...(accessibilityActions ? { accessibilityActions: [...accessibilityActions] } : {})}
-      accessibilityLabel={t('shelf.folderAccessibility', { count: itemCount, title })}
+      accessibilityLabel={mediaLabel === undefined
+        ? t('shelf.folderAccessibility', { count: itemCount, title })
+        : t('shelf.folderMediaAccessibility', {
+            bookCount: itemCount,
+            folderCount: childFolderCount ?? 0,
+            media: mediaLabel,
+            title,
+          })}
       accessibilityRole="button"
       accessibilityState={{ selected: interactionState === 'selected' }}
       delayLongPress={180}

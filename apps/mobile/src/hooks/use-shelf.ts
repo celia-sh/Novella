@@ -17,6 +17,7 @@ import {
   removeShelfItems,
   renameShelfFolder,
   reorderShelfSiblings,
+  type ShelfBookRef,
   type ShelfDraft,
   type ShelfItemKey,
   type ShelfSnapshot,
@@ -179,10 +180,10 @@ export function useShelf() {
   ), [applyMutation]);
 
   const moveBooks = useCallback((
-    bookIds: readonly number[],
+    bookRefs: readonly ShelfBookRef[],
     destination: readonly string[],
   ) => applyMutation(
-    (draft, now) => moveShelfBooks(draft, { bookIds, destination, now }),
+    (draft, now) => moveShelfBooks(draft, { bookRefs, destination, now }),
   ), [applyMutation]);
 
   const reorderSiblings = useCallback((

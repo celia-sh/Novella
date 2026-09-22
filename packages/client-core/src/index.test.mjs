@@ -31,6 +31,7 @@ import {
   renameShelfFolder,
   reorderShelfSiblings,
   resolveAvatarUrl,
+  shelfBookRefKey,
   shelfDraftHasChanges,
   shelfItemKey,
 } from './index.ts';
@@ -1048,60 +1049,141 @@ test('shop repository preserves confirmed quota-card state when refresh fails', 
   assert.equal(useCase.getSnapshot(), confirmed);
 });
 
-test('shelf repository publishes one shared snapshot after load and save', async () => {
+test('mixed shelf hydration matches cards by typed identity and keeps unresolved records', async () => {
+  const idBatches = [];
+  const useCase = createShelfUseCase({
+    async getBookShelf() {
+      return {
+        version: '20260921',
+        items: [
+          { type: 'NOVEL', id: 7, index: 0, parents: [], updatedAt: 'a' },
+          { type: 'COMIC', id: 7, index: 1, parents: [], updatedAt: 'b' },
+          { type: 'COMIC', id: 9, index: 2, parents: ['folder'], updatedAt: 'c' },
+          { type: 'FOLDER', id: 'folder', index: 3, parents: [], title: 'Folder', updatedAt: 'd' },
+        ],
+      };
+    },
+    async getBookListByIds(ids) {
+      idBatches.push(ids);
+      return [bookCard(7, 'Comic'), bookCard(7, 'Novel')];
+    },
+    async saveBookShelf() {},
+  });
+
+  const snapshot = await useCase.load();
+  assert.deepEqual(idBatches, [[7, 9]]);
+  assert.deepEqual(snapshot.books.map(({ ref, book }) => ({ ref, type: book?.type ?? null })), [
+    { ref: { id: 7, type: 'NOVEL' }, type: 'Novel' },
+    { ref: { id: 7, type: 'COMIC' }, type: 'Comic' },
+    { ref: { id: 9, type: 'COMIC' }, type: null },
+  ]);
+  assert.equal(snapshot.items.some((item) => item.id === 9 && item.type === 'COMIC'), true);
+});
+
+test('one returned card resolves only its matching duplicate-id shelf type', async () => {
+  const useCase = createShelfUseCase({
+    async getBookShelf() {
+      return {
+        version: '20260921',
+        items: [
+          { type: 'NOVEL', id: 5, index: 0, parents: [], updatedAt: 'a' },
+          { type: 'COMIC', id: 5, index: 1, parents: [], updatedAt: 'b' },
+        ],
+      };
+    },
+    async getBookListByIds() {
+      return [bookCard(5, 'Novel')];
+    },
+    async saveBookShelf() {},
+  });
+
+  const snapshot = await useCase.load();
+  assert.equal(snapshot.books[0].book?.type, 'Novel');
+  assert.equal(snapshot.books[1].book, null);
+});
+
+test('duplicate same-typed shelf cards remain unresolved instead of selecting one', async () => {
+  const useCase = createShelfUseCase({
+    async getBookShelf() {
+      return {
+        version: '20260921',
+        items: [{ type: 'NOVEL', id: 5, index: 0, parents: [], updatedAt: 'a' }],
+      };
+    },
+    async getBookListByIds() {
+      return [bookCard(5, 'Novel'), bookCard(5, 'Novel')];
+    },
+    async saveBookShelf() {},
+  });
+
+  const snapshot = await useCase.load();
+  assert.deepEqual(snapshot.items.map(shelfItemKey), ['NOVEL:5']);
+  assert.deepEqual(snapshot.books, [{
+    ref: { id: 5, type: 'NOVEL' },
+    book: null,
+  }]);
+});
+
+test('shelf repository publishes one shared typed snapshot and upgrades saves', async () => {
   const saved = [];
   const useCase = createShelfUseCase({
     async getBookShelf() {
       return {
         version: '20220211',
-        items: [{ type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' }],
+        items: [
+          { type: 'NOVEL', id: 1, index: 0, parents: [], updatedAt: 'a' },
+          { type: 'COMIC', id: 1, index: 1, parents: [], updatedAt: 'b' },
+        ],
       };
     },
-    async getBookListByIds(ids) {
-      return ids.map((id) => ({ id, title: `Book ${id}` }));
+    async getBookListByIds() {
+      return [bookCard(1, 'Novel'), bookCard(1, 'Comic')];
     },
     async saveBookShelf(draft) {
-      saved.push(draft);
+      saved.push(structuredClone(draft));
     },
   });
   const published = [];
   const unsubscribe = useCase.subscribe((snapshot) => published.push(snapshot));
 
-  assert.equal(useCase.getSnapshot(), null);
   const loaded = await useCase.load();
-  assert.equal(useCase.getSnapshot(), loaded);
-  assert.equal(published.length, 1);
-
   const draft = createShelfFolder(createShelfDraft(loaded), {
     id: 'folder',
     title: 'Folder',
-    now: 'b',
+    now: 'c',
   });
   const savedSnapshot = await useCase.save(draft);
+
   assert.equal(useCase.getSnapshot(), savedSnapshot);
   assert.equal(published.length, 2);
-  assert.deepEqual(saved[0].items.map(shelfItemKey), ['FOLDER:folder', 'BOOK:1']);
+  assert.equal(saved[0].version, '20260921');
+  assert.deepEqual(saved[0].items.map(shelfItemKey), [
+    'FOLDER:folder',
+    'NOVEL:1',
+    'COMIC:1',
+  ]);
+  assert.deepEqual(savedSnapshot.books.map(({ ref }) => shelfBookRefKey(ref)), [
+    'NOVEL:1',
+    'COMIC:1',
+  ]);
 
   unsubscribe();
   await useCase.load();
   assert.equal(published.length, 2);
 });
 
-test('shelf save synchronously publishes its normalized optimistic projection', async () => {
+test('shelf save synchronously publishes typed unresolved records in its optimistic projection', async () => {
   const persistence = deferred();
   let saveCalls = 0;
   const useCase = createShelfUseCase({
     async getBookShelf() {
       return {
         version: 'initial',
-        items: [
-          { type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' },
-          { type: 'BOOK', id: 2, index: 1, parents: [], updatedAt: 'a' },
-        ],
+        items: [{ type: 'NOVEL', id: 1, index: 0, parents: [], updatedAt: 'a' }],
       };
     },
     async getBookListByIds(ids) {
-      return ids.map((id) => ({ id, title: `Book ${id}` }));
+      return ids.flatMap((id) => id === 1 ? [bookCard(1, 'Novel')] : []);
     },
     async saveBookShelf() {
       saveCalls += 1;
@@ -1114,7 +1196,7 @@ test('shelf save synchronously publishes its normalized optimistic projection', 
   const draft = {
     ...createShelfDraft(loaded),
     items: [
-      { ...loaded.items[1], index: 8 },
+      { type: 'COMIC', id: 2, index: 8, parents: [], updatedAt: 'b' },
       { ...loaded.items[0], index: 9 },
     ],
   };
@@ -1122,16 +1204,22 @@ test('shelf save synchronously publishes its normalized optimistic projection', 
   const saving = useCase.save(draft);
 
   assert.equal(saveCalls, 0);
-  assert.equal(published.length, 1);
-  assert.equal(useCase.getSnapshot(), published[0]);
-  assert.deepEqual(published[0].items.map(shelfItemKey), ['BOOK:2', 'BOOK:1']);
-  assert.deepEqual(published[0].items.map((item) => item.index), [0, 1]);
+  assert.deepEqual(useCase.getSnapshot().items.map(shelfItemKey), ['COMIC:2', 'NOVEL:1']);
+  assert.deepEqual(useCase.getSnapshot().books.map(({ ref, book }) => [
+    shelfBookRefKey(ref),
+    book?.type ?? null,
+  ]), [
+    ['COMIC:2', null],
+    ['NOVEL:1', 'Novel'],
+  ]);
+  assert.deepEqual(useCase.getSnapshot().items.map((item) => item.index), [0, 1]);
 
   await nextTask();
   assert.equal(saveCalls, 1);
   persistence.resolve();
-  assert.equal(await saving, published[0]);
-  assert.equal(published.length, 1);
+  await saving;
+  assert.equal(useCase.getSnapshot().books[0].book, null);
+  assert.equal(published.length, 2);
 });
 
 test('rapid shelf saves stay sequential and stale completion cannot replace the newest projection', async () => {
@@ -1141,13 +1229,13 @@ test('rapid shelf saves stay sequential and stale completion cannot replace the 
       return {
         version: 'initial',
         items: [
-          { type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' },
-          { type: 'BOOK', id: 2, index: 1, parents: [], updatedAt: 'a' },
+          { type: 'NOVEL', id: 1, index: 0, parents: [], updatedAt: 'a' },
+          { type: 'COMIC', id: 2, index: 1, parents: [], updatedAt: 'a' },
         ],
       };
     },
-    async getBookListByIds(ids) {
-      return ids.map((id) => ({ id, title: `Book ${id}` }));
+    async getBookListByIds() {
+      return [bookCard(1, 'Novel'), bookCard(2, 'Comic')];
     },
     async saveBookShelf(draft) {
       const completion = deferred();
@@ -1172,8 +1260,8 @@ test('rapid shelf saves stay sequential and stale completion cannot replace the 
   const secondSave = useCase.save(withFolder);
 
   assert.deepEqual(published, [
-    ['BOOK:2', 'BOOK:1'],
-    ['FOLDER:folder', 'BOOK:2', 'BOOK:1'],
+    ['COMIC:2', 'NOVEL:1'],
+    ['FOLDER:folder', 'COMIC:2', 'NOVEL:1'],
   ]);
   assert.equal(saves.length, 0);
 
@@ -1182,39 +1270,41 @@ test('rapid shelf saves stay sequential and stale completion cannot replace the 
   saves[0].completion.resolve();
   await firstSave;
   await nextTask();
-
   assert.equal(saves.length, 2);
   assert.deepEqual(useCase.getSnapshot().items.map(shelfItemKey), [
     'FOLDER:folder',
-    'BOOK:2',
-    'BOOK:1',
+    'COMIC:2',
+    'NOVEL:1',
   ]);
-  assert.equal(published.length, 2);
 
   saves[1].completion.resolve();
   await secondSave;
   assert.deepEqual(saves.map(({ draft }) => draft.items.map(shelfItemKey)), [
-    ['BOOK:2', 'BOOK:1'],
-    ['FOLDER:folder', 'BOOK:2', 'BOOK:1'],
+    ['COMIC:2', 'NOVEL:1'],
+    ['FOLDER:folder', 'COMIC:2', 'NOVEL:1'],
   ]);
   assert.equal(published.length, 2);
 });
 
-test('failed latest shelf save protects the optimistic projection from load', async () => {
+test('failed shelf save protects the optimistic projection until a complete retry succeeds', async () => {
   let loadCalls = 0;
+  let saveCalls = 0;
+  let serverShelf = {
+    version: 'stale-server',
+    items: [{ type: 'NOVEL', id: 1, index: 0, parents: [], updatedAt: 'a' }],
+  };
   const useCase = createShelfUseCase({
     async getBookShelf() {
       loadCalls += 1;
-      return {
-        version: 'stale-server',
-        items: [{ type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' }],
-      };
+      return structuredClone(serverShelf);
     },
-    async getBookListByIds(ids) {
-      return ids.map((id) => ({ id, title: `Book ${id}` }));
+    async getBookListByIds() {
+      return [bookCard(1, 'Novel')];
     },
-    async saveBookShelf() {
-      throw new Error('offline');
+    async saveBookShelf(draft) {
+      saveCalls += 1;
+      if (saveCalls === 1) throw new Error('offline');
+      serverShelf = structuredClone(draft);
     },
   });
   const loaded = await useCase.load();
@@ -1226,51 +1316,15 @@ test('failed latest shelf save protects the optimistic projection from load', as
 
   await assert.rejects(useCase.save(optimisticDraft), /offline/);
   const protectedSnapshot = useCase.getSnapshot();
-  const reloaded = await useCase.load();
-
+  assert.equal(await useCase.load(), protectedSnapshot);
   assert.equal(loadCalls, 1);
-  assert.equal(reloaded, protectedSnapshot);
-  assert.deepEqual(reloaded.items.map(shelfItemKey), ['FOLDER:folder', 'BOOK:1']);
-});
 
-test('saving the current complete shelf retries and clears the failed pending barrier', async () => {
-  let loadCalls = 0;
-  let saveCalls = 0;
-  let serverShelf = {
-    version: 'initial',
-    items: [
-      { type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' },
-      { type: 'BOOK', id: 2, index: 1, parents: [], updatedAt: 'a' },
-    ],
-  };
-  const useCase = createShelfUseCase({
-    async getBookShelf() {
-      loadCalls += 1;
-      return structuredClone(serverShelf);
-    },
-    async getBookListByIds(ids) {
-      return ids.map((id) => ({ id, title: `Book ${id}` }));
-    },
-    async saveBookShelf(draft) {
-      saveCalls += 1;
-      if (saveCalls === 1) throw new Error('offline');
-      serverShelf = structuredClone(draft);
-    },
-  });
-  const loaded = await useCase.load();
-  const desired = {
-    ...createShelfDraft(loaded),
-    items: [loaded.items[1], loaded.items[0]].map((item, index) => ({ ...item, index })),
-  };
-
-  await assert.rejects(useCase.save(desired), /offline/);
-  const retry = createShelfDraft(useCase.getSnapshot());
-  await useCase.save(retry);
+  await useCase.save(createShelfDraft(protectedSnapshot));
   const refreshed = await useCase.load();
-
   assert.equal(saveCalls, 2);
   assert.equal(loadCalls, 2);
-  assert.deepEqual(refreshed.items.map(shelfItemKey), ['BOOK:2', 'BOOK:1']);
+  assert.equal(refreshed.version, '20260921');
+  assert.deepEqual(refreshed.items.map(shelfItemKey), ['FOLDER:folder', 'NOVEL:1']);
 });
 
 test('newer successful complete shelf save confirms after an earlier queued failure', async () => {
@@ -1280,13 +1334,13 @@ test('newer successful complete shelf save confirms after an earlier queued fail
       return {
         version: 'initial',
         items: [
-          { type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' },
-          { type: 'BOOK', id: 2, index: 1, parents: [], updatedAt: 'a' },
+          { type: 'NOVEL', id: 1, index: 0, parents: [], updatedAt: 'a' },
+          { type: 'COMIC', id: 2, index: 1, parents: [], updatedAt: 'a' },
         ],
       };
     },
-    async getBookListByIds(ids) {
-      return ids.map((id) => ({ id, title: `Book ${id}` }));
+    async getBookListByIds() {
+      return [bookCard(1, 'Novel'), bookCard(2, 'Comic')];
     },
     async saveBookShelf(draft) {
       const completion = deferred();
@@ -1318,12 +1372,44 @@ test('newer successful complete shelf save confirms after an earlier queued fail
 
   assert.deepEqual(useCase.getSnapshot().items.map(shelfItemKey), [
     'FOLDER:folder',
-    'BOOK:2',
-    'BOOK:1',
+    'COMIC:2',
+    'NOVEL:1',
   ]);
 });
 
-test('book toggle extends a failed optimistic shelf instead of refetching stale server state', async () => {
+test('typed contains and toggle distinguish Novel and Comic with the same id', async () => {
+  const savedDrafts = [];
+  const useCase = createShelfUseCase({
+    async getBookShelf() {
+      return {
+        version: '20220211',
+        items: [{ type: 'NOVEL', id: 1, index: 0, parents: [], updatedAt: 'a' }],
+      };
+    },
+    async getBookListByIds() {
+      return [bookCard(1, 'Novel'), bookCard(1, 'Comic')];
+    },
+    async saveBookShelf(draft) {
+      savedDrafts.push(structuredClone(draft));
+    },
+  });
+
+  assert.equal(await useCase.contains({ id: 1, type: 'NOVEL' }), true);
+  assert.equal(await useCase.contains({ id: 1, type: 'COMIC' }), false);
+  await useCase.load();
+  assert.equal(await useCase.toggleBook({ id: 1, type: 'COMIC' }), true);
+  assert.equal(await useCase.contains({ id: 1, type: 'NOVEL' }), true);
+  assert.equal(await useCase.contains({ id: 1, type: 'COMIC' }), true);
+  assert.equal(await useCase.toggleBook({ id: 1, type: 'NOVEL' }), false);
+
+  assert.deepEqual(savedDrafts.map((draft) => draft.items.map(shelfItemKey)), [
+    ['COMIC:1', 'NOVEL:1'],
+    ['COMIC:1'],
+  ]);
+  assert.equal(savedDrafts.every((draft) => draft.version === '20260921'), true);
+});
+
+test('typed toggle extends a failed optimistic shelf without refetching stale state', async () => {
   let loadCalls = 0;
   let saveCalls = 0;
   const savedDrafts = [];
@@ -1332,11 +1418,11 @@ test('book toggle extends a failed optimistic shelf instead of refetching stale 
       loadCalls += 1;
       return {
         version: 'initial',
-        items: [{ type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' }],
+        items: [{ type: 'NOVEL', id: 1, index: 0, parents: [], updatedAt: 'a' }],
       };
     },
     async getBookListByIds(ids) {
-      return ids.map((id) => ({ id, title: `Book ${id}` }));
+      return ids.map((id) => bookCard(id, id === 2 ? 'Comic' : 'Novel'));
     },
     async saveBookShelf(draft) {
       saveCalls += 1;
@@ -1352,22 +1438,17 @@ test('book toggle extends a failed optimistic shelf instead of refetching stale 
   });
 
   await assert.rejects(useCase.save(withFolder), /offline/);
-  assert.equal(await useCase.toggleBook(2), true);
+  assert.equal(await useCase.toggleBook({ id: 2, type: 'COMIC' }), true);
 
   assert.equal(loadCalls, 1);
   assert.deepEqual(savedDrafts[1].items.map(shelfItemKey), [
-    'BOOK:2',
+    'COMIC:2',
     'FOLDER:folder',
-    'BOOK:1',
-  ]);
-  assert.deepEqual(useCase.getSnapshot().items.map(shelfItemKey), [
-    'BOOK:2',
-    'FOLDER:folder',
-    'BOOK:1',
+    'NOVEL:1',
   ]);
 });
 
-test('shelf load cannot publish an older response after save begins', async () => {
+test('shelf load cannot publish an older response after a typed save begins', async () => {
   let resolveLoad;
   let shelfCall = 0;
   const useCase = createShelfUseCase({
@@ -1375,18 +1456,18 @@ test('shelf load cannot publish an older response after save begins', async () =
       shelfCall += 1;
       if (shelfCall === 1) {
         return { version: 'old', items: [
-          { type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' },
-          { type: 'BOOK', id: 2, index: 1, parents: [], updatedAt: 'a' },
+          { type: 'NOVEL', id: 1, index: 0, parents: [], updatedAt: 'a' },
+          { type: 'COMIC', id: 2, index: 1, parents: [], updatedAt: 'a' },
         ] };
       }
       await new Promise((resolve) => { resolveLoad = resolve; });
       return { version: 'server', items: [
-        { type: 'BOOK', id: 2, index: 0, parents: [], updatedAt: 'b' },
-        { type: 'BOOK', id: 1, index: 1, parents: [], updatedAt: 'b' },
+        { type: 'NOVEL', id: 1, index: 0, parents: [], updatedAt: 'b' },
+        { type: 'COMIC', id: 2, index: 1, parents: [], updatedAt: 'b' },
       ] };
     },
-    async getBookListByIds(ids) {
-      return ids.map((id) => ({ id, title: `Book ${id}` }));
+    async getBookListByIds() {
+      return [bookCard(1, 'Novel'), bookCard(2, 'Comic')];
     },
     async saveBookShelf() {},
   });
@@ -1400,18 +1481,18 @@ test('shelf load cannot publish an older response after save begins', async () =
   const saved = await useCase.save(draft);
   resolveLoad();
   const loaded = await staleLoad;
-  assert.deepEqual(saved.items.map(shelfItemKey), ['BOOK:2', 'BOOK:1']);
-  assert.deepEqual(loaded.items.map(shelfItemKey), ['BOOK:2', 'BOOK:1']);
-  assert.deepEqual(useCase.getSnapshot().items.map(shelfItemKey), ['BOOK:2', 'BOOK:1']);
+  assert.deepEqual(saved.items.map(shelfItemKey), ['COMIC:2', 'NOVEL:1']);
+  assert.deepEqual(loaded.items.map(shelfItemKey), ['COMIC:2', 'NOVEL:1']);
+  assert.deepEqual(useCase.getSnapshot().items.map(shelfItemKey), ['COMIC:2', 'NOVEL:1']);
 });
 
-test('shelf dirty projection compares the complete ordered draft', () => {
+test('shelf dirty projection compares the complete ordered typed draft', () => {
   const snapshot = {
-    version: '20220211',
+    version: '20260921',
     books: [],
     items: [
       { type: 'FOLDER', id: 'folder', index: 0, parents: [], title: 'Folder', updatedAt: 'a' },
-      { type: 'BOOK', id: 1, index: 0, parents: ['folder'], updatedAt: 'a' },
+      { type: 'COMIC', id: 1, index: 0, parents: ['folder'], updatedAt: 'a' },
     ],
   };
   const clean = createShelfDraft(snapshot);
@@ -1426,69 +1507,102 @@ test('shelf dirty projection compares the complete ordered draft', () => {
   }), false);
 });
 
-test('shelf draft supports folders, moves, sibling reorder, and Web deletion semantics', () => {
+test('shelf folder editing preserves both media types and duplicate numeric ids', () => {
   const snapshot = {
-    version: '20220211',
+    version: '20260921',
     books: [],
     items: [
-      { type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' },
-      { type: 'BOOK', id: 2, index: 1, parents: [], updatedAt: 'a' },
+      { type: 'NOVEL', id: 1, index: 0, parents: [], updatedAt: 'a' },
+      { type: 'COMIC', id: 1, index: 1, parents: [], updatedAt: 'a' },
+      { type: 'NOVEL', id: 2, index: 2, parents: [], updatedAt: 'a' },
     ],
   };
   let draft = createShelfDraft(snapshot);
   draft = createShelfFolder(draft, { id: 'folder', title: 'Folder', now: 'b' });
   draft = renameShelfFolder(draft, { id: 'folder', title: 'Renamed', now: 'c' });
-  draft = moveShelfBooks(draft, { bookIds: [2], destination: ['folder'], now: 'd' });
+  draft = moveShelfBooks(draft, {
+    bookRefs: [{ id: 1, type: 'COMIC' }],
+    destination: ['folder'],
+    now: 'd',
+  });
 
-  assert.deepEqual(
-    getShelfItemsAtPath(draft, ['folder']).map(shelfItemKey),
-    ['BOOK:2'],
-  );
+  assert.deepEqual(getShelfItemsAtPath(draft, ['folder']).map(shelfItemKey), ['COMIC:1']);
+  assert.deepEqual(getShelfItemsAtPath(draft, []).map(shelfItemKey), [
+    'FOLDER:folder',
+    'NOVEL:1',
+    'NOVEL:2',
+  ]);
   assert.deepEqual(getShelfFolderPaths(draft), [{
     id: 'folder',
     label: 'Renamed',
     path: ['folder'],
   }]);
-  assert.equal(getShelfSelectionBookCount(draft, new Set(['FOLDER:folder'])), 1);
+  assert.equal(getShelfSelectionBookCount(draft, new Set(['FOLDER:folder', 'NOVEL:1'])), 2);
+
   draft = reorderShelfSiblings(draft, {
     parents: [],
-    orderedKeys: ['BOOK:1', 'FOLDER:folder'],
+    orderedKeys: ['NOVEL:2', 'NOVEL:1', 'FOLDER:folder'],
     now: 'e',
   });
-  assert.deepEqual(getShelfItemsAtPath(draft, []).map(shelfItemKey), [
-    'BOOK:1',
-    'FOLDER:folder',
-  ]);
-
   draft = deleteShelfFolder(draft, { id: 'folder', now: 'f' });
   assert.deepEqual(getShelfItemsAtPath(draft, []).map(shelfItemKey), [
-    'BOOK:1',
-    'BOOK:2',
+    'NOVEL:2',
+    'NOVEL:1',
+    'COMIC:1',
   ]);
+
   draft = removeShelfItems(draft, {
-    keys: new Set(['BOOK:1']),
+    keys: new Set(['NOVEL:1']),
     now: 'g',
   });
-  assert.deepEqual(getShelfItemsAtPath(draft, []).map(shelfItemKey), ['BOOK:2']);
+  assert.deepEqual(getShelfItemsAtPath(draft, []).map(shelfItemKey), ['NOVEL:2', 'COMIC:1']);
 });
 
-test('shelf draft rejects cross-container and incomplete reorder operations', () => {
+test('typed sibling reorder keeps same-id Novel and Comic entries distinct', () => {
   const draft = createShelfDraft({
-    version: '20220211',
+    version: '20260921',
     books: [],
     items: [
-      { type: 'BOOK', id: 1, index: 0, parents: [], updatedAt: 'a' },
-      { type: 'FOLDER', id: 'folder', index: 1, parents: [], title: 'Folder', updatedAt: 'a' },
+      { type: 'NOVEL', id: 7, index: 0, parents: [], updatedAt: 'a' },
+      { type: 'COMIC', id: 7, index: 1, parents: [], updatedAt: 'a' },
+    ],
+  });
+
+  const reordered = reorderShelfSiblings(draft, {
+    parents: [],
+    orderedKeys: ['COMIC:7', 'NOVEL:7'],
+    now: 'b',
+  });
+
+  assert.deepEqual(getShelfItemsAtPath(reordered, []).map(shelfItemKey), [
+    'COMIC:7',
+    'NOVEL:7',
+  ]);
+  assert.deepEqual(getShelfItemsAtPath(reordered, []).map((item) => item.index), [0, 1]);
+  assert.deepEqual(reordered.items.map(({ type, id, index }) => ({ type, id, index })), [
+    { type: 'NOVEL', id: 7, index: 1 },
+    { type: 'COMIC', id: 7, index: 0 },
+  ]);
+});
+
+test('shelf draft rejects cross-container and incomplete typed reorder operations', () => {
+  const draft = createShelfDraft({
+    version: '20260921',
+    books: [],
+    items: [
+      { type: 'NOVEL', id: 1, index: 0, parents: [], updatedAt: 'a' },
+      { type: 'COMIC', id: 1, index: 1, parents: [], updatedAt: 'a' },
+      { type: 'FOLDER', id: 'folder', index: 2, parents: [], title: 'Folder', updatedAt: 'a' },
     ],
   });
 
   assert.throws(() => reorderShelfSiblings(draft, {
     parents: [],
-    orderedKeys: ['BOOK:1'],
+    orderedKeys: ['NOVEL:1', 'FOLDER:folder'],
     now: 'b',
   }), /every sibling/i);
   assert.throws(() => moveShelfBooks(draft, {
-    bookIds: [1],
+    bookRefs: [{ id: 1, type: 'COMIC' }],
     destination: ['missing'],
     now: 'b',
   }), /destination folder/i);
@@ -1647,6 +1761,10 @@ test('notifications use case normalizes ids and validates paging', async () => {
   assert.throws(() => useCase.load({ page: 0 }), /valid notification page/i);
   assert.throws(() => useCase.mark([0]), /valid notification id/i);
 });
+
+function bookCard(id, type) {
+  return { id, type, title: `${type} ${id}` };
+}
 
 function deferred() {
   let resolve;

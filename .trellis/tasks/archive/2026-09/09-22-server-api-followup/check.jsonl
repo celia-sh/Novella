@@ -1,0 +1,13 @@
+{"file":".trellis/tasks/09-22-server-api-followup/prd.md","reason":"Check the final diff against parent scope, exclusions, dependency order, and acceptance criteria."}
+{"file":".trellis/tasks/09-22-server-api-followup/design.md","reason":"Check complete typed shelf read/write data flow and rollback assumptions."}
+{"file":".trellis/tasks/09-22-server-api-followup/research/00-web-master-diff-and-mobile-impact.md","reason":"Verify parity claims against the pinned read-only Web-Master evidence."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/research/00-separated-shelf-state.md","reason":"Verify recursive projection and full-tree edit claims against repository evidence."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Review cross-layer ownership, data flow, and hidden contract changes."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Run the backend/shared package quality gate."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Run the mobile quality gate and distinguish automated checks from device acceptance."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/prd.md","reason":"Check the API/client-core child acceptance criteria during parent integration review."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/design.md","reason":"Check typed identity, hydration, compatibility, and save boundaries during parent integration review."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/implement.md","reason":"Check the API/client-core handoff and validation gates."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/prd.md","reason":"Check the mobile child acceptance criteria during parent integration review."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/design.md","reason":"Check route state, browse/edit separation, localization, and Comic membership boundaries."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/implement.md","reason":"Check the mobile execution and validation gates."}

@@ -1,0 +1,11 @@
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/prd.md","reason":"Verify every mobile acceptance criterion, including complete Comic membership and no mixed All view."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/design.md","reason":"Audit route state, recursive projection, edit/full-tree boundary, localization, and rollback assumptions."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/implement.md","reason":"Check dependency gate, ordered steps, focused tests, and validation commands."}
+{"file":".trellis/tasks/09-22-mobile-shelf-separated-state/research/00-separated-shelf-state.md","reason":"Compare implementation behavior against repository evidence and existing history precedent."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/prd.md","reason":"Verify mobile implementation stays within the upstream normalized-model dependency."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/design.md","reason":"Verify mobile calls only the stabilized typed public contract and does not infer wire types."}
+{"file":".trellis/tasks/09-22-shelf-contract-migration/implement.md","reason":"Verify the API/client-core handoff gate is respected before mobile changes."}
+{"file":".trellis/spec/frontend/hook-guidelines.md","reason":"Review hook side effects, subscriptions, and no-load-on-tab-change behavior."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Review single shelf source of truth and separation of view state from persistence."}
+{"file":".trellis/spec/frontend/localization-guidelines.md","reason":"Check zh-CN/zh-TW key parity and accessibility labels."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Run mobile tests, typecheck, diff hygiene, and manual device checks."}

@@ -8,6 +8,7 @@ export interface NativeSegmentedControlOption<T extends string> {
 }
 
 export interface NativeSegmentedControlProps<T extends string> {
+  accessibilityLabel?: string;
   enabled?: boolean;
   onValueChange(value: T): void;
   options: readonly NativeSegmentedControlOption<T>[];
@@ -15,6 +16,7 @@ export interface NativeSegmentedControlProps<T extends string> {
 }
 
 export function NativeSegmentedControl<T extends string>({
+  accessibilityLabel,
   enabled = true,
   onValueChange,
   options,
@@ -22,6 +24,7 @@ export function NativeSegmentedControl<T extends string>({
 }: NativeSegmentedControlProps<T>) {
   return (
     <NativeSegmentedControlView
+      {...(accessibilityLabel === undefined ? {} : { accessibilityLabel })}
       enabled={enabled}
       onValueChange={(value) => {
         const option = options.find((candidate) => candidate.value === value);

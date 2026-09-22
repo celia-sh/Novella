@@ -169,3 +169,96 @@ return rawItems.map(decodeBookListItem);
 // Tolerance is scoped to the ID-batch endpoint; records stay strict.
 return rawItems.filter(isRecord).map(decodeBookListItem);
 ```
+
+## Scenario: Versioned typed shelf payloads and hydration identity
+
+### 1. Scope / Trigger
+
+This contract applies when `GetBookShelf` or `SaveBookShelf` is changed, or when
+`client-core` hydrates cards for shelf items. It owns compatibility with the
+Web-Master `20260921` shelf structure and prevents Novel/Comic numeric-id
+collisions from leaking into presentation code.
+
+### 2. Signatures
+
+```ts
+export const SHELF_STRUCT_VERSION = '20260921';
+export type ShelfBookType = 'NOVEL' | 'COMIC';
+export type ShelfItemType = ShelfBookType | 'FOLDER';
+export interface ShelfBookRef { id: number; type: ShelfBookType }
+export interface ShelfBookRecord {
+  ref: ShelfBookRef;
+  book: BookListItem | null;
+}
+
+interface ShelfUseCase {
+  contains(ref: ShelfBookRef): Promise<boolean>;
+  toggleBook(ref: ShelfBookRef): Promise<boolean>;
+}
+```
+
+### 3. Contracts
+
+- `GetBookShelf` keeps the `{ data, ver? }` envelope. `NOVEL`, `COMIC`, and
+  `FOLDER` are the normalized domain types; legacy `BOOK`, `Book`, and numeric
+  legacy book enum `0` decode as `NOVEL` even when `ver` is missing,
+  `20220211`, or `20260921`. Unknown types remain server-category errors.
+- `SaveBookShelf` always sends `ver: '20260921'`. It preserves item order,
+  indexes, parents, timestamps, folder titles, and emits no `BOOK` alias.
+- Shelf card hydration uses the direct one-to-one `GetBookListByIds` response,
+  never the grouped comic-series response. Cards match by numeric id **and**
+  title-case card type (`Novel`/`Comic`). A missing, ambiguous, or mismatched
+  card leaves `ShelfBookRecord.book` as `null` while retaining the shelf item.
+- Numeric transport IDs may be deduplicated, but maps and public identity use
+  `NOVEL:<id>` / `COMIC:<id>` / `FOLDER:<id>`. A response containing only one
+  type for a duplicate numeric id resolves only that type.
+
+### 4. Validation & Error Matrix
+
+| Wire condition | Required result |
+| --- | --- |
+| `NOVEL`, `COMIC`, or `FOLDER` item | Strictly decode and preserve metadata |
+| `BOOK`/`Book`/legacy `0` item | Normalize to `NOVEL`; never expose alias |
+| Unknown item type | Throw `ApiError(category: "server")` |
+| Save from an old or missing version | Send canonical `ver: '20260921'` |
+| Missing card or `GetBookListByIds` placeholder | Keep typed shelf item; set card to `null` |
+| Same id requested as Novel and Comic, one typed card returned | Resolve matching ref only; other remains unresolved |
+| Same id and same card type returned more than once | Treat card as ambiguous; set matching record to `null` |
+
+### 5. Good / Base / Bad Cases
+
+- **Good:** `{ type: 'COMIC', id: 7 }` and `{ type: 'NOVEL', id: 7 }`
+  produce two distinct records and two distinct keys.
+- **Base:** A legacy `BOOK` shelf loads as `NOVEL`, then the next save sends
+  `NOVEL` with version `20260921`.
+- **Bad:** Indexing cards only by `book.id`, or using the grouped comic-series
+  result, silently attaches or removes the wrong media entry.
+
+### 6. Tests Required
+
+- `packages/api-client/src/index.test.mjs`: current mixed payload, missing/
+  old/latest-version legacy aliases, unknown type, field casing, and exact
+  canonical save request.
+- `packages/client-core/src/index.test.mjs`: mixed hydration, duplicate numeric
+  ids, one-type response, duplicate same-type ambiguity, unresolved records,
+  typed membership, editing, optimistic save, stale response, and retry.
+- Run API/client-core tests and typechecks before changing mobile consumers.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+const booksById = new Map(snapshot.books.map((book) => [book.id, book]));
+await shelf.toggleBook(bookId);
+```
+
+#### Correct
+
+```ts
+const booksByKey = new Map(snapshot.books.map((record) => [
+  `${record.ref.type}:${record.ref.id}`,
+  record,
+]));
+await shelf.toggleBook({ id: bookId, type: 'COMIC' });
+```

@@ -2,12 +2,16 @@ import { useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 
 import { ShelfScreen } from '@/screens/shelf-screen';
+import { parseShelfMediaParam, type ShelfMediaRouteParam } from '@/services/shelf-media';
 
 export default function ShelfFolderRoute() {
-  const params = useLocalSearchParams<{ path?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    media?: ShelfMediaRouteParam | ShelfMediaRouteParam[];
+    path?: string | string[];
+  }>();
   const parents = useMemo(() => decodeFolderPath(params.path), [params.path]);
 
-  return <ShelfScreen parents={parents} />;
+  return <ShelfScreen media={parseShelfMediaParam(params.media)} parents={parents} />;
 }
 
 function decodeFolderPath(value: string | string[] | undefined): string[] {

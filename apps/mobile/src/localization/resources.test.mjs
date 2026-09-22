@@ -3,6 +3,41 @@ import { test } from 'node:test';
 
 import { zhCNResources, zhTWResources } from './resources.ts';
 
+test('shelf media and accessibility resources exist in both locales', () => {
+  const requiredKeys = [
+    'novelsTab',
+    'comicsTab',
+    'mediaTabsAccessibility',
+    'shelfEmptyNovel',
+    'shelfEmptyNovelDescription',
+    'shelfEmptyComic',
+    'shelfEmptyComicDescription',
+    'folderEmptyNovel',
+    'folderEmptyNovelDescription',
+    'folderEmptyComic',
+    'folderEmptyComicDescription',
+    'folderMediaAccessibility',
+    'unavailableBook',
+    'refreshFailed',
+    'loadFailed',
+    'dismissError',
+    'newFolder',
+    'renameFolder',
+    'moveSelectedItems',
+    'deleteSelectedItems',
+    'exitEdit',
+  ];
+  for (const resources of [zhCNResources, zhTWResources]) {
+    const shelf = resources.library.shelf;
+    for (const key of requiredKeys) {
+      assert.equal(typeof shelf[key], 'string', `missing shelf resource: ${key}`);
+      assert.notEqual(shelf[key].trim(), '', `empty shelf resource: ${key}`);
+    }
+    assert.equal(typeof resources.common.accessibility.retry, 'string');
+    assert.equal(typeof resources.common.actions.delete, 'string');
+  }
+});
+
 test('Simplified and Traditional resources have identical keys and interpolation variables', () => {
   const simplified = flatten(zhCNResources);
   const traditional = flatten(zhTWResources);

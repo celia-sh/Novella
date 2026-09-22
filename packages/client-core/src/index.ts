@@ -1,6 +1,7 @@
 import {
   ApiClient,
   ApiError,
+  SHELF_STRUCT_VERSION,
   type AnnouncementDetail,
   type AnnouncementPage,
   type AppNotificationPage,
@@ -51,6 +52,8 @@ import {
   type UseComicQuotaCardResult,
   type UseSignMakeupCardResult,
   type SaveReadPositionRequest,
+  type ShelfBookItem,
+  type ShelfBookType,
   type ShelfItem,
   type UserGrowth,
   type UserProfile,
@@ -244,9 +247,19 @@ export const COMMUNITY_STORAGE_KEYS = Object.freeze({
   postNoticeAccepted: 'community_post_notice_accepted_v1',
 });
 
+export interface ShelfBookRef {
+  id: number;
+  type: ShelfBookType;
+}
+
+export interface ShelfBookRecord {
+  ref: ShelfBookRef;
+  book: BookListItem | null;
+}
+
 export interface ShelfSnapshot {
   items: ShelfItem[];
-  books: BookListItem[];
+  books: ShelfBookRecord[];
   version: string | null;
 }
 
@@ -255,7 +268,7 @@ export interface ShelfDraft {
   version: string | null;
 }
 
-export type ShelfItemKey = `BOOK:${number}` | `FOLDER:${string}`;
+export type ShelfItemKey = `${ShelfBookType}:${number}` | `FOLDER:${string}`;
 
 export interface ShelfFolderPath {
   id: string;
@@ -264,12 +277,12 @@ export interface ShelfFolderPath {
 }
 
 export interface ShelfUseCase {
-  contains(bookId: number): Promise<boolean>;
+  contains(ref: ShelfBookRef): Promise<boolean>;
   getSnapshot(): ShelfSnapshot | null;
   load(): Promise<ShelfSnapshot>;
   save(draft: ShelfDraft): Promise<ShelfSnapshot>;
   subscribe(listener: (snapshot: ShelfSnapshot) => void): () => void;
-  toggleBook(bookId: number): Promise<boolean>;
+  toggleBook(ref: ShelfBookRef): Promise<boolean>;
 }
 
 export type AvatarSource = 'url' | 'qq' | 'qqGroup';
@@ -1491,59 +1504,83 @@ export function createShelfUseCase(api: ApiClient): ShelfUseCase {
   }
 
   function project(draft: ShelfDraft): ShelfSnapshot {
-    const bookIds = new Set(draft.items.flatMap((item) =>
-      item.type === 'BOOK' ? [item.id] : [],
-    ));
+    const knownBooks = new Map(
+      (latest?.books ?? []).map((record) => [shelfBookRefKey(record.ref), record]),
+    );
     return {
-      books: (latest?.books ?? []).filter((book) => bookIds.has(book.id)),
+      books: collectShelfBookRefs(draft.items).map((ref) => ({
+        ref,
+        book: knownBooks.get(shelfBookRefKey(ref))?.book ?? null,
+      })),
       items: draft.items,
       version: draft.version,
     };
   }
 
-  async function hydrate(items: ShelfItem[], version: string | null): Promise<ShelfSnapshot> {
-    const bookIds = items
-      .filter((item): item is Extract<ShelfItem, { type: 'BOOK' }> => item.type === 'BOOK')
-      .map((item) => item.id);
-    const books: BookListItem[] = [];
+  async function loadCards(
+    refs: readonly ShelfBookRef[],
+  ): Promise<Map<ShelfItemKey, BookListItem | null>> {
+    const bookIds = [...new Set(refs.map((ref) => ref.id))];
+    const cards: BookListItem[] = [];
     for (let index = 0; index < bookIds.length; index += 24) {
-      books.push(...(await api.getBookListByIds(bookIds.slice(index, index + 24))));
+      cards.push(...(await api.getBookListByIds(bookIds.slice(index, index + 24))));
     }
-    return { books, items: sortShelfItems(items), version };
+
+    const cardsByKey = new Map<ShelfItemKey, BookListItem | null>();
+    for (const card of cards) {
+      const type = bookListItemShelfType(card);
+      if (type === null) continue;
+      const key = shelfBookRefKey({ id: card.id, type });
+      cardsByKey.set(key, cardsByKey.has(key) ? null : card);
+    }
+    return cardsByKey;
+  }
+
+  async function hydrate(items: ShelfItem[], version: string | null): Promise<ShelfSnapshot> {
+    const sortedItems = sortShelfItems(items);
+    const refs = collectShelfBookRefs(sortedItems);
+    const cardsByKey = await loadCards(refs);
+    return {
+      books: refs.map((ref) => ({
+        ref,
+        book: cardsByKey.get(shelfBookRefKey(ref)) ?? null,
+      })),
+      items: sortedItems,
+      version,
+    };
   }
 
   function enqueueSave(draft: ShelfDraft): Promise<ShelfSnapshot> {
     const generation = ++mutationGeneration;
     const normalized: ShelfDraft = {
       items: normalizeShelfIndexes(draft.items),
-      version: draft.version,
+      version: SHELF_STRUCT_VERSION,
     };
     pendingSave = { draft: normalized, generation };
 
     const operation = saveQueue.then(async () => {
       await api.saveBookShelf(normalized);
-      const knownBooks = new Map((latest?.books ?? []).map((book) => [book.id, book]));
-      const missingIds = normalized.items
-        .filter((item): item is Extract<ShelfItem, { type: 'BOOK' }> => item.type === 'BOOK')
-        .map((item) => item.id)
-        .filter((id) => !knownBooks.has(id));
-      for (let index = 0; index < missingIds.length; index += 24) {
-        for (const book of await api.getBookListByIds(missingIds.slice(index, index + 24))) {
-          knownBooks.set(book.id, book);
-        }
-      }
-      const nextIds = new Set(normalized.items.flatMap((item) =>
-        item.type === 'BOOK' ? [item.id] : [],
-      ));
+      const knownBooks = new Map(
+        (latest?.books ?? []).map((record) => [shelfBookRefKey(record.ref), record]),
+      );
+      const refs = collectShelfBookRefs(normalized.items);
+      const unresolvedRefs = refs.filter(
+        (ref) => knownBooks.get(shelfBookRefKey(ref))?.book == null,
+      );
+      const loadedCards = await loadCards(unresolvedRefs);
       const snapshot: ShelfSnapshot = {
-        books: [...knownBooks.values()].filter((book) => nextIds.has(book.id)),
+        books: refs.map((ref) => ({
+          ref,
+          book: knownBooks.get(shelfBookRefKey(ref))?.book ??
+            loadedCards.get(shelfBookRefKey(ref)) ?? null,
+        })),
         items: normalized.items,
         version: normalized.version,
       };
       if (pendingSave?.generation !== generation) return snapshot;
 
       pendingSave = null;
-      if (missingIds.length === 0 && latest?.items === normalized.items) return latest;
+      if (unresolvedRefs.length === 0 && latest?.items === normalized.items) return latest;
       return publish(snapshot);
     });
     saveQueue = operation.then(() => undefined, () => undefined);
@@ -1552,13 +1589,13 @@ export function createShelfUseCase(api: ApiClient): ShelfUseCase {
   }
 
   return Object.freeze({
-    async contains(bookId: number) {
-      assertValidBookId(bookId);
+    async contains(ref: ShelfBookRef) {
+      assertValidShelfBookRef(ref);
       if (latest) {
-        return latest.items.some((item) => item.type === 'BOOK' && item.id === bookId);
+        return latest.items.some((item) => isShelfBook(item) && shelfBookMatches(item, ref));
       }
       const shelf = await api.getBookShelf();
-      return shelf.items.some((item) => item.type === 'BOOK' && item.id === bookId);
+      return shelf.items.some((item) => isShelfBook(item) && shelfBookMatches(item, ref));
     },
     getSnapshot() {
       return latest;
@@ -1580,21 +1617,21 @@ export function createShelfUseCase(api: ApiClient): ShelfUseCase {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    async toggleBook(bookId: number) {
-      assertValidBookId(bookId);
+    async toggleBook(ref: ShelfBookRef) {
+      assertValidShelfBookRef(ref);
       await saveQueue;
       const current = latest ?? await api.getBookShelf();
       const isInShelf = current.items.some(
-        (item) => item.type === 'BOOK' && item.id === bookId,
+        (item) => isShelfBook(item) && shelfBookMatches(item, ref),
       );
       const items = isInShelf
-        ? current.items.filter((item) => item.type !== 'BOOK' || item.id !== bookId)
+        ? current.items.filter((item) => !isShelfBook(item) || !shelfBookMatches(item, ref))
         : [
             {
-              id: bookId,
+              id: ref.id,
               index: -1,
               parents: [],
-              type: 'BOOK' as const,
+              type: ref.type,
               updatedAt: new Date().toISOString(),
             },
             ...current.items,
@@ -1612,8 +1649,12 @@ export function createShelfDraft(snapshot: ShelfSnapshot): ShelfDraft {
   };
 }
 
+export function shelfBookRefKey(ref: ShelfBookRef): ShelfItemKey {
+  return `${ref.type}:${ref.id}`;
+}
+
 export function shelfItemKey(item: ShelfItem): ShelfItemKey {
-  return item.type === 'BOOK' ? `BOOK:${item.id}` : `FOLDER:${item.id}`;
+  return item.type === 'FOLDER' ? `FOLDER:${item.id}` : shelfBookRefKey(item);
 }
 
 export function shelfDraftHasChanges(
@@ -1670,7 +1711,7 @@ export function getShelfSelectionBookCount(
     item.type === 'FOLDER' && keys.has(shelfItemKey(item)) ? [item.id] : [],
   ));
   return draft.items.filter((item) =>
-    item.type === 'BOOK' && (
+    isShelfBook(item) && (
       keys.has(shelfItemKey(item)) ||
       item.parents.some((parent) => selectedFolders.has(parent))
     ),
@@ -1742,7 +1783,7 @@ export function deleteShelfFolder(
   const items = draft.items.flatMap((item) => {
     if (item.type === 'FOLDER' && item.id === input.id) return [];
     if (!item.parents.includes(input.id)) return [item];
-    if (item.type === 'BOOK') {
+    if (isShelfBook(item)) {
       rootIndex += 1;
       return [{
         ...item,
@@ -1768,10 +1809,11 @@ export function removeShelfItems(
   const folderIds = draft.items.flatMap((item) =>
     item.type === 'FOLDER' && input.keys.has(shelfItemKey(item)) ? [item.id] : [],
   );
-  const bookKeys = new Set([...input.keys].filter((key) => key.startsWith('BOOK:')));
   next = {
     ...next,
-    items: next.items.filter((item) => !bookKeys.has(shelfItemKey(item))),
+    items: next.items.filter(
+      (item) => !isShelfBook(item) || !input.keys.has(shelfItemKey(item)),
+    ),
   };
   for (const id of folderIds) {
     if (next.items.some((item) => item.type === 'FOLDER' && item.id === id)) {
@@ -1783,19 +1825,20 @@ export function removeShelfItems(
 
 export function moveShelfBooks(
   draft: ShelfDraft,
-  input: { bookIds: readonly number[]; destination: readonly string[]; now: string },
+  input: { bookRefs: readonly ShelfBookRef[]; destination: readonly string[]; now: string },
 ): ShelfDraft {
   assertShelfPath(draft.items, input.destination);
-  const ids = new Set(input.bookIds);
-  if (ids.size === 0) throw new Error('Select at least one book to move.');
+  const keys = new Set(input.bookRefs.map(shelfBookRefKey));
+  if (keys.size === 0) throw new Error('Select at least one book to move.');
   const selected = sortShelfItems(draft.items.filter(
-    (item): item is Extract<ShelfItem, { type: 'BOOK' }> =>
-      item.type === 'BOOK' && ids.has(item.id),
+    (item): item is ShelfBookItem => isShelfBook(item) && keys.has(shelfItemKey(item)),
   ));
-  if (selected.length !== ids.size) throw new Error('A selected book no longer exists.');
-  const position = new Map(selected.map((item, index) => [item.id, index - selected.length]));
+  if (selected.length !== keys.size) throw new Error('A selected book no longer exists.');
+  const position = new Map(
+    selected.map((item, index) => [shelfItemKey(item), index - selected.length]),
+  );
   const items = draft.items.map((item) => {
-    const index = item.type === 'BOOK' ? position.get(item.id) : undefined;
+    const index = isShelfBook(item) ? position.get(shelfItemKey(item)) : undefined;
     return index === undefined
       ? item
       : {
@@ -1845,6 +1888,39 @@ function assertShelfPath(items: ShelfItem[], parents: readonly string[]): void {
 
 function sameParents(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function isShelfBook(item: ShelfItem): item is ShelfBookItem {
+  return item.type !== 'FOLDER';
+}
+
+function shelfBookMatches(item: ShelfBookItem, ref: ShelfBookRef): boolean {
+  return item.id === ref.id && item.type === ref.type;
+}
+
+function collectShelfBookRefs(items: readonly ShelfItem[]): ShelfBookRef[] {
+  const seen = new Set<ShelfItemKey>();
+  return items.flatMap((item) => {
+    if (!isShelfBook(item)) return [];
+    const ref: ShelfBookRef = { id: item.id, type: item.type };
+    const key = shelfBookRefKey(ref);
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [ref];
+  });
+}
+
+function bookListItemShelfType(book: BookListItem): ShelfBookType | null {
+  if (book.type === 'Novel') return 'NOVEL';
+  if (book.type === 'Comic') return 'COMIC';
+  return null;
+}
+
+function assertValidShelfBookRef(ref: ShelfBookRef): void {
+  if (ref.type !== 'NOVEL' && ref.type !== 'COMIC') {
+    throw new Error('A valid typed book reference is required.');
+  }
+  assertValidBookId(ref.id);
 }
 
 function assertValidBookId(bookId: number): void {

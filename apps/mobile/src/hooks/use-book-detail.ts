@@ -6,6 +6,7 @@ import type { BookDetail } from '@novella/api-client';
 
 import { bookDetails, comicDetails, shelf } from '@/services/client';
 import { waitForMinimumDisplay } from '@/services/min-skeleton-display';
+import { shelfBookRefForMedia } from '@/services/shelf-media';
 import {
   getCachedReaderPosition,
   shouldUseCachedReaderPosition,
@@ -75,7 +76,7 @@ export function useBookDetail(
           : null);
       const [serverBook, isInShelf, cachedPosition] = await Promise.all([
         (type === 'Comic' ? comicDetails : bookDetails).load(bookId),
-        shelf.contains(bookId),
+        shelf.contains(shelfBookRefForMedia(bookId, type)),
         getCachedReaderPosition(bookId),
       ]);
       if (showSkeleton) await waitForMinimumDisplay(startedAt);
@@ -134,7 +135,7 @@ export function useBookDetail(
         : current,
     );
     try {
-      const isInShelf = await shelf.toggleBook(bookId);
+      const isInShelf = await shelf.toggleBook(shelfBookRefForMedia(bookId, type));
       setState((current) =>
         current.status === 'ready'
           ? { ...current, isInShelf, isShelfLoading: false, shelfError: null }
@@ -151,7 +152,7 @@ export function useBookDetail(
           : current,
       );
     }
-  }, [bookId]);
+  }, [bookId, type]);
 
   return {
     book: state.book,
