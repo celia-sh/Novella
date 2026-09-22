@@ -1,0 +1,5 @@
+{"file":".trellis/spec/frontend/directory-structure.md","reason":"Defines mobile/package boundaries; this task is limited to apps/mobile presentation and pure mobile helpers."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Defines typed shelf projection, complete-tree edit behavior, route identity, and shelf tests required for this change."}
+{"file":".trellis/spec/frontend/localization-guidelines.md","reason":"Requires paired zh-CN/zh-TW resources, runtime translation usage, and resource parity tests."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Defines automated checks and user-accepted device interaction reporting."}
+{"file":".trellis/tasks/09-22-shelf-all-media-filter/research/00-all-media-shelf-evidence.md","reason":"Records current shelf route/projection evidence and the resolved All-default product decision."}

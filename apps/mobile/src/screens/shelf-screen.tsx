@@ -70,7 +70,7 @@ export interface ShelfScreenProps {
   parents?: string[];
 }
 
-export function ShelfScreen({ media: initialMedia = 'Novel', parents = [] }: ShelfScreenProps) {
+export function ShelfScreen({ media: initialMedia = 'All', parents = [] }: ShelfScreenProps) {
   const { t } = useTranslation('library');
   const { t: tCommon } = useTranslation('common');
   const styles = useShelfScreenStyles();
@@ -307,6 +307,7 @@ export function ShelfScreen({ media: initialMedia = 'Novel', parents = [] }: She
                   enabled={!isLoading}
                   onValueChange={changeMedia}
                   options={[
+                    { label: t('shelf.allTab'), value: 'All' },
                     { label: t('shelf.novelsTab'), value: 'Novel' },
                     { label: t('shelf.comicsTab'), value: 'Comic' },
                   ]}
@@ -444,7 +445,9 @@ function ShelfContent({
     record.book,
   ] as const));
   const mediaLabel = mode === 'browse'
-    ? mediaType === 'Comic' ? t('shelf.comicsTab') : t('shelf.novelsTab')
+    ? mediaType === 'Comic'
+      ? t('shelf.comicsTab')
+      : mediaType === 'Novel' ? t('shelf.novelsTab') : t('shelf.allTab')
     : undefined;
   const shelfCoverKeys = useMemo(() => visibleItems.map(shelfItemKey), [visibleItems]);
   const coverActivation = useScrollGridCoverActivation({
@@ -687,19 +690,24 @@ function EmptyShelfState({ media, nested }: { media: ShelfMediaType; nested: boo
   const styles = useShelfScreenStyles();
   const { colors } = useAppTheme();
   const isComic = media === 'Comic';
+  const isNovel = media === 'Novel';
   return (
     <SectionCard>
       <View style={styles.emptyState}>
         <IconFolderOpen color={colors.accent as string} size={38} strokeWidth={1.8} />
         <Text style={styles.cardTitle}>
           {nested
-            ? t(isComic ? 'shelf.folderEmptyComic' : 'shelf.folderEmptyNovel')
-            : t(isComic ? 'shelf.shelfEmptyComic' : 'shelf.shelfEmptyNovel')}
+            ? t(isComic ? 'shelf.folderEmptyComic' : isNovel ? 'shelf.folderEmptyNovel' : 'shelf.folderEmpty')
+            : t(isComic ? 'shelf.shelfEmptyComic' : isNovel ? 'shelf.shelfEmptyNovel' : 'shelf.shelfEmpty')}
         </Text>
         <Text style={styles.cardDescription}>
           {nested
-            ? t(isComic ? 'shelf.folderEmptyComicDescription' : 'shelf.folderEmptyNovelDescription')
-            : t(isComic ? 'shelf.shelfEmptyComicDescription' : 'shelf.shelfEmptyNovelDescription')}
+            ? t(isComic
+              ? 'shelf.folderEmptyComicDescription'
+              : isNovel ? 'shelf.folderEmptyNovelDescription' : 'shelf.folderEmptyDescription')
+            : t(isComic
+              ? 'shelf.shelfEmptyComicDescription'
+              : isNovel ? 'shelf.shelfEmptyNovelDescription' : 'shelf.shelfEmptyDescription')}
         </Text>
       </View>
     </SectionCard>

@@ -182,3 +182,80 @@ useFocusEffect(useCallback(() => {
   void settingsCheckInAttempt();
 }, [settingsCheckInAttempt]));
 ```
+
+## Scenario: Mobile shelf media projection
+
+### 1. Scope / Trigger
+
+Apply this contract to mobile shelf browse filters and folder navigation. The
+filter is presentation state over the typed shelf snapshot; it is not an API,
+client-core, persistence, or repository partition.
+
+### 2. Signatures
+
+```ts
+type ShelfMediaType = 'All' | 'Novel' | 'Comic';
+type ShelfDetailType = 'Novel' | 'Comic';
+
+function parseShelfMediaParam(value: unknown): ShelfMediaType;
+function projectShelfBrowse(
+  snapshot: ShelfSnapshot,
+  parents: readonly string[],
+  media: ShelfMediaType,
+): ShelfProjection;
+```
+
+### 3. Contracts
+
+- `media=all|novel|comic` maps to `All|Novel|Comic`; missing, array-empty,
+  uppercase, and unknown values normalize to `All`.
+- `All` is an unfiltered browse projection. `null` remains reserved for the
+  complete edit projection so editing cannot discard another media type.
+- A folder remains visible in a type-filtered browse projection when its
+  recursive subtree contains at least one matching typed shelf item. A mixed
+  folder is therefore visible in all three states; entering it preserves the
+  route state and filters only its children.
+- Unresolved typed records remain unavailable shelf cards. Empty snapshots are
+  valid content and must not trigger an empty hydration request.
+- `All` must never enter book detail, membership, or save APIs; those paths use
+  explicit `ShelfDetailType` values.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required result |
+|---|---|
+| Missing/invalid `media` | Browse as `All` |
+| Mixed Novel/Comic folder | Visible in All/Novel/Comic; child content is state-filtered |
+| Empty shelf snapshot | Empty state; no empty-ID load |
+| `book: null` for typed record | Preserve typed unavailable card |
+| Edit mode | Complete mixed tree, regardless of browse filter |
+| Detail navigation | Only `Novel` or `Comic` route type |
+
+### 5. Good / Base / Bad Cases
+
+- **Good:** a mixed folder is opened from Comic and displays its comic books,
+  while the same folder opened from Novel displays only novels.
+- **Base:** All shows both media types and keeps the existing typed ordering,
+  summaries, and unresolved-card behavior.
+- **Bad:** filter folders by their own aggregate type or by hydrated books only;
+  this hides mixed folders or makes empty/unresolved shelf entries disappear.
+
+### 6. Tests Required
+
+- Pure tests cover route normalization, All and typed recursive projections,
+  mixed-folder visibility in every browse state, nested navigation state,
+  empty snapshots, unresolved cards, edit completeness, and typed detail route
+  mapping.
+- Run mobile shelf/navigation/localization tests, API-client/client-core shelf
+  regressions, mobile typecheck, boundary checks, and `git diff --check`.
+
+### 7. Wrong vs Correct
+
+```ts
+// Wrong: aggregate the folder once and hide it from one typed tab.
+const visible = folder.media === selectedMedia;
+
+// Correct: retain a folder when its subtree has a matching typed item; apply
+// the selected media only to the projection of its children.
+const visible = folderProjection.bookCount > 0;
+```

@@ -64,19 +64,81 @@ const snapshot = {
   ],
 };
 
-test('shelf media route state defaults to Novel and accepts only lowercase route values', () => {
-  assert.equal(parseShelfMediaParam(undefined), 'Novel');
+test('shelf media route state defaults to All and accepts only lowercase route values', () => {
+  assert.equal(parseShelfMediaParam(undefined), 'All');
+  assert.equal(parseShelfMediaParam([]), 'All');
   assert.equal(parseShelfMediaParam('novel'), 'Novel');
   assert.equal(parseShelfMediaParam('comic'), 'Comic');
-  assert.equal(parseShelfMediaParam(['comic']), 'Comic');
-  assert.equal(parseShelfMediaParam('Comic'), 'Novel');
-  assert.equal(parseShelfMediaParam('all'), 'Novel');
+  assert.equal(parseShelfMediaParam('all'), 'All');
+  assert.equal(parseShelfMediaParam(['all']), 'All');
+  assert.equal(parseShelfMediaParam('Comic'), 'All');
+  assert.equal(parseShelfMediaParam('invalid'), 'All');
+  assert.equal(serializeShelfMedia('All'), 'all');
   assert.equal(serializeShelfMedia('Novel'), 'novel');
   assert.equal(serializeShelfMedia('Comic'), 'comic');
   assert.equal(shelfMediaToBookType('Novel'), 'NOVEL');
   assert.equal(shelfMediaToBookType('Comic'), 'COMIC');
   assert.deepEqual(shelfBookRefForMedia(42, 'Novel'), { id: 42, type: 'NOVEL' });
   assert.deepEqual(shelfBookRefForMedia(42, 'Comic'), { id: 42, type: 'COMIC' });
+});
+
+test('All browse projection keeps the complete mixed tree and empty snapshots valid', () => {
+  const all = projectShelfBrowse(snapshot, [], 'All');
+  const nestedAll = projectShelfBrowse(snapshot, ['mixed'], 'All');
+  const empty = projectShelfBrowse({ version: 'empty', items: [], books: [] }, [], 'All');
+
+  assert.deepEqual(all.items.map((item) => `${item.type}:${item.id}`), [
+    'NOVEL:1', 'COMIC:2', 'FOLDER:mixed', 'FOLDER:novels', 'FOLDER:comics', 'FOLDER:empty',
+  ]);
+  assert.deepEqual(nestedAll.items.map((item) => `${item.type}:${item.id}`), [
+    'NOVEL:3', 'COMIC:4', 'FOLDER:nested',
+  ]);
+  assert.equal(all.folderProjections.get('FOLDER:mixed').bookCount, 3);
+  assert.equal(all.folderProjections.get('FOLDER:mixed').childFolderCount, 1);
+  assert.deepEqual(all.folderProjections.get('FOLDER:mixed').previewBooks.map((book) => book.id), [4, 5]);
+  assert.deepEqual(empty.items, []);
+});
+
+test('root and folder routes preserve every browse state for a mixed folder', () => {
+  const expectedChildren = {
+    All: ['NOVEL:3', 'COMIC:4', 'FOLDER:nested'],
+    Novel: ['NOVEL:3'],
+    Comic: ['COMIC:4', 'FOLDER:nested'],
+  };
+
+  for (const media of ['All', 'Novel', 'Comic']) {
+    const routeMedia = parseShelfMediaParam(serializeShelfMedia(media));
+    const root = projectShelfBrowse(snapshot, [], routeMedia);
+    const folder = projectShelfBrowse(snapshot, ['mixed'], routeMedia);
+
+    assert.equal(root.items.some((item) => item.type === 'FOLDER' && item.id === 'mixed'), true);
+    assert.deepEqual(
+      folder.items.map((item) => `${item.type}:${item.id}`),
+      expectedChildren[media],
+    );
+  }
+});
+
+test('unresolved typed cards remain in every matching browse projection', () => {
+  const unresolvedSnapshot = {
+    ...snapshot,
+    items: [
+      ...snapshot.items,
+      { id: 8, index: 3, parents: [], type: 'NOVEL', updatedAt: '' },
+      { id: 9, index: 4, parents: [], type: 'COMIC', updatedAt: '' },
+    ],
+    books: [
+      ...snapshot.books,
+      { ref: { id: 8, type: 'NOVEL' }, book: null },
+      { ref: { id: 9, type: 'COMIC' }, book: null },
+    ],
+  };
+
+  for (const media of ['All', 'Novel', 'Comic']) {
+    const projection = projectShelfBrowse(unresolvedSnapshot, [], media);
+    assert.equal(projection.items.some((item) => item.id === 8), media !== 'Comic');
+    assert.equal(projection.items.some((item) => item.id === 9), media !== 'Novel');
+  }
 });
 
 test('browse projection filters typed books and recursively hides type-empty folders', () => {

@@ -5,6 +5,7 @@ import { zhCNResources, zhTWResources } from './resources.ts';
 
 test('shelf media and accessibility resources exist in both locales', () => {
   const requiredKeys = [
+    'allTab',
     'novelsTab',
     'comicsTab',
     'mediaTabsAccessibility',

@@ -1,0 +1,4 @@
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Check that All is only a browse projection, edit mode stays complete, and typed identity/detail routing is preserved."}
+{"file":".trellis/spec/frontend/localization-guidelines.md","reason":"Check both locale branches, accessibility labels, and interpolation/resource parity."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Check required tests, typecheck/boundary validation, diff hygiene, and manual device acceptance reporting."}
+{"file":".trellis/tasks/09-22-shelf-all-media-filter/research/00-all-media-shelf-evidence.md","reason":"Check implementation against the confirmed current code paths and All-default decision."}

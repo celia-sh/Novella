@@ -14,9 +14,10 @@ import {
   type ShelfSnapshot,
 } from '@novella/client-core';
 
-export type ShelfMediaType = 'Novel' | 'Comic';
-export type ShelfMediaRouteParam = 'novel' | 'comic';
-export type ShelfDetailType = ShelfMediaType;
+export type ShelfMediaType = 'All' | 'Novel' | 'Comic';
+export type ShelfMediaRouteParam = 'all' | 'novel' | 'comic';
+export type ShelfDetailType = 'Novel' | 'Comic';
+type TypedShelfMediaType = Exclude<ShelfMediaType, 'All'>;
 
 export interface ShelfFolderProjection {
   bookCount: number;
@@ -41,22 +42,26 @@ export interface ShelfBookRouteParams {
 
 export function parseShelfMediaParam(value: unknown): ShelfMediaType {
   const raw = Array.isArray(value) ? value[0] : value;
-  return raw === 'comic' ? 'Comic' : 'Novel';
+  if (raw === 'novel') return 'Novel';
+  if (raw === 'comic') return 'Comic';
+  return 'All';
 }
 
 export function serializeShelfMedia(media: ShelfMediaType): ShelfMediaRouteParam {
-  return media === 'Comic' ? 'comic' : 'novel';
+  if (media === 'Novel') return 'novel';
+  if (media === 'Comic') return 'comic';
+  return 'all';
 }
 
-export function shelfMediaToBookType(media: ShelfMediaType): ShelfBookType {
+export function shelfMediaToBookType(media: TypedShelfMediaType): ShelfBookType {
   return media === 'Comic' ? 'COMIC' : 'NOVEL';
 }
 
-export function shelfBookTypeToMedia(type: ShelfBookType): ShelfMediaType {
+export function shelfBookTypeToMedia(type: ShelfBookType): ShelfDetailType {
   return type === 'COMIC' ? 'Comic' : 'Novel';
 }
 
-export function shelfBookRefForMedia(id: number, media: ShelfMediaType): ShelfBookRef {
+export function shelfBookRefForMedia(id: number, media: TypedShelfMediaType): ShelfBookRef {
   return { id, type: shelfMediaToBookType(media) };
 }
 
@@ -86,7 +91,7 @@ export function projectShelfItems(
   parents: readonly string[],
   media: ShelfMediaType | null,
 ): ShelfProjection {
-  const shelfType = media === null ? null : shelfMediaToBookType(media);
+  const shelfType = media === null || media === 'All' ? null : shelfMediaToBookType(media);
   const booksByKey = createBooksByKey(snapshot.books);
   const folderProjections = buildFolderProjections(snapshot.items, shelfType, booksByKey);
 
