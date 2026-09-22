@@ -134,16 +134,26 @@ private final class NovellaReaderProgressSlider: UISlider {
   }
 
   private static func createThumbImage() -> UIImage {
-    let size = CGSize(width: 18, height: 12)
-    return UIGraphicsImageRenderer(size: size).image { context in
-      let rect = CGRect(origin: .zero, size: size)
+    // Keep the image's transparent bounds larger than the visible grabber so
+    // UISlider does not clip the shadow at the thumb image edge. This mirrors
+    // Aidoku's 30x30 thumb container around its 18x12 grabber.
+    let containerSize = CGSize(width: 30, height: 30)
+    let grabberRect = CGRect(
+      x: (containerSize.width - 18) / 2,
+      y: (containerSize.height - 12) / 2,
+      width: 18,
+      height: 12
+    )
+
+    return UIGraphicsImageRenderer(size: containerSize).image { context in
+      let grabberPath = UIBezierPath(roundedRect: grabberRect, cornerRadius: 6)
       context.cgContext.setShadow(
         offset: CGSize(width: 0, height: 1),
         blur: 1.5,
         color: UIColor.black.withAlphaComponent(0.16).cgColor
       )
       UIColor.white.setFill()
-      UIBezierPath(roundedRect: rect, cornerRadius: 6).fill()
+      grabberPath.fill()
     }
   }
 }
