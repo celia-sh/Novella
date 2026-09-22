@@ -19,7 +19,7 @@
   "pr_url": null,
   "subtasks": [],
   "children": [],
-  "parent": "07-30-rn-expo-web-master-migration",
+  "parent": null,
   "relatedFiles": [
     "apps/mobile/src/components/ios-progressive-blur.ios.tsx",
     "apps/mobile/src/components/ios-progressive-blur-config.ts",

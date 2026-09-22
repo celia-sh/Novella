@@ -18,13 +18,7 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [
-    "08-04-mobile-theme-switching",
-    "08-04-mobile-community",
-    "08-14-ios-26-soft-scroll-edge-research",
-    "08-16-recover-ios-progressive-blur",
-    "08-30-mobile-profile-growth-shop"
-  ],
+  "children": [],
   "parent": null,
   "relatedFiles": [],
   "notes": "",

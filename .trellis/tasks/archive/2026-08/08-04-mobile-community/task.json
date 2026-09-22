@@ -18,15 +18,8 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [
-    "08-04-mobile-community-contracts",
-    "08-04-mobile-community-editor-poc",
-    "08-04-mobile-community-home",
-    "08-04-mobile-community-thread",
-    "08-04-mobile-community-compose",
-    "08-04-mobile-community-notifications-mine"
-  ],
-  "parent": "07-30-rn-expo-web-master-migration",
+  "children": [],
+  "parent": null,
   "relatedFiles": [],
   "notes": "",
   "meta": {}

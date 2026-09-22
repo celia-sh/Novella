@@ -18,10 +18,7 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [
-    "09-22-shelf-contract-migration",
-    "09-22-mobile-shelf-separated-state"
-  ],
+  "children": [],
   "parent": null,
   "relatedFiles": [],
   "notes": "",
