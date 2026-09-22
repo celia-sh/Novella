@@ -399,6 +399,15 @@ reader work:
 > no-op against a null ref, and the remounted list will start at the chapter
 > boundary.
 
+### Native UIKit Slider Thumb Rendering
+
+Custom iOS `UISlider` thumb images must include transparent bounds around the
+visible grabber. Draw the visible `18×12` thumb inside a `30×30` image (or use
+a similarly padded layer-backed container) before applying a shadow. A shadow
+drawn into a bitmap whose edge matches the visible thumb is clipped at the
+bottom and produces incomplete corners; the padded container preserves the
+full shadow without changing slider values or track geometry.
+
 ### Native ColorPicker Commit Contract
 
 The iOS `@expo/ui/swift-ui` `ColorPicker` emits `onSelectionChange` for each
