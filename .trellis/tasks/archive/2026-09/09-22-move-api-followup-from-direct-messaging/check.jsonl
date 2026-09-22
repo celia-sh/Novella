@@ -1,0 +1,6 @@
+{"file":".trellis/tasks/09-22-move-api-followup-from-direct-messaging/prd.md","reason":"Verify only the unrelated public-summary API change is in scope and private-message/UI work is excluded."}
+{"file":".trellis/tasks/09-22-move-api-followup-from-direct-messaging/design.md","reason":"Check target/source branch boundaries, narrow hunk composition, compatibility, and rollback."}
+{"file":".trellis/tasks/09-22-move-api-followup-from-direct-messaging/research/00-branch-boundary-inventory.md","reason":"Validate path-level and content-level evidence for the mixed source commit and exact moved hunk."}
+{"file":".trellis/spec/backend/index.md","reason":"Check backend package ownership and required pre-development guidance."}
+{"file":".trellis/spec/backend/api-response-decoding.md","reason":"Check API boundary normalization and strict response behavior remain intact."}
+{"file":".trellis/spec/backend/request-scheduling.md","reason":"Check Hub request scheduling and invocation conventions are preserved."}

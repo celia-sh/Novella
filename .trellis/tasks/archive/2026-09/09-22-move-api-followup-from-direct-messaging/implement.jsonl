@@ -1,0 +1,5 @@
+{"file":".trellis/tasks/09-22-move-api-followup-from-direct-messaging/prd.md","reason":"Narrow scope: migrate only the public-summary Hub API change and keep private-message/UI work on the source branch."}
+{"file":".trellis/tasks/09-22-move-api-followup-from-direct-messaging/research/00-branch-boundary-inventory.md","reason":"Evidence inventory for mixed source commit 5cf99dd, exact public-summary hunk, and excluded private-message/UI paths."}
+{"file":".trellis/spec/backend/index.md","reason":"Backend package boundaries and pre-development guidance for Web-Master DTO/Hub contract changes."}
+{"file":".trellis/spec/backend/api-response-decoding.md","reason":"Strict API boundary decoding and normalized response contract rules for the public user summary."}
+{"file":".trellis/spec/backend/request-scheduling.md","reason":"Existing Hub invocation and scheduling conventions used by the GetUserSummary call."}

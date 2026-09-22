@@ -500,7 +500,7 @@ test('maps profile, avatar, and check-in to Web-Master Hub contracts', async () 
   ]);
 });
 
-test('fetches a public user summary through the exact REST route', async () => {
+test('fetches a public user summary through the current Hub contract', async () => {
   const calls = [];
   const response = {
     Id: 8,
@@ -515,22 +515,23 @@ test('fetches a public user summary through the exact REST route', async () => {
     CommentCount: 4,
   };
   const client = new ApiClient(
+    { async request() { throw new Error('not used'); } },
     {
-      async request(request) {
-        calls.push(request);
-        return { body: { Success: true, Response: response }, headers: {}, status: 200 };
+      async connect() {},
+      async close() {},
+      async invoke(method, args) {
+        calls.push({ method, args });
+        return { Success: true, Response: response };
       },
     },
-    { async connect() {}, async close() {}, async invoke() { throw new Error('not used'); } },
     null,
     new RateLimitRequestScheduler(20, 10),
   );
 
   assert.equal((await client.getPublicUserSummary(8)).userName, 'reader');
   assert.deepEqual(calls, [{
-    headers: { Accept: 'application/json' },
-    method: 'GET',
-    url: 'https://api.lightnovel.life/api/user/summary?id=8',
+    method: 'GetUserSummary',
+    args: [{ UserId: 8 }, { UseGzip: true }],
   }]);
   await assert.rejects(client.getPublicUserSummary(0), /valid user id/);
 });

@@ -262,3 +262,93 @@ const booksByKey = new Map(snapshot.books.map((record) => [
 ]));
 await shelf.toggleBook({ id: bookId, type: 'COMIC' });
 ```
+
+## Scenario: Public user summary through the current Hub contract
+
+### 1. Scope / Trigger
+
+Apply this contract when loading a public user summary from
+`packages/api-client`. The current Web-Master contract exposes the summary as a
+Hub operation; the removed REST route must not be reintroduced as a parallel
+fallback.
+
+### 2. Signatures
+
+```ts
+class ApiClient {
+  getPublicUserSummary(userId: number): Promise<PublicUserSummary>;
+}
+
+// Internal transport shape used by ApiClient.invoke.
+GetUserSummary(
+  { UserId: number },
+  { UseGzip: true },
+): Promise<PublicUserSummaryWireResponse>;
+```
+
+### 3. Contracts
+
+- `getPublicUserSummary` accepts only a positive safe integer and keeps the
+  normalized `PublicUserSummary` return shape unchanged.
+- The request invokes exactly `GetUserSummary` with `{ UserId: userId }` and
+  `{ UseGzip: true }` through the shared Hub helper.
+- The existing strict `decodePublicUserSummary` owns wire-to-domain conversion;
+  callers and `client-core` do not parse the response or construct a REST URL.
+- The old `/api/user/summary?id=<id>` endpoint constant and request path are
+  removed. There is no silent REST fallback when Hub invocation fails.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required result |
+| --- | --- |
+| Positive safe integer user id | Invoke `GetUserSummary` with exact casing and gzip options |
+| Zero, negative, fractional, unsafe, or non-number id | Reject before transport with the existing valid-user-id `TypeError` |
+| Valid Hub response | Decode through `decodePublicUserSummary` and return normalized data |
+| Malformed Hub response | Preserve strict server-boundary decoder error behavior |
+| Hub auth/server/transport failure | Propagate shared invocation error classification; do not retry through REST |
+
+### 5. Good / Base / Bad Cases
+
+- **Good:** `getPublicUserSummary(8)` produces one Hub call with
+  `{ UserId: 8 }` and `{ UseGzip: true }`.
+- **Base:** A valid Hub response has the same normalized fields and cache
+  behavior for `client-core` public-profile consumers as before.
+- **Bad:** Keep `publicUserSummaryPath` or catch a Hub failure by requesting
+  `/api/user/summary?id=8`; this creates two competing backend contracts.
+
+### 6. Tests Required
+
+`packages/api-client/src/index.test.mjs` must construct an HTTP transport that
+would fail if used and a Hub mock that returns a valid summary. Assert the
+normalized user name and the exact `{ method: 'GetUserSummary', args: [...] }`
+call, including `{ UseGzip: true }`. Keep the invalid-id assertion to prove
+validation occurs before transport.
+
+`packages/client-core` public-profile cache tests should remain green without
+changing their mock interface, proving the normalized use-case boundary is
+stable while transport moves from REST to Hub.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+try {
+  return await this.invoke('GetUserSummary', { UserId: userId }, decodePublicUserSummary);
+} catch {
+  return this.request({
+    method: 'GET',
+    path: `/api/user/summary?id=${userId}`,
+  });
+}
+```
+
+#### Correct
+
+```ts
+return this.invoke(
+  'GetUserSummary',
+  { UserId: userId },
+  decodePublicUserSummary,
+);
+```
