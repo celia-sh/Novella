@@ -96,7 +96,7 @@ export function useCommunityNotifications() {
   const reconcile = useCallback(async () => {
     await Promise.allSettled([
       loadRef.current(),
-      profile.load(),
+      profile.refresh(),
     ]);
   }, []);
 

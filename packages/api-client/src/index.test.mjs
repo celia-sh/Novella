@@ -121,6 +121,7 @@ test('decodes the Web-Master profile and growth summary', () => {
     Role: { Name: 'Member' },
     Point: 320,
     UnreadNotificationCount: 3,
+    UnreadDirectMessageCount: 7,
     RegisterAt: '2026-01-02T00:00:00.000Z',
     Growth: {
       Exp: 180,
@@ -144,6 +145,7 @@ test('decodes the Web-Master profile and growth summary', () => {
     inviteCode: 'INVITE',
     groupName: 'Member',
     unreadNotificationCount: 3,
+    unreadDirectMessageCount: 7,
     registeredAt: '2026-01-02T00:00:00.000Z',
     growth: {
       experience: 180,
@@ -202,6 +204,18 @@ test('decodes the Web-Master profile and growth summary', () => {
     () => decodeUserProfile({ Id: 43, Growth: { ComicQuotaToday: 0 } }),
     /invalid number field/,
   );
+});
+
+test('missing private-message unread counts default to zero for older profile responses', () => {
+  const base = {
+    Id: 9,
+    UnreadNotificationCount: 3,
+    Growth: { ComicQuota: 0, ComicQuotaToday: 0 },
+  };
+  assert.equal(decodeUserProfile(base).unreadDirectMessageCount, 0);
+  assert.equal(decodeUserProfile({ ...base, UnreadDirectMessageCount: null }).unreadDirectMessageCount, 0);
+  assert.equal(decodeUserProfile({ ...base, UnreadDirectMessageCount: -2 }).unreadDirectMessageCount, 0);
+  assert.equal(decodeUserProfile(base).unreadNotificationCount, 3);
 });
 
 test('decodes reset invite code and shop payloads', () => {

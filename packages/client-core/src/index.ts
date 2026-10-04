@@ -329,6 +329,7 @@ export interface ProfileUseCase {
   checkIn(): Promise<ProfileCheckInOutcome>;
   getSnapshot(): UserProfile | null;
   load(): Promise<UserProfile>;
+  refresh(): Promise<UserProfile>;
   resetInviteCode(): Promise<ProfileResetInviteCodeOutcome>;
   setAvatar(url: string): Promise<UserProfile>;
   subscribe(listener: (profile: UserProfile) => void): () => void;
@@ -1261,6 +1262,21 @@ export function createProfileUseCase(api: ApiClient): ProfileUseCase {
     return profile;
   }
 
+  function loadProfile(): Promise<UserProfile> {
+    if (loadPromise) return loadPromise;
+    const request = (async () => {
+      await mutationQueue;
+      const requestGeneration = ++generation;
+      const profile = await api.getMyProfile();
+      if (requestGeneration !== generation) return latest ?? profile;
+      return publish(profile);
+    })().finally(() => {
+      if (loadPromise === request) loadPromise = null;
+    });
+    loadPromise = request;
+    return request;
+  }
+
   function enqueueMutation<T>(
     mutate: () => Promise<T>,
     resolveProfile: (result: T) => Promise<UserProfile> = () => api.getMyProfile(),
@@ -1291,19 +1307,12 @@ export function createProfileUseCase(api: ApiClient): ProfileUseCase {
     getSnapshot() {
       return latest;
     },
-    load() {
-      if (loadPromise) return loadPromise;
-      const request = (async () => {
-        await mutationQueue;
-        const requestGeneration = ++generation;
-        const profile = await api.getMyProfile();
-        if (requestGeneration !== generation) return latest ?? profile;
-        return publish(profile);
-      })().finally(() => {
-        if (loadPromise === request) loadPromise = null;
-      });
-      loadPromise = request;
-      return request;
+    load: loadProfile,
+    async refresh() {
+      // A realtime event or read mutation can arrive after the current query
+      // started. Finish that query, then load once more to include the change.
+      if (loadPromise) await loadPromise.catch(() => undefined);
+      return loadProfile();
     },
     resetInviteCode() {
       return enqueueMutation(

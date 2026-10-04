@@ -593,6 +593,7 @@ export interface UserProfile {
   inviteCode: string;
   groupName: string;
   unreadNotificationCount: number;
+  unreadDirectMessageCount: number;
   registeredAt: string | null;
   growth: UserGrowth;
 }
@@ -1974,6 +1975,7 @@ export function decodeUserProfile(value: unknown): UserProfile {
     inviteCode: asStringOrEmpty(record.InviteCode),
     groupName: asStringOrEmpty(role.Name),
     unreadNotificationCount: asNumber(record.UnreadNotificationCount, 0),
+    unreadDirectMessageCount: Math.max(0, asNumber(record.UnreadDirectMessageCount, 0)),
     registeredAt: asNullableDateString(record.RegisterAt),
     growth: decodeUserGrowthRecord(growth, false),
   };

@@ -190,7 +190,7 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
     void directMessages
       .markRead(peerId, lastMessageId)
       .then(() => {
-        void profileUseCase.load().catch(() => undefined);
+        void profileUseCase.refresh().catch(() => undefined);
       })
       .catch(() => undefined)
       .finally(() => {

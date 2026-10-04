@@ -799,6 +799,55 @@ test('profile growth wins over a stale in-flight profile load', async () => {
   assert.equal(useCase.getSnapshot().growth.coin, 4);
 });
 
+test('profile unread refresh queries after an older in-flight load and coalesces refreshes', async () => {
+  const staleLoad = deferred();
+  const refreshed = { id: 9, unreadDirectMessageCount: 0, unreadNotificationCount: 3 };
+  let calls = 0;
+  const profile = createProfileUseCase({
+    async getMyProfile() {
+      calls += 1;
+      return calls === 1 ? staleLoad.promise : structuredClone(refreshed);
+    },
+  });
+  const published = [];
+  profile.subscribe((next) => published.push(next));
+
+  const oldRequest = profile.load();
+  await nextTask();
+  const firstRefresh = profile.refresh();
+  const secondRefresh = profile.refresh();
+  assert.equal(calls, 1);
+  staleLoad.resolve({ ...refreshed, unreadDirectMessageCount: 5 });
+  await Promise.all([oldRequest, firstRefresh, secondRefresh]);
+
+  assert.equal(calls, 2);
+  assert.deepEqual(published.map((next) => next.unreadDirectMessageCount), [5, 0]);
+  assert.deepEqual(profile.getSnapshot(), refreshed);
+});
+
+test('profile unread refresh retries after an older load fails and reports its own failures', async () => {
+  const oldLoad = deferred();
+  let calls = 0;
+  const profile = createProfileUseCase({
+    async getMyProfile() {
+      calls += 1;
+      if (calls === 1) return oldLoad.promise;
+      if (calls === 3) throw new Error('refresh failed');
+      return { id: 9, unreadDirectMessageCount: 2, unreadNotificationCount: 0 };
+    },
+  });
+
+  const initialRequest = profile.load();
+  const refresh = profile.refresh();
+  oldLoad.reject(new Error('old query failed'));
+  await assert.rejects(initialRequest, /old query failed/);
+  await refresh;
+  assert.equal(profile.getSnapshot().unreadDirectMessageCount, 2);
+  await assert.rejects(() => profile.refresh(), /refresh failed/);
+  await profile.refresh();
+  assert.equal(calls, 4);
+});
+
 test('public profile use case validates, deduplicates, caches, and retries loads', async () => {
   let now = 1_000;
   let calls = 0;

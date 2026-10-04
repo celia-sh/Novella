@@ -151,6 +151,10 @@ export function subscribeClientRealtime(
   return session.transport.subscribe(methodName, listener);
 }
 
+export function subscribeClientRealtimeReconnect(listener: () => void) {
+  return signalR.subscribeReconnected(listener);
+}
+
 export async function closeClient(): Promise<void> {
   await session.close();
 }
