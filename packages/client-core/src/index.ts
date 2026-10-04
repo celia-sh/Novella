@@ -257,6 +257,7 @@ export interface CommunityUseCase {
 export interface NotificationsUseCase {
   load(request?: GetNotificationsRequest, signal?: AbortSignal): Promise<AppNotificationPage>;
   mark(ids: number[]): Promise<void>;
+  markAll(): Promise<void>;
 }
 
 export const COMMUNITY_STORAGE_KEYS = Object.freeze({
@@ -1201,6 +1202,9 @@ export function createNotificationsUseCase(api: ApiClient): NotificationsUseCase
       return uniqueIds.length === 0
         ? Promise.resolve()
         : api.markNotifications(uniqueIds);
+    },
+    markAll() {
+      return api.markAllNotifications();
     },
   });
 }

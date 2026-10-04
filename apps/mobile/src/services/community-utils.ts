@@ -1,5 +1,6 @@
 import type {
   AppNotificationAction,
+  AppNotificationItem,
   CommunityThreadReply,
 } from '@novella/api-client';
 
@@ -24,6 +25,13 @@ export function mergeCommunityItems<T extends { id: number }>(
 ): T[] {
   const seen = new Set(current.map((item) => item.id));
   return [...current, ...incoming.filter((item) => !seen.has(item.id))];
+}
+
+export function hasUnreadNotifications(
+  unreadCount: number | null | undefined,
+  items: readonly Pick<AppNotificationItem, 'isRead'>[],
+): boolean {
+  return (unreadCount ?? 0) > 0 || items.some((item) => !item.isRead);
 }
 
 export function updateCommunityReply(

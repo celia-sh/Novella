@@ -1543,6 +1543,7 @@ test('maps every Community and notification operation to the gzip Hub contract',
   await client.getMyCommunityOverview();
   await client.getNotifications();
   await client.markNotifications([7, 8]);
+  await client.markAllNotifications();
 
   assert.deepEqual(calls.map((call) => call.method), [
     'GetCommunityHome',
@@ -1561,6 +1562,7 @@ test('maps every Community and notification operation to the gzip Hub contract',
     'GetCommunityReplyChildren',
     'GetMyCommunityOverview',
     'GetNotifications',
+    'MarkNotifications',
     'MarkNotifications',
   ]);
   assert.deepEqual(calls[0].args, [{
@@ -1589,6 +1591,64 @@ test('maps every Community and notification operation to the gzip Hub contract',
   });
   assert.deepEqual(calls[15].args[0], { Page: 1, Size: 20 });
   assert.deepEqual(calls[16].args[0], { Ids: [7, 8] });
+  assert.deepEqual(calls[17].args, [{ All: true }, { UseGzip: true }]);
+});
+
+test('mark all notifications covers unread items beyond the loaded page', async () => {
+  const notifications = Array.from({ length: 50 }, (_, index) => ({
+    Id: index + 1,
+    Kind: 'community.reply',
+    SchemaVersion: 1,
+    Title: `Notification ${index + 1}`,
+    Body: '',
+    Tone: 'info',
+    Data: {},
+    IsRead: false,
+    CreatedAt: '2026-10-03T12:00:00.000Z',
+  }));
+  const calls = [];
+  const client = new ApiClient(
+    { async request() { throw new Error('not used'); } },
+    {
+      async connect() {},
+      async close() {},
+      async invoke(method, args) {
+        calls.push({ method, args });
+        const [request] = args;
+        if (method === 'GetNotifications') {
+          const start = (request.Page - 1) * request.Size;
+          return { Success: true, Response: {
+            Page: request.Page,
+            TotalPages: Math.ceil(notifications.length / request.Size),
+            Data: notifications.slice(start, start + request.Size),
+          } };
+        }
+        assert.equal(method, 'MarkNotifications');
+        for (const item of notifications) {
+          if (request.All === true || request.Ids?.includes(item.Id)) item.IsRead = true;
+        }
+        return { Success: true, Response: null };
+      },
+    },
+    null,
+    new RateLimitRequestScheduler(50, 1),
+  );
+
+  const firstPage = await client.getNotifications({ page: 1, size: 20 });
+  assert.equal(firstPage.items.length, 20);
+  await client.markNotifications([firstPage.items[0].id]);
+  assert.equal(notifications.filter((item) => !item.IsRead).length, 49);
+
+  await client.markAllNotifications();
+  assert.deepEqual(calls[2], {
+    method: 'MarkNotifications',
+    args: [{ All: true }, { UseGzip: true }],
+  });
+  assert.equal(notifications.filter((item) => !item.IsRead).length, 0);
+  assert.equal(calls.filter((call) => call.method === 'GetNotifications').length, 1);
+  const lastPage = await client.getNotifications({ page: 3, size: 20 });
+  assert.equal(lastPage.items.length, 10);
+  assert.ok(lastPage.items.every((item) => item.isRead));
 });
 
 test('decodes the Web-Master notification contract and safely degrades tone', () => {

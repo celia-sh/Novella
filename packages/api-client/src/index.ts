@@ -1566,6 +1566,10 @@ export class ApiClient {
     return this.invoke('MarkNotifications', { Ids: ids }, () => undefined);
   }
 
+  markAllNotifications(): Promise<void> {
+    return this.invoke('MarkNotifications', { All: true }, () => undefined);
+  }
+
   getReadHistory(): Promise<ReadHistory> {
     return this.invoke('GetReadHistory', undefined, decodeReadHistory);
   }

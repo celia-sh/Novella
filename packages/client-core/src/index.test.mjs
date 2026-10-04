@@ -1750,16 +1750,36 @@ test('notifications use case normalizes ids and validates paging', async () => {
       calls.push(['mark', ids]);
       return Promise.resolve();
     },
+    markAllNotifications() {
+      calls.push(['markAll']);
+      return Promise.resolve();
+    },
   });
   const signal = new AbortController().signal;
 
   await useCase.load({ page: 1, size: 20 }, signal);
   await useCase.mark([4, 4, 5]);
   await useCase.mark([]);
+  await useCase.markAll();
   assert.equal(calls[0][2].signal, signal);
-  assert.deepEqual(calls.slice(1), [['mark', [4, 5]]]);
+  assert.deepEqual(calls.slice(1), [['mark', [4, 5]], ['markAll']]);
   assert.throws(() => useCase.load({ page: 0 }), /valid notification page/i);
   assert.throws(() => useCase.mark([0]), /valid notification id/i);
+});
+
+test('mark all notifications needs no loaded ids and propagates request failures', async () => {
+  const failure = new Error('mark all failed');
+  let calls = 0;
+  const useCase = createNotificationsUseCase({
+    async markAllNotifications() {
+      calls += 1;
+      if (calls === 2) throw failure;
+    },
+  });
+
+  await useCase.markAll();
+  await assert.rejects(() => useCase.markAll(), (error) => error === failure);
+  assert.equal(calls, 2);
 });
 
 function bookCard(id, type) {

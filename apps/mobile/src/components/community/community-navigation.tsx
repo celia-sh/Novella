@@ -106,16 +106,18 @@ export function CommunityPublishNavigation({
 }
 
 export function CommunityNotificationsNavigation({
+  disabled,
   hidden,
   onMarkAll,
 }: {
+  disabled: boolean;
   hidden: boolean;
   onMarkAll(): void;
 }) {
   const { t } = useTranslation('community');
   return (
     <Stack.Toolbar placement="right">
-      <Stack.Toolbar.Button hidden={hidden} onPress={onMarkAll}>
+      <Stack.Toolbar.Button disabled={disabled} hidden={hidden} onPress={onMarkAll}>
         {t('actions.markAllRead')}
       </Stack.Toolbar.Button>
     </Stack.Toolbar>

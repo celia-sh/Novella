@@ -49,8 +49,7 @@ export function CommunityNotificationsScreen() {
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
   const { t: tCommon } = useTranslation('common');
-  const { loadMore, mark, markAll, refresh, retry, state } = useCommunityNotifications();
-  const hasUnread = state.items.some((item) => !item.isRead);
+  const { hasUnread, loadMore, mark, markAll, refresh, retry, state } = useCommunityNotifications();
 
   const openBook = useCallback(async (bookId: number) => {
     try {
@@ -172,7 +171,11 @@ export function CommunityNotificationsScreen() {
         />
         </View>
 
-        <CommunityNotificationsNavigation hidden={!hasUnread} onMarkAll={() => void markAll()} />
+        <CommunityNotificationsNavigation
+          disabled={state.marking}
+          hidden={!hasUnread}
+          onMarkAll={() => void markAll()}
+        />
       </>
     </CommunityPaperProvider>
   );
