@@ -50,6 +50,9 @@ public final class NovellaUiModule: Module {
       Prop("maxLength") { (view: NovellaDirectMessageComposerView, maxLength: Int) in
         view.setMaxLength(maxLength)
       }
+      Prop("accentColor") { (view: NovellaDirectMessageComposerView, accentColor: UIColor?) in
+        view.setAccentColor(accentColor)
+      }
 
       Events("onDraftChange", "onSend", "onHeightChange")
 

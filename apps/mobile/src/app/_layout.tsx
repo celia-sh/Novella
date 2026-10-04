@@ -9,6 +9,7 @@ import {
 } from 'expo-router/react-navigation';
 import { Stack } from 'expo-router/stack';
 import { StatusBar } from 'expo-status-bar';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -36,9 +37,13 @@ export default function RootLayout() {
     <AppLocalizationProvider>
       <AppThemeProvider>
         <PanelUIProvider>
-          <ToastProvider maxQueue={3}>
-            <RootLayoutContent />
-          </ToastProvider>
+          {/* Chat scrolling subscribes to the keyboard animation through this
+              root-level react-native-keyboard-controller provider. */}
+          <KeyboardProvider>
+            <ToastProvider maxQueue={3}>
+              <RootLayoutContent />
+            </ToastProvider>
+          </KeyboardProvider>
         </PanelUIProvider>
       </AppThemeProvider>
     </AppLocalizationProvider>

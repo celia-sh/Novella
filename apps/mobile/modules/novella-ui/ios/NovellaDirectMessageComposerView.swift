@@ -25,6 +25,7 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
   private var isKeyboardVisible = false
   private var placeholder = ""
   private var maxLength = 2_000
+  private var accentColor: UIColor = .systemBlue
 
   let onDraftChange = EventDispatcher()
   let onSend = EventDispatcher()
@@ -67,7 +68,7 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
     textView.delegate = self
     textView.font = .preferredFont(forTextStyle: .body)
     textView.textColor = .label
-    textView.tintColor = .systemBlue
+    textView.tintColor = accentColor
     textView.isScrollEnabled = false
     textView.alwaysBounceVertical = false
     textView.showsVerticalScrollIndicator = false
@@ -93,6 +94,10 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
     sendButton.backgroundColor = .tertiarySystemFill
     sendButton.layer.cornerCurve = .continuous
     sendButton.clipsToBounds = true
+    // Fixed size, so derive the radius here rather than in `layoutSubviews`,
+    // where `bounds` is still .zero on the first pass and leaves the button a
+    // rounded square until something else triggers a re-layout.
+    sendButton.layer.cornerRadius = sendButtonDiameter / 2
     sendButton.contentHorizontalAlignment = .center
     sendButton.contentVerticalAlignment = .center
     sendButton.setImage(
@@ -187,6 +192,12 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
     maxLength = max(1, value)
   }
 
+  func setAccentColor(_ color: UIColor?) {
+    accentColor = color ?? .systemBlue
+    textView.tintColor = accentColor
+    updateSendButton()
+  }
+
   // MARK: - Imperative handle
 
   func focus() {
@@ -208,7 +219,6 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
       updateHeight(animated: false)
     }
     glassView.layoutIfNeeded()
-    sendButton.layer.cornerRadius = sendButton.bounds.height / 2
     updateCorners()
     reportOccupiedHeightIfNeeded()
   }
@@ -268,7 +278,7 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
       && !((textView.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     let active = isEnabled && hasText
     sendButton.isEnabled = active
-    sendButton.backgroundColor = active ? .systemBlue : .tertiarySystemFill
+    sendButton.backgroundColor = active ? accentColor : .tertiarySystemFill
     sendButton.tintColor = active ? .white : .tertiaryLabel
   }
 
@@ -356,10 +366,10 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
   }
 
   private func reportOccupiedHeightIfNeeded() {
-    let bottomSpacing = isKeyboardVisible
-      ? keyboardBottomSpacing
-      : max(keyboardBottomSpacing, safeAreaInsets.bottom)
-    let height = surfaceHeightConstraint.constant + bottomSpacing
+    // Report one number regardless of keyboard state: the scroll view already
+    // accounts for the safe area on its own, so folding it in here double-counts
+    // and pushes the transcript further than the pill actually covers.
+    let height = surfaceHeightConstraint.constant + keyboardBottomSpacing
     guard abs(height - lastReportedHeight) > 0.5 else { return }
     lastReportedHeight = height
     onHeightChange(["height": Double(height)])

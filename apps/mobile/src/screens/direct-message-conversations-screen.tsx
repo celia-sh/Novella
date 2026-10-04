@@ -85,76 +85,75 @@ export function DirectMessageConversationsScreen() {
   const empty = snapshot.conversations.length === 0;
 
   return (
-    <View style={styles.root}>
-      <FlatList
-        contentContainerStyle={empty ? styles.emptyContent : styles.content}
-        contentInsetAdjustmentBehavior="automatic"
-        data={snapshot.conversations}
-        keyExtractor={(item) => String(item.peer.id)}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        onEndReached={() => {
-          if (!pageError) void loadMore();
-        }}
-        onEndReachedThreshold={0.3}
-        refreshControl={
-          <RefreshControl
-            onRefresh={() => void refresh()}
-            refreshing={refreshing}
-            tintColor={colors.accent}
-          />
-        }
-        renderItem={({ item }) => <ConversationRow conversation={item} />}
-        ListEmptyComponent={
-          status === 'loading' ? (
-            <View
-              accessibilityLabel={t('conversations.loading')}
-              accessibilityState={{ busy: true }}
-              style={styles.loadingState}
-            >
-              <ActivityIndicator color={colors.accent} size="large" />
-              <Text style={styles.stateText}>{t('conversations.loading')}</Text>
-            </View>
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>
-                {status === 'error'
-                  ? t('conversations.loadFailed')
-                  : t('conversations.emptyTitle')}
-              </Text>
-              {status === 'error' ? (
-                <RetryButton
-                  label={t('conversations.retry')}
-                  onPress={() => void load()}
-                  styles={styles}
-                />
-              ) : (
-                <Text style={styles.stateText}>{t('conversations.emptyDescription')}</Text>
-              )}
-            </View>
-          )
-        }
-        ListFooterComponent={
-          loadingMore ? (
-            <View style={styles.footerState}>
-              <ActivityIndicator color={colors.accent} />
-            </View>
-          ) : pageError || (status === 'error' && snapshot.conversations.length > 0) ? (
-            <View style={styles.footerState}>
-              <Text style={styles.stateText}>{t('conversations.loadFailed')}</Text>
+    <FlatList
+      contentContainerStyle={empty ? styles.emptyContent : styles.content}
+      contentInsetAdjustmentBehavior="automatic"
+      data={snapshot.conversations}
+      keyExtractor={(item) => String(item.peer.id)}
+      ItemSeparatorComponent={() => <View style={styles.separator} />}
+      onEndReached={() => {
+        if (!pageError) void loadMore();
+      }}
+      onEndReachedThreshold={0.3}
+      refreshControl={
+        <RefreshControl
+          onRefresh={() => void refresh()}
+          refreshing={refreshing}
+          tintColor={colors.accent}
+        />
+      }
+      renderItem={({ item }) => <ConversationRow conversation={item} />}
+      ListEmptyComponent={
+        status === 'loading' ? (
+          <View
+            accessibilityLabel={t('conversations.loading')}
+            accessibilityState={{ busy: true }}
+            style={styles.loadingState}
+          >
+            <ActivityIndicator color={colors.accent} size="large" />
+            <Text style={styles.stateText}>{t('conversations.loading')}</Text>
+          </View>
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>
+              {status === 'error'
+                ? t('conversations.loadFailed')
+                : t('conversations.emptyTitle')}
+            </Text>
+            {status === 'error' ? (
               <RetryButton
                 label={t('conversations.retry')}
-                onPress={() => {
-                  if (pageError) void loadMore();
-                  else void load();
-                }}
+                onPress={() => void load()}
                 styles={styles}
               />
-            </View>
-          ) : null
-        }
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
+            ) : (
+              <Text style={styles.stateText}>{t('conversations.emptyDescription')}</Text>
+            )}
+          </View>
+        )
+      }
+      ListFooterComponent={
+        loadingMore ? (
+          <View style={styles.footerState}>
+            <ActivityIndicator color={colors.accent} />
+          </View>
+        ) : pageError || (status === 'error' && snapshot.conversations.length > 0) ? (
+          <View style={styles.footerState}>
+            <Text style={styles.stateText}>{t('conversations.loadFailed')}</Text>
+            <RetryButton
+              label={t('conversations.retry')}
+              onPress={() => {
+                if (pageError) void loadMore();
+                else void load();
+              }}
+              styles={styles}
+            />
+          </View>
+        ) : null
+      }
+      showsVerticalScrollIndicator={false}
+      style={styles.root}
+    />
   );
 }
 

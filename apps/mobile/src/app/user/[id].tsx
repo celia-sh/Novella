@@ -1,6 +1,7 @@
 import {
   IconArrowBackUp,
   IconBook,
+  IconMail,
   IconMessage,
   IconMessages,
   IconRefresh,
@@ -88,7 +89,7 @@ function PublicUserProfileContent({ userId }: { userId: number }) {
             onPress={() => router.push(`/messages/${summary.id}`)}
             style={({ pressed }) => [styles.messageButton, pressed && styles.pressed]}
           >
-            <IconMessage color="#FFFFFF" size={20} strokeWidth={2} />
+            <IconMail color="#FFFFFF" size={20} strokeWidth={2} />
             <Text style={styles.messageButtonText}>{t('profile.sendMessage')}</Text>
           </Pressable>
           <View style={styles.stats}>
@@ -154,8 +155,8 @@ const usePublicUserProfileStyles = createThemedStyles((colors) => ({
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'center',
-    marginTop: 24,
-    minHeight: 54,
+    marginTop: 16,
+    minHeight: 44,
     paddingHorizontal: 24,
   },
   messageButtonText: {
@@ -179,7 +180,7 @@ const usePublicUserProfileStyles = createThemedStyles((colors) => ({
   },
   statLabel: { color: colors.secondaryLabel, fontSize: 12, lineHeight: 17, textAlign: 'center' },
   statValue: { color: colors.label, fontSize: 20, fontVariant: ['tabular-nums'], fontWeight: '700', lineHeight: 25 },
-  stats: { alignSelf: 'stretch', flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', marginTop: 28 },
+  stats: { alignSelf: 'stretch', flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', marginTop: 20 },
   state: { alignItems: 'center', flex: 1, gap: 12, justifyContent: 'center', minHeight: 280 },
   stateText: { color: colors.secondaryLabel, fontSize: 15, lineHeight: 21, textAlign: 'center' },
   userName: { color: colors.label, fontSize: 22, fontWeight: '700', lineHeight: 29 },

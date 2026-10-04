@@ -1,21 +1,29 @@
 import * as Crypto from 'expo-crypto';
+import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Stack, useFocusEffect } from 'expo-router';
-import { useIsFocused } from 'expo-router/react-navigation';
+import { useHeaderHeight, useIsFocused } from 'expo-router/react-navigation';
 import { Button } from 'panelui-native/components/button';
 import { EmptyState } from 'panelui-native/components/empty-state';
 import { Spinner } from 'panelui-native/components/spinner';
 import { AlertTriangleIcon, MessageCircleIcon, RotateCwIcon } from 'panelui-native/icons';
 import { Text } from 'panelui-native/primitives/text';
 import {
-  type ElementRef,
   type ReactNode,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
-import { KeyboardChatScrollView } from 'react-native-keyboard-controller';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import type {
@@ -23,9 +31,13 @@ import type {
   PendingDirectMessage,
 } from '@novella/client-core';
 
-import { NativeDirectMessageComposer } from '../../modules/novella-ui';
+import {
+  NativeDirectMessageComposer,
+  type NativeDirectMessageComposerHandle,
+} from '../../modules/novella-ui';
 import { showAlert } from '@/components/native-alert-dialog';
 import { useDirectMessages } from '@/hooks/use-direct-messages';
+import { useDirectMessageScroll } from '@/hooks/use-direct-message-scroll';
 import { useProfile } from '@/hooks/use-profile';
 import { formatDate } from '@/localization/formatters';
 import { useAppLocale } from '@/localization/localization-provider';
@@ -34,7 +46,7 @@ import {
   findDirectMessageReceiptId,
   resolveDirectMessagePeerName,
 } from '@/services/direct-message-utils';
-import { createThemedStyles } from '@/theme/app-theme';
+import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 const EMPTY_CHAT: DirectMessageChatSnapshot = {
   peer: null,
@@ -50,9 +62,30 @@ const EMPTY_CHAT: DirectMessageChatSnapshot = {
   loaded: false,
 };
 
-// Mirrors DIRECT_MESSAGE_MAX_LENGTH in client-core. The native composer enforces
+// Matches DIRECT_MESSAGE_MAX_LENGTH in client-core. The native composer enforces
 // it so a paste cannot exceed the server limit before JS ever sees the text.
 const MAX_MESSAGE_LENGTH = 2_000;
+const HAS_TRANSPARENT_HEADER = isLiquidGlassAvailable();
+
+/**
+ * New messages fade and rise into their final layout without scaling the row.
+ * Scaling an outgoing row also moved the bubble sideways around the row center.
+ */
+function bubbleEntering() {
+  'worklet';
+  return {
+    animations: {
+      opacity: withTiming(1, { duration: 160 }),
+      transform: [
+        { translateY: withTiming(0, { duration: 160 }) },
+      ],
+    },
+    initialValues: {
+      opacity: 0,
+      transform: [{ translateY: 4 }],
+    },
+  };
+}
 
 interface DirectMessageChatScreenProps {
   peerId: number;
@@ -62,24 +95,45 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
   const { t } = useTranslation('messages');
   const { t: tCommon } = useTranslation('common');
   const styles = useChatStyles();
+  const { colors } = useAppTheme();
+  const { bottom: bottomSafeArea } = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
+  const topContentPadding = HAS_TRANSPARENT_HEADER ? headerHeight : 0;
   const snapshot = useDirectMessages();
   const { profile } = useProfile();
   const isFocused = useIsFocused();
   const chat = snapshot.chats[peerId] ?? EMPTY_CHAT;
-  const scrollRef = useRef<ElementRef<typeof KeyboardChatScrollView>>(null);
-  const atEndRef = useRef(true);
+  const hasMessages = chat.messages.length > 0 || chat.pending.length > 0;
+  const composerHeightRef = useRef<number | null>(null);
+  const composerRef = useRef<NativeDirectMessageComposerHandle>(null);
   const markingReadRef = useRef(false);
   const loadingOlderRef = useRef(false);
   const [draft, setDraft] = useState('');
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [blockBusy, setBlockBusy] = useState(false);
-  const [atEnd, setAtEnd] = useState(true);
-  const [measured, setMeasured] = useState(false);
   const [appState, setAppState] = useState(AppState.currentState);
-  // The native composer reports the vertical room it occupies (pill plus the
-  // keyboard gap); the transcript reserves exactly that as bottom padding.
-  const [composerHeight, setComposerHeight] = useState(96);
+  // Include the resting safe area in the inset owned by the chat scroll view.
+  // UIKit must not add a second, invisible inset outside its animation range.
+  const composerHeight = useSharedValue(0);
+  const {
+    animatedProps: scrollAnimatedProps,
+    atEnd,
+    bottomInset,
+    commitStyle: scrollCommitStyle,
+    measured,
+    onContentSizeChange,
+    onLayout: onScrollLayout,
+    onScroll,
+    scrollRef,
+    scrollToBottom,
+  } = useDirectMessageScroll({ loaded: chat.loaded, composerHeight, bottomSafeArea });
+  // Everything already on screen when the chat first loads is history and must
+  // appear without animation; only messages that arrive afterwards animate in.
+  const historyFloorRef = useRef(0);
+  // Server confirmation keeps the outgoing row's client key. It must also keep
+  // the original entering animation rather than starting another one.
+  const animatedClientIdsRef = useRef<Set<string>>(new Set());
   const lastMessageId = chat.messages.at(-1)?.id ?? 0;
   const receiptMessageId = findDirectMessageReceiptId(
     chat.messages,
@@ -110,25 +164,13 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
     }, [load]),
   );
 
-  const scrollToBottom = useCallback((animated = true) => {
-    atEndRef.current = true;
-    scrollRef.current?.scrollToEnd({ animated });
-  }, []);
-
-  const scheduleScrollToBottom = useCallback(() => {
-    if (!atEndRef.current) return;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => scrollToBottom(false));
-    });
-  }, [scrollToBottom]);
-
-  // Keep the transcript pinned after a pending or confirmed message changes its
-  // layout. Two frames are intentional: the first commits the React children and
-  // the second runs after the native scroll content size update.
+  // Freeze the history boundary the first time this chat has messages: anything
+  // at or below it was already there, so it must not animate in.
   useEffect(() => {
-    if (!chat.loaded) return;
-    scheduleScrollToBottom();
-  }, [chat.loaded, chat.messages.length, chat.pending.length, scheduleScrollToBottom]);
+    if (!chat.loaded || historyFloorRef.current !== 0) return;
+    const newest = chat.messages.at(-1)?.id;
+    if (newest !== undefined) historyFloorRef.current = newest;
+  }, [chat.loaded, chat.messages]);
 
   // Only report messages seen on the active screen, never a covered chat or
   // messages received while the app is in the background.
@@ -206,17 +248,48 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
     const content = value.trim();
     if (!content) return;
     setDraft('');
-    atEndRef.current = true;
+    scrollToBottom();
+    const clientMessageId = Crypto.randomUUID();
+    animatedClientIdsRef.current.add(clientMessageId);
     void directMessages
       .sendMessage(peerId, {
-        clientMessageId: Crypto.randomUUID(),
+        clientMessageId,
         content,
         createdAt: new Date().toISOString(),
-      })
-      .finally(scheduleScrollToBottom);
+      });
   }
 
+  // The same animated height drives the inset and its absolute bottom offset.
+  function handleComposerHeight(height: number) {
+    const firstMeasurement = composerHeightRef.current === null;
+    composerHeightRef.current = height;
+    if (firstMeasurement) {
+      // The first measurement establishes the inset; it is not an input resize.
+      composerHeight.value = height;
+    } else {
+      composerHeight.value = withTiming(height, {
+        duration: 200,
+        easing: Easing.bezier(0.42, 0, 0.58, 1),
+      });
+    }
+  }
+
+  const newMessagesButtonStyle = useAnimatedStyle(() => ({
+    bottom: bottomInset.value + 12,
+  }));
+
   const composerEnabled = chat.loaded && chat.canSend && !chat.peer?.isDeleted;
+  const transcriptGesture = useMemo(() => Gesture.Simultaneous(
+    Gesture.Native().cancelsTouchesInView(false),
+    Gesture.Tap()
+      .cancelsTouchesInView(false)
+      .runOnJS(true)
+      .onEnd((_event, success) => {
+        // ScrollView's default dismissal only knows about RN TextInput. The
+        // native composer exposes its own blur; only taps should invoke it.
+        if (success) void composerRef.current?.blur();
+      }),
+  ), []);
 
   return (
     <View style={styles.root}>
@@ -235,116 +308,137 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
           </Stack.Toolbar.Menu>
         </Stack.Toolbar>
       ) : null}
-      <KeyboardChatScrollView
-        ref={scrollRef}
-        style={styles.scroll}
-        contentContainerStyle={[
-          !chat.loaded || (chat.messages.length === 0 && chat.pending.length === 0)
-            ? styles.stateTranscript
-            : styles.transcript,
-          { paddingBottom: composerHeight + 12 },
-        ]}
-        automaticallyAdjustKeyboardInsets={false}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardDismissMode="interactive"
-        keyboardShouldPersistTaps="handled"
-        keyboardLiftBehavior="always"
-        maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
-        onContentSizeChange={() => {
-          if (chat.loaded && atEndRef.current && !loadingOlderRef.current) {
-            scheduleScrollToBottom();
-          }
-        }}
-        onEndVisible={(visible) => {
-          atEndRef.current = visible;
-          setAtEnd(visible);
-          setMeasured(true);
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        {!chat.loaded ? (
-          <ChatState
-            icon={status === 'error' ? <AlertTriangleIcon size={28} /> : <Spinner size="lg" />}
-            label={status === 'error' ? t('chat.loadFailed') : t('chat.loading')}
-            {...(status === 'error'
-              ? { actionLabel: t('chat.retry'), onAction: () => void load() }
-              : {})}
-          />
-        ) : (
-          <>
-            {chat.hasMore ? (
-              <View style={styles.olderRow}>
-                <Button
-                  loading={loadingOlder}
-                  onPress={() => void loadOlder()}
-                  size="sm"
-                  variant="ghost"
-                >
-                  {t('chat.loadOlder')}
-                </Button>
-              </View>
-            ) : null}
-            {chat.messages.length === 0 && chat.pending.length === 0 ? (
-              <ChatState icon={<MessageCircleIcon size={28} />} label={t('chat.empty')} />
-            ) : null}
-            {chat.messages.map((message, index) => (
-              <MessageBubble
-                key={`message-${message.id}`}
-                createdAt={message.createdAt}
-                isMine={message.senderId === profile?.id}
-                message={message.content}
-                receipt={
-                  message.id === receiptMessageId
-                    ? chat.peerLastReadMessageId >= message.id
-                      ? 'read'
-                      : 'delivered'
-                    : null
-                }
-                tail={
-                  chat.messages[index + 1]?.senderId !== message.senderId ||
-                  index + 1 >= chat.messages.length
-                }
-              />
-            ))}
-            {chat.pending.map((message, index) => (
-              <MessageBubble
-                key={`pending-${message.clientMessageId}`}
-                createdAt={message.createdAt}
-                isMine
-                message={message.content}
-                status={message.status}
-                tail={index === chat.pending.length - 1}
-                {...(message.status === 'failed'
-                  ? {
-                      onRetry: () =>
-                        void directMessages
-                          .retryMessage(peerId, message.clientMessageId)
-                          .catch(() => undefined),
-                    }
-                  : {})}
-              />
-            ))}
-          </>
-        )}
-      </KeyboardChatScrollView>
-      {!atEnd && chat.loaded ? (
-        <Button
-          accessibilityLabel={t('chat.newMessages')}
-          onPress={() => scrollToBottom()}
-          size="icon"
-          style={[styles.newMessagesButton, { bottom: composerHeight + 12 }]}
-          variant="outline"
+      <GestureDetector gesture={transcriptGesture}>
+        <Animated.ScrollView
+          ref={scrollRef}
+          animatedProps={scrollAnimatedProps}
+          // Reveal the loaded transcript at its initial position, without showing
+          // the temporary top position while the native composer is measured.
+          style={[styles.scroll, chat.loaded && !measured ? styles.positioning : undefined]}
+          pointerEvents={chat.loaded && !measured ? 'none' : 'auto'}
+          contentContainerStyle={[
+            chat.loaded && hasMessages ? styles.transcript : styles.stateTranscript,
+            { paddingTop: topContentPadding + (chat.loaded && hasMessages ? 8 : 16) },
+          ]}
+          automaticallyAdjustContentInsets={false}
+          automaticallyAdjustKeyboardInsets={false}
+          contentInsetAdjustmentBehavior="never"
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          // Anchoring the viewport to the first visible row is what keeps the
+          // reading position stable when older messages load, but while the user
+          // is parked at the bottom it stops the transcript from following the
+          // composer's growth and the pill ends up covering the newest bubble.
+          maintainVisibleContentPosition={atEnd ? undefined : { minIndexForVisible: 1 }}
+          onContentSizeChange={onContentSizeChange}
+          onLayout={onScrollLayout}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
         >
-          <MessageCircleIcon size={20} />
-        </Button>
+          {!chat.loaded ? (
+            <ChatState
+              icon={status === 'error' ? <AlertTriangleIcon size={28} /> : <Spinner size="lg" />}
+              label={status === 'error' ? t('chat.loadFailed') : t('chat.loading')}
+              {...(status === 'error'
+                ? { actionLabel: t('chat.retry'), onAction: () => void load() }
+                : {})}
+            />
+          ) : (
+            <>
+              {chat.hasMore ? (
+                <View style={styles.olderRow}>
+                  <Button
+                    loading={loadingOlder}
+                    onPress={() => void loadOlder()}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    {t('chat.loadOlder')}
+                  </Button>
+                </View>
+              ) : null}
+              {!hasMessages ? (
+                <ChatState icon={<MessageCircleIcon size={28} />} label={t('chat.empty')} />
+              ) : null}
+              {[
+                ...chat.messages.map((message, index) => (
+                  <MessageBubble
+                    key={
+                      message.senderId === profile?.id && message.clientMessageId
+                        ? `outgoing-${message.clientMessageId}`
+                        : `message-${message.id}`
+                    }
+                    createdAt={message.createdAt}
+                    entering={
+                      measured &&
+                      message.id > historyFloorRef.current &&
+                      !animatedClientIdsRef.current.has(message.clientMessageId)
+                    }
+                    isMine={message.senderId === profile?.id}
+                    message={message.content}
+                    receipt={
+                      message.id === receiptMessageId
+                        ? chat.peerLastReadMessageId >= message.id
+                          ? 'read'
+                          : 'delivered'
+                        : null
+                    }
+                    tail={
+                      chat.messages[index + 1]?.senderId !== message.senderId ||
+                      index + 1 >= chat.messages.length
+                    }
+                  />
+                )),
+                ...chat.pending.map((message, index) => (
+                  <MessageBubble
+                    key={`outgoing-${message.clientMessageId}`}
+                    createdAt={message.createdAt}
+                    entering={measured}
+                    isMine
+                    message={message.content}
+                    status={message.status}
+                    tail={index === chat.pending.length - 1}
+                    {...(message.status === 'failed'
+                      ? {
+                          onRetry: () =>
+                            void directMessages
+                              .retryMessage(peerId, message.clientMessageId)
+                              .catch(() => undefined),
+                        }
+                      : {})}
+                  />
+                )),
+              ]}
+            </>
+          )}
+        </Animated.ScrollView>
+      </GestureDetector>
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.scrollCommit, scrollCommitStyle]}
+      />
+      {!atEnd && chat.loaded ? (
+        <Animated.View style={[styles.newMessagesButton, newMessagesButtonStyle]}>
+          <Button
+            accessibilityLabel={t('chat.newMessages')}
+            onPress={() => scrollToBottom()}
+            size="icon"
+            variant="outline"
+          >
+            <MessageCircleIcon size={20} />
+          </Button>
+        </Animated.View>
       ) : null}
       {chat.loaded ? (
         <NativeDirectMessageComposer
+          ref={composerRef}
+          accentColor={colors.accent as string}
           draft={draft}
           enabled={composerEnabled}
           maxLength={MAX_MESSAGE_LENGTH}
           onDraftChange={setDraft}
-          onHeightChange={setComposerHeight}
+          onHeightChange={handleComposerHeight}
           onSend={handleSend}
           placeholder={
             chat.peer?.isDeleted
@@ -361,6 +455,7 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
 
 function MessageBubble({
   createdAt,
+  entering,
   isMine,
   message,
   onRetry,
@@ -369,6 +464,7 @@ function MessageBubble({
   tail,
 }: {
   createdAt: string;
+  entering: boolean;
   isMine: boolean;
   message: string;
   onRetry?: () => void;
@@ -390,7 +486,10 @@ function MessageBubble({
     .join(' · ');
 
   return (
-    <View style={[styles.bubbleRow, isMine ? styles.bubbleRowMine : styles.bubbleRowTheirs]}>
+    <Animated.View
+      {...(entering ? { entering: bubbleEntering } : {})}
+      style={[styles.bubbleRow, isMine ? styles.bubbleRowMine : styles.bubbleRowTheirs]}
+    >
       <View style={styles.bubbleColumn}>
         <View
           style={[
@@ -426,7 +525,7 @@ function MessageBubble({
           </Button>
         ) : null}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -471,7 +570,7 @@ const useChatStyles = createThemedStyles((colors) =>
     bubbleFooter: { fontSize: 11, lineHeight: 15, marginTop: 3, paddingHorizontal: 4 },
     bubbleFooterMine: { color: colors.secondaryLabel, textAlign: 'right' },
     bubbleFooterTheirs: { color: colors.secondaryLabel, textAlign: 'left' },
-    bubbleMine: { backgroundColor: colors.accent, borderRadius: 18 },
+    bubbleMine: { alignSelf: 'flex-end', backgroundColor: colors.accent, borderRadius: 18 },
     bubbleRow: { flexDirection: 'row' },
     bubbleRowMine: { justifyContent: 'flex-end' },
     bubbleRowTheirs: { justifyContent: 'flex-start' },
@@ -482,11 +581,13 @@ const useChatStyles = createThemedStyles((colors) =>
     bubbleText: { fontSize: 16, lineHeight: 21 },
     bubbleTextMine: { color: colors.onPrimaryContainer },
     bubbleTextTheirs: { color: colors.label },
-    bubbleTheirs: { backgroundColor: colors.surfaceContainerHighest, borderRadius: 18 },
+    bubbleTheirs: { alignSelf: 'flex-start', backgroundColor: colors.surfaceContainerHighest, borderRadius: 18 },
     newMessagesButton: { position: 'absolute', right: 14, zIndex: 2 },
     olderRow: { alignItems: 'center' },
+    positioning: { opacity: 0 },
     root: { backgroundColor: colors.background, flex: 1 },
     scroll: { flex: 1 },
+    scrollCommit: { display: 'none', position: 'absolute' },
     stateTranscript: { flexGrow: 1, gap: 10, justifyContent: 'center', padding: 16 },
     transcript: { gap: 6, padding: 16, paddingTop: 8 },
   }),

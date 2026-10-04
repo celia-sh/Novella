@@ -6,7 +6,7 @@ import {
   type ComponentType,
   type Ref,
 } from 'react';
-import { StyleSheet, type ViewProps } from 'react-native';
+import { StyleSheet, type ColorValue, type ViewProps } from 'react-native';
 
 export interface NativeDirectMessageComposerHandle {
   blur(): Promise<void>;
@@ -14,6 +14,7 @@ export interface NativeDirectMessageComposerHandle {
 }
 
 export interface NativeDirectMessageComposerProps extends ViewProps {
+  accentColor?: ColorValue;
   draft?: string;
   enabled?: boolean;
   maxLength?: number;
