@@ -63,6 +63,9 @@ export const ProfileAvatar = memo(function ProfileAvatar({
         {...(imageSource ? { source: imageSource } : {})}
         style={[
           StyleSheet.absoluteFill,
+          // Named variants size the face too; explicit dimensions keep a
+          // numeric size aligned with its frame instead of snapping to a preset.
+          { height: dimension, width: dimension },
           fallbackBackground ? { backgroundColor: fallbackBackground } : null,
         ]}
       />
