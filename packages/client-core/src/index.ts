@@ -37,7 +37,19 @@ import {
   type ComicSeriesListItem,
   type CommentPage,
   type DailyCheckInResult,
+  type DirectConversationItem,
+  type DirectConversationPage,
+  type DirectMessageBlockChangedEvent,
+  type DirectMessageEvent,
+  type DirectMessageItem,
+  type DirectMessagePage,
+  type DirectMessagePeer,
+  type DirectMessageReadEvent,
   type GetCommentsRequest,
+  type GetDirectConversationsRequest,
+  type GetDirectMessagesRequest,
+  type MarkDirectMessagesReadRequest,
+  type MarkDirectMessagesReadResult,
   type NovelContent,
   type NovelContentRequest,
   type OnlineInfo,
@@ -47,6 +59,10 @@ import {
   type PublicUserSummary,
   type ReadHistory,
   type ResetInviteCodeResult,
+  type SendDirectMessageRequest,
+  type SendDirectMessageResult,
+  type SetDirectMessageBlockRequest,
+  type SetDirectMessageBlockResult,
   type ShopItem,
   type SignInCalendar,
   type UseComicQuotaCardResult,
@@ -325,6 +341,62 @@ export interface PublicProfileUseCase {
 
 export const COMIC_QUOTA_ITEM_KEY = 'comic_quota_50';
 export const SIGN_MAKEUP_ITEM_KEY = 'sign_makeup';
+
+export const DIRECT_CONVERSATION_PAGE_SIZE = 20;
+export const DIRECT_MESSAGE_PAGE_SIZE = 30;
+export const DIRECT_MESSAGE_MAX_LENGTH = 2_000;
+
+export interface PendingDirectMessage {
+  clientMessageId: string;
+  content: string;
+  createdAt: string;
+  status: 'pending' | 'failed';
+}
+
+export interface DirectMessageChatSnapshot {
+  peer: DirectMessagePeer | null;
+  messages: DirectMessageItem[];
+  pending: PendingDirectMessage[];
+  hasMore: boolean;
+  nextBeforeMessageId: number;
+  myLastReadMessageId: number;
+  peerLastReadMessageId: number;
+  unreadCount: number;
+  isBlockedByMe: boolean;
+  canSend: boolean;
+  loaded: boolean;
+}
+
+export interface DirectMessagesSnapshot {
+  conversations: DirectConversationItem[];
+  conversationsHasMore: boolean;
+  conversationsNextBeforeMessageId: number;
+  chats: Readonly<Record<number, DirectMessageChatSnapshot>>;
+}
+
+export interface SendDirectMessageInput {
+  clientMessageId: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface DirectMessagesUseCase {
+  applyBlockChanged(event: DirectMessageBlockChangedEvent): void;
+  applyIncomingMessage(event: DirectMessageEvent): void;
+  applyReadReceipt(event: DirectMessageReadEvent, currentUserId: number): void;
+  getSnapshot(): DirectMessagesSnapshot;
+  loadChat(peerId: number): Promise<DirectMessageChatSnapshot>;
+  loadConversations(): Promise<DirectMessagesSnapshot>;
+  loadMoreConversations(): Promise<DirectMessagesSnapshot>;
+  loadOlderMessages(peerId: number): Promise<DirectMessageChatSnapshot>;
+  markRead(peerId: number, throughMessageId: number): Promise<DirectMessageChatSnapshot>;
+  reset(): void;
+  resync(): Promise<void>;
+  retryMessage(peerId: number, clientMessageId: string): Promise<void>;
+  sendMessage(peerId: number, input: SendDirectMessageInput): Promise<void>;
+  setBlock(peerId: number, isBlocked: boolean): Promise<DirectMessageChatSnapshot>;
+  subscribe(listener: (snapshot: DirectMessagesSnapshot) => void): () => void;
+}
 
 export interface ShopSnapshot {
   coin: number;
