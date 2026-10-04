@@ -1,5 +1,10 @@
 # 跟进 Web-Master 最新参考契约
 
+> Completed on 2026-09-22; closure reconfirmed by the user on 2026-10-04.
+> Both implementation tasks are archived. The original two-state shelf plan
+> below was subsequently extended by `09-22-shelf-all-media-filter` to include
+> All/Novel/Comic; it is historical scope, not unfinished current work.
+
 ## Goal
 
 以 `references/web-master` 为只读参考源，将其从 `[COMMIT]` 更新到 `[COMMIT]` 后，对 Novella 需要跟进的书架 API 契约和移动端书架体验建立可执行任务树。
@@ -58,15 +63,15 @@
 
 ## Acceptance Criteria
 
-- [ ] 两个子任务均完成 PRD、technical design、implementation plan 和真实的 context manifests，并在实现前通过最终规划审查。
-- [ ] API 子任务能解码 `NOVEL`、`COMIC`、`FOLDER` 和旧 `BOOK` 归一化数据；保存时使用 `ver: '20260921'`，不丢失任何类型或文件夹。
-- [ ] client-core 的书架 membership、typed keys、hydrate、文件夹操作、乐观保存和失败重试有混合类型测试。
-- [ ] 移动端默认显示 Novel，能够切换 Comic；不存在混合 All 视图。
-- [ ] 浏览态的文件夹、数量、封面预览按当前类型递归计算；编辑态展示完整树并能安全重排、移动、删除和保存。
-- [ ] 打开深层文件夹后仍保留 Novel/Comic 状态；无效或缺省状态有确定的默认值。
-- [ ] 简体中文与台湾繁体中文资源结构一致，新增空状态和可访问性文案完整。
-- [ ] API/client-core/mobile 类型检查、相关测试、边界检查和 `git diff --check` 通过。
-- [ ] 社区搜索、Web-only 变化和其他平行任务没有被意外纳入 diff。
+- [x] 两个子任务均完成 PRD、technical design、implementation plan 和真实的 context manifests，并在实现前通过最终规划审查。
+- [x] API 子任务能解码 `NOVEL`、`COMIC`、`FOLDER` 和旧 `BOOK` 归一化数据；保存时使用 `ver: '20260921'`，不丢失任何类型或文件夹。
+- [x] client-core 的书架 membership、typed keys、hydrate、文件夹操作、乐观保存和失败重试有混合类型测试。
+- [x] 移动端默认显示 Novel，能够切换 Comic；不存在混合 All 视图。
+- [x] 浏览态的文件夹、数量、封面预览按当前类型递归计算；编辑态展示完整树并能安全重排、移动、删除和保存。
+- [x] 打开深层文件夹后仍保留 Novel/Comic 状态；无效或缺省状态有确定的默认值。
+- [x] 简体中文与台湾繁体中文资源结构一致，新增空状态和可访问性文案完整。
+- [x] API/client-core/mobile 类型检查、相关测试、边界检查和 `git diff --check` 通过。
+- [x] 社区搜索、Web-only 变化和其他平行任务没有被意外纳入 diff。
 
 ## Risks and deferred decisions
 

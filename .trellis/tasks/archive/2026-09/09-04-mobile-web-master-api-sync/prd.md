@@ -1,5 +1,12 @@
 # Sync mobile with Web-Master API changes
 
+> Completed on 2026-09-22; closure reconfirmed by the user on 2026-10-04.
+> Later contract work moved public summaries to `GetUserSummary({ UserId })`
+> and removed `open_series`. Original REST/series references below describe
+> historical requirements, not the current implementation. Closed interaction
+> entries reflect the user's completion confirmation, not new agent-run device
+> tests. Current contracts are in `.trellis/spec/backend/`.
+
 ## Goal
 
 Keep Novella compatible with the current Web-Master/backend contracts for comic reading, comic quota items, shop purchase limits, point-log labels, and public user summaries. Surface the new quota state, quota-card action, and native public-profile sheet without changing the app's HTML content model.
@@ -69,11 +76,11 @@ Keep Novella compatible with the current Web-Master/backend contracts for comic 
 - [x] [self-verified] Using an owned `comic_quota_50` item updates shop ownership from server-confirmed state, refreshes profile quota, and has typed confirmation/in-flight/success/failure UI in both locales.
 - [x] [self-verified] Point/coin logs require and display `SourceLabel` directly without a client-owned source-label fallback.
 - [x] [self-verified] Shop surfaces use continuous 22/24-point corners and proportionally rounded images/buttons without pill styling.
-- [ ] Public summaries strictly decode all current fields, use the exact authenticated REST route/query, reject invalid IDs/payloads, and cache/deduplicate successful loads for five minutes.
-- [ ] A localized public-profile form sheet renders all identity/activity fields and consistent loading/error/retry states.
-- [ ] Every supported valid avatar opens only the profile sheet; nested parent navigation does not fire, while deleted/system/invalid identities stay inert.
-- [ ] Focused API-client, client-core, mobile navigation/community/settings/localization tests, workspace type checks, boundary checks, and `git diff --check` pass.
-- [ ] [user-verified] On iOS, verify the profile quota row, all three shop limit states, quota-card confirmation/use feedback, server-provided point-log labels, and public-profile sheet entry points against a live account.
+- [x] Public summaries strictly decode all current fields, use `GetUserSummary({ UserId })` with the existing gzip Hub contract, reject invalid IDs/payloads, and cache/deduplicate successful loads for five minutes.
+- [x] A localized public-profile form sheet renders all identity/activity fields and consistent loading/error/retry states.
+- [x] Every supported valid avatar opens only the profile sheet; nested parent navigation does not fire, while deleted/system/invalid identities stay inert.
+- [x] Focused API-client, client-core, mobile navigation/community/settings/localization tests, workspace type checks, boundary checks, and `git diff --check` pass.
+- [x] [user-accepted] Interaction acceptance closed by the user on 2026-10-04 for the profile quota row, all three shop limit states, quota-card confirmation/use feedback, server-provided point-log labels, and public-profile sheet entry points against a live account.
 
 ## Out of Scope
 

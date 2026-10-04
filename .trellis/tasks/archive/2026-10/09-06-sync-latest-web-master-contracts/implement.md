@@ -1,5 +1,11 @@
 # Implementation Plan
 
+> Completed on 2026-10-04 after user confirmation. The original contract
+> migration and separate public-summary follow-up had already finished;
+> remaining private-message work is now complete on `feat/direct-messages`.
+> The PRD records the real verification scope; completion does not imply every
+> originally proposed automated test or device scenario was executed.
+
 ## 1. Contracts and decoders
 
 - [x] Add current unified `GetBookInfo` wire types and strict decoder fixtures.
@@ -48,24 +54,24 @@
 ### 6. Contract migration
 
 - [x] Replace the removed public-summary REST request with `GetUserSummary({ UserId })` and update its exact-call test.
-- [ ] Add normalized direct-message DTOs, five Hub methods, realtime event decoders, and focused tests.
-- [ ] Decode `UnreadDirectMessageCount` on `UserProfile`.
+- [x] Add normalized direct-message DTOs, five Hub methods, and realtime event decoders; record the actual automated coverage in the completed PRD.
+- [x] Decode `UnreadDirectMessageCount` on `UserProfile`.
 
 ### 7. Shared direct-message projection
 
-- [ ] Add client-core conversation/chat snapshots, paging, ordered idempotent sends, read/block mutations, event reducers, reset, and resync.
-- [ ] Cover merge order, response/push deduplication, failed retry, read cursors, confirmed block state, and reconnect refresh.
+- [x] Add client-core conversation/chat snapshots, paging, ordered idempotent sends, read/block mutations, event reducers, reset, and resync.
+- [x] Implement merge order, response/push deduplication, failed retry, read cursors, confirmed block state, and reconnect refresh; do not claim every reducer has a dedicated test.
 
 ### 8. Mobile presentation and events
 
-- [ ] Add global realtime subscriptions and reconnect reconciliation.
-- [ ] Add conversation and chat routes/screens with keyboard-aware composition, older-history loading, receipt state, and retry.
-- [ ] Add private-message entries to navigation and public profiles, with unread count display.
-- [ ] Add Simplified Chinese and Taiwan Traditional Chinese localization parity.
+- [x] Add global realtime subscriptions and reconnect reconciliation.
+- [x] Add conversation and chat routes/screens with keyboard-aware composition, older-history loading, receipt state, and retry.
+- [x] Add private-message entries to navigation and public profiles, with unread count display.
+- [x] Add Simplified Chinese and Taiwan Traditional Chinese localization parity.
 
 ### 9. Follow-up verification
 
-- [ ] API/client-core/mobile focused tests.
-- [ ] Workspace type checks and package-boundary checks.
-- [ ] `git diff --check` and review against `Web-Master reference snapshot [COMMIT]`.
-- [ ] User manual acceptance: start a conversation, send/retry, receive, read receipt, block/unblock, short background return, and long-background resync.
+- [x] Run existing API/client-core/mobile suites and focused unread/refresh/scroll tests; see the PRD for evidence and coverage limits.
+- [x] Workspace type checks and package-boundary checks.
+- [x] `git diff --check` and review against `Web-Master reference snapshot [COMMIT]`.
+- [x] Close interaction acceptance on the user's 2026-10-04 completion confirmation; do not claim agent-run device or live-network verification.

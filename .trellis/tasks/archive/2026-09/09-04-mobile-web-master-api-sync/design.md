@@ -1,5 +1,12 @@
 # Technical Design
 
+> Completed on 2026-09-22; closure reconfirmed by the user on 2026-10-04.
+> Later contract work moved public summaries to `GetUserSummary({ UserId })`
+> and removed `open_series`. Original REST/series references below describe
+> historical requirements, not the current implementation. Closed interaction
+> entries reflect the user's completion confirmation, not new agent-run device
+> tests. Current contracts are in `.trellis/spec/backend/`.
+
 ## Boundaries
 
 The existing dependency direction remains unchanged:

@@ -37,6 +37,9 @@ This directory contains guidelines for frontend development. Fill in each file w
   read [Localization Guidelines](./localization-guidelines.md).
 - For app version, backend User-Agent, Expo config, or iOS build metadata,
   read [Build Compatibility Version](./build-version-contract.md).
+- For private-message scrolling, native composition, keyboard following,
+  badges, or notification read actions, read
+  [Direct Messages and Notifications](../backend/direct-message-contracts.md).
 
 ## Quality Check
 
