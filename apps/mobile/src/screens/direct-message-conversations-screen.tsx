@@ -1,4 +1,4 @@
-import { router, Stack, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,7 +9,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
 import type { DirectConversationItem } from '@novella/api-client';
@@ -25,7 +24,12 @@ import {
 } from '@/services/direct-message-utils';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const AVATAR_SIZE = 54;
+// The row's text column starts after the horizontal padding plus the avatar and
+// its gap, so the separator inset lines up with the name instead of the avatar.
+const ROW_HORIZONTAL_PADDING = 16;
+const ROW_GAP = 12;
+const SEPARATOR_INSET = ROW_HORIZONTAL_PADDING + AVATAR_SIZE + ROW_GAP;
 
 export function DirectMessageConversationsScreen() {
   const styles = useConversationListStyles();
@@ -82,7 +86,6 @@ export function DirectMessageConversationsScreen() {
 
   return (
     <View style={styles.root}>
-      <Stack.Screen options={{ title: t('navigation.title') }} />
       <FlatList
         contentContainerStyle={empty ? styles.emptyContent : styles.content}
         contentInsetAdjustmentBehavior="automatic"
@@ -160,11 +163,10 @@ function ConversationRow({ conversation }: { conversation: DirectConversationIte
   const { t } = useTranslation('messages');
   const locale = useAppLocale();
   const name = resolveDirectMessagePeerName(conversation.peer, t('conversations.deletedUser'));
+  const unread = conversation.unreadCount;
 
   return (
-    <AnimatedPressable
-      entering={FadeIn.duration(200)}
-      exiting={FadeOut.duration(150)}
+    <Pressable
       accessibilityLabel={t('conversations.open', { name })}
       accessibilityRole="button"
       onPress={() =>
@@ -177,7 +179,7 @@ function ConversationRow({ conversation }: { conversation: DirectConversationIte
     >
       <PublicUserAvatar
         avatarUrl={conversation.peer.avatarUrl}
-        size={56}
+        size={AVATAR_SIZE}
         userId={conversation.peer.isDeleted ? 0 : conversation.peer.id}
         userName={name}
       />
@@ -194,20 +196,17 @@ function ConversationRow({ conversation }: { conversation: DirectConversationIte
           <Text numberOfLines={1} style={styles.preview}>
             {createDirectMessagePreview(conversation.lastMessage.content)}
           </Text>
-          {conversation.unreadCount > 0 ? (
-            <Animated.View
-              entering={FadeIn.springify().damping(15)}
-              accessibilityLabel={t('conversations.unread', { count: conversation.unreadCount })}
+          {unread > 0 ? (
+            <View
+              accessibilityLabel={t('conversations.unread', { count: unread })}
               style={styles.unreadBadge}
             >
-              <Text style={styles.unreadText}>
-                {conversation.unreadCount > 99 ? '99+' : String(conversation.unreadCount)}
-              </Text>
-            </Animated.View>
+              <Text style={styles.unreadText}>{unread > 99 ? '99+' : String(unread)}</Text>
+            </View>
           ) : null}
         </View>
       </View>
-    </AnimatedPressable>
+    </Pressable>
   );
 }
 
@@ -233,40 +232,39 @@ function RetryButton({
 
 const useConversationListStyles = createThemedStyles((colors) =>
   StyleSheet.create({
-    content: { paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 },
-    copy: { flex: 1, gap: 5, minWidth: 0 },
+    content: { paddingBottom: 32 },
+    copy: { flex: 1, gap: 3, minWidth: 0 },
     emptyContent: { flexGrow: 1, justifyContent: 'center', padding: 16 },
     emptyState: { alignItems: 'center', gap: 8, padding: 24 },
     emptyTitle: { color: colors.label, fontSize: 17, fontWeight: '700', textAlign: 'center' },
     footerState: { alignItems: 'center', gap: 8, padding: 16 },
     loadingState: { alignItems: 'center', gap: 12, padding: 24 },
-    name: { color: colors.label, flex: 1, fontSize: 17, fontWeight: '600' },
-    preview: { color: colors.secondaryLabel, flex: 1, fontSize: 15, lineHeight: 21 },
-    previewRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
-    pressed: { opacity: 0.6 },
+    name: { color: colors.label, flex: 1, fontSize: 16, fontWeight: '600', lineHeight: 21 },
+    preview: { color: colors.secondaryLabel, flex: 1, fontSize: 14, lineHeight: 19 },
+    previewRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+    pressed: { backgroundColor: colors.surfaceContainerHighest },
     retry: {
       alignItems: 'center',
       backgroundColor: colors.accent,
       borderCurve: 'continuous',
       borderRadius: 12,
-      minHeight: 40,
       justifyContent: 'center',
+      minHeight: 40,
       paddingHorizontal: 18,
     },
-    retryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
+    retryText: { color: colors.onPrimaryContainer, fontSize: 15, fontWeight: '600' },
     root: { backgroundColor: colors.background, flex: 1 },
     row: {
       alignItems: 'center',
-      backgroundColor: 'transparent',
       flexDirection: 'row',
-      gap: 12,
-      minHeight: 80,
-      paddingVertical: 10,
+      gap: ROW_GAP,
+      paddingHorizontal: ROW_HORIZONTAL_PADDING,
+      paddingVertical: 9,
     },
     separator: {
       backgroundColor: colors.separator,
       height: StyleSheet.hairlineWidth,
-      marginLeft: 68,
+      marginLeft: SEPARATOR_INSET,
     },
     stateText: {
       color: colors.secondaryLabel,
@@ -274,17 +272,17 @@ const useConversationListStyles = createThemedStyles((colors) =>
       lineHeight: 20,
       textAlign: 'center',
     },
-    time: { color: colors.secondaryLabel, flexShrink: 0, fontSize: 13 },
+    time: { color: colors.secondaryLabel, flexShrink: 0, fontSize: 13, lineHeight: 18 },
     titleRow: { alignItems: 'baseline', flexDirection: 'row', gap: 8 },
     unreadBadge: {
       alignItems: 'center',
       backgroundColor: colors.accent,
-      borderRadius: 11,
-      minHeight: 22,
-      minWidth: 22,
+      borderRadius: 10,
       justifyContent: 'center',
+      minHeight: 20,
+      minWidth: 20,
       paddingHorizontal: 6,
     },
-    unreadText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+    unreadText: { color: colors.onPrimaryContainer, fontSize: 12, fontWeight: '700' },
   }),
 );

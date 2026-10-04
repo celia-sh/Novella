@@ -232,6 +232,21 @@ function RootLayoutContent() {
                   title: '',
                 }}
               />
+              {/* Direct messages are ordinary pushed pages, not sheets: the list
+                  keeps the native large-title header and the chat pushes on top
+                  of it with its own toolbar. */}
+              <Stack.Screen
+                name="messages/index"
+                options={{
+                  headerLargeTitle: true,
+                  headerShown: true,
+                  title: t('routes.messages'),
+                }}
+              />
+              <Stack.Screen
+                name="messages/[peerId]"
+                options={{ headerShown: true, title: '' }}
+              />
               <Stack.Screen
                 name="reader/[bookId]/[sortNum]"
                 options={{ headerShown: false }}

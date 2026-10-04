@@ -9,6 +9,7 @@ export const zhCNCommunity = {
     notifications: '通知',
     myCommunity: '我的社区',
     rankings: '排行榜',
+    directMessages: '私信',
   },
   actions: {
     newPost: '发布社区帖子',
@@ -269,6 +270,7 @@ export const zhTWCommunity: TranslationShape<typeof zhCNCommunity> = {
     notifications: '通知',
     myCommunity: '我的社群',
     rankings: '排行榜',
+    directMessages: '私訊',
   },
   actions: {
     newPost: '發表社群文章',

@@ -28,6 +28,12 @@ export function CommunityHomeNavigation() {
         >
           {t('navigation.rankings')}
         </Stack.Toolbar.MenuAction>
+        <Stack.Toolbar.MenuAction
+          icon="bubble.left.and.bubble.right"
+          onPress={() => router.push('/messages')}
+        >
+          {t('navigation.directMessages')}
+        </Stack.Toolbar.MenuAction>
       </Stack.Toolbar.Menu>
     </Stack.Toolbar>
   );

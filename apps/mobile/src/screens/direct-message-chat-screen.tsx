@@ -4,33 +4,26 @@ import { useIsFocused } from 'expo-router/react-navigation';
 import { Button } from 'panelui-native/components/button';
 import { EmptyState } from 'panelui-native/components/empty-state';
 import { Spinner } from 'panelui-native/components/spinner';
-import {
-  AlertTriangleIcon,
-  ArrowDownIcon,
-  MessageCircleIcon,
-  RotateCwIcon,
-} from 'panelui-native/icons';
+import { AlertTriangleIcon, MessageCircleIcon, RotateCwIcon } from 'panelui-native/icons';
 import { Text } from 'panelui-native/primitives/text';
-import { type ElementRef, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Platform, Pressable, StyleSheet, View } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import Animated, {
-  FadeIn,
-  FadeInDown,
-  FadeOut,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import {
+  type ElementRef,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import { AppState, StyleSheet, View } from 'react-native';
+import { KeyboardChatScrollView } from 'react-native-keyboard-controller';
 import { useTranslation } from 'react-i18next';
 
 import type {
   DirectMessageChatSnapshot,
   PendingDirectMessage,
 } from '@novella/client-core';
-import type { DirectMessageItem } from '@novella/api-client';
 
+import { NativeDirectMessageComposer } from '../../modules/novella-ui';
 import { showAlert } from '@/components/native-alert-dialog';
 import { useDirectMessages } from '@/hooks/use-direct-messages';
 import { useProfile } from '@/hooks/use-profile';
@@ -41,7 +34,7 @@ import {
   findDirectMessageReceiptId,
   resolveDirectMessagePeerName,
 } from '@/services/direct-message-utils';
-import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
+import { createThemedStyles } from '@/theme/app-theme';
 
 const EMPTY_CHAT: DirectMessageChatSnapshot = {
   peer: null,
@@ -57,6 +50,10 @@ const EMPTY_CHAT: DirectMessageChatSnapshot = {
   loaded: false,
 };
 
+// Mirrors DIRECT_MESSAGE_MAX_LENGTH in client-core. The native composer enforces
+// it so a paste cannot exceed the server limit before JS ever sees the text.
+const MAX_MESSAGE_LENGTH = 2_000;
+
 interface DirectMessageChatScreenProps {
   peerId: number;
 }
@@ -65,21 +62,24 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
   const { t } = useTranslation('messages');
   const { t: tCommon } = useTranslation('common');
   const styles = useChatStyles();
-  const { colors } = useAppTheme();
   const snapshot = useDirectMessages();
   const { profile } = useProfile();
   const isFocused = useIsFocused();
   const chat = snapshot.chats[peerId] ?? EMPTY_CHAT;
-  const scrollRef = useRef<ElementRef<typeof KeyboardAwareScrollView>>(null);
+  const scrollRef = useRef<ElementRef<typeof KeyboardChatScrollView>>(null);
   const atEndRef = useRef(true);
   const markingReadRef = useRef(false);
   const loadingOlderRef = useRef(false);
   const [draft, setDraft] = useState('');
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [blockBusy, setBlockBusy] = useState(false);
   const [atEnd, setAtEnd] = useState(true);
   const [measured, setMeasured] = useState(false);
   const [appState, setAppState] = useState(AppState.currentState);
+  // The native composer reports the vertical room it occupies (pill plus the
+  // keyboard gap); the transcript reserves exactly that as bottom padding.
+  const [composerHeight, setComposerHeight] = useState(96);
   const lastMessageId = chat.messages.at(-1)?.id ?? 0;
   const receiptMessageId = findDirectMessageReceiptId(
     chat.messages,
@@ -122,11 +122,16 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
     });
   }, [scrollToBottom]);
 
+  // Keep the transcript pinned after a pending or confirmed message changes its
+  // layout. Two frames are intentional: the first commits the React children and
+  // the second runs after the native scroll content size update.
   useEffect(() => {
     if (!chat.loaded) return;
     scheduleScrollToBottom();
   }, [chat.loaded, chat.messages.length, chat.pending.length, scheduleScrollToBottom]);
 
+  // Only report messages seen on the active screen, never a covered chat or
+  // messages received while the app is in the background.
   useEffect(() => {
     if (
       !isFocused ||
@@ -135,8 +140,9 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
       !measured ||
       !chat.loaded ||
       markingReadRef.current
-    )
+    ) {
       return;
+    }
     if (lastMessageId <= chat.myLastReadMessageId) return;
     markingReadRef.current = true;
     void directMessages
@@ -148,7 +154,16 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
       .finally(() => {
         markingReadRef.current = false;
       });
-  }, [appState, atEnd, chat.loaded, chat.myLastReadMessageId, isFocused, lastMessageId, measured, peerId]);
+  }, [
+    appState,
+    atEnd,
+    chat.loaded,
+    chat.myLastReadMessageId,
+    isFocused,
+    lastMessageId,
+    measured,
+    peerId,
+  ]);
 
   async function loadOlder() {
     if (loadingOlderRef.current || !chat.hasMore) return;
@@ -164,66 +179,115 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
     }
   }
 
-  async function sendMessage(content: string) {
-    const trimmed = content.trim();
-    if (!trimmed) return;
+  function toggleBlock() {
+    if (blockBusy || !chat.peer) return;
+    const next = !chat.isBlockedByMe;
+    showAlert(
+      next ? t('block.confirmTitle') : t('block.unblockTitle'),
+      next ? t('block.confirmMessage') : t('block.unblockMessage'),
+      [
+        { style: 'cancel', text: tCommon('actions.cancel') },
+        {
+          style: next ? 'destructive' : 'default',
+          text: next ? t('block.confirmAction') : t('block.unblockAction'),
+          onPress: () => {
+            setBlockBusy(true);
+            void directMessages
+              .setBlock(peerId, next)
+              .catch(() => showAlert(t('block.failed')))
+              .finally(() => setBlockBusy(false));
+          },
+        },
+      ],
+    );
+  }
+
+  function handleSend(value: string) {
+    const content = value.trim();
+    if (!content) return;
     setDraft('');
     atEndRef.current = true;
-    await directMessages
+    void directMessages
       .sendMessage(peerId, {
         clientMessageId: Crypto.randomUUID(),
-        content: trimmed,
+        content,
         createdAt: new Date().toISOString(),
       })
       .finally(scheduleScrollToBottom);
   }
 
+  const composerEnabled = chat.loaded && chat.canSend && !chat.peer?.isDeleted;
+
   return (
     <View style={styles.root}>
       <Stack.Screen options={{ title: peerName }} />
-      <KeyboardAwareScrollView
+      {chat.peer ? (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu accessibilityLabel={t('actions.more')} icon="ellipsis.circle">
+            <Stack.Toolbar.MenuAction
+              destructive={!chat.isBlockedByMe}
+              disabled={blockBusy}
+              icon={chat.isBlockedByMe ? 'hand.raised.slash' : 'hand.raised'}
+              onPress={toggleBlock}
+            >
+              {chat.isBlockedByMe ? t('actions.unblock') : t('actions.block')}
+            </Stack.Toolbar.MenuAction>
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      ) : null}
+      <KeyboardChatScrollView
         ref={scrollRef}
         style={styles.scroll}
-        contentContainerStyle={
+        contentContainerStyle={[
           !chat.loaded || (chat.messages.length === 0 && chat.pending.length === 0)
             ? styles.stateTranscript
-            : styles.transcript
-        }
+            : styles.transcript,
+          { paddingBottom: composerHeight + 12 },
+        ]}
+        automaticallyAdjustKeyboardInsets={false}
         contentInsetAdjustmentBehavior="automatic"
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
+        keyboardLiftBehavior="always"
+        maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
         onContentSizeChange={() => {
           if (chat.loaded && atEndRef.current && !loadingOlderRef.current) {
             scheduleScrollToBottom();
           }
         }}
-        onScroll={(event) => {
-          const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-          const isAtEnd = layoutMeasurement.height + contentOffset.y >= contentSize.height - 20;
-          atEndRef.current = isAtEnd;
-          setAtEnd(isAtEnd);
+        onEndVisible={(visible) => {
+          atEndRef.current = visible;
+          setAtEnd(visible);
           setMeasured(true);
         }}
-        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
       >
         {!chat.loaded ? (
           <ChatState
             icon={status === 'error' ? <AlertTriangleIcon size={28} /> : <Spinner size="lg" />}
             label={status === 'error' ? t('chat.loadFailed') : t('chat.loading')}
-            {...(status === 'error' ? { actionLabel: t('chat.retry'), onAction: () => void load() } : {})}
+            {...(status === 'error'
+              ? { actionLabel: t('chat.retry'), onAction: () => void load() }
+              : {})}
           />
         ) : (
           <>
-            <View className="items-center">
-              {chat.hasMore ? (
-                <Button loading={loadingOlder} onPress={() => void loadOlder()} size="sm" variant="ghost">
+            {chat.hasMore ? (
+              <View style={styles.olderRow}>
+                <Button
+                  loading={loadingOlder}
+                  onPress={() => void loadOlder()}
+                  size="sm"
+                  variant="ghost"
+                >
                   {t('chat.loadOlder')}
                 </Button>
-              ) : null}
-            </View>
+              </View>
+            ) : null}
             {chat.messages.length === 0 && chat.pending.length === 0 ? (
               <ChatState icon={<MessageCircleIcon size={28} />} label={t('chat.empty')} />
             ) : null}
-            {chat.messages.map((message) => (
+            {chat.messages.map((message, index) => (
               <MessageBubble
                 key={`message-${message.id}`}
                 createdAt={message.createdAt}
@@ -236,47 +300,60 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
                       : 'delivered'
                     : null
                 }
+                tail={
+                  chat.messages[index + 1]?.senderId !== message.senderId ||
+                  index + 1 >= chat.messages.length
+                }
               />
             ))}
-            {chat.pending.map((message) => (
+            {chat.pending.map((message, index) => (
               <MessageBubble
                 key={`pending-${message.clientMessageId}`}
                 createdAt={message.createdAt}
                 isMine
                 message={message.content}
                 status={message.status}
+                tail={index === chat.pending.length - 1}
                 {...(message.status === 'failed'
                   ? {
                       onRetry: () =>
-                        void directMessages.retryMessage(peerId, message.clientMessageId).catch(() => undefined),
+                        void directMessages
+                          .retryMessage(peerId, message.clientMessageId)
+                          .catch(() => undefined),
                     }
                   : {})}
               />
             ))}
           </>
         )}
-      </KeyboardAwareScrollView>
+      </KeyboardChatScrollView>
+      {!atEnd && chat.loaded ? (
+        <Button
+          accessibilityLabel={t('chat.newMessages')}
+          onPress={() => scrollToBottom()}
+          size="icon"
+          style={[styles.newMessagesButton, { bottom: composerHeight + 12 }]}
+          variant="outline"
+        >
+          <MessageCircleIcon size={20} />
+        </Button>
+      ) : null}
       {chat.loaded ? (
-        <>
-          {!atEnd ? (
-            <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.newMessagesButtonContainer}>
-              <Pressable
-                accessibilityLabel={t('chat.newMessages')}
-                onPress={() => scrollToBottom()}
-                style={({ pressed }) => [styles.newMessagesButton, pressed && { opacity: 0.7 }]}
-              >
-                <ArrowDownIcon color={colors.background} size={20} />
-              </Pressable>
-            </Animated.View>
-          ) : null}
-          <MessageComposer
-            draft={draft}
-            enabled={chat.canSend && !chat.peer?.isDeleted}
-            onDraftChange={setDraft}
-            onSend={sendMessage}
-            placeholder={t('composer.placeholder')}
-          />
-        </>
+        <NativeDirectMessageComposer
+          draft={draft}
+          enabled={composerEnabled}
+          maxLength={MAX_MESSAGE_LENGTH}
+          onDraftChange={setDraft}
+          onHeightChange={setComposerHeight}
+          onSend={handleSend}
+          placeholder={
+            chat.peer?.isDeleted
+              ? t('chat.deletedUser')
+              : chat.canSend
+                ? t('composer.placeholder')
+                : t('chat.cannotSend')
+          }
+        />
       ) : null}
     </View>
   );
@@ -289,6 +366,7 @@ function MessageBubble({
   onRetry,
   receipt,
   status,
+  tail,
 }: {
   createdAt: string;
   isMine: boolean;
@@ -296,23 +374,11 @@ function MessageBubble({
   onRetry?: () => void;
   receipt?: 'delivered' | 'read' | null;
   status?: PendingDirectMessage['status'];
+  tail: boolean;
 }) {
   const { t } = useTranslation('messages');
   const locale = useAppLocale();
   const styles = useChatStyles();
-  const { colors } = useAppTheme();
-
-  const scale = useSharedValue(status === 'pending' ? 0.95 : 1);
-
-  useEffect(() => {
-    if (status === 'pending') {
-      scale.value = withSpring(1, { damping: 15, stiffness: 400 });
-    }
-  }, [status, scale]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
 
   const footer = [
     formatDate(createdAt, locale, { hour: '2-digit', minute: '2-digit' }),
@@ -324,74 +390,41 @@ function MessageBubble({
     .join(' · ');
 
   return (
-    <Animated.View
-      entering={FadeInDown.duration(250).springify().damping(20)}
-      style={[styles.bubbleContainer, isMine ? styles.bubbleContainerMine : styles.bubbleContainerTheirs, animatedStyle]}
-    >
-      <View
-        style={[
-          styles.bubble,
-          isMine ? styles.bubbleMine : styles.bubbleTheirs,
-          status === 'failed' && styles.bubbleFailed,
-        ]}
-      >
-        <Text selectable style={styles.bubbleText}>
-          {message}
-        </Text>
-      </View>
-      <Text style={[styles.bubbleFooter, status === 'failed' && styles.bubbleFooterError]}>{footer}</Text>
-      {onRetry ? (
-        <Button onPress={onRetry} size="sm" variant="ghost" startContent={<RotateCwIcon size={14} />}>
-          {t('status.retry')}
-        </Button>
-      ) : null}
-    </Animated.View>
-  );
-}
-
-function MessageComposer({
-  draft,
-  enabled,
-  onDraftChange,
-  onSend,
-  placeholder,
-}: {
-  draft: string;
-  enabled: boolean;
-  onDraftChange: (value: string) => void;
-  onSend: (value: string) => void;
-  placeholder: string;
-}) {
-  const styles = useChatStyles();
-  const { colors } = useAppTheme();
-  const [inputHeight, setInputHeight] = useState(40);
-
-  return (
-    <View style={styles.composer}>
-      <View style={styles.composerInner}>
-        <View style={[styles.inputWrapper, { height: Math.min(120, Math.max(40, inputHeight)) }]}>
-          <Text
-            // @ts-expect-error - RN doesn't expose contentEditable but it works
-            contentEditable={enabled}
-            onChangeText={onDraftChange}
-            onContentSizeChange={(event) => setInputHeight(event.nativeEvent.contentSize.height)}
-            placeholder={placeholder}
-            placeholderTextColor={colors.tertiaryLabel}
-            style={styles.input}
-            value={draft}
-          />
-        </View>
-        <Pressable
-          disabled={!enabled || draft.trim().length === 0}
-          onPress={() => onSend(draft)}
-          style={({ pressed }) => [
-            styles.sendButton,
-            (!enabled || draft.trim().length === 0) && styles.sendButtonDisabled,
-            pressed && { opacity: 0.7 },
+    <View style={[styles.bubbleRow, isMine ? styles.bubbleRowMine : styles.bubbleRowTheirs]}>
+      <View style={styles.bubbleColumn}>
+        <View
+          style={[
+            styles.bubble,
+            isMine ? styles.bubbleMine : styles.bubbleTheirs,
+            tail ? (isMine ? styles.bubbleTailMine : styles.bubbleTailTheirs) : null,
+            status === 'failed' ? styles.bubbleFailed : null,
           ]}
         >
-          <Text style={styles.sendButtonText}>{'→'}</Text>
-        </Pressable>
+          <Text
+            selectable
+            style={[styles.bubbleText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}
+          >
+            {message}
+          </Text>
+        </View>
+        <Text
+          style={[
+            styles.bubbleFooter,
+            isMine ? styles.bubbleFooterMine : styles.bubbleFooterTheirs,
+          ]}
+        >
+          {footer}
+        </Text>
+        {onRetry ? (
+          <Button
+            onPress={onRetry}
+            size="sm"
+            startContent={<RotateCwIcon size={14} />}
+            variant="ghost"
+          >
+            {t('status.retry')}
+          </Button>
+        ) : null}
       </View>
     </View>
   );
@@ -416,7 +449,12 @@ function ChatState({
       </EmptyState.Header>
       {actionLabel && onAction ? (
         <EmptyState.Content>
-          <Button onPress={onAction} size="sm" variant="outline" startContent={<RotateCwIcon size={16} />}>
+          <Button
+            onPress={onAction}
+            size="sm"
+            startContent={<RotateCwIcon size={16} />}
+            variant="outline"
+          >
             {actionLabel}
           </Button>
         </EmptyState.Content>
@@ -427,122 +465,29 @@ function ChatState({
 
 const useChatStyles = createThemedStyles((colors) =>
   StyleSheet.create({
+    bubble: { borderCurve: 'continuous', paddingHorizontal: 13, paddingVertical: 8 },
+    bubbleColumn: { maxWidth: '100%' },
+    bubbleFailed: { backgroundColor: colors.error },
+    bubbleFooter: { fontSize: 11, lineHeight: 15, marginTop: 3, paddingHorizontal: 4 },
+    bubbleFooterMine: { color: colors.secondaryLabel, textAlign: 'right' },
+    bubbleFooterTheirs: { color: colors.secondaryLabel, textAlign: 'left' },
+    bubbleMine: { backgroundColor: colors.accent, borderRadius: 18 },
+    bubbleRow: { flexDirection: 'row' },
+    bubbleRowMine: { justifyContent: 'flex-end' },
+    bubbleRowTheirs: { justifyContent: 'flex-start' },
+    // The squared corner points the bubble back at its sender, so only the last
+    // bubble of a run from one sender gets it.
+    bubbleTailMine: { borderBottomRightRadius: 5 },
+    bubbleTailTheirs: { borderBottomLeftRadius: 5 },
+    bubbleText: { fontSize: 16, lineHeight: 21 },
+    bubbleTextMine: { color: colors.onPrimaryContainer },
+    bubbleTextTheirs: { color: colors.label },
+    bubbleTheirs: { backgroundColor: colors.surfaceContainerHighest, borderRadius: 18 },
+    newMessagesButton: { position: 'absolute', right: 14, zIndex: 2 },
+    olderRow: { alignItems: 'center' },
     root: { backgroundColor: colors.background, flex: 1 },
     scroll: { flex: 1 },
-    stateTranscript: { flexGrow: 1, gap: 12, justifyContent: 'center', padding: 16 },
-    transcript: { gap: 12, padding: 16, paddingBottom: 90 },
-    bubbleContainer: { maxWidth: '82%' },
-    bubbleContainerMine: { alignSelf: 'flex-end' },
-    bubbleContainerTheirs: { alignSelf: 'flex-start' },
-    bubble: {
-      borderRadius: 18,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.1,
-          shadowRadius: 2,
-        },
-        android: {
-          elevation: 2,
-        },
-      }),
-    },
-    bubbleMine: {
-      backgroundColor: colors.accent,
-      borderBottomRightRadius: 4,
-    },
-    bubbleTheirs: {
-      backgroundColor: colors.secondarySystemGroupedBackground,
-      borderBottomLeftRadius: 4,
-    },
-    bubbleFailed: {
-      backgroundColor: colors.systemRed,
-      opacity: 0.8,
-    },
-    bubbleText: {
-      color: colors.label,
-      fontSize: 16,
-      lineHeight: 22,
-    },
-    bubbleFooter: {
-      color: colors.secondaryLabel,
-      fontSize: 12,
-      marginTop: 4,
-      marginHorizontal: 4,
-    },
-    bubbleFooterError: {
-      color: colors.systemRed,
-    },
-    newMessagesButtonContainer: {
-      bottom: 90,
-      position: 'absolute',
-      right: 16,
-      zIndex: 2,
-    },
-    newMessagesButton: {
-      alignItems: 'center',
-      backgroundColor: colors.accent,
-      borderRadius: 24,
-      height: 48,
-      justifyContent: 'center',
-      width: 48,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.2,
-          shadowRadius: 4,
-        },
-        android: {
-          elevation: 4,
-        },
-      }),
-    },
-    composer: {
-      backgroundColor: colors.secondarySystemGroupedBackground,
-      borderTopColor: colors.separator,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      paddingBottom: Platform.OS === 'ios' ? 20 : 8,
-      paddingHorizontal: 16,
-      paddingTop: 8,
-    },
-    composerInner: {
-      alignItems: 'flex-end',
-      flexDirection: 'row',
-      gap: 8,
-    },
-    inputWrapper: {
-      backgroundColor: colors.tertiarySystemGroupedBackground,
-      borderRadius: 20,
-      flex: 1,
-      justifyContent: 'center',
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-    },
-    input: {
-      color: colors.label,
-      fontSize: 16,
-      lineHeight: 22,
-      minHeight: 24,
-    },
-    sendButton: {
-      alignItems: 'center',
-      backgroundColor: colors.accent,
-      borderRadius: 20,
-      height: 40,
-      justifyContent: 'center',
-      width: 40,
-    },
-    sendButtonDisabled: {
-      opacity: 0.5,
-    },
-    sendButtonText: {
-      color: '#FFFFFF',
-      fontSize: 24,
-      fontWeight: '600',
-    },
+    stateTranscript: { flexGrow: 1, gap: 10, justifyContent: 'center', padding: 16 },
+    transcript: { gap: 6, padding: 16, paddingTop: 8 },
   }),
 );

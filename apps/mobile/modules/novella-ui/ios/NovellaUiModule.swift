@@ -35,6 +35,32 @@ public final class NovellaUiModule: Module {
       }
     }
 
+    View(NovellaDirectMessageComposerView.self) {
+      ViewName("DirectMessageComposer")
+
+      Prop("draft") { (view: NovellaDirectMessageComposerView, draft: String?) in
+        view.setDraft(draft ?? "")
+      }
+      Prop("placeholder") { (view: NovellaDirectMessageComposerView, placeholder: String?) in
+        view.setPlaceholder(placeholder)
+      }
+      Prop("enabled") { (view: NovellaDirectMessageComposerView, enabled: Bool) in
+        view.setEnabled(enabled)
+      }
+      Prop("maxLength") { (view: NovellaDirectMessageComposerView, maxLength: Int) in
+        view.setMaxLength(maxLength)
+      }
+
+      Events("onDraftChange", "onSend", "onHeightChange")
+
+      AsyncFunction("focus") { (view: NovellaDirectMessageComposerView) in
+        view.focus()
+      }
+      AsyncFunction("blur") { (view: NovellaDirectMessageComposerView) in
+        view.blur()
+      }
+    }
+
     View(NovellaSegmentedControlView.self) {
       ViewName("SegmentedControl")
 

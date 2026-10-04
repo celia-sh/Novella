@@ -597,6 +597,106 @@ export interface UserProfile {
   growth: UserGrowth;
 }
 
+export interface DirectMessagePeer {
+  id: number;
+  userName: string;
+  avatarUrl: string;
+  isDeleted: boolean;
+}
+
+export interface DirectMessageItem {
+  id: number;
+  clientMessageId: string;
+  senderId: number;
+  content: string;
+  createdAt: string;
+}
+
+export interface DirectConversationItem {
+  peer: DirectMessagePeer;
+  lastMessage: DirectMessageItem;
+  unreadCount: number;
+  peerLastReadMessageId: number;
+  isBlockedByMe: boolean;
+  canSend: boolean;
+}
+
+export interface DirectConversationPage {
+  items: DirectConversationItem[];
+  hasMore: boolean;
+  nextBeforeMessageId: number;
+}
+
+export interface DirectMessagePage {
+  peer: DirectMessagePeer;
+  items: DirectMessageItem[];
+  hasMore: boolean;
+  nextBeforeMessageId: number;
+  myLastReadMessageId: number;
+  peerLastReadMessageId: number;
+  unreadCount: number;
+  isBlockedByMe: boolean;
+  canSend: boolean;
+}
+
+export interface GetDirectConversationsRequest {
+  beforeMessageId: number;
+  size: number;
+}
+
+export interface GetDirectMessagesRequest extends GetDirectConversationsRequest {
+  peerUserId: number;
+}
+
+export interface SendDirectMessageRequest {
+  recipientUserId: number;
+  clientMessageId: string;
+  content: string;
+}
+
+export interface SendDirectMessageResult {
+  message: DirectMessageItem;
+  peerLastReadMessageId: number;
+}
+
+export interface MarkDirectMessagesReadRequest {
+  peerUserId: number;
+  throughMessageId: number;
+}
+
+export interface MarkDirectMessagesReadResult {
+  myLastReadMessageId: number;
+  unreadCount: number;
+}
+
+export interface SetDirectMessageBlockRequest {
+  userId: number;
+  isBlocked: boolean;
+}
+
+export interface SetDirectMessageBlockResult {
+  isBlockedByMe: boolean;
+  canSend: boolean;
+}
+
+export interface DirectMessageEvent {
+  peerId: number;
+  message: DirectMessageItem;
+}
+
+export interface DirectMessageReadEvent {
+  peerId: number;
+  readerId: number;
+  throughMessageId: number;
+  readAt: string;
+}
+
+export interface DirectMessageBlockChangedEvent {
+  peerId: number;
+  isBlockedByMe: boolean;
+  canSend: boolean;
+}
+
 export interface DailyCheckInResult {
   reward: number;
   streak: number;
