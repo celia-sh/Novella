@@ -1,16 +1,6 @@
 import { requireNativeView } from 'expo';
-import {
-  forwardRef,
-  useImperativeHandle,
-  useRef,
-  type ComponentType,
-  type Ref,
-} from 'react';
+import type { ComponentType } from 'react';
 import { StyleSheet, type ViewProps } from 'react-native';
-
-export interface NativeSearchBarHandle {
-  setQuery(query: string): Promise<void>;
-}
 
 export interface NativeSearchBarProps extends ViewProps {
   clearAccessibilityLabel?: string;
@@ -23,48 +13,38 @@ export interface NativeSearchBarProps extends ViewProps {
 
 type NativeViewProps = Omit<
   NativeSearchBarProps,
-  'clearAccessibilityLabel' | 'onQueryChange' | 'onSearch' | 'query'
+  'clearAccessibilityLabel' | 'onQueryChange' | 'onSearch'
 > & {
   onQueryChange?: (event: { nativeEvent: { value: string } }) => void;
   onSearch?: (event: { nativeEvent: { value: string } }) => void;
 };
 
-type NativeViewPropsWithRef = NativeViewProps & {
-  ref?: Ref<NativeSearchBarHandle>;
-};
-
 const NativeView = requireNativeView<NativeViewProps>(
   'NovellaUi',
   'SearchBar',
-) as ComponentType<NativeViewPropsWithRef>;
+) as ComponentType<NativeViewProps>;
 
-export const NativeSearchBar = forwardRef<NativeSearchBarHandle, NativeSearchBarProps>(function NativeSearchBar(
-  {
-    clearAccessibilityLabel: _clearAccessibilityLabel,
-    onQueryChange,
-    onSearch,
-    query: _query,
-    ...props
-  },
-  ref,
-) {
-  const nativeViewRef = useRef<NativeSearchBarHandle>(null);
-  useImperativeHandle(ref, () => ({
-    setQuery(query: string) {
-      return nativeViewRef.current?.setQuery(query) ?? Promise.resolve();
-    },
-  }), []);
-
+/**
+ * The query is a prop rather than an imperative `setQuery` call: Expo resolves
+ * view-based AsyncFunctions through the Fabric tag, which can reject during the
+ * first commit or when the list remounts (e.g. a grid column change). Prop
+ * updates are applied by the mounting layer and cannot miss the view.
+ */
+export function NativeSearchBar({
+  clearAccessibilityLabel: _clearAccessibilityLabel,
+  onQueryChange,
+  onSearch,
+  ...props
+}: NativeSearchBarProps) {
   return (
     <NativeView
       {...props}
-      ref={nativeViewRef}
       onQueryChange={({ nativeEvent: { value } }) => onQueryChange?.(value)}
       onSearch={({ nativeEvent: { value } }) => onSearch?.(value)}
       style={styles.nativeView}
     />
   );
-});
+}
 
 const styles = StyleSheet.create({
   nativeView: { flex: 1, width: '100%' },

@@ -15,10 +15,6 @@ export const BOOK_SEARCH_MODE_OPTIONS = [
   value: BookSearchMode;
 }>;
 
-export interface NativeSearchControlsHandle {
-  setQuery(query: string): void;
-}
-
 export interface NativeSearchControlsProps {
   format: BookSearchFormat;
   mode: BookSearchMode;

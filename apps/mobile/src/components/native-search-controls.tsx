@@ -1,45 +1,24 @@
 import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import {
-  NativeSearchBar,
-  type NativeSearchBarHandle,
-} from '../../modules/novella-ui';
+import { NativeSearchBar } from '../../modules/novella-ui';
 
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import {
   BOOK_SEARCH_MODE_OPTIONS,
-  type NativeSearchControlsHandle,
   type NativeSearchControlsProps,
 } from '@/components/native-search-controls.types';
 
-export const NativeSearchControls = forwardRef<
-  NativeSearchControlsHandle,
-  NativeSearchControlsProps
->(function NativeSearchControls(
-  {
-    format,
-    mode,
-    onFormatChange,
-    onModeChange,
-    onQueryChange,
-    onSubmit,
-    query,
-  },
-  ref,
-) {
-  const searchBarRef = useRef<NativeSearchBarHandle>(null);
-  const initialQueryRef = useRef(query);
-  useImperativeHandle(ref, () => ({
-    setQuery(nextQuery: string) {
-      void searchBarRef.current?.setQuery(nextQuery);
-    },
-  }), []);
-  useEffect(() => {
-    void searchBarRef.current?.setQuery(initialQueryRef.current);
-  }, []);
+export function NativeSearchControls({
+  format,
+  mode,
+  onFormatChange,
+  onModeChange,
+  onQueryChange,
+  onSubmit,
+  query,
+}: NativeSearchControlsProps) {
   const { t } = useTranslation('library');
   const { t: tCommon } = useTranslation('common');
   const formatOptions = [
@@ -55,7 +34,7 @@ export const NativeSearchControls = forwardRef<
           onQueryChange={onQueryChange}
           onSearch={onSubmit}
           placeholder={t('search.placeholder')}
-          ref={searchBarRef}
+          query={query}
         />
       </View>
       <Stack.Toolbar placement="right">
@@ -79,7 +58,7 @@ export const NativeSearchControls = forwardRef<
       />
     </>
   );
-});
+}
 
 const styles = StyleSheet.create({
   searchBar: { height: 56, width: '100%' },

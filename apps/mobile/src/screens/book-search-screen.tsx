@@ -31,7 +31,6 @@ import type { LibraryMessage } from '@/localization/locales/library';
 import {
   NativeSearchControls,
 } from '@/components/native-search-controls';
-import { type NativeSearchControlsHandle } from '@/components/native-search-controls.types';
 import { useBookSearch, type BookSearchFormat } from '@/hooks/use-book-search';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
@@ -54,7 +53,6 @@ export function BookSearchScreen({
   const styles = useBookSearchScreenStyles();
   const { colors } = useAppTheme();
   const search = useBookSearch();
-  const searchControlsRef = useRef<NativeSearchControlsHandle>(null);
   const [query, setQuery] = useState(initialQuery);
   const submittedInitial = useRef(false);
   const initialQueryValue = initialQuery.trim();
@@ -114,7 +112,6 @@ export function BookSearchScreen({
         ListHeaderComponent={
           <View style={styles.header}>
             <NativeSearchControls
-              ref={searchControlsRef}
               format={search.format}
               mode={search.mode}
               onFormatChange={search.changeFormat}
@@ -144,7 +141,6 @@ export function BookSearchScreen({
                       onLongPress={() => void search.removeHistory(item)}
                       onPress={() => {
                         setQuery(item);
-                        searchControlsRef.current?.setQuery(item);
                         void search.submit(item);
                       }}
                       style={styles.historyChip}

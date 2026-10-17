@@ -18,6 +18,11 @@ public final class NovellaUiModule: Module {
       Prop("enabled") { (view: NovellaSearchBarView, enabled: Bool) in
         view.setEnabled(enabled)
       }
+      // Applied by the mounting layer, unlike an AsyncFunction, which resolves
+      // the view by tag and can race with the first commit or a remount.
+      Prop("query") { (view: NovellaSearchBarView, query: String?) in
+        view.setQuery(query ?? "")
+      }
 
       Events("onQueryChange", "onSearch")
 
