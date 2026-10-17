@@ -132,7 +132,8 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.62 },
   row: {
     alignItems: 'center',
-    borderRadius: 14,
+    borderCurve: 'continuous',
+    borderRadius: 20,
     flexDirection: 'row',
     gap: 14,
     height: CHAPTER_ROW_HEIGHT,

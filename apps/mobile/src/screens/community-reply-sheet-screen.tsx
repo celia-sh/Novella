@@ -109,11 +109,12 @@ const useCommunityReplySheetStyles = createThemedStyles((colors) => ({
   content: { gap: 12, padding: 16 },
   disabled: { opacity: 0.45 },
   errorText: { color: colors.error, fontSize: 13, lineHeight: 18 },
-  input: { borderRadius: 20, fontSize: 15, lineHeight: 21, maxHeight: 148, minHeight: 104, padding: 12 },
+  input: { borderCurve: 'continuous', borderRadius: 20, fontSize: 15, lineHeight: 21, maxHeight: 148, minHeight: 104, padding: 12 },
   pressed: { opacity: 0.68 },
   root: { backgroundColor: colors.background },
   submitButton: {
     alignItems: 'center',
+    borderCurve: 'continuous',
     borderRadius: 20,
     flexDirection: 'row',
     gap: 7,

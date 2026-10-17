@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     width: '50%',
   },
   formFields: { gap: 13 },
-  heroButton: { alignItems: 'center', borderRadius: 28, flexDirection: 'row', gap: 12, justifyContent: 'center', minHeight: 56, paddingHorizontal: 22 },
+  heroButton: { alignItems: 'center', borderCurve: 'continuous', borderRadius: 28, flexDirection: 'row', gap: 12, justifyContent: 'center', minHeight: 56, paddingHorizontal: 22 },
   heroButtonLabel: { fontSize: 17, fontWeight: '600' },
   linkLabel: { fontSize: 15, fontWeight: '600' },
   trailingLink: { alignSelf: 'flex-end', paddingVertical: 3 },

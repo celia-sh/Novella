@@ -216,6 +216,7 @@ export const CommunityRichEditor = forwardRef<
 
 const styles = StyleSheet.create({
   container: {
+    borderCurve: 'continuous',
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',

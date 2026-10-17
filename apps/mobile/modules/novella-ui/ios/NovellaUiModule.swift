@@ -79,36 +79,5 @@ public final class NovellaUiModule: Module {
 
       Events("onValueChange")
     }
-
-    View(NovellaReaderProgressBarView.self) {
-      ViewName("ReaderProgressBar")
-
-      Prop("progress") { (view: NovellaReaderProgressBarView, progress: Double) in
-        view.setProgress(progress)
-      }
-      Prop("currentPage") { (view: NovellaReaderProgressBarView, currentPage: Int) in
-        view.setCurrentPage(currentPage)
-      }
-      Prop("disabled") { (view: NovellaReaderProgressBarView, disabled: Bool) in
-        view.setDisabled(disabled)
-      }
-      Prop("totalPages") { (view: NovellaReaderProgressBarView, totalPages: Int) in
-        view.setTotalPages(totalPages)
-      }
-      Prop("progressLabel") { (view: NovellaReaderProgressBarView, progressLabel: String?) in
-        view.setProgressLabel(progressLabel)
-      }
-      Prop("remainingText") { (view: NovellaReaderProgressBarView, remainingText: String) in
-        view.setRemainingText(remainingText)
-      }
-      Prop("direction") { (view: NovellaReaderProgressBarView, direction: String) in
-        view.setDirection(direction)
-      }
-      Prop("accentColor") { (view: NovellaReaderProgressBarView, accentColor: UIColor?) in
-        view.setAccentColor(accentColor)
-      }
-
-      Events("onProgressChange")
-    }
   }
 }

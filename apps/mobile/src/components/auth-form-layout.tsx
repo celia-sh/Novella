@@ -124,11 +124,11 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.56 },
   error: { fontSize: 14, lineHeight: 20 },
   header: { gap: 10 },
-  input: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, fontSize: 17, height: 52, paddingHorizontal: 15 },
+  input: { borderCurve: 'continuous', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, fontSize: 17, height: 52, paddingHorizontal: 15 },
   pressed: { opacity: 0.76 },
   root: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingHorizontal: 22, paddingTop: 24 },
-  submitButton: { alignItems: 'center', borderRadius: 15, flexDirection: 'row', gap: 8, justifyContent: 'center', minHeight: 52, paddingHorizontal: 18 },
+  submitButton: { alignItems: 'center', borderCurve: 'continuous', borderRadius: 15, flexDirection: 'row', gap: 8, justifyContent: 'center', minHeight: 52, paddingHorizontal: 18 },
   submitLabel: { fontSize: 17, fontWeight: '600' },
   title: { fontSize: 32, fontWeight: '700', letterSpacing: -0.8, lineHeight: 38 },
 });

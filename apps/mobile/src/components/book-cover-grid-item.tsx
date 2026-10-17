@@ -25,7 +25,8 @@ import {
 import { createThemedStyles } from '@/theme/app-theme';
 
 export const BOOK_COVER_ASPECT_RATIO = 2 / 3;
-const BOOK_COVER_CORNER_RADIUS = 12;
+/** Shared with the loading skeleton so placeholders match the real cover. */
+export const BOOK_COVER_CORNER_RADIUS = 12;
 
 interface BookCoverGridItemProps {
   accessibilityActions?: readonly AccessibilityActionInfo[];

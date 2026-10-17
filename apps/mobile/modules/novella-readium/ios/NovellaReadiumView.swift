@@ -14,6 +14,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   let onStatus = EventDispatcher()
   let onTap = EventDispatcher()
   let onBoundary = EventDispatcher()
+  let onProgressMetrics = EventDispatcher()
 
   private var publicationUri: String?
   private var publicationId: String?
@@ -31,6 +32,9 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   private var suppressNextTap = false
   private var boundaryCandidate: String?
   private var lastBoundaryEventTime: TimeInterval = 0
+  private var progressMetricsWorkItem: DispatchWorkItem?
+  private var emittedProgressMetrics: String?
+  private var lastLayoutSize: CGSize = .zero
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -64,11 +68,13 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     preferences = value
     applyPreferences()
     installInputObservers()
+    scheduleProgressMetricsUpdate()
   }
 
   func setContentInsets(_ value: [String: Double]) {
     contentInsets = value
     navigator?.view.setNeedsLayout()
+    scheduleProgressMetricsUpdate()
   }
 
   func getCurrentLocator() async -> [String: Any]? {
@@ -109,12 +115,17 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     super.layoutSubviews()
     navigator?.view.frame = bounds
     registerNavigationContentScrollView()
+    if bounds.size != lastLayoutSize {
+      lastLayoutSize = bounds.size
+      scheduleProgressMetricsUpdate()
+    }
   }
 
   override func didMoveToWindow() {
     super.didMoveToWindow()
     guard window != nil else { return }
     registerNavigationContentScrollView()
+    scheduleProgressMetricsUpdate()
     DispatchQueue.main.async { [weak self] in
       self?.registerNavigationContentScrollView()
     }
@@ -205,6 +216,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       if let href = location?.href.description { installedStatus["href"] = href }
       onStatus(installedStatus)
       applyPreferences()
+      scheduleProgressMetricsUpdate()
     } catch {
       onError(["code": "navigator_failed", "message": String(describing: error), "recoverable": true])
     }
@@ -321,6 +333,74 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       pending.append(contentsOf: view.subviews)
     }
     return result
+  }
+
+  /// Reports how many rendered pages the current chapter has.
+  ///
+  /// Readium has no page-count API for a reflowable resource, but its WKWebView
+  /// has already paginated one: in paged mode the content width is a whole
+  /// number of viewport widths, and in scroll mode the content height is a
+  /// whole number of screenfuls. This is a measurement of the actual layout,
+  /// not an estimate of how the text would fit. The value is emitted only when
+  /// it changes, so page turns do not wake React.
+  private func scheduleProgressMetricsUpdate() {
+    progressMetricsWorkItem?.cancel()
+    let item = DispatchWorkItem { [weak self] in
+      self?.progressMetricsWorkItem = nil
+      self?.emitProgressMetrics()
+    }
+    progressMetricsWorkItem = item
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: item)
+    // A spread's content size can still be settling when the first locator
+    // arrives; re-read it once the layout has had time to finish.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+      self?.emitProgressMetrics()
+    }
+  }
+
+  private func emitProgressMetrics() {
+    guard
+      isReady,
+      let navigator,
+      let scrollView = progressContentScrollView(for: navigator)
+    else { return }
+
+    let pageCount: Int
+    let isPaged = !navigator.presentation.scroll
+    if isPaged {
+      let pageWidth = scrollView.bounds.width
+      let contentWidth = scrollView.contentSize.width
+      guard pageWidth > 1, contentWidth > 1 else { return }
+      pageCount = max(1, Int((contentWidth / pageWidth).rounded()))
+    } else {
+      let visibleHeight = scrollView.bounds.height
+        - scrollView.adjustedContentInset.top
+        - scrollView.adjustedContentInset.bottom
+      let contentHeight = scrollView.contentSize.height
+      guard visibleHeight > 1, contentHeight > 1 else { return }
+      pageCount = max(1, Int(ceil((contentHeight - 0.5) / visibleHeight)))
+    }
+
+    // Page count is a paged-mode concept; scroll mode reports screenfuls and
+    // consumers only use them to detect a chapter that fits on one screen.
+    let signature = "\(pageCount):\(isPaged)"
+    guard signature != emittedProgressMetrics else { return }
+    emittedProgressMetrics = signature
+    onProgressMetrics(["pageCount": pageCount, "paged": isPaged])
+  }
+
+  private func progressContentScrollView(
+    for navigator: EPUBNavigatorViewController
+  ) -> UIScrollView? {
+    if let registeredContentScrollView {
+      return registeredContentScrollView
+    }
+    let isPaged = !navigator.presentation.scroll
+    return descendantScrollViews(of: navigator.view).max { left, right in
+      let leftExtent = isPaged ? left.contentSize.width : left.contentSize.height
+      let rightExtent = isPaged ? right.contentSize.width : right.contentSize.height
+      return leftExtent < rightExtent
+    }
   }
 
   @MainActor private func installInputObservers() {
@@ -464,6 +544,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     if let epubNavigator = self.navigator {
       enforceScrollModeLayout(epubNavigator.presentation)
       registerNavigationContentScrollView()
+      scheduleProgressMetricsUpdate()
     }
     if !isReady {
       isReady = true
@@ -568,6 +649,9 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   }
 
   private func detachNavigator() {
+    progressMetricsWorkItem?.cancel()
+    progressMetricsWorkItem = nil
+    emittedProgressMetrics = nil
     if let owner = registeredContentScrollViewOwner {
       owner.setContentScrollView(nil, for: .top)
     }

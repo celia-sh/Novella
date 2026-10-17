@@ -75,6 +75,13 @@ export interface ReadiumBoundaryEvent {
   direction: 'next' | 'previous';
 }
 
+/** Rendered geometry of the current chapter, measured after layout. */
+export interface ReadiumProgressMetricsEvent {
+  pageCount: number;
+  /** `true` when `pageCount` counts page turns; `false` for screenfuls. */
+  paged: boolean;
+}
+
 export interface NovellaReadiumViewHandle {
   getCurrentLocator(): Promise<ReadiumLocator | null>;
   goBackward(): Promise<boolean>;
@@ -92,6 +99,7 @@ export interface NovellaReadiumViewProps {
   onImage?: (image: ReadiumImageEvent) => void;
   onLink?: (link: ReadiumLinkEvent) => void;
   onLocatorChange?: (locator: ReadiumLocator) => void;
+  onProgressMetrics?: (metrics: ReadiumProgressMetricsEvent) => void;
   onReady?: () => void;
   onStatus?: (status: ReadiumStatusEvent) => void;
   onTap?: (event: ReadiumTapEvent) => void;

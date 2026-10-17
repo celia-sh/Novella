@@ -161,6 +161,7 @@ function CoverTrack({
               {
                 backgroundColor: palette.skeleton,
                 borderColor: palette.border,
+                borderCurve: 'continuous',
                 borderRadius: 12,
                 height: cardHeight,
                 marginBottom: gap,

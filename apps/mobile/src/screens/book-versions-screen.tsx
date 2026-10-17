@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   sheetSection: { gap: 16 },
   sheetTitle: { fontSize: 17, fontWeight: '700', lineHeight: 22 },
   state: { alignItems: 'center', gap: 12, paddingVertical: 48 },
-  versionList: { borderRadius: 16, overflow: 'hidden' },
+  versionList: { borderCurve: 'continuous', borderRadius: 16, overflow: 'hidden' },
   versionMeta: { fontSize: 13, lineHeight: 18 },
   versionRow: {
     alignItems: 'center',

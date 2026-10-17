@@ -155,15 +155,6 @@ export function BookSearchScreen({
                 </View>
               </View>
             ) : null}
-            {search.committedQuery && search.status !== 'loading' ? (
-              <Text style={styles.resultSummary}>
-                {t('search.resultSummary', {
-                  format: search.format === 'Novel' ? t('formats.novels') : t('formats.comics'),
-                  page: Math.max(1, search.page),
-                  totalPages: Math.max(1, search.totalPages),
-                })}
-              </Text>
-            ) : null}
           </View>
         }
         columnWrapperStyle={styles.row}
@@ -303,7 +294,6 @@ const useBookSearchScreenStyles = createThemedStyles((colors) => ({
   historyLabel: { color: colors.label, fontSize: 14 },
   historySection: { gap: 10 },
   historyWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  resultSummary: { color: colors.secondaryLabel, fontSize: 13, fontVariant: ['tabular-nums'] },
   retryButton: { backgroundColor: colors.accent, borderCurve: 'continuous', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
   retryLabel: { color: colors.onPrimaryContainer, fontWeight: '700' },
   row: { gap: 10 },

@@ -11,11 +11,6 @@ export {
 } from './src/native-search-bar';
 
 export {
-  NativeReaderProgressBar,
-  type NativeReaderProgressBarProps,
-} from './src/native-reader-progress-bar';
-
-export {
   NativeDirectMessageComposer,
   type NativeDirectMessageComposerHandle,
   type NativeDirectMessageComposerProps,

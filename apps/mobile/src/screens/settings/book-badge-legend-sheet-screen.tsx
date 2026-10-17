@@ -88,6 +88,7 @@ export function BookBadgeLegendSheetScreen() {
 const styles = StyleSheet.create({
   badgeCard: {
     alignItems: 'center',
+    borderCurve: 'continuous',
     borderRadius: 16,
     flexDirection: 'row',
     gap: 12,

@@ -15,6 +15,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { showAlert } from '@/components/native-alert-dialog';
 import {
+  READER_IMAGE_VIEWER_CORNER_RADIUS,
+  READER_IMAGE_VIEWER_INSET,
+} from '@/services/reader-image-frame';
+import {
   ReaderImageActionError,
   saveReaderImage,
   shareReaderImage,
@@ -87,10 +91,10 @@ export function ReaderImageViewer({
     <>
       <ImageViewer
         blur
-        cornerRadius={16}
+        cornerRadius={READER_IMAGE_VIEWER_CORNER_RADIUS}
         doubleTapScale={2.5}
         haptics
-        inset={16}
+        inset={READER_IMAGE_VIEWER_INSET}
         maxScale={6}
         onOpenChange={handleOpenChange}
         open={isOpen}
@@ -153,7 +157,7 @@ function ReaderImageViewerBottomTouchShield() {
 function ReaderImageViewerBlankTapGuard({ imageSize }: { imageSize: ReaderImageSize | null }) {
   const { height, width } = useWindowDimensions();
   const { bottom, top } = useSafeAreaInsets();
-  const inset = 16;
+  const inset = READER_IMAGE_VIEWER_INSET;
   const verticalInset = Math.max(top, bottom) + inset;
   const boxWidth = Math.max(width - inset * 2, 1);
   const boxHeight = Math.max(height - verticalInset * 2, 1);
