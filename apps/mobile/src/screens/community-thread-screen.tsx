@@ -395,8 +395,8 @@ export function CommunityThreadScreen({
                 />
               )
             }
-            ListFooterComponent={footer}
-            ListHeaderComponent={header}
+            ListFooterComponent={footer ?? undefined}
+            ListHeaderComponent={header ?? undefined}
             contentContainerStyle={styles.content}
             contentInsetAdjustmentBehavior="automatic"
             data={rows}

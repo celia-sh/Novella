@@ -456,7 +456,9 @@ function shouldAttachBackendIdentity(url: string): boolean {
   }
 }
 
-function toAppLifecycleState(status: AppStateStatus): AppLifecycleState {
+function toAppLifecycleState(
+  status: AppStateStatus | null | undefined | string,
+): AppLifecycleState {
   // iOS emits `inactive` for transient overlays and transitions (Control
   // Center, notification shade, calls). Treat only a real background state as
   // suspendable so those brief transitions do not tear down SignalR.

@@ -164,7 +164,7 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
                   </Pressable>
                 </View>
               </View>
-            ) : null
+            ) : undefined
           }
           onEndReached={loadMore}
           onEndReachedThreshold={0.65}

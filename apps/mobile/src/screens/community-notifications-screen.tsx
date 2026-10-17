@@ -149,7 +149,7 @@ export function CommunityNotificationsScreen() {
               <Button onPress={() => void loadMore()} variant="secondary">
                 {t('actions.loadMore')}
               </Button>
-            ) : null
+            ) : undefined
           }
           contentContainerStyle={styles.content}
           contentInsetAdjustmentBehavior="automatic"

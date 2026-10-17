@@ -4,7 +4,9 @@ import { useMemo } from 'react';
 
 import { useAppTheme } from '@/theme/app-theme';
 
-type StackScreenOptions = React.ComponentProps<typeof Stack>['screenOptions'];
+type StackScreenOptions = NonNullable<
+  React.ComponentProps<typeof Stack>['screenOptions']
+>;
 
 const hasLiquidGlass = isLiquidGlassAvailable();
 

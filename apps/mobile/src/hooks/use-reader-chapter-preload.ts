@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { InteractionManager } from 'react-native';
 import type { TextConversionMode } from '@novella/api-client';
 
 import {
@@ -46,7 +45,7 @@ export function useReaderChapterPreload({
 
     const controller = new AbortController();
     preloadControllerRef.current = controller;
-    const interaction = InteractionManager.runAfterInteractions(() => {
+    const idleHandle = requestIdleCallback(() => {
       void preloadReaderChapterWindow({
         bookId,
         currentSortNum,
@@ -55,9 +54,9 @@ export function useReaderChapterPreload({
         windowSize,
         ...(convert === undefined ? {} : { convert }),
       }).catch(() => undefined);
-    });
+    }, { timeout: 1000 });
     return () => {
-      interaction.cancel();
+      cancelIdleCallback(idleHandle);
       controller.abort();
       if (preloadControllerRef.current === controller) {
         preloadControllerRef.current = null;

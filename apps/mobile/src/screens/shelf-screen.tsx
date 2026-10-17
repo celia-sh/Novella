@@ -97,7 +97,7 @@ export function ShelfScreen({ media: initialMedia = 'All', parents = [] }: Shelf
   const [media, setMedia] = useState<ShelfMediaType>(initialMedia);
   const [selectedKeys, setSelectedKeys] = useState<Set<ShelfItemKey>>(new Set());
   const [editInteraction, setEditInteraction] = useState<ShelfEditInteraction>('select');
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const scrollOffsetRef = useRef(0);
   const viewportHeightRef = useRef(0);
   const coverViewport = useCoverScrollViewport();
@@ -430,7 +430,7 @@ function ShelfContent({
   onReorder: (parents: readonly string[], keys: readonly ShelfItemKey[]) => void;
   parents: string[];
   scrollOffsetRef: React.MutableRefObject<number>;
-  scrollViewRef: React.RefObject<ScrollView | null>;
+  scrollViewRef: React.RefObject<React.ComponentRef<typeof ScrollView> | null>;
   selectedKeys: Set<ShelfItemKey>;
   setSelectedKeys: React.Dispatch<React.SetStateAction<Set<ShelfItemKey>>>;
   snapshot: ShelfSnapshot;

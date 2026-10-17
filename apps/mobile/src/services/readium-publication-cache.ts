@@ -170,7 +170,7 @@ function writeTextResource(root: Directory, href: string, content: string): void
   ensureDirectory(destination.parentDirectory);
   const temporary = new File(destination.parentDirectory, `${destination.name}.tmp`);
   if (temporary.exists) temporary.delete();
-  temporary.write(content);
+  temporary.writeSync(content);
   temporary.moveSync(destination, { overwrite: true });
 }
 

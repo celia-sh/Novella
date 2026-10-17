@@ -149,7 +149,7 @@ export function DirectMessageConversationsScreen() {
               styles={styles}
             />
           </View>
-        ) : null
+        ) : undefined
       }
       showsVerticalScrollIndicator={false}
       style={styles.root}

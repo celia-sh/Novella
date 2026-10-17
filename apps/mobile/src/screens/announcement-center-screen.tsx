@@ -74,7 +74,7 @@ export function AnnouncementCenterScreen() {
                   onRetry={() => void retryLoadMore()}
                 />
               )
-            : null}
+            : undefined}
         ListHeaderComponent={items.length > 0 && serverError
           ? (
               <View style={styles.warningStack}>
@@ -84,7 +84,7 @@ export function AnnouncementCenterScreen() {
                 />
               </View>
             )
-          : null}
+          : undefined}
         onEndReached={() => void loadMore()}
         onEndReachedThreshold={0.4}
         refreshControl={

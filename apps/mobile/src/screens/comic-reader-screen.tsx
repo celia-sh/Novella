@@ -10,9 +10,9 @@ import {
   Text,
   useWindowDimensions,
   View,
+  type ListViewToken,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
-  type ViewToken,
 } from 'react-native';
 import {
   ApiError,
@@ -125,6 +125,9 @@ export interface ComicReaderScreenProps {
   sortNum: number;
   openPosition?: ReaderOpenPosition;
 }
+
+type ComicSlotViewToken = Omit<ListViewToken, 'item'> & { item: ComicPageDisplaySlot };
+type ComicItemViewToken = Omit<ListViewToken, 'item'> & { item: ComicPageDisplayItem };
 
 export function ComicReaderScreen(props: ComicReaderScreenProps) {
   return <ComicReaderScreenContent {...props} />;
@@ -700,8 +703,8 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   const onPagedViewableItemsChanged = useCallback(({
     viewableItems,
   }: {
-    changed: ViewToken<ComicPageDisplaySlot>[];
-    viewableItems: ViewToken<ComicPageDisplaySlot>[];
+    changed: ComicSlotViewToken[];
+    viewableItems: ComicSlotViewToken[];
   }) => {
     const visible = viewableItems.find((token) => token.isViewable);
     const pages = visible?.item?.pages ?? [];

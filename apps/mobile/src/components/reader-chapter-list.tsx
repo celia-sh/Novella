@@ -37,8 +37,8 @@ export function ReaderChapterList({ emptyState, header, items, onSelect, palette
         <View style={[styles.separator, { backgroundColor: palette.outlineVariant }]} />
       )}
       keyExtractor={(item) => String(item.id)}
-      ListEmptyComponent={emptyState ?? null}
-      ListHeaderComponent={header ?? null}
+      ListEmptyComponent={emptyState ?? undefined}
+      ListHeaderComponent={header ?? undefined}
       renderItem={({ item }) => (
         <Pressable
           accessibilityLabel={t('accessibility.openChapter', {

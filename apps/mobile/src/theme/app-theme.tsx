@@ -7,7 +7,12 @@ import {
   useMemo,
 } from 'react';
 import { StyleSheet, useColorScheme } from 'react-native';
-import type { ColorValue } from 'react-native';
+import type {
+  ColorValue,
+  ImageStyle,
+  TextStyle,
+  ViewStyle,
+} from 'react-native';
 
 import { usePlatformAppColors } from '@/hooks/use-platform-app-colors';
 import { useAppSettings } from '@/services/settings';
@@ -97,7 +102,11 @@ export function resolveOnAccentHex(accent: ColorValue): string {
   return 0.299 * r + 0.587 * g + 0.114 * b > 186 ? '#000000' : '#FFFFFF';
 }
 
-export function createThemedStyles<T extends StyleSheet.NamedStyles<T>>(
+type NamedStyles<T> = {
+  [P in keyof T]: ViewStyle | TextStyle | ImageStyle;
+};
+
+export function createThemedStyles<T extends NamedStyles<T>>(
   factory: (colors: AppColors) => T,
 ): () => T {
   return function useThemedStyles() {

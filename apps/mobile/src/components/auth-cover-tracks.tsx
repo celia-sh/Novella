@@ -46,7 +46,9 @@ export function AuthCoverTracks({
 }) {
   const reduceMotion = useReducedMotion();
   const [isFocused, setIsFocused] = useState(false);
-  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+  const [appState, setAppState] = useState<AppStateStatus>(
+    AppState.currentState as AppStateStatus,
+  );
 
   useFocusEffect(useCallback(() => {
     setIsFocused(true);
