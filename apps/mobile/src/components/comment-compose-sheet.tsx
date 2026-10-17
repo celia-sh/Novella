@@ -122,6 +122,7 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.45 },
   errorText: { fontSize: 13, lineHeight: 18 },
   input: {
+    borderCurve: 'continuous',
     borderRadius: 20,
     fontSize: 15,
     lineHeight: 21,
@@ -133,6 +134,7 @@ const styles = StyleSheet.create({
   root: {},
   submitButton: {
     alignItems: 'center',
+    borderCurve: 'continuous',
     borderRadius: 20,
     flexDirection: 'row',
     gap: 7,

@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   },
   description: { fontSize: 13, lineHeight: 18 },
   errorText: { fontSize: 15, lineHeight: 21, textAlign: 'center' },
-  infoItem: { alignItems: 'flex-start', borderRadius: 16, flexDirection: 'row', gap: 12, padding: 14 },
+  infoItem: { alignItems: 'flex-start', borderCurve: 'continuous', borderRadius: 16, flexDirection: 'row', gap: 12, padding: 14 },
   infoLabel: { fontSize: 12, lineHeight: 16 },
   infoText: { flex: 1, gap: 4 },
   infoValue: { fontSize: 16, fontWeight: '600', lineHeight: 22 },
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
   tag: { borderRadius: 8, borderWidth: 0.5, paddingHorizontal: 12, paddingVertical: 7 },
   tagLabel: { fontSize: 14, lineHeight: 18 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  uploaderCard: { alignItems: 'center', borderRadius: 20, flexDirection: 'row', gap: 14, padding: 16 },
+  uploaderCard: { alignItems: 'center', borderCurve: 'continuous', borderRadius: 20, flexDirection: 'row', gap: 14, padding: 16 },
   uploaderName: { fontSize: 17, fontWeight: '700', lineHeight: 22 },
   uploaderText: { flex: 1, gap: 4 },
 });

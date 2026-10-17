@@ -298,41 +298,47 @@ function BookDetailContent({
         </View>
 
         <View style={styles.actions}>
-          <IconButton
-            accessibilityLabel={isInShelf ? t('detail.removeFromShelf') : t('detail.addToShelf')}
-            containerColor={isInShelf ? palette.primaryContainer : palette.surfaceContainerHighest}
-            disabled={isShelfLoading}
-            icon={() =>
-              isInShelf ? (
-                <IconBookmarkFilled color={palette.onPrimaryContainer} size={25} />
-              ) : (
-                <IconBookmark color={palette.onSurfaceVariant} size={25} strokeWidth={2} />
-              )
-            }
-            loading={isShelfLoading}
-            onPress={() => void onToggleShelf()}
-            size={25}
-            style={styles.shelfButton}
-          />
+          {/* Paper's Surface splits border styles across two layers and drops
+              borderCurve from the outer one, so the clip view owns the curve. */}
+          <View style={styles.shelfButtonClip}>
+            <IconButton
+              accessibilityLabel={isInShelf ? t('detail.removeFromShelf') : t('detail.addToShelf')}
+              containerColor={isInShelf ? palette.primaryContainer : palette.surfaceContainerHighest}
+              disabled={isShelfLoading}
+              icon={() =>
+                isInShelf ? (
+                  <IconBookmarkFilled color={palette.onPrimaryContainer} size={25} />
+                ) : (
+                  <IconBookmark color={palette.onSurfaceVariant} size={25} strokeWidth={2} />
+                )
+              }
+              loading={isShelfLoading}
+              onPress={() => void onToggleShelf()}
+              size={25}
+              style={styles.shelfButton}
+            />
+          </View>
 
-          <Button
-            accessibilityLabel={resumeChapter
-              ? t('detail.continueReading', { title: resumeChapter.title })
-              : t('detail.startReading')}
-            buttonColor={palette.primary}
-            contentStyle={styles.readButtonContent}
-            disabled={book.chapters.length === 0}
-            icon={({ color }) => <IconPlayerPlayFilled color={color} size={22} />}
-            labelStyle={styles.readButtonLabel}
-            mode="contained"
-            onPress={() => openReader(book.id, book.type ?? bookType ?? 'Novel', startSortNum)}
-            style={styles.readButton}
-            textColor={palette.onPrimary}
-          >
-            {cleanResumeTitle
-              ? t('detail.continueReadingButton', { title: shortenChapterTitle(cleanResumeTitle) })
-              : t('detail.startReading')}
-          </Button>
+          <View style={styles.readButtonClip}>
+            <Button
+              accessibilityLabel={resumeChapter
+                ? t('detail.continueReading', { title: resumeChapter.title })
+                : t('detail.startReading')}
+              buttonColor={palette.primary}
+              contentStyle={styles.readButtonContent}
+              disabled={book.chapters.length === 0}
+              icon={({ color }) => <IconPlayerPlayFilled color={color} size={22} />}
+              labelStyle={styles.readButtonLabel}
+              mode="contained"
+              onPress={() => openReader(book.id, book.type ?? bookType ?? 'Novel', startSortNum)}
+              style={styles.readButton}
+              textColor={palette.onPrimary}
+            >
+              {cleanResumeTitle
+                ? t('detail.continueReadingButton', { title: shortenChapterTitle(cleanResumeTitle) })
+                : t('detail.startReading')}
+            </Button>
+          </View>
         </View>
 
         {shelfError ? (
@@ -374,8 +380,7 @@ function BookDetailContent({
           </View>
         ) : null}
 
-        <Surface
-          elevation={0}
+        <View
           style={[
             styles.updateInfo,
             !book.introduction.trim() && styles.updateInfoWithoutIntroduction,
@@ -393,7 +398,7 @@ function BookDetailContent({
                   time: formatRelativeTime(book.lastUpdatedAt, locale) || t('detail.unknownTime'),
                 })}
           </Text>
-        </Surface>
+        </View>
 
         <SectionTitle palette={palette}>{t('detail.chapters')}</SectionTitle>
       </View>
@@ -433,14 +438,13 @@ function BookDetailContent({
                   {chapter.title}
                 </Text>
                 {isCurrent ? (
-                  <Surface
-                    elevation={0}
+                  <View
                     style={[styles.currentBadge, { backgroundColor: palette.primaryContainer }]}
                   >
                     <Text style={[styles.currentBadgeLabel, { color: palette.onPrimaryContainer }]}>
                       {t('detail.current')}
                     </Text>
-                  </Surface>
+                  </View>
                 ) : null}
               </View>
             </TouchableRipple>
@@ -729,8 +733,7 @@ function BookHeroContent({
 
 function MetaChip({ icon: Icon, palette, value }: { icon: TablerIcon; palette: BookDetailPalette; value: string }) {
   return (
-    <Surface
-      elevation={0}
+    <View
       style={[
         styles.metaChip,
         { backgroundColor: hexWithAlpha(palette.surfaceContainerHighest, 0.71) },
@@ -738,7 +741,7 @@ function MetaChip({ icon: Icon, palette, value }: { icon: TablerIcon; palette: B
     >
       <Icon color={palette.onSurfaceVariant} size={14} strokeWidth={2} />
       <Text style={[styles.metaChipText, { color: palette.onSurfaceVariant }]}>{value}</Text>
-    </Surface>
+    </View>
   );
 }
 
@@ -859,9 +862,9 @@ const styles = StyleSheet.create({
   chapterTitle: { flex: 1, fontSize: 14, letterSpacing: 0.5, lineHeight: 21 },
   chips: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 20 },
   coverFallback: { alignItems: 'center', height: 150, justifyContent: 'center', width: 100 },
-  coverFrame: { borderRadius: 8, height: 150, overflow: 'hidden', width: 100 },
-  coverShadow: { borderRadius: 8, boxShadow: '0 3px 8px rgba(0, 0, 0, 0.176)', height: 150, width: 100 },
-  currentBadge: { borderRadius: 4, paddingHorizontal: 8, paddingVertical: 2 },
+  coverFrame: { borderCurve: 'continuous', borderRadius: 8, height: 150, overflow: 'hidden', width: 100 },
+  coverShadow: { borderCurve: 'continuous', borderRadius: 8, boxShadow: '0 3px 8px rgba(0, 0, 0, 0.176)', height: 150, width: 100 },
+  currentBadge: { borderCurve: 'continuous', borderRadius: 4, paddingHorizontal: 8, paddingVertical: 2 },
   currentBadgeLabel: { fontSize: 11, fontWeight: '500', letterSpacing: 0.5, lineHeight: 16 },
   currentChapterText: { fontWeight: '700' },
   currentChapterTitle: { fontWeight: '600' },
@@ -880,29 +883,31 @@ const styles = StyleSheet.create({
   introductionSection: { gap: 8, paddingBottom: 24, paddingTop: 24 },
   quickSearchPressed: { opacity: 0.72 },
   quickSearchTarget: { borderRadius: 4 },
-  loadingAction: { borderRadius: 16, height: 56, width: '100%' },
+  loadingAction: { borderCurve: 'continuous', borderRadius: 16, height: 56, width: '100%' },
   loadingAuthor: { height: 15, width: '42%' },
   loadingAuthorSlot: { height: 20, justifyContent: 'center' },
-  loadingBlock: { borderRadius: 8, overflow: 'hidden' },
+  loadingBlock: { borderCurve: 'continuous', borderRadius: 8, overflow: 'hidden' },
   loadingBody: { gap: 20, paddingVertical: 20 },
   loadingChip: { height: 26, width: 58 },
   loadingChipRow: { flexDirection: 'row', gap: 8 },
   loadingChipWide: { height: 26, width: 92 },
   loadingCover: { height: 150, overflow: 'hidden', width: 100 },
   loadingHero: { alignItems: 'flex-end', flexDirection: 'row', gap: 16, padding: 20, paddingBottom: 16 },
-  loadingParagraph: { borderRadius: 16, height: 88, width: '100%' },
+  loadingParagraph: { borderCurve: 'continuous', borderRadius: 16, height: 88, width: '100%' },
   loadingTitle: { height: 28, width: '88%' },
-  loadingUpdate: { borderRadius: 12, height: 42, width: '100%' },
-  metaChip: { alignItems: 'center', borderRadius: 8, flexDirection: 'row', gap: 4, height: 26, paddingHorizontal: 10 },
+  loadingUpdate: { borderCurve: 'continuous', borderRadius: 12, height: 42, width: '100%' },
+  metaChip: { alignItems: 'center', borderCurve: 'continuous', borderRadius: 8, flexDirection: 'row', gap: 4, height: 26, paddingHorizontal: 10 },
   metaChipText: { fontSize: 12, fontWeight: '500', letterSpacing: 0.25, lineHeight: 17 },
   readButton: { borderRadius: 16, flex: 1, height: 56 },
+  readButtonClip: { borderCurve: 'continuous', borderRadius: 16, flex: 1, height: 56, overflow: 'hidden' },
   readButtonContent: { height: 56 },
   readButtonLabel: { fontSize: 15, fontWeight: '600', letterSpacing: 0.1, lineHeight: 21.5 },
   root: { flex: 1 },
   scrollView: { flex: 1 },
   sectionTitle: { fontSize: 13, fontWeight: '600', letterSpacing: 0.5, lineHeight: 19 },
   shelfButton: { borderRadius: 16, height: 56, margin: 0, width: 56 },
-  updateInfo: { alignItems: 'center', borderRadius: 12, flexDirection: 'row', gap: 8, marginBottom: 24, padding: 12 },
+  shelfButtonClip: { borderCurve: 'continuous', borderRadius: 16, height: 56, overflow: 'hidden', width: 56 },
+  updateInfo: { alignItems: 'center', borderCurve: 'continuous', borderRadius: 12, flexDirection: 'row', gap: 8, marginBottom: 24, padding: 12 },
   updateInfoWithoutIntroduction: { marginTop: 24 },
   updateText: { flex: 1, fontSize: 13, letterSpacing: 0.25, lineHeight: 19 },
 });
