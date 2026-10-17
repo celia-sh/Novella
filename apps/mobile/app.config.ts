@@ -79,7 +79,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         ios: {
           // ccache 加速 iOS 原生 C++ 编译（CI 缓存 ~/Library/Caches/ccache）。
           ccacheEnabled: true,
-          // SDK 57 默认值，显式固定防止漂移。
+          // SDK 58 默认值，显式固定防止漂移。
           usePrecompiledModules: true,
           buildReactNativeFromSource: false,
           extraPods: [
@@ -103,6 +103,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         },
       },
     ],
+    // react-native-enriched-html 1.1.1 needs the prebuilt React framework's
+    // headers on its search path under RN 0.88. Remove with the 1.2.0 upgrade.
+    './plugins/with-enriched-html-react-headers',
     'expo-sharing',
   ],
   extra: {
