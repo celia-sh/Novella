@@ -7,20 +7,21 @@ import {
   useWindowDimensions,
   type TextStyle,
 } from 'react-native';
-import type {
-  CustomBlockRenderer,
-  CustomTagRendererRecord,
-  TNode,
-  TPhrasing,
+import {
+  TNodeChildrenRenderer,
+  type CustomBlockRenderer,
+  type CustomTagRendererRecord,
+  type TNode,
+  type TPhrasing,
 } from 'react-native-render-html';
 
 const DEFAULT_FONT_SIZE = 16;
 const DEFAULT_LINE_HEIGHT_RATIO = 1.8;
 const ANNOTATION_FONT_SIZE_RATIO = 0.5;
-// Preview body: 14pt font / 22.4pt line → 4 rows ≈ 90. Matches the non-ruby
-// `introductionClip` maxHeight in book-detail-screen, so the placeholder holds
-// the same space while the ruby flow is being measured.
+// Preview body: 14pt font / 22.4pt line → 4 rows ≈ 90. Hold that height while
+// the ruby flow is being measured so the section never flashes taller.
 const PREVIEW_CLIP_PLACEHOLDER_HEIGHT = 90;
+const PREVIEW_LINES = 4;
 
 const CJK_CHARACTER = /[\u2e80-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/u;
 
@@ -210,8 +211,27 @@ function createHtmlRubyBlockRenderer({
     tnode,
     ...defaultRendererProps
   }): ReactElement {
-    if (!containsRuby(tnode) || containsNestedBlock(tnode)) {
+    if (containsNestedBlock(tnode)) {
       return <TDefaultRenderer {...defaultRendererProps} tnode={tnode} />;
+    }
+
+    if (!containsRuby(tnode)) {
+      if (!preview) {
+        return <TDefaultRenderer {...defaultRendererProps} tnode={tnode} />;
+      }
+
+      // Preview content is flattened to a single inline flow, so the block can
+      // be a Text and the native ellipsis handles the fourth line exactly.
+      return (
+        <Text
+          ellipsizeMode="tail"
+          numberOfLines={PREVIEW_LINES}
+          selectable={selectable}
+          style={tnode.getNativeStyles()}
+        >
+          <TNodeChildrenRenderer tnode={tnode} />
+        </Text>
+      );
     }
 
     const tokens: InlineToken[] = [];

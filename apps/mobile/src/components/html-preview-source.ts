@@ -14,7 +14,10 @@ type PreviewElement = PreviewNode & { type: 'tag'; name: string; children: Previ
 const PREVIEW_BLOCK_TAGS = new Set([
   'article',
   'blockquote',
+  'center',
   'div',
+  'figcaption',
+  'figure',
   'h1',
   'h2',
   'h3',
@@ -24,6 +27,7 @@ const PREVIEW_BLOCK_TAGS = new Set([
   'li',
   'ol',
   'p',
+  'pre',
   'section',
   'ul',
 ]);

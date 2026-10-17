@@ -880,7 +880,7 @@ const styles = StyleSheet.create({
   heroContent: { alignItems: 'flex-end', bottom: 16, flexDirection: 'row', gap: 16, position: 'absolute' },
   heroText: { flex: 1, gap: 4, justifyContent: 'flex-end', minHeight: 150, paddingBottom: 1 },
   inlineHeroClip: { overflow: 'hidden' },
-  introductionClip: { maxHeight: 90, overflow: 'hidden' },
+  introductionClip: { overflow: 'hidden' },
   introductionClipWithRuby: { maxHeight: 1000 },
   introductionPreview: { borderRadius: 8, paddingVertical: 4 },
   introductionSection: { gap: 8, paddingBottom: 24, paddingTop: 24 },
