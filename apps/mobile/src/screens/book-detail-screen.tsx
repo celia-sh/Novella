@@ -79,6 +79,13 @@ export interface BookDetailScreenProps {
 
 type TablerIcon = ComponentType<ComponentProps<typeof IconHeart>>;
 
+/**
+ * Pressable fires `onPress` after a long press unless `onLongPress` exists.
+ * The title and author Texts are selectable, so their native copy menu owns
+ * the long press; registering this no-op keeps it from also quick-searching.
+ */
+const ignoreLongPress = () => {};
+
 const BOOK_HERO_HEIGHT = 280;
 const BOOK_HERO_TOOLBAR_HEIGHT = 56;
 const BOOK_HERO_COLLAPSE_DISTANCE = BOOK_HERO_HEIGHT - BOOK_HERO_TOOLBAR_HEIGHT;
@@ -679,6 +686,7 @@ function BookHeroContent({
             <Pressable
               accessibilityLabel={titleSearchAccessibilityLabel}
               accessibilityRole="button"
+              onLongPress={ignoreLongPress}
               onPress={() => onQuickSearch('title')}
               style={({ pressed }) => [styles.quickSearchTarget, pressed && styles.quickSearchPressed]}
             >
@@ -713,6 +721,7 @@ function BookHeroContent({
             <Pressable
               accessibilityLabel={t('detail.searchAuthor', { author })}
               accessibilityRole="button"
+              onLongPress={ignoreLongPress}
               onPress={() => onQuickSearch('author')}
               style={({ pressed }) => [styles.quickSearchTarget, pressed && styles.quickSearchPressed]}
             >
