@@ -254,7 +254,8 @@ await shelf.toggleBook({ id: bookId, type: 'COMIC' });
 - Publication resources are generated in TypeScript with stable `EPUB/chapters/{chapterId}.xhtml` hrefs, deterministic `nv-block-N` fragments, current `processNovelFootnotes()` + `inlineNovelFootnotesAfterBlocks()` output, relative stylesheet/font links, and API-origin image rebasing.
 - First paint waits only for OPF/container/navigation/stylesheet, target XHTML, and a required cached WOFF2 font. Future chapter XHTML is materialized asynchronously by the existing preload window.
 - `ReadiumLocator` is a bridge value only. Persisted progress remains `{ bookId, chapterId, position: block.locator }`; never store a raw Readium locator as the backend position.
-- The novel progress slider uses `locations.progression` for the current chapter and displays a percentage. It must not call novel page-count estimation. Comic progress remains page based.
+- The novel progress slider uses `locations.progression` for the current chapter and displays a percentage. The reader measures the chapter's rendered layout (`NovellaReadiumView.onProgressMetrics`) and reports both the count and whether it counts page turns. Page stepping applies only in paged mode; scroll mode remains continuous (1% steps) and only uses the measured count to lock a chapter that fits on one screen. A single rendered page shows 100% and is not draggable. Comic progress remains page based.
+- The slider is the JS `ReaderProgressSlider` (3 pt track, 18×12 thumb) rendered inside `Stack.Toolbar.View`, so it keeps the native toolbar's Liquid Glass background while staying hot-reloadable. Snap the thumb inside the gesture worklet, not only on release; a thumb that follows the finger between steps reads as unfiltered dragging. Do not reintroduce a native `UISlider` for this control: its padded thumb bitmap reintroduces the 0%/100% edge-gap regression and cannot be hot-reloaded.
 - `navigatorContentInset()` receives the values from `createReaderChromeInsets()`; do not add a second React padding layer that changes the safe-area contract.
 - Native `onBoundary` emits only an outward release at the active navigator's leading/trailing boundary. JS maps `previous` to `openChapter(previousSortNum, 'end')` and `next` to `openChapter(nextSortNum, 'start')`.
 - A React loading indicator covering the native Readium navigator must be an opaque absolute overlay. Never place a `flex: 1` loading view as a normal-flow sibling of the navigator: that splits the navigator's bounds, exposes Readium's own spinner, and makes the first-paint transition jump.
@@ -399,14 +400,22 @@ reader work:
 > no-op against a null ref, and the remounted list will start at the chapter
 > boundary.
 
-### Native UIKit Slider Thumb Rendering
+### Reader Progress Slider
 
-Custom iOS `UISlider` thumb images must include transparent bounds around the
-visible grabber. Draw the visible `18×12` thumb inside a `30×30` image (or use
-a similarly padded layer-backed container) before applying a shadow. A shadow
-drawn into a bitmap whose edge matches the visible thumb is clipped at the
-bottom and produces incomplete corners; the padded container preserves the
-full shadow without changing slider values or track geometry.
+The chapter progress bar is a JS control above the native toolbar, not a
+`UISlider`:
+
+- Draw a 3 pt unfilled track (`secondarySystemFill`), a 3 pt accent fill, and an
+  `18×12` white thumb with the `0,1 / 1.5 / 0.16` shadow directly in React
+  Native. No transparent thumb container is needed because there is no bitmap
+  clipping.
+- Snap to `step` inside the pan gesture's worklet and assign the snapped
+  position directly, so the thumb jumps between page positions while the finger
+  moves. Emit to JS only when the snapped value changes.
+- The thumb travels `trackWidth - thumbWidth`, so its visible edges reach the
+  track's ends at 0% and 100% without extra insets.
+- Keep the control inside `Stack.Toolbar.View`; the bottom toolbar owns the
+  glass background. Only move it out if a glass container is added deliberately.
 
 ### Native ColorPicker Commit Contract
 
