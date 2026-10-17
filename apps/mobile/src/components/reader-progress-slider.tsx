@@ -1,4 +1,8 @@
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import {
+  GestureDetector,
+  usePanGesture,
+  type PanGestureConfig,
+} from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -135,12 +139,12 @@ export function ReaderProgressSlider({
     trackWidth.value = event.nativeEvent.layout.width;
   };
 
-  const gesture = useMemo(() => Gesture.Pan()
-    .enabled(!disabled)
-    .minDistance(0)
-    .maxPointers(1)
-    .hitSlop({ bottom: 14, left: 8, right: 8, top: 14 })
-    .onBegin((event) => {
+  const gestureConfig = useMemo<PanGestureConfig>(() => ({
+    enabled: !disabled,
+    minDistance: 0,
+    maxPointers: 1,
+    hitSlop: { bottom: 14, left: 8, right: 8, top: 14 },
+    onBegin: (event) => {
       'worklet';
       runOnJS(setDragging)(true);
       if (trackWidth.value <= 1) return;
@@ -154,8 +158,8 @@ export function ReaderProgressSlider({
       position.value = next;
       lastEmitted.value = next;
       runOnJS(emitChange)(next);
-    })
-    .onUpdate((event) => {
+    },
+    onUpdate: (event) => {
       'worklet';
       if (trackWidth.value <= 1) return;
       const next = snapProgress(
@@ -166,11 +170,12 @@ export function ReaderProgressSlider({
       position.value = next;
       lastEmitted.value = next;
       runOnJS(emitChange)(next);
-    })
-    .onFinalize(() => {
+    },
+    onFinalize: () => {
       'worklet';
       runOnJS(setDragging)(false);
-    }), [
+    },
+  }), [
     disabled,
     emitChange,
     lastEmitted,
@@ -180,6 +185,8 @@ export function ReaderProgressSlider({
     step,
     trackWidth,
   ]);
+
+  const gesture = usePanGesture(gestureConfig);
 
   const nudge = useCallback((delta: 1 | -1) => {
     if (disabled) return;

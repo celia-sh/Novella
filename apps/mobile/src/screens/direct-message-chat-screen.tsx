@@ -16,7 +16,13 @@ import {
   useState,
 } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import {
+  GestureDetector,
+  useNativeGesture,
+  useSimultaneousGestures,
+  useTapGesture,
+  type TapGestureConfig,
+} from 'react-native-gesture-handler';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -279,17 +285,25 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
   }));
 
   const composerEnabled = chat.loaded && chat.canSend && !chat.peer?.isDeleted;
-  const transcriptGesture = useMemo(() => Gesture.Simultaneous(
-    Gesture.Native().cancelsTouchesInView(false),
-    Gesture.Tap()
-      .cancelsTouchesInView(false)
-      .runOnJS(true)
-      .onEnd((_event, success) => {
-        // ScrollView's default dismissal only knows about RN TextInput. The
-        // native composer exposes its own blur; only taps should invoke it.
-        if (success) void composerRef.current?.blur();
-      }),
-  ), []);
+  const nativeTranscriptGestureConfig = useMemo(
+    () => ({ cancelsTouchesInView: false }),
+    [],
+  );
+  const nativeTranscriptGesture = useNativeGesture(nativeTranscriptGestureConfig);
+  const tapTranscriptGestureConfig = useMemo<TapGestureConfig>(() => ({
+    cancelsTouchesInView: false,
+    runOnJS: true,
+    onDeactivate: (event) => {
+      // ScrollView's default dismissal only knows about RN TextInput. The
+      // native composer exposes its own blur; only taps should invoke it.
+      if (!event.canceled) void composerRef.current?.blur();
+    },
+  }), []);
+  const tapTranscriptGesture = useTapGesture(tapTranscriptGestureConfig);
+  const transcriptGesture = useSimultaneousGestures(
+    nativeTranscriptGesture,
+    tapTranscriptGesture,
+  );
 
   return (
     <View style={styles.root}>
