@@ -1,4 +1,3 @@
-import { usePreventRemove } from 'expo-router/react-navigation';
 import {
   IconAlertTriangle,
   IconBook2,
@@ -6,7 +5,7 @@ import {
   IconFolderOpen,
   IconX,
 } from '@tabler/icons-react-native';
-import { router } from 'expo-router';
+import { router, usePreventRemove } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {

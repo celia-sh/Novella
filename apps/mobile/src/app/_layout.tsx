@@ -2,11 +2,7 @@ import '../global.css';
 
 import { ToastProvider } from '@celia-sh/react-native-pretty-toast';
 import { PanelUIProvider } from 'panelui-native';
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from 'expo-router/react-navigation';
+import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { Stack } from 'expo-router/stack';
 import { StatusBar } from 'expo-status-bar';
 import { KeyboardProvider } from 'react-native-keyboard-controller';

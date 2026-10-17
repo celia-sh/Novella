@@ -1,5 +1,4 @@
-import { router, useNavigation } from 'expo-router';
-import { useRoute } from 'expo-router/react-navigation';
+import { router, useNavigation, useRoute } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';

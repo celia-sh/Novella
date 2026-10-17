@@ -1,6 +1,5 @@
 import { Image } from 'expo-image';
-import { router, useNavigation } from 'expo-router';
-import { useRoute } from 'expo-router/react-navigation';
+import { router, useNavigation, useRoute } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -722,11 +721,11 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   const onScrollViewableItemsChanged = useCallback(({
     viewableItems,
   }: {
-    changed: ViewToken<ComicPageDisplayItem>[];
-    viewableItems: ViewToken<ComicPageDisplayItem>[];
+    changed: ComicItemViewToken[];
+    viewableItems: ComicItemViewToken[];
   }) => {
-    const firstVisible = viewableItems.reduce<ViewToken<ComicPageDisplayItem> | null>((first, token) => {
-      if (!token.isViewable || token.index === null) return first;
+    const firstVisible = viewableItems.reduce<ComicItemViewToken | null>((first, token) => {
+      if (!token.isViewable || token.index === undefined) return first;
       return first === null || token.index < (first.index ?? Number.MAX_SAFE_INTEGER)
         ? token
         : first;
