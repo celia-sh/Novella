@@ -163,7 +163,7 @@ export function buildReadiumChapterDocument({
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    `<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${escapeXml(locale)}">`,
+    `<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xmlns:xlink="http://www.w3.org/1999/xlink" xml:lang="${escapeXml(locale)}">`,
     '<head>',
     '<meta charset="utf-8"/>',
     `<title>${escapeXml(title)}</title>`,
@@ -301,12 +301,31 @@ function buildImagePreviewScript(): string {
 
 function normalizeHtmlFragmentForXhtml(html: string): string {
   const nodes = parseDOM(html, { decodeEntities: true });
+  hideEmptySvgImagePlaceholders(nodes);
   addPuaLineBreakOpportunities(nodes);
   const serialized = DomUtils.getOuterHTML(nodes, {
     decodeEntities: true,
     xmlMode: true,
   });
   return serialized.replace(/<\/ruby>(?=\s*<ruby\b)/giu, '</ruby>&#x200B;');
+}
+
+function hideEmptySvgImagePlaceholders(nodes: ReadiumHtmlNode[]): void {
+  const isWhitespace = (node: ReadiumHtmlNode) => (
+    node.type === 'text' && (node as ReadiumHtmlNode & { data: string }).data.trim() === ''
+  );
+  for (const svg of DomUtils.findAll((node) => node.name === 'svg', nodes)) {
+    if (svg.attribs.width !== '100%' || svg.attribs.height !== '100%') continue;
+    if (!svg.children.every(isWhitespace)) continue;
+    let following = svg.next;
+    while (following && isWhitespace(following)) following = following.next;
+    if (!following || !('name' in following) || following.name !== 'img') continue;
+
+    // Broken EPUB image wrappers can leave an empty full-size SVG before an img.
+    // Its inline box makes WebKit fragment the image across pagination columns.
+    const style = svg.attribs.style?.trim() ?? '';
+    svg.attribs.style = `${style}${style && !style.endsWith(';') ? ';' : ''}display:none!important`;
+  }
 }
 
 function addPuaLineBreakOpportunities(nodes: readonly ReadiumHtmlNode[]): void {

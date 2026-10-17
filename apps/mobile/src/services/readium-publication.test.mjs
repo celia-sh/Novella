@@ -155,6 +155,69 @@ test('image tables retain their authored rows and columns', () => {
   assert.match(publication.resources['EPUB/styles/reader.css'], /ruby rt\{font-size:\.5em;white-space:normal;word-break:break-all;overflow-wrap:anywhere;\}/);
 });
 
+test('full-size empty SVG placeholders do not displace their following raster image', () => {
+  const source = '<div><svg height="100%" viewBox="0 0 946 1400" width="100%" xmlns="http://www.w3.org/2000/svg">\n</svg>\n' +
+    '<img alt="cover" height="1400" src="images/contents.webp" width="946">' +
+    '<a xlink:href="../Text/chapter1.xhtml"><rect height="102" width="184"/></a></div><p>Following text</p>';
+  const processed = processNovelFootnotes(source, { markerContent: 'placeholder' });
+  const html = buildReadiumChapterDocument({
+    blocks: normalizeNovelBlocks(processed.html, undefined, { sanitize: false }),
+    chapterId: 101,
+    imageBaseUrl: 'https://example.test',
+    title: 'contents',
+    useBookFont: false,
+  });
+
+  assert.match(html, /<svg\b[^>]*style="display:none!important"[^>]*>/);
+  assert.match(html, /<div id="nv-block-0">/);
+  assert.match(html, /<img alt="cover" height="1400" src="https:\/\/example\.test\/images\/contents\.webp" width="946"\/>/);
+  assert.match(html, /<a xlink:href="\.\.\/Text\/chapter1\.xhtml"><rect height="102" width="184"\/><\/a>/);
+  assert.match(html, /<p id="nv-block-1">Following text<\/p>/);
+});
+
+for (const [name, source] of [
+  ['non-empty SVG', '<div><svg width="100%" height="100%"><rect width="10" height="10"/></svg><img src="cover.webp"></div>'],
+  ['standalone empty SVG', '<div><svg width="100%" height="100%"></svg></div>'],
+  ['explicitly sized empty SVG', '<div><svg width="32" height="32"></svg><img src="cover.webp"></div>'],
+  ['empty SVG separated from an image by text', '<div><svg width="100%" height="100%"></svg>Caption<img src="cover.webp"></div>'],
+]) {
+  test(`empty SVG compatibility leaves ${name} unchanged`, () => {
+    const html = buildReadiumChapterDocument({
+      blocks: [{ id: 'media', locator: '//div[1]', html: source, textLength: 0, imageCount: 1 }],
+      chapterId: 101,
+      title: 'Media',
+      useBookFont: false,
+    });
+
+    assert.match(html, /<svg\b/);
+    assert.doesNotMatch(html, /display:none/);
+  });
+}
+
+for (const [name, source] of [
+  ['ordinary links', '<p><a href="#target">contents</a></p>'],
+  ['undeclared xlink links', '<p><a xlink:href="#target">contents</a></p>'],
+  ['xlink declared on an html ancestor', '<html xmlns:xlink="http://www.w3.org/1999/xlink"><body><p><a xlink:href="#target">contents</a></p></body></html>'],
+  ['xlink declared on a div ancestor', '<div xmlns:xlink="http://www.w3.org/1999/xlink"><p><a xlink:href="#target">contents</a></p></div>'],
+  ['xlink declared on the anchor', '<p><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#target">contents</a></p>'],
+]) {
+  test(`chapter XHTML binds xlink without changing ${name}`, () => {
+    const processed = processNovelFootnotes(source, { markerContent: 'placeholder' });
+    const blocks = normalizeNovelBlocks(processed.html, undefined, { sanitize: false });
+    const html = buildReadiumChapterDocument({
+      blocks,
+      chapterId: 101,
+      title: 'contents',
+      useBookFont: false,
+    });
+
+    assert.match(html, /<html\b[^>]*\sxmlns:xlink="http:\/\/www\.w3\.org\/1999\/xlink"/);
+    assert.match(html, /xmlns:epub="http:\/\/www\.idpf\.org\/2007\/ops"/);
+    assert.ok(html.includes(blocks[0].html.replace('<p>', '<p id="nv-block-0">')));
+    assert.match(html, /<a\b[^>]*href="#target"[^>]*>contents<\/a>/);
+  });
+}
+
 test('chapter HTML is normalized with inline footnotes', () => {
   const html = buildReadiumChapterDocument({
     blocks: [
