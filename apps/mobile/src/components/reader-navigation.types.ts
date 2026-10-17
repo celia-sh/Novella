@@ -15,6 +15,7 @@ export interface ReaderChapterNavigationProps {
   onPageProgressChange: (progress: number) => void;
   pageCurrent: number;
   pageProgress: number;
+  pageStepped?: boolean;
   pageTotal: number;
   progressMode?: 'pages' | 'percentage';
   chromeHidden: boolean;

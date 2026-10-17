@@ -84,6 +84,10 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const [nativeAttempt, setNativeAttempt] = useState(0);
   const [nativeError, setNativeError] = useState<ReaderUserMessage | null>(null);
   const [nativeReady, setNativeReady] = useState(false);
+  const [chapterMetrics, setChapterMetrics] = useState<{
+    pageCount: number;
+    paged: boolean;
+  }>({ pageCount: 0, paged: true });
   const imagePreviewRef = useRef<ReaderImagePreviewHostHandle>(null);
   const nativeReaderRef = useRef<NovellaReadiumViewHandle | null>(null);
   const lastLocatorRef = useRef<ReadiumLocator | null>(null);
@@ -96,6 +100,12 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     conversion,
     openPosition === 'saved',
   );
+  // A chapter starts with no measured geometry; keeping the previous count
+  // would let the slider step against the wrong page total until the native
+  // layout reports the new one.
+  useEffect(() => {
+    setChapterMetrics({ pageCount: 0, paged: true });
+  }, [content?.chapter.id, nativeAttempt, sortNum]);
   const readerFont = useReaderFont(content?.chapter.fontUrl);
   const requiresReaderFont = Boolean(content?.chapter.fontUrl?.trim());
   const fontLoading = requiresReaderFont
@@ -399,6 +409,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               })}
               onLink={openReadiumLink}
               onLocatorChange={saveLocator}
+              onProgressMetrics={({ pageCount, paged }) => setChapterMetrics({ pageCount, paged })}
               onReady={() => setNativeReady(true)}
               onStatus={() => undefined}
               onTap={() => setChromeHidden((current) => !current)}
@@ -439,7 +450,8 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         onPageProgressChange={handleProgressChange}
         pageCurrent={0}
         pageProgress={previewProgression}
-        pageTotal={0}
+        pageStepped={chapterMetrics.paged}
+        pageTotal={chapterMetrics.pageCount}
         progressMode="percentage"
       />
     </>

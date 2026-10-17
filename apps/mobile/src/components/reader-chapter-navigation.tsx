@@ -9,6 +9,7 @@ export function ReaderChapterNavigation({
   onPageProgressChange,
   pageCurrent,
   pageProgress,
+  pageStepped,
   pageTotal,
   progressMode = 'pages',
 }: ReaderChapterNavigationProps) {
@@ -21,6 +22,7 @@ export function ReaderChapterNavigation({
           displayMode={progressMode}
           onValueChange={onPageProgressChange}
           pageCurrent={pageCurrent}
+          {...(pageStepped === undefined ? {} : { pageStepped })}
           pageTotal={pageTotal}
           progress={pageProgress}
           visible={visible}

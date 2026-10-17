@@ -17,6 +17,50 @@ export function readerProgressStep(pageTotal: number): number {
   return total <= 1 ? 1 : 1 / (total - 1);
 }
 
+export interface ReaderProgressSliderState {
+  /** The thumb is pinned at 100% and cannot be dragged. */
+  disabled: boolean;
+  /** Where the thumb sits, before RTL or pixel mapping. */
+  progress: number;
+  /** The fraction one step covers. */
+  step: number;
+  /** Whether the value snaps to page positions rather than 1% increments. */
+  stepped: boolean;
+}
+
+/**
+ * The reader's slider uses progression for its value, but a paged chapter can
+ * step by its measured pages. Scroll mode also reports a measured count (of
+ * screenfuls), but it stays continuous: only a chapter that fits on one screen
+ * is locked at 100%.
+ */
+export function resolveReaderProgressSliderState({
+  displayMode,
+  pageStepped,
+  pageTotal,
+  progress,
+}: {
+  displayMode: 'pages' | 'percentage';
+  pageStepped: boolean;
+  pageTotal: number;
+  progress: number;
+}): ReaderProgressSliderState {
+  const isPercentage = displayMode === 'percentage';
+  const total = Math.max(0, Math.trunc(pageTotal));
+  const stepped = total > 1 && (!isPercentage || pageStepped);
+  const disabled = isPercentage ? total === 1 : total <= 1;
+  return {
+    disabled,
+    progress: disabled
+      ? 1
+      : stepped
+        ? snapReaderProgress(progress, total)
+        : clampProgress(progress),
+    step: stepped ? readerProgressStep(total) : isPercentage ? 0.01 : 1,
+    stepped,
+  };
+}
+
 export function resolveComicPageProgress(index: number, total: number): ReaderPageProgress {
   const safeTotal = Math.max(0, Math.trunc(total));
   if (safeTotal === 0) return { current: 0, progress: 0, total: 0 };
