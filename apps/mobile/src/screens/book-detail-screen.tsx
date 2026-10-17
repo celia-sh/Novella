@@ -890,7 +890,7 @@ const styles = StyleSheet.create({
   loadingAuthor: { height: 15, width: '42%' },
   loadingAuthorSlot: { height: 20, justifyContent: 'center' },
   loadingBlock: { borderCurve: 'continuous', borderRadius: 8, overflow: 'hidden' },
-  loadingBody: { gap: 20, paddingVertical: 20 },
+  loadingBody: { gap: 20, paddingBottom: 20, paddingTop: 16 },
   loadingChip: { height: 26, width: 58 },
   loadingChipRow: { flexDirection: 'row', gap: 8 },
   loadingChipWide: { height: 26, width: 92 },
