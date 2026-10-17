@@ -764,7 +764,10 @@ function BookDetailBodyLoading({
         <Skeleton style={[styles.loadingBlock, styles.loadingChip, block]} />
         <Skeleton style={[styles.loadingBlock, styles.loadingChipWide, block]} />
       </View>
-      <Skeleton style={[styles.loadingBlock, styles.loadingAction, block]} />
+      <View style={styles.loadingActions}>
+        <Skeleton style={[styles.loadingBlock, styles.loadingShelfButton, block]} />
+        <Skeleton style={[styles.loadingBlock, styles.loadingReadButton, block]} />
+      </View>
       <Skeleton style={[styles.loadingBlock, styles.loadingParagraph, block]} />
       <Skeleton style={[styles.loadingBlock, styles.loadingUpdate, block]} />
     </View>
@@ -883,7 +886,7 @@ const styles = StyleSheet.create({
   introductionSection: { gap: 8, paddingBottom: 24, paddingTop: 24 },
   quickSearchPressed: { opacity: 0.72 },
   quickSearchTarget: { borderRadius: 4 },
-  loadingAction: { borderCurve: 'continuous', borderRadius: 16, height: 56, width: '100%' },
+  loadingActions: { flexDirection: 'row', gap: 12 },
   loadingAuthor: { height: 15, width: '42%' },
   loadingAuthorSlot: { height: 20, justifyContent: 'center' },
   loadingBlock: { borderCurve: 'continuous', borderRadius: 8, overflow: 'hidden' },
@@ -894,6 +897,8 @@ const styles = StyleSheet.create({
   loadingCover: { height: 150, overflow: 'hidden', width: 100 },
   loadingHero: { alignItems: 'flex-end', flexDirection: 'row', gap: 16, padding: 20, paddingBottom: 16 },
   loadingParagraph: { borderCurve: 'continuous', borderRadius: 16, height: 88, width: '100%' },
+  loadingReadButton: { borderCurve: 'continuous', borderRadius: 16, flex: 1, height: 56 },
+  loadingShelfButton: { borderCurve: 'continuous', borderRadius: 16, height: 56, width: 56 },
   loadingTitle: { height: 28, width: '88%' },
   loadingUpdate: { borderCurve: 'continuous', borderRadius: 12, height: 42, width: '100%' },
   metaChip: { alignItems: 'center', borderCurve: 'continuous', borderRadius: 8, flexDirection: 'row', gap: 4, height: 26, paddingHorizontal: 10 },
