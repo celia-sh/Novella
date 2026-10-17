@@ -152,8 +152,13 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     stableSafeArea.bottom,
   );
   const readerInsets = useMemo(
-    () => createReadiumContentInsets(readerChromeInsets.top, readerChromeInsets.bottom),
-    [readerChromeInsets.bottom, readerChromeInsets.top],
+    () => createReadiumContentInsets(
+      readerChromeInsets.top,
+      readerChromeInsets.bottom,
+      insets.left,
+      insets.right,
+    ),
+    [insets.left, insets.right, readerChromeInsets.bottom, readerChromeInsets.top],
   );
 
   const colorScheme = useAppColorScheme();

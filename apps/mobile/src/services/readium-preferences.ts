@@ -65,11 +65,13 @@ export function opaqueCssColor(value: string): string {
 export function createReadiumContentInsets(
   top: number,
   bottom: number,
+  left = 0,
+  right = 0,
 ): ReadiumContentInsets {
   return {
     bottom: Math.max(0, bottom),
-    left: 0,
-    right: 0,
+    left: Math.max(0, left),
+    right: Math.max(0, right),
     top: Math.max(0, top),
   };
 }
