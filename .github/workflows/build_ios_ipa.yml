@@ -32,7 +32,7 @@ concurrency:
 jobs:
   build-ipa:
     name: Build Unsigned IPA
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 45
 
     env:
@@ -122,19 +122,21 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm ci
 
-      - name: Select Xcode 26.6
+      - name: Select Xcode 27.1
         run: |
           set -euo pipefail
 
+          # -L resolves the Xcode_27.1.app symlink; the real
+          # *_Release_Candidate.app directory matches the glob directly.
           XCODE_APP="$(
-            find /Applications -maxdepth 1 -type d \
-              -name 'Xcode_26.6*.app' |
+            find -L /Applications -maxdepth 1 -type d \
+              -name 'Xcode_27.1*.app' |
               sort -V |
               tail -1
           )"
 
           if [ -z "$XCODE_APP" ]; then
-            echo "::error::Xcode 26.6 is not installed on this runner."
+            echo "::error::Xcode 27.1 is not installed on this runner."
             exit 1
           fi
 
@@ -143,7 +145,12 @@ jobs:
           echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
 
           xcodebuild -version
-          xcodebuild -showsdks | head -5
+          SDKS="$(xcodebuild -showsdks)"
+          grep -q 'iphoneos27\.1' <<<"$SDKS" || {
+            echo "::error::The iOS 27.1 SDK is not available in the selected Xcode."
+            exit 1
+          }
+          printf '%s\n' "$SDKS" | head -5
 
       - name: Install ccache
         run: |
@@ -153,7 +160,7 @@ jobs:
             fi
             brew install ccache
           fi
-          # Xcode 26 omits user-defined build settings from CompileC environments
+          # Xcode 26+ omits user-defined build settings from CompileC environments
           # (facebook/react-native#55381), so pass the binary as a real process env var.
           echo "CCACHE_BINARY=$(command -v ccache)" >> "$GITHUB_ENV"
           ccache --version | head -1
@@ -164,10 +171,10 @@ jobs:
         with:
           path: ~/Library/Caches/ccache
           key: >-
-            ios-ccache-${{ runner.os }}-xcode26.6-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+            ios-ccache-${{ runner.os }}-xcode27.1-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
           restore-keys: |
-            ios-ccache-${{ runner.os }}-xcode26.6-${{ hashFiles('package-lock.json') }}-
-            ios-ccache-${{ runner.os }}-xcode26.6-
+            ios-ccache-${{ runner.os }}-xcode27.1-${{ hashFiles('package-lock.json') }}-
+            ios-ccache-${{ runner.os }}-xcode27.1-
 
       - name: Reset ccache statistics
         run: ccache --zero-stats
@@ -197,7 +204,7 @@ jobs:
             apps/mobile/ios/Pods
             apps/mobile/ios/Podfile.lock
           key: >-
-            ios-pods-${{ runner.os }}-xcode26.6-${{
+            ios-pods-${{ runner.os }}-xcode27.1-${{
               hashFiles(
                 'package-lock.json',
                 'apps/mobile/package.json',
