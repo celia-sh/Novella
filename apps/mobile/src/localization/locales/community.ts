@@ -9,6 +9,8 @@ export const zhCNCommunity = {
     notifications: '通知',
     myCommunity: '我的社区',
     rankings: '排行榜',
+    directMessages: '私信',
+    directMessagesWithUnread: '私信（{{countLabel}}）',
   },
   actions: {
     newPost: '发布社区帖子',
@@ -32,6 +34,7 @@ export const zhCNCommunity = {
     newPost: '发布社区帖子',
     notifications: '社区通知',
     menu: '社区菜单',
+    menuWithUnread: '社区菜单，{{count}} 条未读私信',
     publishDiscussion: '发布讨论',
     saveThread: '保存帖子修改',
     notificationActions: '通知操作',
@@ -269,6 +272,8 @@ export const zhTWCommunity: TranslationShape<typeof zhCNCommunity> = {
     notifications: '通知',
     myCommunity: '我的社群',
     rankings: '排行榜',
+    directMessages: '私訊',
+    directMessagesWithUnread: '私訊（{{countLabel}}）',
   },
   actions: {
     newPost: '發表社群文章',
@@ -292,6 +297,7 @@ export const zhTWCommunity: TranslationShape<typeof zhCNCommunity> = {
     newPost: '發表社群文章',
     notifications: '社群通知',
     menu: '社群選單',
+    menuWithUnread: '社群選單，{{count}} 則未讀私訊',
     publishDiscussion: '發表討論',
     saveThread: '儲存文章修改',
     notificationActions: '通知操作',

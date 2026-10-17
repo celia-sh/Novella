@@ -23,6 +23,7 @@ These guides help you **ask the right questions before coding**.
 |-------|---------|-------------|
 | [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md) | Identify patterns and reduce duplication | When you notice repeated patterns |
 | [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md) | Think through data flow across layers | Features spanning multiple layers |
+| [Task Completion Consistency](./task-completion-consistency.md) | Keep task state, completion evidence, branch names, and session pointers consistent | Completing work, renaming a branch, or correcting stale records |
 
 ---
 

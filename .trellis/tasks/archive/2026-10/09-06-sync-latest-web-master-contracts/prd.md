@@ -1,5 +1,7 @@
 # 跟进 Web-Master 最新契约
 
+> 状态：已完成，2026-10-04 按用户确认归档。本文的完成记录取代此前未更新的验收清单；原始需求保留用于追溯。
+
 ## Goal
 
 同步 Novella 与 `Web-Master reference snapshot [COMMIT]` 的最新漫画详情、评论、通知和社区线程管理契约，确保当前后端发布后，漫画详情/阅读/评论/通知跳转继续可用，并让有权限的用户能够锁定或解锁社区帖子。
@@ -55,15 +57,11 @@
 
 ## Acceptance Criteria
 
-- [ ] 最新 `GetBookInfo` fixture 可严格解码为统一 `BookDetail`，小说和漫画章节字段均正确。
-- [ ] 漫画详情、阅读器、历史、搜索、发现、书架和通知入口均以作品 ID 工作，不再要求系列标题才能打开。
-- [ ] 漫画评论请求不再包含 `Series` 或 `SeriesTitle`，现有评论分页、发布和回复测试通过。
-- [ ] `open_book` 可正确打开小说和漫画，`open_series` 不再作为当前契约路径；无效 action 不会猜测目标。
-- [ ] `SetCommunityThreadLocked` 请求参数、响应解码、client-core 校验和移动端 UI 均有测试覆盖。
-- [ ] 有权限用户可锁定/解锁帖子；无权限用户不显示操作；服务端失败不会错误修改本地状态。
-- [ ] `npm test --workspace @novella/api-client` 通过。
-- [ ] `npm test --workspace @novella/client-core` 通过。
-- [ ] 移动端相关测试、workspace typecheck、boundary check 和 `git diff --check` 通过。
+- [x] R1/R2：统一漫画详情、作品 ID 入口和 Book 评论目标已完成。
+- [x] R3：通知 `open_book` 使用类型识别入口，旧 `open_series` 已退出当前契约。
+- [x] R4：社区线程锁定/解锁契约和权限控制已完成。
+- [x] [self-verified] 当前 API/client-core 套件、移动端相关测试、类型和边界检查通过，验证范围见下方完成记录。
+- [x] [user-accepted] 用户于 2026-10-04 确认之前除私信分支外的工作均已完成，当前私信工作也已完成。任务不再保留进行中的功能项。
 
 ## Out of Scope
 
@@ -101,12 +99,20 @@
 
 ### Follow-up Acceptance Criteria
 
-- [ ] 公共用户摘要只调用 `GetUserSummary({ UserId })`，不再请求旧 REST 路由。
-- [ ] 五个私信 Hub 方法的参数、响应和三种实时事件均有契约测试。
-- [ ] 会话和消息分页按稳定 ID 去重；收到响应/推送的先后顺序不会产生重复消息。
-- [ ] 失败发送可使用相同 `ClientMessageId` 重试；同一会话连续发送保持顺序。
-- [ ] 打开聊天并看到最新消息后上报已读，收到对方回执后更新最后一条已发送消息状态。
-- [ ] 拉黑状态只采用服务端确认值，并正确禁用发送。
-- [ ] 断线重连后重新加载会话与已打开聊天，未读数与服务端一致。
-- [ ] 简体中文和台湾繁体中文资源结构一致。
-- [ ] API、client-core、移动端测试、类型检查、边界检查及 `git diff --check` 通过。
+- [x] R5：公共用户摘要使用 `GetUserSummary({ UserId })`，保持缓存、去重和严格 ID 校验。
+- [x] R6：五个私信 Hub 方法、三种实时事件、会话/消息状态、发送重试、读回执和拉黑界面已实现。
+- [x] 会话列表与聊天页面完成大标题、初始位置、键盘动画、输入框增长和最后气泡布局修复。
+- [x] 私信入口保留在社区三个点菜单，显示未读角标；社区 tab 聚合通知和私信未读数。
+- [x] 收到消息、自身已读和 SignalR 自动重连后重新同步服务端状态。
+- [x] [self-verified] 简繁资源一致；现有自动检查通过，具体覆盖范围如下。
+- [x] [user-accepted] 用户于 2026-10-04 确认整个任务完成并要求归档。
+
+### 完成记录（2026-10-04）
+
+- 当前分支为 `feat/direct-messages`，原名 `feat/sync-web-master-direct-messages`。Git reflog 记录了 2026-10-04 的改名。
+- 原统一详情/评论/通知/锁定改动及公共资料 API 跟进已先行完成；原任务一直没有同步状态和 follow-up 清单。9 月的独立私信归档过早，已在该任务记录中更正完成日期和原因。
+- 最后代码提交：`175f5a1`（私信布局/键盘）、`e381a0a`（通知全部已读）、`35aff9e`（头像尺寸）、`6329baf`（未读角标与实时刷新）。
+- 本会话自动验证：workspace 类型/边界检查；API 37、client-core 47、community 25、localization 7、direct-message utilities 24 项测试通过。Swift 语法解析和 iOS JS export 通过，不能据此宣称已做原生应用构建或真实网络交互验证。
+- 集中的私信自动测试覆盖未读字段、刷新顺序/失败、批量事件、重连刷新请求、滚动/键盘计算及本地化；不宣称五个私信 Hub 方法和所有状态 reducer 均有专门测试。旧记录对测试覆盖的笼统声明已改为实际证据。
+- 交互完成依据为用户的整体完成确认；代理未操作模拟器，也没有把每个设备场景写成代理验证通过。
+- 当前实现说明见 `.trellis/spec/backend/direct-message-contracts.md`。原始 9 月需求中的 `[COMMIT]` 是遗留脱敏占位符，不作为当前版本依据；本会话检查的 Web 参考为 `origin/master` `c53d0e829e7b9d3025167ed14cbb578e18d76907`。

@@ -26,6 +26,7 @@ server implementation.
 | [API Response Decoding](./api-response-decoding.md) | Required vs optional text normalization at the Web-Master DTO boundary | Active |
 | [Account Invite Reset and Growth Shop](./account-shop-contracts.md) | Invite reset, shop payloads, serialized purchases, and confirmed-state fallback | Active |
 | [Community Thread Edit and Delete](./community-thread-contracts.md) | Current thread fields, server permissions, edit/delete operations, and focused pagination | Active |
+| [Direct Messages and Notifications](./direct-message-contracts.md) | Private-message contracts, unread state, all-page read mutations, reconnect recovery, and native chat layout | Active |
 
 ---
 
@@ -42,6 +43,8 @@ server implementation.
   [Account Invite Reset and Growth Shop](./account-shop-contracts.md).
 - For Community thread detail, edit/delete, or reply paging changes, read
   [Community Thread Edit and Delete](./community-thread-contracts.md).
+- For private messages, notification read state, unread counts, or realtime
+  recovery, read [Direct Messages and Notifications](./direct-message-contracts.md).
 
 ## Quality Check
 

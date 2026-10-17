@@ -1,5 +1,10 @@
 # Integration implementation plan
 
+> Completed on 2026-09-22; closure reconfirmed by the user on 2026-10-04.
+> Both implementation tasks are archived. The original two-state shelf plan
+> below was subsequently extended by `09-22-shelf-all-media-filter` to include
+> All/Novel/Comic; it is historical scope, not unfinished current work.
+
 This parent task is an integration plan; product edits belong to the two child tasks.
 
 ## Ordered execution

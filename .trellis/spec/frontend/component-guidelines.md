@@ -486,40 +486,42 @@ async function handleClear() {
   `clearDiskCache` only touch SDImageCache (cover images) and have no code
   path to vector icons.
 
-### HeroUI Community Surfaces (mobile)
+### PanelUI Community Surfaces (mobile)
 
-- The community screens are composed with `heroui-native` primitives (`Card`, `Chip`, `Skeleton`, `Spinner`) over the app theme (`createThemedStyles`/`useAppTheme`); native navigation, virtualized/scroll containers, the rich-text editor, and the app-owned HTML renderer remain intentional exceptions (parent plan R9).
+- Community screens use `panelui-native` controls such as `Button`, `Chip`, `Input`, `Skeleton`, and `Spinner`, together with existing `react-native-paper` surfaces and dialogs, over the app theme (`createThemedStyles`/`useAppTheme`). Native navigation, scroll containers, the rich-text editor, and the app-owned HTML renderer remain intentional exceptions. HeroUI is no longer a current dependency or implementation instruction.
 - **iOS color trap**: `use-platform-app-colors.ios.ts` sets both `accent` and `primaryContainer` to `systemPink`. Content placed on a `primaryContainer` background (selected board chips, score badges, icon boxes) must use `onPrimaryContainer` — never `accent`, which is invisible on iOS. This is a M3-filled pattern and it is theme-safe on Android too.
 - Rank/highlight accents that must be identical across platforms are fixed hex literals (`#F59E0B`, `#FB7185`, `#60A5FA`); a `"${hex}26"` suffix gives the 15% alpha tint without dynamic-color alpha support.
 - **Tabler icon naming differs from Material**: `IconDeviceGamepad2` (not `IconGamepad2`), `IconPin` (not `IconPushPin`), and there is no `IconForum` — use `IconMessages`. Verify against `dist/cjs/icons-list.cjs` before use.
-- **Pinned filter toolbar**: the home filter bar (Sort/Time/Category pills) is pinned under the native navbar by making it data item 0 of the `FlatList` and passing `stickyHeaderIndices={[0]}`; the row renders itself with an opaque `background` surface and a hairline bottom border. Feed rows own their own horizontal padding so the pinned bar spans edge-to-edge. Row types are a discriminated union (`toolbar | thread | loading | error | empty`) so empty/error/skeleton states are data rows, not `ListEmptyComponent`.
+- **Pinned filter toolbar**: preserve the current Community Home scroll hierarchy and its toolbar row. Scroll ownership must be checked before changing list headers, sticky indices, or nested scroll containers; the large-title contract below applies.
 - **Node unit tests cannot import modules that transitively import `react-native`** (e.g. `@tabler/icons-react-native`). Pure resolvers (board icon keys, count/time formatters) live in react-native-free modules (`community-board-icon-keys.ts`) with `.test.mjs` coverage; the UI wrapper (`community-board-icons.ts`) maps keys to components and stays out of the test graph.
 
 ### iOS Large-Title Scroll Ownership
 
-- An Expo Router native-stack large title tracks the first native `UIScrollView` found down the screen's first descendant chain. Android's Compose `NativeScreenScaffold` does not exercise this UIKit behavior, so a hierarchy can appear correct on Android while the iOS title never collapses.
-- Tab roots that use a large iOS title must put the primary vertical `ScrollView` directly inside `NativeScreenScaffold`, matching `HomeScreen`. Community Home deliberately uses that direct root scroll view rather than a `FlatList` composition with `ListHeaderComponent`, sticky data rows, and nested horizontal scroll views, which failed to establish reliable UIKit title coordination.
+- An Expo Router native-stack large title tracks the primary native `UIScrollView` down the screen's first descendant chain. This application is iOS-only; the old Android Compose `NativeScreenScaffold` is not a current component.
+- The direct-message conversation screen returns its primary `FlatList` as the native root. Extra native `View` wrappers can prevent large-title coordination. For short populated lists, do not use `flexGrow` to manufacture a viewport-height content area and a scroll range that hides the only conversation.
 
 ```tsx
-// Wrong for this tab: iOS did not reliably bind the large title.
-<NativeScreenScaffold title="Community">
-  <View style={{ flex: 1 }}>
-    <FlatList ListHeaderComponent={...} stickyHeaderIndices={[1]} />
-  </View>
-</NativeScreenScaffold>
+// Avoid introducing an unnecessary native ancestor for the scroll owner.
+<View style={{ flex: 1 }}>
+  <FlatList {...listProps} />
+</View>
 
-// Correct: the native stack sees the vertical scroll owner immediately.
-<NativeScreenScaffold title="Community">
-  <ScrollView
-    contentInsetAdjustmentBehavior="automatic"
-    style={{ flex: 1 }}
-  >
-    {/* all Community Home content */}
-  </ScrollView>
-</NativeScreenScaffold>
+// Conversation screen: the native stack sees the vertical scroll owner.
+<FlatList
+  {...listProps}
+  contentInsetAdjustmentBehavior="automatic"
+  style={{ flex: 1 }}
+/>
 ```
 
 - A Metro reload is enough for this JS hierarchy change in an existing development client; `expo run:ios` is only needed when native dependencies/configuration changed. Device/simulator behavior remains user-accepted unless UI automation was explicitly authorized.
+
+- `ProfileAvatar` must apply numeric dimensions to both the outer avatar and
+  `PanelUIAvatar.Image`; named image variants otherwise override custom sizes
+  in profile sheets and nested replies.
+- For chat keyboard/inset ownership, pending-message identity, native composer
+  sizing, and unread badges, read
+  [Direct Message and Notification Contracts](../backend/direct-message-contracts.md).
 
 ### iOS 26 Fabric ScrollView Recycling and Navigation Chrome
 

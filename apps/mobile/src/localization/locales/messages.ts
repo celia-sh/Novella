@@ -1,0 +1,121 @@
+import type { TranslationShape } from '../resource-shape.ts';
+
+export const zhCNMessages = {
+  navigation: {
+    title: '私信',
+    conversation: '私信',
+  },
+  conversations: {
+    loading: '正在加载私信…',
+    loadFailed: '无法加载私信',
+    retry: '重试',
+    emptyTitle: '还没有私信',
+    emptyDescription: '打开用户资料即可发起私信。',
+    deletedUser: '已注销用户',
+    unread: '{{count}} 条未读消息',
+    open: '打开与 {{name}} 的私信',
+  },
+  chat: {
+    loading: '正在加载消息…',
+    loadFailed: '无法加载消息',
+    retry: '重试',
+    empty: '还没有消息，打个招呼吧。',
+    loadOlder: '加载更早的消息',
+    loadingOlder: '正在加载…',
+    cannotSend: '暂时无法发送私信',
+    deletedUser: '该用户已注销，无法继续发送。',
+    newMessages: '有新消息',
+  },
+  composer: {
+    placeholder: '输入私信',
+    send: '发送',
+    characterCount: '{{count}} / {{max}}',
+  },
+  status: {
+    pending: '发送中',
+    failed: '发送失败',
+    retry: '重试',
+    read: '已读',
+    delivered: '已送达',
+  },
+  actions: {
+    message: '私信',
+    more: '更多操作',
+    block: '拉黑',
+    unblock: '取消拉黑',
+  },
+  block: {
+    confirmTitle: '拉黑此用户？',
+    confirmMessage: '拉黑后，这个会话将暂时无法继续发送私信。',
+    confirmAction: '拉黑',
+    unblockTitle: '取消拉黑？',
+    unblockMessage: '将恢复允许的私信发送。',
+    unblockAction: '取消拉黑',
+    blocked: '已拉黑',
+    unblocked: '已取消拉黑',
+    failed: '无法更新拉黑状态，请重试。',
+  },
+  errors: {
+    sendFailed: '私信发送失败，请重试。',
+  },
+} as const;
+
+export const zhTWMessages: TranslationShape<typeof zhCNMessages> = {
+  navigation: {
+    title: '私訊',
+    conversation: '私訊',
+  },
+  conversations: {
+    loading: '正在載入私訊…',
+    loadFailed: '無法載入私訊',
+    retry: '重試',
+    emptyTitle: '還沒有私訊',
+    emptyDescription: '開啟使用者資料即可發起私訊。',
+    deletedUser: '已註銷使用者',
+    unread: '{{count}} 則未讀訊息',
+    open: '開啟與 {{name}} 的私訊',
+  },
+  chat: {
+    loading: '正在載入訊息…',
+    loadFailed: '無法載入訊息',
+    retry: '重試',
+    empty: '還沒有訊息，打個招呼吧。',
+    loadOlder: '載入更早的訊息',
+    loadingOlder: '正在載入…',
+    cannotSend: '暫時無法傳送私訊',
+    deletedUser: '此使用者已註銷，無法繼續傳送。',
+    newMessages: '有新訊息',
+  },
+  composer: {
+    placeholder: '輸入私訊',
+    send: '傳送',
+    characterCount: '{{count}} / {{max}}',
+  },
+  status: {
+    pending: '傳送中',
+    failed: '傳送失敗',
+    retry: '重試',
+    read: '已讀',
+    delivered: '已送達',
+  },
+  actions: {
+    message: '私訊',
+    more: '更多操作',
+    block: '封鎖',
+    unblock: '取消封鎖',
+  },
+  block: {
+    confirmTitle: '封鎖此使用者？',
+    confirmMessage: '封鎖後，此對話將暫時無法繼續傳送私訊。',
+    confirmAction: '封鎖',
+    unblockTitle: '取消封鎖？',
+    unblockMessage: '將恢復允許的私訊傳送。',
+    unblockAction: '取消封鎖',
+    blocked: '已封鎖',
+    unblocked: '已取消封鎖',
+    failed: '無法更新封鎖狀態，請再試一次。',
+  },
+  errors: {
+    sendFailed: '私訊傳送失敗，請再試一次。',
+  },
+};

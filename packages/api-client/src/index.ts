@@ -593,8 +593,109 @@ export interface UserProfile {
   inviteCode: string;
   groupName: string;
   unreadNotificationCount: number;
+  unreadDirectMessageCount: number;
   registeredAt: string | null;
   growth: UserGrowth;
+}
+
+export interface DirectMessagePeer {
+  id: number;
+  userName: string;
+  avatarUrl: string;
+  isDeleted: boolean;
+}
+
+export interface DirectMessageItem {
+  id: number;
+  clientMessageId: string;
+  senderId: number;
+  content: string;
+  createdAt: string;
+}
+
+export interface DirectConversationItem {
+  peer: DirectMessagePeer;
+  lastMessage: DirectMessageItem;
+  unreadCount: number;
+  peerLastReadMessageId: number;
+  isBlockedByMe: boolean;
+  canSend: boolean;
+}
+
+export interface DirectConversationPage {
+  items: DirectConversationItem[];
+  hasMore: boolean;
+  nextBeforeMessageId: number;
+}
+
+export interface DirectMessagePage {
+  peer: DirectMessagePeer;
+  items: DirectMessageItem[];
+  hasMore: boolean;
+  nextBeforeMessageId: number;
+  myLastReadMessageId: number;
+  peerLastReadMessageId: number;
+  unreadCount: number;
+  isBlockedByMe: boolean;
+  canSend: boolean;
+}
+
+export interface GetDirectConversationsRequest {
+  beforeMessageId: number;
+  size: number;
+}
+
+export interface GetDirectMessagesRequest extends GetDirectConversationsRequest {
+  peerUserId: number;
+}
+
+export interface SendDirectMessageRequest {
+  recipientUserId: number;
+  clientMessageId: string;
+  content: string;
+}
+
+export interface SendDirectMessageResult {
+  message: DirectMessageItem;
+  peerLastReadMessageId: number;
+}
+
+export interface MarkDirectMessagesReadRequest {
+  peerUserId: number;
+  throughMessageId: number;
+}
+
+export interface MarkDirectMessagesReadResult {
+  myLastReadMessageId: number;
+  unreadCount: number;
+}
+
+export interface SetDirectMessageBlockRequest {
+  userId: number;
+  isBlocked: boolean;
+}
+
+export interface SetDirectMessageBlockResult {
+  isBlockedByMe: boolean;
+  canSend: boolean;
+}
+
+export interface DirectMessageEvent {
+  peerId: number;
+  message: DirectMessageItem;
+}
+
+export interface DirectMessageReadEvent {
+  peerId: number;
+  readerId: number;
+  throughMessageId: number;
+  readAt: string;
+}
+
+export interface DirectMessageBlockChangedEvent {
+  peerId: number;
+  isBlockedByMe: boolean;
+  canSend: boolean;
 }
 
 export interface DailyCheckInResult {
@@ -1466,6 +1567,10 @@ export class ApiClient {
     return this.invoke('MarkNotifications', { Ids: ids }, () => undefined);
   }
 
+  markAllNotifications(): Promise<void> {
+    return this.invoke('MarkNotifications', { All: true }, () => undefined);
+  }
+
   getReadHistory(): Promise<ReadHistory> {
     return this.invoke('GetReadHistory', undefined, decodeReadHistory);
   }
@@ -1570,6 +1675,58 @@ export class ApiClient {
       'GetUserSummary',
       { UserId: userId },
       decodePublicUserSummary,
+    );
+  }
+
+  getDirectConversations(request: GetDirectConversationsRequest): Promise<DirectConversationPage> {
+    return this.invoke(
+      'GetDirectConversations',
+      { BeforeMessageId: request.beforeMessageId, Size: request.size },
+      decodeDirectConversationPage,
+    );
+  }
+
+  getDirectMessages(request: GetDirectMessagesRequest): Promise<DirectMessagePage> {
+    return this.invoke(
+      'GetDirectMessages',
+      {
+        PeerUserId: request.peerUserId,
+        BeforeMessageId: request.beforeMessageId,
+        Size: request.size,
+      },
+      decodeDirectMessagePage,
+    );
+  }
+
+  sendDirectMessage(request: SendDirectMessageRequest): Promise<SendDirectMessageResult> {
+    return this.invoke(
+      'SendDirectMessage',
+      {
+        RecipientUserId: request.recipientUserId,
+        ClientMessageId: request.clientMessageId,
+        Content: request.content,
+      },
+      decodeSendDirectMessageResult,
+    );
+  }
+
+  markDirectMessagesRead(
+    request: MarkDirectMessagesReadRequest,
+  ): Promise<MarkDirectMessagesReadResult> {
+    return this.invoke(
+      'MarkDirectMessagesRead',
+      { PeerUserId: request.peerUserId, ThroughMessageId: request.throughMessageId },
+      decodeMarkDirectMessagesReadResult,
+    );
+  }
+
+  setDirectMessageBlock(
+    request: SetDirectMessageBlockRequest,
+  ): Promise<SetDirectMessageBlockResult> {
+    return this.invoke(
+      'SetDirectMessageBlock',
+      { UserId: request.userId, IsBlocked: request.isBlocked },
+      decodeSetDirectMessageBlockResult,
     );
   }
 
@@ -1818,6 +1975,7 @@ export function decodeUserProfile(value: unknown): UserProfile {
     inviteCode: asStringOrEmpty(record.InviteCode),
     groupName: asStringOrEmpty(role.Name),
     unreadNotificationCount: asNumber(record.UnreadNotificationCount, 0),
+    unreadDirectMessageCount: Math.max(0, asNumber(record.UnreadDirectMessageCount, 0)),
     registeredAt: asNullableDateString(record.RegisterAt),
     growth: decodeUserGrowthRecord(growth, false),
   };
@@ -1860,6 +2018,120 @@ export function decodePublicUserSummary(value: unknown): PublicUserSummary {
     communityThreadCount: asNonNegativeInteger(summary.CommunityThreadCount),
     communityReplyCount: asNonNegativeInteger(summary.CommunityReplyCount),
     commentCount: asNonNegativeInteger(summary.CommentCount),
+  };
+}
+
+export function decodeDirectMessagePeer(value: unknown): DirectMessagePeer {
+  const peer = asRecord(value, 'direct message peer');
+  return {
+    id: asPositiveInteger(peer.Id),
+    userName: asPresentString(peer.UserName),
+    avatarUrl: asPresentString(peer.Avatar),
+    isDeleted: asBoolean(peer.IsDeleted),
+  };
+}
+
+export function decodeDirectMessageItem(value: unknown): DirectMessageItem {
+  const message = asRecord(value, 'direct message');
+  return {
+    id: asPositiveInteger(message.Id),
+    clientMessageId: asString(message.ClientMessageId),
+    senderId: asPositiveInteger(message.SenderId),
+    content: asString(message.Content),
+    createdAt: asValidDateString(message.CreatedAt),
+  };
+}
+
+export function decodeDirectConversationItem(value: unknown): DirectConversationItem {
+  const conversation = asRecord(value, 'direct conversation');
+  return {
+    peer: decodeDirectMessagePeer(conversation.Peer),
+    lastMessage: decodeDirectMessageItem(conversation.LastMessage),
+    unreadCount: asNonNegativeInteger(conversation.UnreadCount),
+    peerLastReadMessageId: asNonNegativeInteger(conversation.PeerLastReadMessageId),
+    isBlockedByMe: asBoolean(conversation.IsBlockedByMe),
+    canSend: asBoolean(conversation.CanSend),
+  };
+}
+
+export function decodeDirectConversationPage(value: unknown): DirectConversationPage {
+  const page = asRecord(value, 'direct conversation page');
+  return {
+    items: asArray(page.Items, 'direct conversations').map(decodeDirectConversationItem),
+    hasMore: asBoolean(page.HasMore),
+    nextBeforeMessageId: asNonNegativeInteger(page.NextBeforeMessageId),
+  };
+}
+
+export function decodeDirectMessagePage(value: unknown): DirectMessagePage {
+  const page = asRecord(value, 'direct message page');
+  return {
+    peer: decodeDirectMessagePeer(page.Peer),
+    items: asArray(page.Items, 'direct messages').map(decodeDirectMessageItem),
+    hasMore: asBoolean(page.HasMore),
+    nextBeforeMessageId: asNonNegativeInteger(page.NextBeforeMessageId),
+    myLastReadMessageId: asNonNegativeInteger(page.MyLastReadMessageId),
+    peerLastReadMessageId: asNonNegativeInteger(page.PeerLastReadMessageId),
+    unreadCount: asNonNegativeInteger(page.UnreadCount),
+    isBlockedByMe: asBoolean(page.IsBlockedByMe),
+    canSend: asBoolean(page.CanSend),
+  };
+}
+
+export function decodeSendDirectMessageResult(value: unknown): SendDirectMessageResult {
+  const result = asRecord(value, 'send direct message result');
+  return {
+    message: decodeDirectMessageItem(result.Message),
+    peerLastReadMessageId: asNonNegativeInteger(result.PeerLastReadMessageId),
+  };
+}
+
+export function decodeMarkDirectMessagesReadResult(
+  value: unknown,
+): MarkDirectMessagesReadResult {
+  const result = asRecord(value, 'mark direct messages read result');
+  return {
+    myLastReadMessageId: asNonNegativeInteger(result.MyLastReadMessageId),
+    unreadCount: asNonNegativeInteger(result.UnreadCount),
+  };
+}
+
+export function decodeSetDirectMessageBlockResult(
+  value: unknown,
+): SetDirectMessageBlockResult {
+  const result = asRecord(value, 'set direct message block result');
+  return {
+    isBlockedByMe: asBoolean(result.IsBlockedByMe),
+    canSend: asBoolean(result.CanSend),
+  };
+}
+
+export function decodeDirectMessageEvent(value: unknown): DirectMessageEvent {
+  const event = asRecord(value, 'direct message event');
+  return {
+    peerId: asPositiveInteger(event.PeerId),
+    message: decodeDirectMessageItem(event.Message),
+  };
+}
+
+export function decodeDirectMessageReadEvent(value: unknown): DirectMessageReadEvent {
+  const event = asRecord(value, 'direct message read event');
+  return {
+    peerId: asPositiveInteger(event.PeerId),
+    readerId: asPositiveInteger(event.ReaderId),
+    throughMessageId: asPositiveInteger(event.ThroughMessageId),
+    readAt: asValidDateString(event.ReadAt),
+  };
+}
+
+export function decodeDirectMessageBlockChangedEvent(
+  value: unknown,
+): DirectMessageBlockChangedEvent {
+  const event = asRecord(value, 'direct message block changed event');
+  return {
+    peerId: asPositiveInteger(event.PeerId),
+    isBlockedByMe: asBoolean(event.IsBlockedByMe),
+    canSend: asBoolean(event.CanSend),
   };
 }
 

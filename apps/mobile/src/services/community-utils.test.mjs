@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   findCommunityReply,
+  hasUnreadNotifications,
   mergeCommunityItems,
   resolveNotificationAction,
   removeCommunityReply,
@@ -14,6 +15,21 @@ test('Community pagination append keeps order and removes duplicate ids', () => 
     mergeCommunityItems([{ id: 1 }, { id: 2 }], [{ id: 2 }, { id: 3 }]),
     [{ id: 1 }, { id: 2 }, { id: 3 }],
   );
+});
+
+test('notification unread state includes notifications outside the loaded page', () => {
+  const readPage = Array.from({ length: 20 }, () => ({ isRead: true }));
+  assert.equal(hasUnreadNotifications(30, readPage), true);
+  assert.equal(hasUnreadNotifications(50, []), true);
+  assert.equal(hasUnreadNotifications(0, readPage), false);
+  assert.equal(hasUnreadNotifications(0, []), false);
+});
+
+test('loaded unread notifications remain actionable before the profile count refreshes', () => {
+  const unreadPage = [{ isRead: true }, { isRead: false }];
+  assert.equal(hasUnreadNotifications(0, unreadPage), true);
+  assert.equal(hasUnreadNotifications(undefined, unreadPage), true);
+  assert.equal(hasUnreadNotifications(null, []), false);
 });
 
 test('Community nested reply helpers find and update a child reply', () => {

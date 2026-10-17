@@ -799,6 +799,55 @@ test('profile growth wins over a stale in-flight profile load', async () => {
   assert.equal(useCase.getSnapshot().growth.coin, 4);
 });
 
+test('profile unread refresh queries after an older in-flight load and coalesces refreshes', async () => {
+  const staleLoad = deferred();
+  const refreshed = { id: 9, unreadDirectMessageCount: 0, unreadNotificationCount: 3 };
+  let calls = 0;
+  const profile = createProfileUseCase({
+    async getMyProfile() {
+      calls += 1;
+      return calls === 1 ? staleLoad.promise : structuredClone(refreshed);
+    },
+  });
+  const published = [];
+  profile.subscribe((next) => published.push(next));
+
+  const oldRequest = profile.load();
+  await nextTask();
+  const firstRefresh = profile.refresh();
+  const secondRefresh = profile.refresh();
+  assert.equal(calls, 1);
+  staleLoad.resolve({ ...refreshed, unreadDirectMessageCount: 5 });
+  await Promise.all([oldRequest, firstRefresh, secondRefresh]);
+
+  assert.equal(calls, 2);
+  assert.deepEqual(published.map((next) => next.unreadDirectMessageCount), [5, 0]);
+  assert.deepEqual(profile.getSnapshot(), refreshed);
+});
+
+test('profile unread refresh retries after an older load fails and reports its own failures', async () => {
+  const oldLoad = deferred();
+  let calls = 0;
+  const profile = createProfileUseCase({
+    async getMyProfile() {
+      calls += 1;
+      if (calls === 1) return oldLoad.promise;
+      if (calls === 3) throw new Error('refresh failed');
+      return { id: 9, unreadDirectMessageCount: 2, unreadNotificationCount: 0 };
+    },
+  });
+
+  const initialRequest = profile.load();
+  const refresh = profile.refresh();
+  oldLoad.reject(new Error('old query failed'));
+  await assert.rejects(initialRequest, /old query failed/);
+  await refresh;
+  assert.equal(profile.getSnapshot().unreadDirectMessageCount, 2);
+  await assert.rejects(() => profile.refresh(), /refresh failed/);
+  await profile.refresh();
+  assert.equal(calls, 4);
+});
+
 test('public profile use case validates, deduplicates, caches, and retries loads', async () => {
   let now = 1_000;
   let calls = 0;
@@ -1750,16 +1799,36 @@ test('notifications use case normalizes ids and validates paging', async () => {
       calls.push(['mark', ids]);
       return Promise.resolve();
     },
+    markAllNotifications() {
+      calls.push(['markAll']);
+      return Promise.resolve();
+    },
   });
   const signal = new AbortController().signal;
 
   await useCase.load({ page: 1, size: 20 }, signal);
   await useCase.mark([4, 4, 5]);
   await useCase.mark([]);
+  await useCase.markAll();
   assert.equal(calls[0][2].signal, signal);
-  assert.deepEqual(calls.slice(1), [['mark', [4, 5]]]);
+  assert.deepEqual(calls.slice(1), [['mark', [4, 5]], ['markAll']]);
   assert.throws(() => useCase.load({ page: 0 }), /valid notification page/i);
   assert.throws(() => useCase.mark([0]), /valid notification id/i);
+});
+
+test('mark all notifications needs no loaded ids and propagates request failures', async () => {
+  const failure = new Error('mark all failed');
+  let calls = 0;
+  const useCase = createNotificationsUseCase({
+    async markAllNotifications() {
+      calls += 1;
+      if (calls === 2) throw failure;
+    },
+  });
+
+  await useCase.markAll();
+  await assert.rejects(() => useCase.markAll(), (error) => error === failure);
+  assert.equal(calls, 2);
 });
 
 function bookCard(id, type) {

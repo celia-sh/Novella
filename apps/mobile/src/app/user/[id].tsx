@@ -1,12 +1,13 @@
 import {
   IconArrowBackUp,
   IconBook,
+  IconMail,
   IconMessage,
   IconMessages,
   IconRefresh,
   IconUserCircle,
 } from '@tabler/icons-react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -82,6 +83,15 @@ function PublicUserProfileContent({ userId }: { userId: number }) {
               </Text>
             </View>
           </View>
+          <Pressable
+            accessibilityLabel={t('profile.sendMessage')}
+            accessibilityRole="button"
+            onPress={() => router.push(`/messages/${summary.id}`)}
+            style={({ pressed }) => [styles.messageButton, pressed && styles.pressed]}
+          >
+            <IconMail color="#FFFFFF" size={20} strokeWidth={2} />
+            <Text style={styles.messageButtonText}>{t('profile.sendMessage')}</Text>
+          </Pressable>
           <View style={styles.stats}>
             <ProfileStat
               icon={<IconBook color={resolveAccentHex(colors.accent)} size={20} strokeWidth={2} />}
@@ -136,6 +146,25 @@ const usePublicUserProfileStyles = createThemedStyles((colors) => ({
   identityCopy: { flex: 1, minWidth: 0 },
   identityLine: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   joinedAt: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 19, marginTop: 6 },
+  messageButton: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    backgroundColor: colors.accent,
+    borderCurve: 'continuous',
+    borderRadius: 16,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    marginTop: 16,
+    minHeight: 44,
+    paddingHorizontal: 24,
+  },
+  messageButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
   meta: { color: colors.secondaryLabel, fontSize: 14, lineHeight: 20 },
   profile: { alignItems: 'stretch' },
   pressed: { opacity: 0.68 },
@@ -151,7 +180,7 @@ const usePublicUserProfileStyles = createThemedStyles((colors) => ({
   },
   statLabel: { color: colors.secondaryLabel, fontSize: 12, lineHeight: 17, textAlign: 'center' },
   statValue: { color: colors.label, fontSize: 20, fontVariant: ['tabular-nums'], fontWeight: '700', lineHeight: 25 },
-  stats: { alignSelf: 'stretch', flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', marginTop: 28 },
+  stats: { alignSelf: 'stretch', flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', marginTop: 20 },
   state: { alignItems: 'center', flex: 1, gap: 12, justifyContent: 'center', minHeight: 280 },
   stateText: { color: colors.secondaryLabel, fontSize: 15, lineHeight: 21, textAlign: 'center' },
   userName: { color: colors.label, fontSize: 22, fontWeight: '700', lineHeight: 29 },

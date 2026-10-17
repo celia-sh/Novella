@@ -1,8 +1,15 @@
 import { router, Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
+import { useProfile } from '@/hooks/use-profile';
+import { formatUnreadBadge, getUnreadCounts } from '@/services/unread-counts';
+
 export function CommunityHomeNavigation() {
   const { t } = useTranslation('community');
+  const { profile } = useProfile();
+  const unread = getUnreadCounts(profile);
+  const directMessageBadge = formatUnreadBadge(unread.directMessages);
+  const notificationBadge = formatUnreadBadge(unread.notifications);
   return (
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Button
@@ -14,8 +21,16 @@ export function CommunityHomeNavigation() {
         accessibilityLabel={t('accessibility.notifications')}
         icon="bell"
         onPress={() => router.push('/notifications')}
-      />
-      <Stack.Toolbar.Menu accessibilityLabel={t('accessibility.menu')} icon="ellipsis">
+      >
+        {notificationBadge ? <Stack.Toolbar.Badge>{notificationBadge}</Stack.Toolbar.Badge> : null}
+      </Stack.Toolbar.Button>
+      <Stack.Toolbar.Menu
+        accessibilityLabel={directMessageBadge
+          ? t('accessibility.menuWithUnread', { count: unread.directMessages })
+          : t('accessibility.menu')}
+        icon="ellipsis"
+      >
+        {directMessageBadge ? <Stack.Toolbar.Badge>{directMessageBadge}</Stack.Toolbar.Badge> : null}
         <Stack.Toolbar.MenuAction
           icon="person.crop.circle"
           onPress={() => router.push('/mine')}
@@ -27,6 +42,14 @@ export function CommunityHomeNavigation() {
           onPress={() => router.push('/community-rankings')}
         >
           {t('navigation.rankings')}
+        </Stack.Toolbar.MenuAction>
+        <Stack.Toolbar.MenuAction
+          icon="bubble.left.and.bubble.right"
+          onPress={() => router.push('/messages')}
+        >
+          {directMessageBadge
+            ? t('navigation.directMessagesWithUnread', { countLabel: directMessageBadge })
+            : t('navigation.directMessages')}
         </Stack.Toolbar.MenuAction>
       </Stack.Toolbar.Menu>
     </Stack.Toolbar>
@@ -100,16 +123,18 @@ export function CommunityPublishNavigation({
 }
 
 export function CommunityNotificationsNavigation({
+  disabled,
   hidden,
   onMarkAll,
 }: {
+  disabled: boolean;
   hidden: boolean;
   onMarkAll(): void;
 }) {
   const { t } = useTranslation('community');
   return (
     <Stack.Toolbar placement="right">
-      <Stack.Toolbar.Button hidden={hidden} onPress={onMarkAll}>
+      <Stack.Toolbar.Button disabled={disabled} hidden={hidden} onPress={onMarkAll}>
         {t('actions.markAllRead')}
       </Stack.Toolbar.Button>
     </Stack.Toolbar>

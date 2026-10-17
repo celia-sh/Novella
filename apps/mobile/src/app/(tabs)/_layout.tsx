@@ -2,13 +2,14 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { useTranslation } from 'react-i18next';
 
 import { useProfile } from '@/hooks/use-profile';
+import { formatUnreadBadge, getUnreadCounts } from '@/services/unread-counts';
 import { useAppTheme } from '@/theme/app-theme';
 
 export default function TabsLayout() {
   const { colors } = useAppTheme();
   const { t } = useTranslation('navigation');
   const { profile } = useProfile();
-  const unreadNotifications = profile?.unreadNotificationCount ?? 0;
+  const unreadBadge = formatUnreadBadge(getUnreadCounts(profile).total);
 
   return (
     <NativeTabs
@@ -30,9 +31,9 @@ export default function TabsLayout() {
       <NativeTabs.Trigger name="(community)">
         <NativeTabs.Trigger.Icon sf="text.bubble.fill" />
         <NativeTabs.Trigger.Label>{t('tabs.community')}</NativeTabs.Trigger.Label>
-        {unreadNotifications > 0 ? (
+        {unreadBadge ? (
           <NativeTabs.Trigger.Badge>
-            {unreadNotifications > 99 ? '99+' : String(unreadNotifications)}
+            {unreadBadge}
           </NativeTabs.Trigger.Badge>
         ) : null}
       </NativeTabs.Trigger>

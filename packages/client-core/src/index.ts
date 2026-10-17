@@ -37,7 +37,19 @@ import {
   type ComicSeriesListItem,
   type CommentPage,
   type DailyCheckInResult,
+  type DirectConversationItem,
+  type DirectConversationPage,
+  type DirectMessageBlockChangedEvent,
+  type DirectMessageEvent,
+  type DirectMessageItem,
+  type DirectMessagePage,
+  type DirectMessagePeer,
+  type DirectMessageReadEvent,
   type GetCommentsRequest,
+  type GetDirectConversationsRequest,
+  type GetDirectMessagesRequest,
+  type MarkDirectMessagesReadRequest,
+  type MarkDirectMessagesReadResult,
   type NovelContent,
   type NovelContentRequest,
   type OnlineInfo,
@@ -47,6 +59,10 @@ import {
   type PublicUserSummary,
   type ReadHistory,
   type ResetInviteCodeResult,
+  type SendDirectMessageRequest,
+  type SendDirectMessageResult,
+  type SetDirectMessageBlockRequest,
+  type SetDirectMessageBlockResult,
   type ShopItem,
   type SignInCalendar,
   type UseComicQuotaCardResult,
@@ -241,6 +257,7 @@ export interface CommunityUseCase {
 export interface NotificationsUseCase {
   load(request?: GetNotificationsRequest, signal?: AbortSignal): Promise<AppNotificationPage>;
   mark(ids: number[]): Promise<void>;
+  markAll(): Promise<void>;
 }
 
 export const COMMUNITY_STORAGE_KEYS = Object.freeze({
@@ -312,6 +329,7 @@ export interface ProfileUseCase {
   checkIn(): Promise<ProfileCheckInOutcome>;
   getSnapshot(): UserProfile | null;
   load(): Promise<UserProfile>;
+  refresh(): Promise<UserProfile>;
   resetInviteCode(): Promise<ProfileResetInviteCodeOutcome>;
   setAvatar(url: string): Promise<UserProfile>;
   subscribe(listener: (profile: UserProfile) => void): () => void;
@@ -325,6 +343,62 @@ export interface PublicProfileUseCase {
 
 export const COMIC_QUOTA_ITEM_KEY = 'comic_quota_50';
 export const SIGN_MAKEUP_ITEM_KEY = 'sign_makeup';
+
+export const DIRECT_CONVERSATION_PAGE_SIZE = 20;
+export const DIRECT_MESSAGE_PAGE_SIZE = 30;
+export const DIRECT_MESSAGE_MAX_LENGTH = 2_000;
+
+export interface PendingDirectMessage {
+  clientMessageId: string;
+  content: string;
+  createdAt: string;
+  status: 'pending' | 'failed';
+}
+
+export interface DirectMessageChatSnapshot {
+  peer: DirectMessagePeer | null;
+  messages: DirectMessageItem[];
+  pending: PendingDirectMessage[];
+  hasMore: boolean;
+  nextBeforeMessageId: number;
+  myLastReadMessageId: number;
+  peerLastReadMessageId: number;
+  unreadCount: number;
+  isBlockedByMe: boolean;
+  canSend: boolean;
+  loaded: boolean;
+}
+
+export interface DirectMessagesSnapshot {
+  conversations: DirectConversationItem[];
+  conversationsHasMore: boolean;
+  conversationsNextBeforeMessageId: number;
+  chats: Readonly<Record<number, DirectMessageChatSnapshot>>;
+}
+
+export interface SendDirectMessageInput {
+  clientMessageId: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface DirectMessagesUseCase {
+  applyBlockChanged(event: DirectMessageBlockChangedEvent): void;
+  applyIncomingMessage(event: DirectMessageEvent): void;
+  applyReadReceipt(event: DirectMessageReadEvent, currentUserId: number): void;
+  getSnapshot(): DirectMessagesSnapshot;
+  loadChat(peerId: number): Promise<DirectMessageChatSnapshot>;
+  loadConversations(): Promise<DirectMessagesSnapshot>;
+  loadMoreConversations(): Promise<DirectMessagesSnapshot>;
+  loadOlderMessages(peerId: number): Promise<DirectMessageChatSnapshot>;
+  markRead(peerId: number, throughMessageId: number): Promise<DirectMessageChatSnapshot>;
+  reset(): void;
+  resync(): Promise<void>;
+  retryMessage(peerId: number, clientMessageId: string): Promise<void>;
+  sendMessage(peerId: number, input: SendDirectMessageInput): Promise<void>;
+  setBlock(peerId: number, isBlocked: boolean): Promise<DirectMessageChatSnapshot>;
+  subscribe(listener: (snapshot: DirectMessagesSnapshot) => void): () => void;
+}
 
 export interface ShopSnapshot {
   coin: number;
@@ -1130,6 +1204,9 @@ export function createNotificationsUseCase(api: ApiClient): NotificationsUseCase
         ? Promise.resolve()
         : api.markNotifications(uniqueIds);
     },
+    markAll() {
+      return api.markAllNotifications();
+    },
   });
 }
 
@@ -1185,6 +1262,21 @@ export function createProfileUseCase(api: ApiClient): ProfileUseCase {
     return profile;
   }
 
+  function loadProfile(): Promise<UserProfile> {
+    if (loadPromise) return loadPromise;
+    const request = (async () => {
+      await mutationQueue;
+      const requestGeneration = ++generation;
+      const profile = await api.getMyProfile();
+      if (requestGeneration !== generation) return latest ?? profile;
+      return publish(profile);
+    })().finally(() => {
+      if (loadPromise === request) loadPromise = null;
+    });
+    loadPromise = request;
+    return request;
+  }
+
   function enqueueMutation<T>(
     mutate: () => Promise<T>,
     resolveProfile: (result: T) => Promise<UserProfile> = () => api.getMyProfile(),
@@ -1215,19 +1307,12 @@ export function createProfileUseCase(api: ApiClient): ProfileUseCase {
     getSnapshot() {
       return latest;
     },
-    load() {
-      if (loadPromise) return loadPromise;
-      const request = (async () => {
-        await mutationQueue;
-        const requestGeneration = ++generation;
-        const profile = await api.getMyProfile();
-        if (requestGeneration !== generation) return latest ?? profile;
-        return publish(profile);
-      })().finally(() => {
-        if (loadPromise === request) loadPromise = null;
-      });
-      loadPromise = request;
-      return request;
+    load: loadProfile,
+    async refresh() {
+      // A realtime event or read mutation can arrive after the current query
+      // started. Finish that query, then load once more to include the change.
+      if (loadPromise) await loadPromise.catch(() => undefined);
+      return loadProfile();
     },
     resetInviteCode() {
       return enqueueMutation(
@@ -1282,6 +1367,477 @@ export function createPublicProfileUseCase(
       return request;
     },
   });
+}
+
+export function createDirectMessagesUseCase(api: ApiClient): DirectMessagesUseCase {
+  let latest = createEmptyDirectMessagesSnapshot();
+  let generation = 0;
+  const listeners = new Set<(snapshot: DirectMessagesSnapshot) => void>();
+  const sendQueues = new Map<number, Promise<unknown>>();
+
+  function publish(next: DirectMessagesSnapshot): DirectMessagesSnapshot {
+    latest = next;
+    for (const listener of listeners) listener(next);
+    return next;
+  }
+
+  function updateChat(
+    peerId: number,
+    transform: (chat: DirectMessageChatSnapshot) => DirectMessageChatSnapshot,
+  ): DirectMessageChatSnapshot {
+    const current = latest.chats[peerId] ?? createEmptyDirectMessageChat();
+    const next = transform(current);
+    publish({ ...latest, chats: { ...latest.chats, [peerId]: next } });
+    return next;
+  }
+
+  function updateConversationMessage(
+    peerId: number,
+    message: DirectMessageItem,
+    chat: DirectMessageChatSnapshot,
+  ): void {
+    const existing = latest.conversations.find((item) => item.peer.id === peerId);
+    let conversations: DirectConversationItem[];
+    if (existing) {
+      conversations = latest.conversations.map((item) => item.peer.id === peerId
+        ? {
+            ...item,
+            lastMessage: message.id > item.lastMessage.id ? message : item.lastMessage,
+            peerLastReadMessageId: chat.peerLastReadMessageId,
+          }
+        : item);
+    } else if (chat.peer) {
+      conversations = [...latest.conversations, {
+        peer: chat.peer,
+        lastMessage: message,
+        unreadCount: chat.unreadCount,
+        peerLastReadMessageId: chat.peerLastReadMessageId,
+        isBlockedByMe: chat.isBlockedByMe,
+        canSend: chat.canSend,
+      }];
+    } else {
+      return;
+    }
+    conversations.sort((left, right) => right.lastMessage.id - left.lastMessage.id);
+    publish({ ...latest, conversations });
+  }
+
+  function enqueueSend(peerId: number, task: () => Promise<void>): Promise<void> {
+    const previous = sendQueues.get(peerId) ?? Promise.resolve();
+    const result = previous.then(task, task);
+    const chained = result.catch(() => undefined);
+    sendQueues.set(peerId, chained);
+    void chained.then(() => {
+      if (sendQueues.get(peerId) === chained) sendQueues.delete(peerId);
+    });
+    return result;
+  }
+
+  async function submitPending(peerId: number, clientMessageId: string): Promise<void> {
+    const activeGeneration = generation;
+    const pending = latest.chats[peerId]?.pending.find(
+      (item) => item.clientMessageId === clientMessageId,
+    );
+    if (!pending) return;
+
+    updateChat(peerId, (chat) => ({
+      ...chat,
+      pending: chat.pending.map((item) => item.clientMessageId === clientMessageId
+        ? { ...item, status: 'pending' as const }
+        : item),
+    }));
+
+    try {
+      const result = await api.sendDirectMessage({
+        recipientUserId: peerId,
+        clientMessageId,
+        content: pending.content,
+      });
+      if (activeGeneration !== generation) return;
+      const chat = updateChat(peerId, (current) => ({
+        ...current,
+        messages: mergeDirectMessageItems(current.messages, [result.message]),
+        pending: current.pending.filter((item) => item.clientMessageId !== clientMessageId),
+        peerLastReadMessageId: Math.max(
+          current.peerLastReadMessageId,
+          result.peerLastReadMessageId,
+        ),
+      }));
+      updateConversationMessage(peerId, result.message, chat);
+    } catch (error) {
+      if (activeGeneration !== generation) return;
+      updateChat(peerId, (chat) => ({
+        ...chat,
+        pending: chat.pending.map((item) => item.clientMessageId === clientMessageId
+          ? { ...item, status: 'failed' as const }
+          : item),
+      }));
+      throw error;
+    }
+  }
+
+  async function loadLatestChat(peerId: number): Promise<DirectMessageChatSnapshot> {
+    const activeGeneration = generation;
+    const result = await api.getDirectMessages({
+      peerUserId: peerId,
+      beforeMessageId: 0,
+      size: DIRECT_MESSAGE_PAGE_SIZE,
+    });
+    if (activeGeneration !== generation) {
+      return latest.chats[peerId] ?? createEmptyDirectMessageChat();
+    }
+    return updateChat(peerId, (current) => ({
+      ...current,
+      peer: result.peer,
+      messages: mergeDirectMessageItems(result.items, current.messages),
+      hasMore: current.loaded ? current.hasMore : result.hasMore,
+      nextBeforeMessageId: current.loaded
+        ? current.nextBeforeMessageId
+        : result.nextBeforeMessageId,
+      myLastReadMessageId: Math.max(
+        current.myLastReadMessageId,
+        result.myLastReadMessageId,
+      ),
+      peerLastReadMessageId: Math.max(
+        current.peerLastReadMessageId,
+        result.peerLastReadMessageId,
+      ),
+      unreadCount: result.unreadCount,
+      isBlockedByMe: result.isBlockedByMe,
+      canSend: result.canSend,
+      loaded: true,
+    }));
+  }
+
+  async function loadLatestConversations(): Promise<DirectMessagesSnapshot> {
+    const activeGeneration = generation;
+    const result = await api.getDirectConversations({
+      beforeMessageId: 0,
+      size: DIRECT_CONVERSATION_PAGE_SIZE,
+    });
+    if (activeGeneration !== generation) return latest;
+    const chats = { ...latest.chats };
+    for (const item of result.items) {
+      const chat = chats[item.peer.id];
+      if (!chat) continue;
+      chats[item.peer.id] = {
+        ...chat,
+        peer: chat.peer ?? item.peer,
+        unreadCount: item.unreadCount,
+        peerLastReadMessageId: Math.max(
+          chat.peerLastReadMessageId,
+          item.peerLastReadMessageId,
+        ),
+        isBlockedByMe: item.isBlockedByMe,
+        canSend: item.canSend,
+      };
+    }
+    return publish({
+      ...latest,
+      conversations: reconcileDirectConversations(latest.conversations, result.items),
+      conversationsHasMore: result.hasMore,
+      conversationsNextBeforeMessageId: result.nextBeforeMessageId,
+      chats,
+    });
+  }
+
+  return Object.freeze({
+    applyBlockChanged(event: DirectMessageBlockChangedEvent) {
+      assertPositiveInteger(event.peerId, 'A valid direct-message peer id is required.');
+      updateChat(event.peerId, (chat) => ({
+        ...chat,
+        isBlockedByMe: event.isBlockedByMe,
+        canSend: event.canSend,
+      }));
+      const conversations = latest.conversations.map((item) => item.peer.id === event.peerId
+        ? { ...item, isBlockedByMe: event.isBlockedByMe, canSend: event.canSend }
+        : item);
+      publish({ ...latest, conversations });
+    },
+    applyIncomingMessage(event: DirectMessageEvent) {
+      assertPositiveInteger(event.peerId, 'A valid direct-message peer id is required.');
+      const existingChat = latest.chats[event.peerId];
+      if (existingChat) {
+        const chat = updateChat(event.peerId, (current) => ({
+          ...current,
+          messages: mergeDirectMessageItems(current.messages, [event.message]),
+          pending: current.pending.filter(
+            (item) => item.clientMessageId !== event.message.clientMessageId,
+          ),
+        }));
+        updateConversationMessage(event.peerId, event.message, chat);
+        return;
+      }
+      const conversation = latest.conversations.find((item) => item.peer.id === event.peerId);
+      if (!conversation || event.message.id <= conversation.lastMessage.id) return;
+      const conversations = latest.conversations.map((item) => item.peer.id === event.peerId
+        ? { ...item, lastMessage: event.message }
+        : item);
+      conversations.sort((left, right) => right.lastMessage.id - left.lastMessage.id);
+      publish({ ...latest, conversations });
+    },
+    applyReadReceipt(event: DirectMessageReadEvent, currentUserId: number) {
+      assertPositiveInteger(currentUserId, 'A valid current user id is required.');
+      const isMine = event.readerId === currentUserId;
+      if (latest.chats[event.peerId]) {
+        updateChat(event.peerId, (chat) => isMine
+          ? {
+              ...chat,
+              myLastReadMessageId: Math.max(
+                chat.myLastReadMessageId,
+                event.throughMessageId,
+              ),
+            }
+          : {
+              ...chat,
+              peerLastReadMessageId: Math.max(
+                chat.peerLastReadMessageId,
+                event.throughMessageId,
+              ),
+            });
+      }
+      if (isMine) return;
+      const conversations = latest.conversations.map((item) => item.peer.id === event.peerId
+        ? {
+            ...item,
+            peerLastReadMessageId: Math.max(
+              item.peerLastReadMessageId,
+              event.throughMessageId,
+            ),
+          }
+        : item);
+      publish({ ...latest, conversations });
+    },
+    getSnapshot: () => latest,
+    async loadChat(peerId: number) {
+      assertPositiveInteger(peerId, 'A valid direct-message peer id is required.');
+      return loadLatestChat(peerId);
+    },
+    loadConversations() {
+      return loadLatestConversations();
+    },
+    async loadMoreConversations() {
+      if (!latest.conversationsHasMore) return latest;
+      const activeGeneration = generation;
+      const result = await api.getDirectConversations({
+        beforeMessageId: latest.conversationsNextBeforeMessageId,
+        size: DIRECT_CONVERSATION_PAGE_SIZE,
+      });
+      if (activeGeneration !== generation) return latest;
+      return publish({
+        ...latest,
+        conversations: mergeDirectConversations(latest.conversations, result.items),
+        conversationsHasMore: result.hasMore,
+        conversationsNextBeforeMessageId: result.nextBeforeMessageId,
+      });
+    },
+    async loadOlderMessages(peerId: number) {
+      assertPositiveInteger(peerId, 'A valid direct-message peer id is required.');
+      const chat = latest.chats[peerId];
+      if (!chat?.hasMore) return chat ?? createEmptyDirectMessageChat();
+      const activeGeneration = generation;
+      const result = await api.getDirectMessages({
+        peerUserId: peerId,
+        beforeMessageId: chat.nextBeforeMessageId,
+        size: DIRECT_MESSAGE_PAGE_SIZE,
+      });
+      if (activeGeneration !== generation) {
+        return latest.chats[peerId] ?? createEmptyDirectMessageChat();
+      }
+      return updateChat(peerId, (current) => ({
+        ...current,
+        peer: result.peer,
+        messages: mergeDirectMessageItems(current.messages, result.items),
+        hasMore: result.hasMore,
+        nextBeforeMessageId: result.nextBeforeMessageId,
+      }));
+    },
+    async markRead(peerId: number, throughMessageId: number) {
+      assertPositiveInteger(peerId, 'A valid direct-message peer id is required.');
+      assertPositiveInteger(throughMessageId, 'A valid direct-message read id is required.');
+      const existing = latest.chats[peerId] ?? createEmptyDirectMessageChat();
+      if (throughMessageId <= existing.myLastReadMessageId) return existing;
+      const activeGeneration = generation;
+      const result = await api.markDirectMessagesRead({ peerUserId: peerId, throughMessageId });
+      if (activeGeneration !== generation) {
+        return latest.chats[peerId] ?? createEmptyDirectMessageChat();
+      }
+      const chat = updateChat(peerId, (current) => ({
+        ...current,
+        myLastReadMessageId: Math.max(
+          current.myLastReadMessageId,
+          result.myLastReadMessageId,
+        ),
+        unreadCount: result.unreadCount,
+      }));
+      const conversations = latest.conversations.map((item) => item.peer.id === peerId
+        ? { ...item, unreadCount: result.unreadCount }
+        : item);
+      publish({ ...latest, conversations });
+      return chat;
+    },
+    reset() {
+      generation += 1;
+      sendQueues.clear();
+      publish(createEmptyDirectMessagesSnapshot());
+    },
+    async resync() {
+      const loadedPeerIds = Object.entries(latest.chats)
+        .filter(([, chat]) => chat.loaded)
+        .map(([peerId]) => Number(peerId));
+      await Promise.allSettled([
+        loadLatestConversations(),
+        ...loadedPeerIds.map((peerId) => loadLatestChat(peerId)),
+      ]);
+    },
+    retryMessage(peerId: number, clientMessageId: string) {
+      assertPositiveInteger(peerId, 'A valid direct-message peer id is required.');
+      const normalizedId = clientMessageId.trim();
+      if (!normalizedId || !latest.chats[peerId]?.pending.some(
+        (item) => item.clientMessageId === normalizedId,
+      )) {
+        return Promise.resolve();
+      }
+      return enqueueSend(peerId, () => submitPending(peerId, normalizedId));
+    },
+    sendMessage(peerId: number, input: SendDirectMessageInput) {
+      assertPositiveInteger(peerId, 'A valid direct-message peer id is required.');
+      const clientMessageId = input.clientMessageId.trim();
+      if (!clientMessageId) throw new Error('A direct-message client id is required.');
+      const content = normalizeDirectMessageContent(input.content);
+      if (!content) throw new Error('A direct-message body is required.');
+      if (Array.from(content).length > DIRECT_MESSAGE_MAX_LENGTH) {
+        throw new Error(`Direct messages cannot exceed ${DIRECT_MESSAGE_MAX_LENGTH} characters.`);
+      }
+      if (Number.isNaN(Date.parse(input.createdAt))) {
+        throw new Error('A valid direct-message creation time is required.');
+      }
+      const chat = latest.chats[peerId] ?? createEmptyDirectMessageChat();
+      if (chat.pending.some((item) => item.clientMessageId === clientMessageId)) {
+        throw new Error('The direct-message client id is already pending.');
+      }
+      updateChat(peerId, (current) => ({
+        ...current,
+        pending: [...current.pending, {
+          clientMessageId,
+          content,
+          createdAt: new Date(input.createdAt).toISOString(),
+          status: 'pending' as const,
+        }],
+      }));
+      return enqueueSend(peerId, () => submitPending(peerId, clientMessageId));
+    },
+    async setBlock(peerId: number, isBlocked: boolean) {
+      assertPositiveInteger(peerId, 'A valid direct-message peer id is required.');
+      const activeGeneration = generation;
+      const result = await api.setDirectMessageBlock({ userId: peerId, isBlocked });
+      if (activeGeneration !== generation) {
+        return latest.chats[peerId] ?? createEmptyDirectMessageChat();
+      }
+      const chat = updateChat(peerId, (current) => ({
+        ...current,
+        isBlockedByMe: result.isBlockedByMe,
+        canSend: result.canSend,
+      }));
+      const conversations = latest.conversations.map((item) => item.peer.id === peerId
+        ? {
+            ...item,
+            isBlockedByMe: result.isBlockedByMe,
+            canSend: result.canSend,
+          }
+        : item);
+      publish({ ...latest, conversations });
+      return chat;
+    },
+    subscribe(listener: (snapshot: DirectMessagesSnapshot) => void) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  });
+}
+
+function createEmptyDirectMessageChat(): DirectMessageChatSnapshot {
+  return {
+    peer: null,
+    messages: [],
+    pending: [],
+    hasMore: false,
+    nextBeforeMessageId: 0,
+    myLastReadMessageId: 0,
+    peerLastReadMessageId: 0,
+    unreadCount: 0,
+    isBlockedByMe: false,
+    canSend: true,
+    loaded: false,
+  };
+}
+
+function createEmptyDirectMessagesSnapshot(): DirectMessagesSnapshot {
+  return {
+    conversations: [],
+    conversationsHasMore: false,
+    conversationsNextBeforeMessageId: 0,
+    chats: {},
+  };
+}
+
+function mergeDirectMessageItems(
+  current: readonly DirectMessageItem[],
+  incoming: readonly DirectMessageItem[],
+): DirectMessageItem[] {
+  const merged = [...current];
+  const indexById = new Map<number, number>();
+  const indexByClientId = new Map<string, number>();
+  for (let index = 0; index < merged.length; index += 1) {
+    const message = merged[index];
+    if (!message) continue;
+    indexById.set(message.id, index);
+    indexByClientId.set(message.clientMessageId, index);
+  }
+  for (const message of incoming) {
+    const index = indexById.get(message.id) ?? indexByClientId.get(message.clientMessageId);
+    if (index === undefined) {
+      indexById.set(message.id, merged.length);
+      indexByClientId.set(message.clientMessageId, merged.length);
+      merged.push(message);
+    } else {
+      merged[index] = message;
+    }
+  }
+  merged.sort((left, right) => left.id - right.id);
+  return merged;
+}
+
+function mergeDirectConversations(
+  current: readonly DirectConversationItem[],
+  incoming: readonly DirectConversationItem[],
+): DirectConversationItem[] {
+  const byPeerId = new Map(current.map((item) => [item.peer.id, item]));
+  for (const item of incoming) byPeerId.set(item.peer.id, item);
+  return [...byPeerId.values()].sort(
+    (left, right) => right.lastMessage.id - left.lastMessage.id,
+  );
+}
+
+function reconcileDirectConversations(
+  current: readonly DirectConversationItem[],
+  server: readonly DirectConversationItem[],
+): DirectConversationItem[] {
+  const currentByPeerId = new Map(current.map((item) => [item.peer.id, item]));
+  const reconciled = server.map((item) => {
+    const local = currentByPeerId.get(item.peer.id);
+    currentByPeerId.delete(item.peer.id);
+    return local && local.lastMessage.id > item.lastMessage.id
+      ? { ...item, lastMessage: local.lastMessage }
+      : item;
+  });
+  reconciled.push(...currentByPeerId.values());
+  reconciled.sort((left, right) => right.lastMessage.id - left.lastMessage.id);
+  return reconciled;
+}
+
+function normalizeDirectMessageContent(content: string): string {
+  return content.replace(/\r\n?/g, '\n').trim();
 }
 
 export function createPointLogUseCase(api: ApiClient): PointLogUseCase {

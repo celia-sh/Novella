@@ -35,7 +35,7 @@
 - [x] Review the final diff against the task PRD/design and the source commit's
   public-summary hunk.
 - [x] Record the target commit and validation evidence in the task artifacts.
-- [ ] Commit the target API change only after all checks pass.
+- [x] Commit the target API change after checks; the existing 2026-09-22 journal records that completed migration.
 - [x] Keep rollback as a single revert of that target commit.
 
 ## Validation commands

@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next';
 
 import type { AppNotificationItem } from '@novella/api-client';
 
+import { useProfile } from '@/hooks/use-profile';
 import { notifications, profile } from '@/services/client';
-import { mergeCommunityItems } from '@/services/community-utils';
+import { hasUnreadNotifications, mergeCommunityItems } from '@/services/community-utils';
 
 interface CommunityNotificationsState {
   error: string | null;
@@ -20,6 +21,7 @@ interface CommunityNotificationsState {
 
 export function useCommunityNotifications() {
   const { t } = useTranslation('community');
+  const { profile: currentProfile } = useProfile();
   const [state, setState] = useState<CommunityNotificationsState>({
     error: null,
     items: [],
@@ -34,6 +36,8 @@ export function useCommunityNotifications() {
   const generationRef = useRef(0);
   const hasLoadedRef = useRef(false);
   const loadingMoreRef = useRef(false);
+  const markingRef = useRef(false);
+  const hasUnread = hasUnreadNotifications(currentProfile?.unreadNotificationCount, state.items);
 
   const load = useCallback(async ({ append = false, refreshing = false } = {}) => {
     if (append) {
@@ -92,7 +96,7 @@ export function useCommunityNotifications() {
   const reconcile = useCallback(async () => {
     await Promise.allSettled([
       loadRef.current(),
-      profile.load(),
+      profile.refresh(),
     ]);
   }, []);
 
@@ -114,21 +118,22 @@ export function useCommunityNotifications() {
   }, [reconcile]);
 
   const markAll = useCallback(async () => {
-    const unreadIds = state.items.filter((item) => !item.isRead).map((item) => item.id);
-    if (unreadIds.length === 0 || state.marking) return;
+    if (!hasUnread || markingRef.current) return;
+    markingRef.current = true;
     setState((current) => ({
       ...current,
       items: current.items.map((item) => item.isRead ? item : { ...item, isRead: true }),
       marking: true,
     }));
     try {
-      await notifications.mark(unreadIds);
+      await notifications.markAll();
     } catch {
       // Reconciled below for the same void-mutation reason as single reads.
     }
     await reconcile();
+    markingRef.current = false;
     setState((current) => ({ ...current, marking: false }));
-  }, [reconcile, state.items, state.marking]);
+  }, [hasUnread, reconcile]);
 
   const loadMore = useCallback(() => {
     if (loadingMoreRef.current || state.page >= state.totalPages) return Promise.resolve();
@@ -136,6 +141,7 @@ export function useCommunityNotifications() {
   }, [load, state.page, state.totalPages]);
 
   return {
+    hasUnread,
     loadMore,
     mark,
     markAll,

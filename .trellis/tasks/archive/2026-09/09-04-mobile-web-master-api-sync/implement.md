@@ -1,5 +1,12 @@
 # Implementation Plan
 
+> Completed on 2026-09-22; closure reconfirmed by the user on 2026-10-04.
+> Later contract work moved public summaries to `GetUserSummary({ UserId })`
+> and removed `open_series`. Original REST/series references below describe
+> historical requirements, not the current implementation. Closed interaction
+> entries reflect the user's completion confirmation, not new agent-run device
+> tests. Current contracts are in `.trellis/spec/backend/`.
+
 ## 1. Update normalized API contracts
 
 - [x] Change comic-content default batch size to 6.
@@ -42,7 +49,7 @@
 - [x] Run mobile reader/settings/localization tests.
 - [x] Run `npm run check` and `git diff --check`.
 - [x] Review the final diff against `Web-Master reference snapshot [COMMIT]` and confirm category/Markdown changes remain out of scope.
-- [ ] User verifies the live iOS profile/shop/log interactions.
+- [x] User completion confirmation closes profile/shop/log interaction acceptance (2026-10-04; no new agent device run).
 
 ## 6. Comment infinite-scroll follow-up
 
@@ -56,10 +63,10 @@
 
 - [x] Replace the legacy `Type` / `ObjectType` / `ObjectId` / `Extra` notification decoder with the current `Kind` / `SchemaVersion` / `Title` / `Body` / `Tone` / `Action` / `Data` / `ReadAt` contract.
 - [x] Render server-owned notification titles and bodies, normalize unknown tones to neutral, and remove client-generated action/object labels.
-- [x] Validate and route `open_book`, `open_announcement`, `open_series`, and `open_community_thread`; ignore unknown actions without guessing their targets.
+- [x] Validate and route `open_book`, `open_announcement`, and `open_community_thread`; reject the removed `open_series` action and other unsupported targets.
 - [x] Add persistent SignalR event subscriptions and install one root handler for notification-count refreshes and authoritative growth snapshots; intentionally do not surface generic `OnMessage`, `OnError`, or `OnSuccess` payloads because they may describe Web-only behavior.
 - [x] Keep success feedback single-sourced for growth-changing mobile mutations: check-in, shop purchase, and makeup use rely on `OnGrowthUpdate` plus their updated UI state instead of a second success alert; quota-card use keeps a dedicated result because the current growth toast only reports experience/coin deltas.
-- [ ] User verifies notification tone presentation, all four action destinations, reconnect delivery, badge refresh, and server/growth toasts on iOS.
+- [x] User completion confirmation closes notification interaction acceptance (2026-10-04); current supported actions exclude `open_series`, and no new agent device run is claimed.
 
 
 - Keep the reader's batch-size constant aligned with API request boundaries; a partial change can make page-to-batch retry calculations repeat the wrong request.

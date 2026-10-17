@@ -1,0 +1,32 @@
+{
+  "id": "sync-latest-web-master-contracts",
+  "name": "sync-latest-web-master-contracts",
+  "title": "跟进 Web-Master 最新契约",
+  "description": "",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "[DEVELOPER]",
+  "assignee": "kanscape",
+  "createdAt": "2026-09-06",
+  "completedAt": "2026-10-04",
+  "branch": "feat/direct-messages",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": "6329baf1c35763c37a87f3fcdbeb70528b1a6d3b",
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "The original Web-Master contract work and separate API follow-ups were completed earlier. The remaining direct-message work is now completed on feat/direct-messages, renamed from feat/sync-web-master-direct-messages. Archive after user completion confirmation on 2026-10-04; automated evidence and current implementation are recorded in the task documents.",
+  "meta": {
+    "historicalBranches": [
+      "feat/sync-latest-web-master-contracts",
+      "feat/sync-web-master-direct-messages"
+    ],
+    "userCompletionConfirmationAt": "2026-10-04"
+  }
+}

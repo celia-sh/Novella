@@ -1,5 +1,10 @@
 # Technical Design
 
+> Completed on 2026-10-04. The remaining direct-message work was delivered on
+> `feat/direct-messages`, renamed from `feat/sync-web-master-direct-messages`.
+> The current executable contract is
+> `.trellis/spec/backend/direct-message-contracts.md`.
+
 ## Boundaries
 
 - `packages/api-client`: wire contracts, normalized types, decoders, and Hub method.
@@ -60,4 +65,16 @@ Web-Master Hub DTO / MessagePack event
 
 ### Mobile presentation
 
-Use a root `messages` stack: a native large-title conversation list and a pushed peer chat. The chat uses `KeyboardChatScrollView` plus `KeyboardStickyView`; do not add a custom responder or React Native `KeyboardAvoidingView`. Message bodies render as selectable plain text. The public-user sheet supplies a direct-message action only for users other than the signed-in user.
+Use a root `messages` stack: a native large-title conversation list and a pushed peer chat. The conversation `FlatList` is the screen's native scroll owner; do not wrap it in a native `View` or create empty scroll range with `flexGrow` for short lists.
+
+The chat uses `Animated.ScrollView` and `useDirectMessageScroll`, with a root `KeyboardProvider`. `NativeDirectMessageComposer` uses UIKit keyboard layout and reports its occupied height. The hook owns one bottom inset: composer height plus the larger of keyboard height and resting safe area. On iOS, inset and absolute bottom offset change together at keyboard-animation start; presentation frames drive visual updates. Initial positioning waits for content, viewport, and composer measurements before revealing the transcript. Input growth follows the same animated height without forcing the viewport while reading history.
+
+Tapping the transcript invokes the native composer's `blur()`; scrolling retains interactive keyboard dismissal. Message bodies remain selectable plain text. Outgoing pending and confirmed rows share the client-message key, bubbles size independently from their receipt footer, and entering animation uses opacity/translation rather than scale. The public-user sheet supplies a direct-message action only for users other than the signed-in user, using the mail icon.
+
+### Unread state and notifications
+
+`GetMyInfo.UnreadDirectMessageCount` supplies the private-message count. The community ellipsis menu keeps the private-message entry and badge, the bell shows notification unread count, and the Community tab sums both counts. Zero hides a badge and values above 99 display `99+`.
+
+`ProfileUseCase.refresh()` waits for an older in-flight query before requesting a fresh snapshot. Incoming messages update the transcript immediately and trigger coalesced profile/conversation refresh; own read receipts refresh counts too. Session recovery and the transport's `onreconnected` callback both trigger full direct-message resynchronization.
+
+Notification "mark all read" invokes `MarkNotifications({ All: true })`, including unread pages that have not been loaded. Its action remains available while either the profile count or loaded items indicate unread notifications.

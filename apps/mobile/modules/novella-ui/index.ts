@@ -14,3 +14,9 @@ export {
   NativeReaderProgressBar,
   type NativeReaderProgressBarProps,
 } from './src/native-reader-progress-bar';
+
+export {
+  NativeDirectMessageComposer,
+  type NativeDirectMessageComposerHandle,
+  type NativeDirectMessageComposerProps,
+} from './src/native-direct-message-composer';

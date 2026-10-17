@@ -9,6 +9,7 @@ import {
   createCommentsUseCase,
   createComicDetailUseCase,
   createCommunityUseCase,
+  createDirectMessagesUseCase,
   createDiscoveryUseCase,
   createHistoryUseCase,
   createNotificationsUseCase,
@@ -25,6 +26,7 @@ import {
   type CommentsUseCase,
   type ComicDetailUseCase,
   type CommunityUseCase,
+  type DirectMessagesUseCase,
   type DiscoveryUseCase,
   type HistoryUseCase,
   type NotificationsUseCase,
@@ -79,6 +81,7 @@ export const comicDetails: ComicDetailUseCase = createComicDetailUseCase(api);
 export const bookSearch: BookSearchUseCase = createBookSearchUseCase(api);
 export const comments: CommentsUseCase = createCommentsUseCase(api);
 export const community: CommunityUseCase = createCommunityUseCase(api);
+export const directMessages: DirectMessagesUseCase = createDirectMessagesUseCase(api);
 export const notifications: NotificationsUseCase = createNotificationsUseCase(api);
 export const pointLogs: PointLogUseCase = createPointLogUseCase(api);
 export const history: HistoryUseCase = createHistoryUseCase(api);
@@ -95,6 +98,7 @@ authentication = createAuthenticationUseCase(
 );
 authentication.subscribe(({ status }) => {
   if (status === 'signingIn' || status === 'registering' || status === 'signedOut') {
+    directMessages.reset();
     shop.reset();
   }
 });
@@ -145,6 +149,10 @@ export function subscribeClientRealtime(
   listener: (payload: unknown) => void,
 ) {
   return session.transport.subscribe(methodName, listener);
+}
+
+export function subscribeClientRealtimeReconnect(listener: () => void) {
+  return signalR.subscribeReconnected(listener);
 }
 
 export async function closeClient(): Promise<void> {
