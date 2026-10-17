@@ -301,7 +301,7 @@ const useAnnouncementCenterStyles = createThemedStyles((colors) => ({
   retryText: { color: colors.accent, fontSize: 13, fontWeight: '700' },
   root: { flex: 1 },
   skeletonChevron: { borderRadius: 6, height: 20, width: 20 },
-  skeletonIcon: { borderRadius: 13, height: 42, width: 42 },
+  skeletonIcon: { borderCurve: 'continuous', borderRadius: 13, height: 42, width: 42 },
   skeletonLine: { borderRadius: 6, height: 12, width: '100%' },
   skeletonMeta: { borderRadius: 6, height: 12, marginLeft: 54, width: '44%' },
   skeletonShort: { borderRadius: 6, height: 12, width: '72%' },

@@ -20,6 +20,7 @@ import type { RankPeriod } from '@novella/client-core';
 
 import {
   BOOK_COVER_ASPECT_RATIO,
+  BOOK_COVER_CORNER_RADIUS,
   BookCoverGridItem,
 } from '@/components/book-cover-grid-item';
 import { DiscoverNavigation } from '@/components/discover-navigation';
@@ -451,6 +452,7 @@ function BookGridPlaceholder({
               <Skeleton
                 style={[
                   styles.skeletonBlock,
+                  styles.skeletonCover,
                   { aspectRatio: BOOK_COVER_ASPECT_RATIO, width: tileWidth },
                 ]}
               />
@@ -707,6 +709,7 @@ const useHomeScreenStyles = createThemedStyles((colors) => ({
     borderRadius: 8,
     overflow: 'hidden',
   },
+  skeletonCover: { borderRadius: BOOK_COVER_CORNER_RADIUS },
   skeletonLine: {
     height: 13,
   },

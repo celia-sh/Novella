@@ -1,6 +1,10 @@
 import { StyleSheet, View } from 'react-native';
 import { Skeleton } from 'panelui-native/components/skeleton';
 
+import {
+  BOOK_COVER_ASPECT_RATIO,
+  BOOK_COVER_CORNER_RADIUS,
+} from '@/components/book-cover-grid-item';
 import { BOOK_GRID_ROW_GAP } from '@/services/book-grid-layout';
 import { createThemedStyles } from '@/theme/app-theme';
 
@@ -54,7 +58,10 @@ export function BookCoverSkeletonTile({ tileWidth }: { tileWidth: number }) {
       style={[styles.tile, { width: tileWidth }]}
     >
       <Skeleton
-        style={[styles.skeletonBlock, { aspectRatio: 2 / 3, width: tileWidth }]}
+        style={[
+          styles.skeletonBlock,
+          { aspectRatio: BOOK_COVER_ASPECT_RATIO, width: tileWidth },
+        ]}
       />
       <Skeleton
         style={[styles.skeletonBlock, styles.skeletonLine, { width: '88%' }]}
@@ -70,7 +77,7 @@ const useBookCoverSkeletonTileStyles = createThemedStyles((colors) => ({
   skeletonBlock: {
     backgroundColor: colors.surfaceContainerHighest,
     borderCurve: 'continuous',
-    borderRadius: 8,
+    borderRadius: BOOK_COVER_CORNER_RADIUS,
     overflow: 'hidden',
   },
   skeletonLine: {
