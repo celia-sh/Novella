@@ -15,6 +15,7 @@ import type {
   ReadiumImageEvent,
   ReadiumLinkEvent,
   ReadiumLocator,
+  ReadiumProgressMetricsEvent,
   ReadiumReaderError,
   ReadiumStatusEvent,
   ReadiumTapEvent,
@@ -31,13 +32,14 @@ type NativeViewHandle = {
 type NativeViewProps = ViewProps &
   Omit<
     NovellaReadiumViewProps,
-    'onBoundary' | 'onError' | 'onImage' | 'onLink' | 'onLocatorChange' | 'onReady' | 'onStatus' | 'onTap'
+    'onBoundary' | 'onError' | 'onImage' | 'onLink' | 'onLocatorChange' | 'onProgressMetrics' | 'onReady' | 'onStatus' | 'onTap'
   > & {
     onBoundary?: (event: { nativeEvent: ReadiumBoundaryEvent }) => void;
     onError?: (event: { nativeEvent: ReadiumReaderError }) => void;
     onImage?: (event: { nativeEvent: ReadiumImageEvent }) => void;
     onLink?: (event: { nativeEvent: ReadiumLinkEvent }) => void;
     onLocatorChange?: (event: { nativeEvent: ReadiumLocator }) => void;
+    onProgressMetrics?: (event: { nativeEvent: ReadiumProgressMetricsEvent }) => void;
     onReady?: (event: { nativeEvent: Record<string, never> }) => void;
     onStatus?: (event: { nativeEvent: ReadiumStatusEvent }) => void;
     onTap?: (event: { nativeEvent: ReadiumTapEvent }) => void;
@@ -52,7 +54,7 @@ export const NovellaReadiumView = forwardRef<
   NovellaReadiumViewHandle,
   NovellaReadiumViewProps
 >(function NovellaReadiumView(
-  { onBoundary, onError, onImage, onLink, onLocatorChange, onReady, onStatus, onTap, ...props },
+  { onBoundary, onError, onImage, onLink, onLocatorChange, onProgressMetrics, onReady, onStatus, onTap, ...props },
   ref,
 ) {
   const nativeRef = useRef<NativeViewHandle | null>(null);
@@ -74,6 +76,7 @@ export const NovellaReadiumView = forwardRef<
       {...(onImage ? { onImage: ({ nativeEvent }) => onImage(nativeEvent) } : {})}
       {...(onLink ? { onLink: ({ nativeEvent }) => onLink(nativeEvent) } : {})}
       {...(onLocatorChange ? { onLocatorChange: ({ nativeEvent }) => onLocatorChange(nativeEvent) } : {})}
+      {...(onProgressMetrics ? { onProgressMetrics: ({ nativeEvent }) => onProgressMetrics(nativeEvent) } : {})}
       {...(onReady ? { onReady: () => onReady() } : {})}
       {...(onStatus ? { onStatus: ({ nativeEvent }) => onStatus(nativeEvent) } : {})}
       {...(onTap ? { onTap: ({ nativeEvent }) => onTap(nativeEvent) } : {})}
