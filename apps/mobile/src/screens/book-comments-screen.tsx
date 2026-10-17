@@ -14,6 +14,7 @@ import { IconMessage, IconRefresh } from '@tabler/icons-react-native';
 import { PaperProvider } from 'react-native-paper';
 
 import { BookCommentsNavigation } from '@/components/book-comments-navigation';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import type { CommentThreadPalette } from '@/components/comment-thread';
 import {
   CommentThreadLoadingFooter,
@@ -114,8 +115,9 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
     <PaperProvider theme={detailTheme.paperTheme}>
       <BookCommentsNavigation onCompose={openComposer} palette={palette} />
 
+        <HorizontalSafeArea style={[styles.root, { backgroundColor: palette.surface }]}>
         <FlatList
-          style={[styles.root, { backgroundColor: palette.surface }]}
+          style={styles.list}
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.content}
           data={rows}
@@ -173,6 +175,7 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
           updateCellsBatchingPeriod={16}
           windowSize={11}
         />
+        </HorizontalSafeArea>
 
     </PaperProvider>
   );
@@ -200,6 +203,7 @@ const styles = StyleSheet.create({
   header: { gap: 16, paddingBottom: 10, paddingHorizontal: 16, paddingTop: 12 },
   inlineButton: { alignItems: 'center', flexDirection: 'row', gap: 6, padding: 6 },
   inlineButtonLabel: { fontSize: 14, fontWeight: '600' },
+  list: { flex: 1 },
   pressed: { opacity: 0.68 },
   root: { flex: 1 },
 });

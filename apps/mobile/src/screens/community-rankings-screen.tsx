@@ -6,6 +6,7 @@ import {
   CommunityActiveMembers,
   CommunityHotDiscussions,
 } from '@/components/community/community-insights';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { useCachedCommunityHome } from '@/hooks/community-home-cache';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
@@ -23,13 +24,13 @@ export function CommunityRankingsScreen() {
   };
 
   return (
-
+    <HorizontalSafeArea style={styles.root}>
       <ScrollView
         alwaysBounceVertical
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
-        style={styles.root}
+        style={styles.scroll}
       >
         {home ? (
           <View style={styles.body}>
@@ -48,7 +49,7 @@ export function CommunityRankingsScreen() {
           </View>
         )}
       </ScrollView>
-
+    </HorizontalSafeArea>
   );
 }
 
@@ -65,4 +66,5 @@ const useCommunityRankingsStyles = createThemedStyles((colors) => ({
   },
   emptyTitle: { color: colors.label, fontSize: 16, fontWeight: '700' },
   root: { backgroundColor: colors.background, flex: 1 },
+  scroll: { flex: 1 },
 }));

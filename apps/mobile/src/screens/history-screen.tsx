@@ -24,6 +24,7 @@ import {
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
 import { HistoryNavigation } from '@/components/history-navigation';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
@@ -124,7 +125,8 @@ export function HistoryScreen() {
     <>
 
         <View style={styles.root}>
-          <FlatList
+          <HorizontalSafeArea style={styles.list}>
+            <FlatList
             ListEmptyComponent={
               state.initialError !== null ? (
                 <InitialErrorState error={state.initialError} onRetry={() => retry(tab)} />
@@ -193,7 +195,8 @@ export function HistoryScreen() {
             }}
             showsVerticalScrollIndicator={false}
             viewabilityConfig={coverActivation.viewabilityConfig}
-          />
+            />
+          </HorizontalSafeArea>
         </View>
 
       <HistoryNavigation onClear={confirmClearHistory} showClear={hasAnyHistory} />
@@ -302,6 +305,7 @@ const useHistoryScreenStyles = createThemedStyles((colors) => ({
     fontSize: 14,
     fontWeight: '600',
   },
+  list: { flex: 1 },
   root: { flex: 1 },
   row: { gap: 12 },
   stateBlock: {

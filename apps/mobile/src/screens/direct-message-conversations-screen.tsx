@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { DirectConversationItem } from '@novella/api-client';
 
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { PublicUserAvatar } from '@/components/public-user-avatar';
 import { useDirectMessages } from '@/hooks/use-direct-messages';
 import { formatRelativeTime } from '@/localization/formatters';
@@ -85,6 +86,7 @@ export function DirectMessageConversationsScreen() {
   const empty = snapshot.conversations.length === 0;
 
   return (
+    <HorizontalSafeArea style={styles.root}>
     <FlatList
       contentContainerStyle={empty ? styles.emptyContent : styles.content}
       contentInsetAdjustmentBehavior="automatic"
@@ -152,8 +154,9 @@ export function DirectMessageConversationsScreen() {
         ) : undefined
       }
       showsVerticalScrollIndicator={false}
-      style={styles.root}
+      style={styles.list}
     />
+    </HorizontalSafeArea>
   );
 }
 
@@ -252,6 +255,7 @@ const useConversationListStyles = createThemedStyles((colors) =>
       paddingHorizontal: 18,
     },
     retryText: { color: colors.onPrimaryContainer, fontSize: 15, fontWeight: '600' },
+    list: { flex: 1 },
     root: { backgroundColor: colors.background, flex: 1 },
     row: {
       alignItems: 'center',

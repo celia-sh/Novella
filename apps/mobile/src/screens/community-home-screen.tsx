@@ -52,6 +52,7 @@ import type {
 
 import { PublicUserAvatar } from '@/components/public-user-avatar';
 import { CommunityHomeNavigation } from '@/components/community/community-navigation';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { useCommunityHome, type CommunityHomeQuery } from '@/hooks/use-community-home';
 import { useAppLocale } from '@/localization/localization-provider';
 import { resolveCommunityBoardIcon } from '@/services/community-board-icons';
@@ -108,7 +109,7 @@ export function CommunityHomeScreen() {
   return (
     <PaperProvider theme={paperTheme}>
       <>
-
+        <HorizontalSafeArea style={styles.root}>
           <ScrollView
             alwaysBounceVertical
             contentContainerStyle={styles.content}
@@ -124,7 +125,7 @@ export function CommunityHomeScreen() {
             }
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
-            style={styles.root}
+            style={styles.scroll}
           >
             <View style={styles.headerContainer}>
               {state.home ? (
@@ -173,6 +174,7 @@ export function CommunityHomeScreen() {
               />
             ) : null}
           </ScrollView>
+        </HorizontalSafeArea>
 
         <CommunityHomeNavigation />
       </>
@@ -960,6 +962,7 @@ const useCommunityHomeStyles = createThemedStyles((colors) => ({
   replyBadge: { alignItems: 'center', backgroundColor: colors.surfaceContainerHighest, borderRadius: 12, flexDirection: 'row', gap: 4, paddingHorizontal: 8, paddingVertical: 5 },
   replyBadgeText: { color: colors.secondaryLabel, fontSize: 12, fontVariant: ['tabular-nums'], fontWeight: '700' },
   root: { backgroundColor: colors.background, flex: 1 },
+  scroll: { flex: 1 },
   sectionSkeletonTitle: { borderRadius: 6, height: 19, width: '27%' },
   stateBody: { alignItems: 'flex-start', gap: 12, padding: 18 },
   stateCopy: { gap: 4 },

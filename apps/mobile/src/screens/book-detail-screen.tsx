@@ -52,6 +52,7 @@ import { BookCoverImage } from '@/components/book-cover-image';
 import { BookDetailNavigation } from '@/components/book-detail-navigation';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
 import { BookHtmlContent } from '@/components/book-html-content';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import {
   useBookDetail,
   type BookUserMessage,
@@ -224,12 +225,18 @@ function BookDetailContent({
 }) {
   const { t } = useTranslation('book');
   const locale = useAppLocale();
-  const { bottom: bottomInset, top: topInset } = useSafeAreaInsets();
+  const {
+    bottom: bottomInset,
+    left: leftInset,
+    right: rightInset,
+    top: topInset,
+  } = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollViewOffset(scrollRef);
-  const horizontalPadding = Math.max(20, (width - 640) / 2);
-  const contentWidth = Math.max(1, width - horizontalPadding * 2);
+  const usableWidth = Math.max(1, width - leftInset - rightInset);
+  const horizontalPadding = Math.max(20, (usableWidth - 640) / 2);
+  const contentWidth = Math.max(1, usableWidth - horizontalPadding * 2);
   const currentSortNum = getCurrentSortNum(book);
   const resumeChapter = currentSortNum
     ? book.chapters.find((chapter) => chapter.sortNum === currentSortNum)
@@ -266,6 +273,7 @@ function BookDetailContent({
         palette={palette}
         scrollOffset={scrollOffset}
       />
+      <HorizontalSafeArea style={styles.scrollView}>
       <Animated.ScrollView
         bounces
         contentInsetAdjustmentBehavior="never"
@@ -273,7 +281,7 @@ function BookDetailContent({
         ref={scrollRef}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        style={[styles.scrollView, { backgroundColor: 'transparent' }]}
+        style={styles.scrollBody}
       >
         <InlineBookHero
           book={book}
@@ -462,6 +470,7 @@ function BookDetailContent({
       )}
           <View style={{ height: 40 + bottomInset }} />
         </Animated.ScrollView>
+      </HorizontalSafeArea>
     </View>
   );
 }
@@ -797,10 +806,11 @@ function BookDetailError({
   const { t } = useTranslation('book');
   const { t: tCommon } = useTranslation('common');
   return (
+    <HorizontalSafeArea style={{ backgroundColor: palette.surface, flex: 1 }}>
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.errorContent}
-      style={{ backgroundColor: palette.surface }}
+      style={{ flex: 1 }}
     >
       <IconBooks color={palette.onSurfaceVariant} size={42} strokeWidth={1.7} />
       <Text style={[styles.errorTitle, { color: palette.onSurface }]}>
@@ -818,6 +828,7 @@ function BookDetailError({
         </Button>
       ) : null}
     </ScrollView>
+    </HorizontalSafeArea>
   );
 }
 
@@ -917,6 +928,7 @@ const styles = StyleSheet.create({
   readButtonContent: { height: 56 },
   readButtonLabel: { fontSize: 15, fontWeight: '600', letterSpacing: 0.1, lineHeight: 21.5 },
   root: { flex: 1 },
+  scrollBody: { flex: 1 },
   scrollView: { flex: 1 },
   sectionTitle: { fontSize: 13, fontWeight: '600', letterSpacing: 0.5, lineHeight: 19 },
   shelfButton: { borderRadius: 16, height: 56, margin: 0, width: 56 },

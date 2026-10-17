@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 
 import { BookHtmlContent } from '@/components/book-html-content';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import {
   CommentThreadLoadingFooter,
   CommentThreadSkeleton,
@@ -117,11 +118,12 @@ function SiteAnnouncementStateContent({
   const { t } = useTranslation('community');
 
   return (
+    <HorizontalSafeArea style={styles.root}>
     <ScrollView
       contentContainerStyle={styles.detailContent}
       contentInsetAdjustmentBehavior="automatic"
       showsVerticalScrollIndicator={false}
-      style={styles.root}
+      style={styles.list}
     >
       {loading ? (
         <AnnouncementDetailSkeleton />
@@ -132,6 +134,7 @@ function SiteAnnouncementStateContent({
         />
       )}
     </ScrollView>
+    </HorizontalSafeArea>
   );
 }
 
@@ -213,6 +216,7 @@ function SiteAnnouncementContent({
   );
 
   return (
+    <HorizontalSafeArea style={styles.root}>
     <FlatList
       contentContainerStyle={styles.commentsContent}
       contentInsetAdjustmentBehavior="automatic"
@@ -250,8 +254,9 @@ function SiteAnnouncementContent({
       showsVerticalScrollIndicator={false}
       updateCellsBatchingPeriod={16}
       windowSize={11}
-      style={styles.root}
+      style={styles.list}
     />
+    </HorizontalSafeArea>
   );
 }
 
@@ -407,6 +412,7 @@ const useAnnouncementDetailStyles = createThemedStyles((colors) => ({
   pressed: { opacity: 0.68 },
   retryAction: { alignItems: 'center', flexDirection: 'row', gap: 6, padding: 8 },
   retryLabel: { color: colors.accent, fontSize: 14, fontWeight: '700' },
+  list: { flex: 1 },
   root: { flex: 1 },
   skeletonBody: { gap: 12, padding: 16 },
   skeletonLine: { borderRadius: 6, height: 14, width: '100%' },

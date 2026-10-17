@@ -19,6 +19,7 @@ import type {
 import { comicToBookListItem } from '@novella/api-client';
 
 import { BookCoverGridItem } from '@/components/book-cover-grid-item';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import {
   BookCoverSkeletonTile,
   bookGridLoadingMoreKeys,
@@ -96,7 +97,7 @@ export function BookSearchScreen({
   }, [initialFormat, initialMode, initialQuery, search]);
 
   return (
-
+    <HorizontalSafeArea style={styles.root}>
       <FlatList
         ListEmptyComponent={
           <SearchEmpty
@@ -186,7 +187,7 @@ export function BookSearchScreen({
         showsVerticalScrollIndicator={false}
         viewabilityConfig={coverActivation.viewabilityConfig}
       />
-
+    </HorizontalSafeArea>
   );
 }
 
@@ -281,6 +282,7 @@ function SearchEmpty({
 
 const useBookSearchScreenStyles = createThemedStyles((colors) => ({
   content: { gap: 14, paddingBottom: 100, paddingHorizontal: 16 },
+  root: { flex: 1 },
   empty: { alignItems: 'center', gap: 10, paddingHorizontal: 28, paddingVertical: 56 },
   emptyText: { color: colors.secondaryLabel, fontSize: 14, lineHeight: 20, textAlign: 'center' },
   emptyTitle: { color: colors.label, fontSize: 17, fontWeight: '700' },

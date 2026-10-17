@@ -24,6 +24,7 @@ import {
   BookCoverGridItem,
 } from '@/components/book-cover-grid-item';
 import { DiscoverNavigation } from '@/components/discover-navigation';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { SectionCard } from '@/components/section-card';
 import {
   homeBookGridPreviewCount,
@@ -59,7 +60,7 @@ export function HomeScreen() {
 
   return (
     <>
-
+      <HorizontalSafeArea style={styles.root}>
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.content}
@@ -67,7 +68,7 @@ export function HomeScreen() {
           onScroll={coverViewport.onScroll}
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
-          style={styles.root}
+          style={styles.scroll}
         >
           <RankingSection viewport={coverViewport} />
           <View style={styles.sectionHeader}>
@@ -91,6 +92,7 @@ export function HomeScreen() {
           <ComicsSection viewport={coverViewport} />
           <OnlineInfoSection onRetry={retryOnlineInfo} state={onlineInfo} />
         </ScrollView>
+      </HorizontalSafeArea>
 
       <DiscoverNavigation />
     </>
@@ -657,6 +659,9 @@ const useHomeScreenStyles = createThemedStyles((colors) => ({
   },
   root: {
     backgroundColor: colors.background,
+    flex: 1,
+  },
+  scroll: {
     flex: 1,
   },
   sectionBody: {

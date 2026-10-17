@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import {
   useAnnouncements,
   type AnnouncementListEntry,
@@ -48,7 +49,7 @@ export function AnnouncementCenterScreen() {
   } = useAnnouncements();
 
   return (
-
+    <HorizontalSafeArea style={styles.root}>
       <FlatList
         contentContainerStyle={[
           styles.content,
@@ -97,9 +98,9 @@ export function AnnouncementCenterScreen() {
         }
         renderItem={({ item }) => <AnnouncementCard item={item} />}
         showsVerticalScrollIndicator={false}
-        style={styles.root}
+        style={styles.list}
       />
-
+    </HorizontalSafeArea>
   );
 }
 
@@ -299,6 +300,7 @@ const useAnnouncementCenterStyles = createThemedStyles((colors) => ({
   pressed: { opacity: 0.68 },
   retryAction: { alignItems: 'center', flexDirection: 'row', gap: 4, paddingVertical: 4 },
   retryText: { color: colors.accent, fontSize: 13, fontWeight: '700' },
+  list: { flex: 1 },
   root: { flex: 1 },
   skeletonChevron: { borderRadius: 6, height: 20, width: 20 },
   skeletonIcon: { borderCurve: 'continuous', borderRadius: 13, height: 42, width: 42 },

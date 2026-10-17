@@ -12,6 +12,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { PublicUserAvatar } from '@/components/public-user-avatar';
 import { usePublicUserProfile } from '@/hooks/use-public-user-profile';
 import { formatDate } from '@/localization/formatters';
@@ -33,11 +34,12 @@ function PublicUserProfileContent({ userId }: { userId: number }) {
   const numberFormatter = new Intl.NumberFormat(locale);
 
   return (
+    <HorizontalSafeArea style={[styles.root, { backgroundColor: colors.background }]}>
     <ScrollView
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
       showsVerticalScrollIndicator={false}
-      style={[styles.root, { backgroundColor: colors.background }]}
+      style={styles.list}
     >
       {isLoading ? (
         <View style={styles.state}>
@@ -117,6 +119,7 @@ function PublicUserProfileContent({ userId }: { userId: number }) {
         </View>
       ) : null}
     </ScrollView>
+    </HorizontalSafeArea>
   );
 }
 
@@ -170,6 +173,7 @@ const usePublicUserProfileStyles = createThemedStyles((colors) => ({
   pressed: { opacity: 0.68 },
   retryButton: { alignItems: 'center', flexDirection: 'row', gap: 7, padding: 8 },
   retryLabel: { color: colors.accent, fontSize: 15, fontWeight: '600' },
+  list: { flex: 1 },
   root: { flex: 1 },
   role: { color: colors.label, fontSize: 14, fontWeight: '600', lineHeight: 20 },
   stat: {

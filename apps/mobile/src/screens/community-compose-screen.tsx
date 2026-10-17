@@ -23,6 +23,7 @@ import {
   CommunityErrorState,
   CommunityPaperProvider,
 } from '@/components/community/community-ui';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { showAlert } from '@/components/native-alert-dialog';
 import { community, storage } from '@/services/client';
 import { markCommunityThreadChanged } from '@/services/community-reply-events';
@@ -222,6 +223,7 @@ export function CommunityComposeScreen({
           {loading ? (
             <View style={styles.center}><Spinner /></View>
           ) : (
+          <HorizontalSafeArea style={styles.root}>
           <KeyboardAwareScrollView
             bottomOffset={16}
             contentInsetAdjustmentBehavior="automatic"
@@ -230,7 +232,7 @@ export function CommunityComposeScreen({
             keyboardShouldPersistTaps="handled"
             mode="layout"
             onTouchEnd={handleScrollTouchEnd}
-            style={styles.root}
+            style={styles.scroll}
           >
             <View style={styles.content}>
             {error ? (
@@ -331,6 +333,7 @@ export function CommunityComposeScreen({
             ) : null}
             </View>
           </KeyboardAwareScrollView>
+          </HorizontalSafeArea>
         )}
         </View>
 
@@ -364,5 +367,6 @@ const useCommunityComposeStyles = createThemedStyles((colors) => ({
   fieldHeading: { color: colors.label, fontSize: 15, fontWeight: '700' },
   helper: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 19 },
   root: { backgroundColor: colors.background, flex: 1 },
+  scroll: { flex: 1 },
   validation: { color: colors.error, fontSize: 12 },
 }));

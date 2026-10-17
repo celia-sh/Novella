@@ -41,6 +41,7 @@ import {
   NativeDirectMessageComposer,
   type NativeDirectMessageComposerHandle,
 } from '../../modules/novella-ui';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { showAlert } from '@/components/native-alert-dialog';
 import { useDirectMessages } from '@/hooks/use-direct-messages';
 import { useDirectMessageScroll } from '@/hooks/use-direct-message-scroll';
@@ -102,7 +103,11 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
   const { t: tCommon } = useTranslation('common');
   const styles = useChatStyles();
   const { colors } = useAppTheme();
-  const { bottom: bottomSafeArea } = useSafeAreaInsets();
+  const {
+    bottom: bottomSafeArea,
+    left: leftSafeArea,
+    right: rightSafeArea,
+  } = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const topContentPadding = HAS_TRANSPARENT_HEADER ? headerHeight : 0;
   const snapshot = useDirectMessages();
@@ -332,7 +337,11 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
           pointerEvents={chat.loaded && !measured ? 'none' : 'auto'}
           contentContainerStyle={[
             chat.loaded && hasMessages ? styles.transcript : styles.stateTranscript,
-            { paddingTop: topContentPadding + (chat.loaded && hasMessages ? 8 : 16) },
+            {
+              paddingLeft: 16 + leftSafeArea,
+              paddingRight: 16 + rightSafeArea,
+              paddingTop: topContentPadding + (chat.loaded && hasMessages ? 8 : 16),
+            },
           ]}
           automaticallyAdjustContentInsets={false}
           automaticallyAdjustKeyboardInsets={false}
@@ -433,7 +442,13 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
         style={[styles.scrollCommit, scrollCommitStyle]}
       />
       {!atEnd && chat.loaded ? (
-        <Animated.View style={[styles.newMessagesButton, newMessagesButtonStyle]}>
+        <Animated.View
+          style={[
+            styles.newMessagesButton,
+            { right: 14 + rightSafeArea },
+            newMessagesButtonStyle,
+          ]}
+        >
           <Button
             accessibilityLabel={t('chat.newMessages')}
             onPress={() => scrollToBottom()}
@@ -445,6 +460,7 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
         </Animated.View>
       ) : null}
       {chat.loaded ? (
+        <HorizontalSafeArea>
         <NativeDirectMessageComposer
           ref={composerRef}
           accentColor={colors.accent as string}
@@ -462,6 +478,7 @@ export function DirectMessageChatScreen({ peerId }: DirectMessageChatScreenProps
                 : t('chat.cannotSend')
           }
         />
+        </HorizontalSafeArea>
       ) : null}
     </View>
   );

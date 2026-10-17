@@ -104,7 +104,14 @@ export function AvatarSettingsScreen() {
       >
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={[styles.content, { paddingBottom: Math.max(28, insets.bottom + 20) }]}
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingBottom: Math.max(28, insets.bottom + 20),
+              paddingLeft: 20 + insets.left,
+              paddingRight: 20 + insets.right,
+            },
+          ]}
           keyboardShouldPersistTaps="handled"
         >
         <View style={styles.introduction}>

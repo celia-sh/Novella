@@ -271,7 +271,14 @@ export function ShopSettingsScreen() {
   return (
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={[styles.content, { paddingBottom: Math.max(36, insets.bottom + 24) }]}
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingBottom: Math.max(36, insets.bottom + 24),
+          paddingLeft: 20 + insets.left,
+          paddingRight: 20 + insets.right,
+        },
+      ]}
       refreshControl={(
         <RefreshControl
           onRefresh={() => void reload()}

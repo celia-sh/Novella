@@ -23,6 +23,7 @@ import {
   CommunityPaperProvider,
   CommunityThreadCard,
 } from "@/components/community/community-ui";
+import { HorizontalSafeArea } from "@/components/horizontal-safe-area";
 import {
   NativeSegmentedControl,
   type NativeSegmentedControlOption,
@@ -58,7 +59,7 @@ export function MyCommunityScreen() {
 
   return (
     <CommunityPaperProvider>
-
+      <HorizontalSafeArea style={styles.root}>
         <ScrollView
           alwaysBounceVertical
           contentContainerStyle={styles.content}
@@ -72,7 +73,7 @@ export function MyCommunityScreen() {
             />
           }
           showsVerticalScrollIndicator={false}
-          style={styles.root}
+          style={styles.scroll}
         >
           {overview ? (
             <Card mode="outlined" style={styles.profileCard}>
@@ -144,6 +145,7 @@ export function MyCommunityScreen() {
             </View>
           )}
         </ScrollView>
+      </HorizontalSafeArea>
 
     </CommunityPaperProvider>
   );
@@ -265,6 +267,7 @@ const useMyCommunityStyles = createThemedStyles((colors) => ({
   },
   replyTo: { color: colors.accent, fontSize: 12, fontWeight: "600" },
   root: { backgroundColor: colors.background, flex: 1 },
+  scroll: { flex: 1 },
   segmented: { minHeight: 48, width: "100%" },
   summary: { color: colors.secondaryLabel, fontSize: 13 },
   time: { color: colors.secondaryLabel, fontSize: 12 },

@@ -27,6 +27,7 @@ import type {
 } from '@novella/api-client';
 
 import { CommunityNotificationsNavigation } from '@/components/community/community-navigation';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import {
   CommunityEmptyState,
   CommunityErrorState,
@@ -123,6 +124,7 @@ export function CommunityNotificationsScreen() {
         <Stack.Screen options={{ title: t('notifications.title') }} />
 
         <View style={styles.root}>
+        <HorizontalSafeArea style={styles.list}>
         <FlatList
           ListEmptyComponent={
             state.loading ? (
@@ -169,6 +171,7 @@ export function CommunityNotificationsScreen() {
           renderItem={renderNotification}
           showsVerticalScrollIndicator={false}
         />
+        </HorizontalSafeArea>
         </View>
 
         <CommunityNotificationsNavigation
@@ -325,6 +328,7 @@ const useCommunityNotificationsStyles = createThemedStyles((colors) => ({
   loadingMore: { alignItems: 'center', padding: 16 },
   metaRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   pressed: { opacity: 0.68 },
+  list: { flex: 1 },
   root: { backgroundColor: colors.background, flex: 1 },
   separator: { height: 11 },
   skeletonAction: { borderRadius: 5, height: 11, width: '58%' },

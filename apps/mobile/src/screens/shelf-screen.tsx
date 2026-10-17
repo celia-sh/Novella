@@ -37,6 +37,7 @@ import {
   bookGridSkeletonCount,
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { ShelfNavigation } from '@/components/shelf-navigation';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import type { ShelfEditInteraction } from '@/components/shelf-navigation.types';
@@ -275,6 +276,7 @@ export function ShelfScreen({ media: initialMedia = 'All', parents = [] }: Shelf
     <>
 
         <ShelfScrollRoot nested={parents.length > 0}>
+          <HorizontalSafeArea style={styles.scrollView}>
           <ScrollView
             contentInsetAdjustmentBehavior="automatic"
             contentContainerStyle={styles.content}
@@ -297,7 +299,7 @@ export function ShelfScreen({ media: initialMedia = 'All', parents = [] }: Shelf
             )}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
-            style={styles.scrollView}
+            style={styles.scrollBody}
           >
             {mode === 'browse' ? (
               <View style={styles.tabs}>
@@ -361,6 +363,7 @@ export function ShelfScreen({ media: initialMedia = 'All', parents = [] }: Shelf
               />
             ) : null}
           </ScrollView>
+          </HorizontalSafeArea>
         </ShelfScrollRoot>
 
       <ShelfNavigation
@@ -820,6 +823,7 @@ const useShelfScreenStyles = createThemedStyles((colors) => ({
   },
   retryLabel: { color: colors.accent, fontSize: 15, fontWeight: '600' },
   root: { backgroundColor: colors.background, flex: 1 },
+  scrollBody: { flex: 1 },
   scrollView: { backgroundColor: colors.background, flex: 1 },
   selectedOverlay: { backgroundColor: 'rgba(217, 71, 93, 0.72)' },
   tabs: { width: '100%' },

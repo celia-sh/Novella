@@ -30,6 +30,7 @@ import {
 import type { CommunityThreadReply } from '@novella/api-client';
 
 import { CommunityHtmlContent } from '@/components/community/community-html-content';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { PublicUserAvatar } from '@/components/public-user-avatar';
 import { CommunityThreadNavigation } from '@/components/community/community-navigation';
 import { showAlert } from '@/components/native-alert-dialog';
@@ -371,8 +372,9 @@ export function CommunityThreadScreen({
           />
         ) : null}
 
+          <HorizontalSafeArea style={styles.root}>
           <FlatList
-            style={styles.root}
+            style={styles.list}
             ListEmptyComponent={
               state.loading ? (
                 <View style={styles.loading}>
@@ -423,6 +425,7 @@ export function CommunityThreadScreen({
             updateCellsBatchingPeriod={32}
             windowSize={7}
           />
+          </HorizontalSafeArea>
 
       </>
     </PaperProvider>
@@ -715,6 +718,7 @@ const useCommunityThreadStyles = createThemedStyles((colors) => ({
     borderBottomWidth: StyleSheet.hairlineWidth,
     paddingBottom: 8,
   },
+  list: { flex: 1 },
   root: { backgroundColor: colors.background, flex: 1 },
   stateBody: { alignItems: 'flex-start', flexDirection: 'row', gap: 12, padding: 18 },
   stateCard: {

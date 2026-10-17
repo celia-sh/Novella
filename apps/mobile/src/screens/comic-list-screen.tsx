@@ -20,6 +20,7 @@ import {
   bookGridSkeletonCount,
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
@@ -70,8 +71,9 @@ export function ComicListScreen() {
     <>
       <Stack.Screen options={{ title: t('catalog.allComics') }} />
 
+        <HorizontalSafeArea style={styles.root}>
         <FlatList
-          style={styles.root}
+          style={styles.list}
           ListEmptyComponent={
             error ? (
               <ErrorState error={error} onRetry={retry} />
@@ -122,6 +124,7 @@ export function ComicListScreen() {
           showsVerticalScrollIndicator={false}
           viewabilityConfig={coverActivation.viewabilityConfig}
         />
+        </HorizontalSafeArea>
 
     </>
   );
@@ -241,6 +244,7 @@ const useComicListScreenStyles = createThemedStyles((colors) => ({
     fontSize: 15,
     fontWeight: '600',
   },
+  list: { flex: 1 },
   root: {
     backgroundColor: colors.background,
     flex: 1,

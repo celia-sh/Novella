@@ -38,7 +38,11 @@ export function AuthFormLayout({
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: Math.max(32, insets.bottom + 20) },
+            {
+              paddingBottom: Math.max(32, insets.bottom + 20),
+              paddingLeft: 22 + insets.left,
+              paddingRight: 22 + insets.right,
+            },
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
