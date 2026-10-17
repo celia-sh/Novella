@@ -8,8 +8,10 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ReaderImageViewer } from '@/components/reader-image-viewer';
+import { readerImageFrame, READER_IMAGE_VIEWER_CORNER_RADIUS } from '@/services/reader-image-frame';
 import { resolveReaderImageUrl } from '@/services/reader-image-dimensions';
 
 export interface ReaderImagePreviewSource {
@@ -125,25 +127,53 @@ export function ReaderImagePreview({
 }: ReaderImagePreviewProps) {
   const { t } = useTranslation('reader');
   const { height, width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const imageUri = resolveReaderImageUrl(source.uri);
   const open = visible && revealImage;
+  /*
+   * The Readium bridge has no thumbnail rect to fly out of, so the invisible
+   * trigger *is* the picture's fitted rect. PanelUI then animates from its
+   * measured rect to the same rect, which removes the zoom-out that a
+   * full-screen trigger produced for pictures with a different aspect ratio.
+   */
+  const frame = readerImageFrame(source, {
+    bottomInset: insets.bottom,
+    topInset: insets.top,
+    height,
+    width,
+  });
+  // A picture with no reported geometry falls back to the box itself, so the
+  // viewer never waits for `Image.getSize` and resizes underneath the open
+  // animation.
+  const triggerSize = source.width && source.height
+    ? { height: source.height, width: source.width }
+    : { height: frame.height, width: frame.width };
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <ReaderImageViewer
-        alt={source.alt?.trim() || t('images.illustration')}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen && visible) onClose();
+      <View
+        style={{
+          height: frame.height,
+          left: frame.x,
+          position: 'absolute',
+          top: frame.y,
+          width: frame.width,
         }}
-        open={open}
-        radius={0}
-        source={imageUri}
-        {...(source.height && source.width
-          ? { height: source.height, width: source.width }
-          : {})}
       >
-        <View style={{ height, width }} />
-      </ReaderImageViewer>
+        <ReaderImageViewer
+          alt={source.alt?.trim() || t('images.illustration')}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen && visible) onClose();
+          }}
+          open={open}
+          radius={READER_IMAGE_VIEWER_CORNER_RADIUS}
+          source={imageUri}
+          height={triggerSize.height}
+          width={triggerSize.width}
+        >
+          <View style={{ height: frame.height, width: frame.width }} />
+        </ReaderImageViewer>
+      </View>
     </View>
   );
 }
