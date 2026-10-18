@@ -14,6 +14,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   let onStatus = EventDispatcher()
   let onTap = EventDispatcher()
   let onBoundary = EventDispatcher()
+  let onDragState = EventDispatcher()
   let onProgressMetrics = EventDispatcher()
 
   private var publicationUri: String?
@@ -35,6 +36,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   private var appliedLayoutKey: ReaderLayoutKey?
   private weak var registeredContentScrollView: UIScrollView?
   private weak var registeredContentScrollViewOwner: UIViewController?
+  private weak var observedPanScrollView: UIScrollView?
   private var tapObserver: InputObservableToken?
   private var boundaryPanGesture: UIPanGestureRecognizer?
   private var openTask: Task<Void, Never>?
@@ -409,6 +411,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     guard #available(iOS 15.0, *), let navigator else { return }
     guard let webView = descendantWebViews(of: navigator.view).first else { return }
     let scrollView = webView.scrollView
+    observeContentPan(scrollView)
     let owner = parentViewController ?? navigator
     guard registeredContentScrollView !== scrollView || registeredContentScrollViewOwner !== owner else {
       return
@@ -420,6 +423,34 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     owner.setContentScrollView(scrollView, for: .top)
     registeredContentScrollView = scrollView
     registeredContentScrollViewOwner = owner
+  }
+
+  /// Reports the user's own scroll/page gesture. Readium owns the scroll
+  /// view, so observe its pan recognizer without stealing it; the reader uses
+  /// the start and end to dim the text edge under the side bar only while the
+  /// page is moving.
+  private func observeContentPan(_ scrollView: UIScrollView) {
+    guard observedPanScrollView !== scrollView else { return }
+    observedPanScrollView?.panGestureRecognizer.removeTarget(
+      self,
+      action: #selector(handleContentPan(_:))
+    )
+    scrollView.panGestureRecognizer.addTarget(
+      self,
+      action: #selector(handleContentPan(_:))
+    )
+    observedPanScrollView = scrollView
+  }
+
+  @objc private func handleContentPan(_ gesture: UIPanGestureRecognizer) {
+    switch gesture.state {
+    case .began:
+      onDragState(["active": true])
+    case .ended, .cancelled, .failed:
+      onDragState(["active": false])
+    default:
+      break
+    }
   }
 
   private func descendantWebViews(of root: UIView) -> [WKWebView] {
@@ -818,6 +849,11 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     }
     registeredContentScrollView = nil
     registeredContentScrollViewOwner = nil
+    observedPanScrollView?.panGestureRecognizer.removeTarget(
+      self,
+      action: #selector(handleContentPan(_:))
+    )
+    observedPanScrollView = nil
     if let controller = navigator, let tapObserver {
       controller.removeObserver(tapObserver)
     }

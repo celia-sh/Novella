@@ -75,6 +75,15 @@ export interface ReadiumBoundaryEvent {
   direction: 'next' | 'previous';
 }
 
+/**
+ * `active` is true while the user's own scroll/page gesture is running. The
+ * reader uses it to only dim the edge under the side bar while the text is
+ * actually moving.
+ */
+export interface ReadiumDragStateEvent {
+  active: boolean;
+}
+
 /** Rendered geometry of the current chapter, measured after layout. */
 export interface ReadiumProgressMetricsEvent {
   pageCount: number;
@@ -95,6 +104,7 @@ export interface NovellaReadiumViewProps {
   declaredHrefs: readonly string[];
   initialLocator?: ReadiumLocator;
   onBoundary?: (event: ReadiumBoundaryEvent) => void;
+  onDragState?: (event: ReadiumDragStateEvent) => void;
   onError?: (error: ReadiumReaderError) => void;
   onImage?: (image: ReadiumImageEvent) => void;
   onLink?: (link: ReadiumLinkEvent) => void;

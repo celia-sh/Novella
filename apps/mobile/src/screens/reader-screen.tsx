@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import type {
   NovellaReadiumViewHandle,
   ReadiumLinkEvent,
@@ -93,6 +98,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const [nativeAttempt, setNativeAttempt] = useState(0);
   const [nativeError, setNativeError] = useState<ReaderUserMessage | null>(null);
   const [nativeReady, setNativeReady] = useState(false);
+  const [textDragging, setTextDragging] = useState(false);
   const [chapterMetrics, setChapterMetrics] = useState<{
     pageCount: number;
     paged: boolean;
@@ -101,6 +107,18 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const nativeReaderRef = useRef<NovellaReadiumViewHandle | null>(null);
   const lastLocatorRef = useRef<ReadiumLocator | null>(null);
   const activeChapterIdRef = useRef<number | null>(null);
+  // The edge fade only exists to soften text that is moving under the side
+  // bar. When the text is at rest the last column should be fully readable,
+  // especially on the Duo outer display.
+  const textFadeOpacity = useSharedValue(0);
+  const textFadeStyle = useAnimatedStyle(() => ({
+    opacity: textFadeOpacity.value,
+  }));
+  useEffect(() => {
+    textFadeOpacity.value = withTiming(textDragging ? 1 : 0, {
+      duration: textDragging ? 90 : 180,
+    });
+  }, [textDragging, textFadeOpacity]);
   const conversion = settings.convertType === 'none' ? undefined : settings.convertType;
 
   const { content, error, isLoading, reload } = useReaderChapter(
@@ -444,6 +462,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               declaredHrefs={preparedPublication.declaredHrefs}
               initialLocator={initialLocator}
               onBoundary={handleBoundary}
+              onDragState={({ active }) => setTextDragging(active)}
               onError={({ message }) => setNativeError({ kind: 'raw', text: message })}
               onImage={(image) => imagePreviewRef.current?.open({
                 uri: image.uri,
@@ -480,19 +499,23 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
             ) : null}
             {sideChrome ? (
               // The web view is inset by the safe area, so the text ends hard
-              // against the vertical bar. Fade the last strip of the page into
-              // the reader background instead of letting it be clipped. The
-              // alpha follows an ease-in curve: the page stays readable for
-              // most of the strip and drops to the background quickly at the
-              // bar, so the clipped edge has nothing left to show.
-              <LinearGradient
-                colors={sideFadeColors(readerBackground)}
-                end={{ x: 1, y: 0.5 }}
-                locations={SIDE_FADE_LOCATIONS}
+              // against the vertical bar. While the page is being dragged, fade
+              // the last strip into the reader background so the clipped column
+              // reads as a soft edge; at rest it stays fully readable. The alpha
+              // follows a smoothstep: the page stays readable for most of the
+              // strip and drops to the background at the bar.
+              <Animated.View
                 pointerEvents="none"
-                start={{ x: 0, y: 0.5 }}
-                style={[styles.sideFade, { right: insets.right }]}
-              />
+                style={[styles.sideFade, { right: insets.right }, textFadeStyle]}
+              >
+                <LinearGradient
+                  colors={sideFadeColors(readerBackground)}
+                  end={{ x: 1, y: 0.5 }}
+                  locations={SIDE_FADE_LOCATIONS}
+                  start={{ x: 0, y: 0.5 }}
+                  style={StyleSheet.absoluteFill}
+                />
+              </Animated.View>
             ) : null}
           </View>
         ) : null}
