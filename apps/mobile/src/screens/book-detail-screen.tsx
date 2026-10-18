@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Skeleton } from 'panelui-native/components/skeleton';
 import { useTranslation } from 'react-i18next';
@@ -88,6 +89,7 @@ const ignoreLongPress = () => {};
 const BOOK_HERO_HEIGHT = 280;
 const BOOK_HERO_TOOLBAR_HEIGHT = 56;
 const BOOK_HERO_COLLAPSE_DISTANCE = BOOK_HERO_HEIGHT - BOOK_HERO_TOOLBAR_HEIGHT;
+const LANDSCAPE_PADDING = 24;
 
 export function BookDetailScreen({
   bookId,
@@ -222,8 +224,10 @@ function BookDetailContent({
   shelfError: BookUserMessage | null;
 }) {
   const { t } = useTranslation('book');
+  const author = book.authorName?.trim() ?? '';
   const locale = useAppLocale();
   const {
+    height,
     insets: {
       bottom: bottomInset,
       left: leftInset,
@@ -264,6 +268,145 @@ function BookDetailContent({
   const startSortNum = currentSortNum ?? 1;
   const latestChapter = book.chapters.at(-1)?.title ?? book.lastUpdatedChapter;
   const heroHeight = BOOK_HERO_HEIGHT + topInset;
+
+  if (width > height) {
+    // Landscape: the cover becomes an immersive left pane with the title and
+    // primary actions over it, and the text column scrolls on the right. Same
+    // building blocks as portrait, only rearranged.
+    const coverPaneWidth = leftInset + Math.round(usableWidth * 0.55);
+    const bodyContentWidth = Math.max(
+      1,
+      Math.round(usableWidth * 0.45) - LANDSCAPE_PADDING * 2,
+    );
+    return (
+      <View style={[styles.detailContent, { backgroundColor: palette.surface }]}>
+        <View style={styles.landscapeRow}>
+          <View style={[styles.landscapeCover, { width: coverPaneWidth }]}>
+            {coverUrl ? (
+              <BookCoverImage
+                accessibilityLabel={t('cover.accessibility', { title: book.title })}
+                blurHash={coverPlaceholder}
+                displayHeight={Math.round(height)}
+                source={coverUrl}
+              />
+            ) : (
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  styles.coverFallback,
+                  { backgroundColor: palette.surfaceContainerHighest },
+                ]}
+              >
+                <IconBooks color={palette.onSurfaceVariant} size={40} strokeWidth={1.8} />
+              </View>
+            )}
+            {/* The immersive cover needs its own scrim: the title, chips, and
+                buttons sit on the artwork, not on the palette surface. */}
+            <LinearGradient
+              colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.52)', 'rgba(0, 0, 0, 0.86)']}
+              locations={[0.2, 0.58, 1]}
+              pointerEvents="none"
+              style={StyleSheet.absoluteFill}
+            />
+            <View
+              style={[
+                styles.landscapeCoverContent,
+                {
+                  paddingBottom: bottomInset + LANDSCAPE_PADDING,
+                  paddingLeft: leftInset + LANDSCAPE_PADDING,
+                  paddingRight: LANDSCAPE_PADDING,
+                },
+              ]}
+            >
+              {book.title.trim() ? (
+                <Pressable
+                  accessibilityLabel={titleSearchAccessibilityLabel}
+                  accessibilityRole="button"
+                  onLongPress={ignoreLongPress}
+                  onPress={() => handleQuickSearch('title')}
+                  style={({ pressed }) => (pressed ? styles.quickSearchPressed : null)}
+                >
+                  <Text numberOfLines={3} selectable style={styles.landscapeTitle}>
+                    {book.title.trim()}
+                  </Text>
+                </Pressable>
+              ) : null}
+              {author ? (
+                <Pressable
+                  accessibilityLabel={t('detail.searchAuthor', { author })}
+                  accessibilityRole="button"
+                  onLongPress={ignoreLongPress}
+                  onPress={() => handleQuickSearch('author')}
+                  style={({ pressed }) => (pressed ? styles.quickSearchPressed : null)}
+                >
+                  <Text numberOfLines={2} selectable style={styles.landscapeAuthor}>
+                    {author}
+                  </Text>
+                </Pressable>
+              ) : null}
+              {isLoading ? null : (
+                <>
+                  <BookMetaChips book={book} onCover palette={palette} />
+                  <BookPrimaryActions
+                    book={book}
+                    bookType={bookType}
+                    cleanResumeTitle={cleanResumeTitle}
+                    isInShelf={isInShelf}
+                    isShelfLoading={isShelfLoading}
+                    onCover
+                    onToggleShelf={onToggleShelf}
+                    palette={palette}
+                    resumeChapter={resumeChapter}
+                    shelfError={shelfError}
+                    startSortNum={startSortNum}
+                  />
+                </>
+              )}
+            </View>
+          </View>
+
+          <View style={[styles.landscapeBody, { paddingRight: rightInset }]}>
+            <ScrollView
+              contentInsetAdjustmentBehavior="automatic"
+              showsVerticalScrollIndicator={false}
+              style={styles.scrollBody}
+            >
+              {isLoading ? (
+                <BookDetailBodyLoading
+                  horizontalPadding={LANDSCAPE_PADDING}
+                  palette={palette}
+                />
+              ) : (
+                <>
+                  <View style={{ paddingHorizontal: LANDSCAPE_PADDING }}>
+                    <BookIntroductionPreview
+                      book={book}
+                      contentWidth={bodyContentWidth}
+                      palette={palette}
+                    />
+                    <BookUpdateInfo
+                      book={book}
+                      latestChapter={latestChapter}
+                      palette={palette}
+                    />
+                    <SectionTitle palette={palette}>{t('detail.chapters')}</SectionTitle>
+                  </View>
+                  <BookChapterList
+                    book={book}
+                    bookType={bookType}
+                    currentSortNum={currentSortNum}
+                    horizontalPadding={LANDSCAPE_PADDING}
+                    palette={palette}
+                  />
+                </>
+              )}
+              <View style={{ height: 40 + bottomInset }} />
+            </ScrollView>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.detailContent, { backgroundColor: palette.surface }]}>
@@ -306,171 +449,316 @@ function BookDetailContent({
           { backgroundColor: palette.surface, paddingHorizontal: horizontalPadding },
         ]}
       >
-        <View style={styles.chips}>
-          <MetaChip icon={IconHeart} palette={palette} value={formatCompactNumber(book.favoriteCount, locale)} />
-          <MetaChip icon={IconEye} palette={palette} value={formatCompactNumber(book.viewCount, locale)} />
-          <MetaChip icon={IconBooks} palette={palette} value={t('detail.chapterCount', { count: book.chapters.length })} />
-        </View>
-
-        <View style={styles.actions}>
-          {/* Paper's Surface splits border styles across two layers and drops
-              borderCurve from the outer one, so the clip view owns the curve. */}
-          <View style={styles.shelfButtonClip}>
-            <IconButton
-              accessibilityLabel={isInShelf ? t('detail.removeFromShelf') : t('detail.addToShelf')}
-              containerColor={isInShelf ? palette.primaryContainer : palette.surfaceContainerHighest}
-              disabled={isShelfLoading}
-              icon={() =>
-                isInShelf ? (
-                  <IconBookmarkFilled color={palette.onPrimaryContainer} size={25} />
-                ) : (
-                  <IconBookmark color={palette.onSurfaceVariant} size={25} strokeWidth={2} />
-                )
-              }
-              loading={isShelfLoading}
-              onPress={() => void onToggleShelf()}
-              size={25}
-              style={styles.shelfButton}
-            />
-          </View>
-
-          <View style={styles.readButtonClip}>
-            <Button
-              accessibilityLabel={resumeChapter
-                ? t('detail.continueReading', { title: resumeChapter.title })
-                : t('detail.startReading')}
-              buttonColor={palette.primary}
-              contentStyle={styles.readButtonContent}
-              disabled={book.chapters.length === 0}
-              icon={({ color }) => <IconPlayerPlayFilled color={color} size={22} />}
-              labelStyle={styles.readButtonLabel}
-              mode="contained"
-              onPress={() => openReader(book.id, book.type ?? bookType ?? 'Novel', startSortNum)}
-              style={styles.readButton}
-              textColor={palette.onPrimary}
-            >
-              {cleanResumeTitle
-                ? t('detail.continueReadingButton', { title: shortenChapterTitle(cleanResumeTitle) })
-                : t('detail.startReading')}
-            </Button>
-          </View>
-        </View>
-
-        {shelfError ? (
-          <Text style={[styles.actionError, { color: palette.error }]}>
-            {shelfError.kind === 'raw' ? shelfError.text : t(shelfError.key)}
-          </Text>
-        ) : null}
-
-        {book.introduction.trim() ? (
-          <View style={styles.introductionSection}>
-            <SectionTitle palette={palette}>{t('detail.introduction')}</SectionTitle>
-            <TouchableRipple
-              accessibilityLabel={t('detail.openIntroduction')}
-              accessibilityRole="button"
-              borderless
-              onPress={() =>
-                router.push({
-                  pathname: '/book/[id]/introduction',
-                  params: { id: String(book.id), ...(book.type ? { type: book.type } : {}) },
-                })
-              }
-              rippleColor={hexWithAlpha(palette.primary, 0.08)}
-              style={styles.introductionPreview}
-            >
-              <View
-                style={[
-                  styles.introductionClip,
-                  /<ruby[\s>]/iu.test(book.introduction) && styles.introductionClipWithRuby,
-                ]}
-              >
-                <BookHtmlContent
-                  contentWidth={contentWidth}
-                  html={book.introduction}
-                  preview
-                  textColor={palette.onSurfaceVariant}
-                />
-              </View>
-            </TouchableRipple>
-          </View>
-        ) : null}
-
-        <View
-          style={[
-            styles.updateInfo,
-            !book.introduction.trim() && styles.updateInfoWithoutIntroduction,
-            { backgroundColor: hexWithAlpha(palette.surfaceContainerHighest, 0.5) },
-          ]}
-        >
-          <IconProgressBolt color={palette.onSurfaceVariant} size={18} strokeWidth={2} />
-          <Text numberOfLines={1} style={[styles.updateText, { color: palette.onSurfaceVariant }]}>
-            {latestChapter
-              ? t('detail.latestWithChapter', {
-                  chapter: latestChapter,
-                  time: formatRelativeTime(book.lastUpdatedAt, locale) || t('detail.unknownTime'),
-                })
-              : t('detail.latest', {
-                  time: formatRelativeTime(book.lastUpdatedAt, locale) || t('detail.unknownTime'),
-                })}
-          </Text>
-        </View>
-
+        <BookMetaChips book={book} palette={palette} />
+        <BookPrimaryActions
+          book={book}
+          bookType={bookType}
+          cleanResumeTitle={cleanResumeTitle}
+          isInShelf={isInShelf}
+          isShelfLoading={isShelfLoading}
+          onToggleShelf={onToggleShelf}
+          palette={palette}
+          resumeChapter={resumeChapter}
+          shelfError={shelfError}
+          startSortNum={startSortNum}
+        />
+        <BookIntroductionPreview
+          book={book}
+          contentWidth={contentWidth}
+          palette={palette}
+        />
+        <BookUpdateInfo
+          book={book}
+          latestChapter={latestChapter}
+          palette={palette}
+        />
         <SectionTitle palette={palette}>{t('detail.chapters')}</SectionTitle>
       </View>
 
-      <View style={[styles.chapterList, { paddingHorizontal: horizontalPadding - 12 }]}>
-        {book.chapters.map((chapter, index) => {
-          const sortNum = index + 1;
-          const isCurrent = sortNum === currentSortNum;
-          return (
-            <TouchableRipple
-              accessibilityLabel={t('detail.readChapter', { number: sortNum, title: chapter.title })}
-              accessibilityRole="button"
-              key={chapter.id}
-              onPress={() => openReader(book.id, book.type ?? bookType ?? 'Novel', sortNum)}
-              rippleColor={hexWithAlpha(palette.primary, 0.1)}
-            >
-              <View style={styles.chapterRow}>
-                <View style={styles.chapterNumberSlot}>
-                  <Text
-                    style={[
-                      styles.chapterNumber,
-                      { color: isCurrent ? palette.primary : palette.onSurfaceVariant },
-                      isCurrent && styles.currentChapterText,
-                    ]}
-                  >
-                    {sortNum}
-                  </Text>
-                </View>
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.chapterTitle,
-                    { color: isCurrent ? palette.primary : palette.onSurface },
-                    isCurrent && styles.currentChapterTitle,
-                  ]}
-                >
-                  {chapter.title}
-                </Text>
-                {isCurrent ? (
-                  <View
-                    style={[styles.currentBadge, { backgroundColor: palette.primaryContainer }]}
-                  >
-                    <Text style={[styles.currentBadgeLabel, { color: palette.onPrimaryContainer }]}>
-                      {t('detail.current')}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            </TouchableRipple>
-          );
-        })}
-      </View>
+      <BookChapterList
+        book={book}
+        bookType={bookType}
+        currentSortNum={currentSortNum}
+        horizontalPadding={horizontalPadding}
+        palette={palette}
+      />
         </>
       )}
           <View style={{ height: 40 + bottomInset }} />
         </Animated.ScrollView>
       </HorizontalSafeArea>
+    </View>
+  );
+}
+
+function BookMetaChips({
+  book,
+  onCover = false,
+  palette,
+}: {
+  book: BookDetail;
+  onCover?: boolean;
+  palette: BookDetailPalette;
+}) {
+  const { t } = useTranslation('book');
+  const locale = useAppLocale();
+  return (
+    <View style={styles.chips}>
+      <MetaChip
+        icon={IconHeart}
+        onCover={onCover}
+        palette={palette}
+        value={formatCompactNumber(book.favoriteCount, locale)}
+      />
+      <MetaChip
+        icon={IconEye}
+        onCover={onCover}
+        palette={palette}
+        value={formatCompactNumber(book.viewCount, locale)}
+      />
+      <MetaChip
+        icon={IconBooks}
+        onCover={onCover}
+        palette={palette}
+        value={t('detail.chapterCount', { count: book.chapters.length })}
+      />
+    </View>
+  );
+}
+
+function BookPrimaryActions({
+  book,
+  bookType,
+  cleanResumeTitle,
+  isInShelf,
+  isShelfLoading,
+  onCover = false,
+  onToggleShelf,
+  palette,
+  resumeChapter,
+  shelfError,
+  startSortNum,
+}: {
+  book: BookDetail;
+  bookType: 'Novel' | 'Comic' | undefined;
+  cleanResumeTitle: string | null;
+  isInShelf: boolean;
+  isShelfLoading: boolean;
+  onCover?: boolean;
+  onToggleShelf: () => Promise<void>;
+  palette: BookDetailPalette;
+  resumeChapter: BookDetail['chapters'][number] | undefined;
+  shelfError: BookUserMessage | null;
+  startSortNum: number;
+}) {
+  const { t } = useTranslation('book');
+  const shelfContainer = isInShelf
+    ? palette.primaryContainer
+    : onCover
+      ? 'rgba(255, 255, 255, 0.22)'
+      : palette.surfaceContainerHighest;
+  const shelfIconColor = isInShelf
+    ? palette.onPrimaryContainer
+    : onCover
+      ? '#FFFFFF'
+      : palette.onSurfaceVariant;
+  return (
+    <>
+      <View style={styles.actions}>
+        {/* Paper's Surface splits border styles across two layers and drops
+            borderCurve from the outer one, so the clip view owns the curve. */}
+        <View style={styles.shelfButtonClip}>
+          <IconButton
+            accessibilityLabel={isInShelf ? t('detail.removeFromShelf') : t('detail.addToShelf')}
+            containerColor={shelfContainer}
+            disabled={isShelfLoading}
+            icon={() =>
+              isInShelf ? (
+                <IconBookmarkFilled color={shelfIconColor} size={25} />
+              ) : (
+                <IconBookmark color={shelfIconColor} size={25} strokeWidth={2} />
+              )
+            }
+            loading={isShelfLoading}
+            onPress={() => void onToggleShelf()}
+            size={25}
+            style={styles.shelfButton}
+          />
+        </View>
+
+        <View style={styles.readButtonClip}>
+          <Button
+            accessibilityLabel={resumeChapter
+              ? t('detail.continueReading', { title: resumeChapter.title })
+              : t('detail.startReading')}
+            buttonColor={palette.primary}
+            contentStyle={styles.readButtonContent}
+            disabled={book.chapters.length === 0}
+            icon={({ color }) => <IconPlayerPlayFilled color={color} size={22} />}
+            labelStyle={styles.readButtonLabel}
+            mode="contained"
+            onPress={() => openReader(book.id, book.type ?? bookType ?? 'Novel', startSortNum)}
+            style={styles.readButton}
+            textColor={palette.onPrimary}
+          >
+            {cleanResumeTitle
+              ? t('detail.continueReadingButton', { title: shortenChapterTitle(cleanResumeTitle) })
+              : t('detail.startReading')}
+          </Button>
+        </View>
+      </View>
+
+      {shelfError ? (
+        <Text style={[styles.actionError, { color: onCover ? '#FFFFFF' : palette.error }]}>
+          {shelfError.kind === 'raw' ? shelfError.text : t(shelfError.key)}
+        </Text>
+      ) : null}
+    </>
+  );
+}
+
+function BookIntroductionPreview({
+  book,
+  contentWidth,
+  palette,
+}: {
+  book: BookDetail;
+  contentWidth: number;
+  palette: BookDetailPalette;
+}) {
+  const { t } = useTranslation('book');
+  if (!book.introduction.trim()) return null;
+  return (
+    <View style={styles.introductionSection}>
+      <SectionTitle palette={palette}>{t('detail.introduction')}</SectionTitle>
+      <TouchableRipple
+        accessibilityLabel={t('detail.openIntroduction')}
+        accessibilityRole="button"
+        borderless
+        onPress={() =>
+          router.push({
+            pathname: '/book/[id]/introduction',
+            params: { id: String(book.id), ...(book.type ? { type: book.type } : {}) },
+          })
+        }
+        rippleColor={hexWithAlpha(palette.primary, 0.08)}
+        style={styles.introductionPreview}
+      >
+        <View
+          style={[
+            styles.introductionClip,
+            /<ruby[\s>]/iu.test(book.introduction) && styles.introductionClipWithRuby,
+          ]}
+        >
+          <BookHtmlContent
+            contentWidth={contentWidth}
+            html={book.introduction}
+            preview
+            textColor={palette.onSurfaceVariant}
+          />
+        </View>
+      </TouchableRipple>
+    </View>
+  );
+}
+
+function BookUpdateInfo({
+  book,
+  latestChapter,
+  palette,
+}: {
+  book: BookDetail;
+  latestChapter: string | null | undefined;
+  palette: BookDetailPalette;
+}) {
+  const { t } = useTranslation('book');
+  const locale = useAppLocale();
+  return (
+    <View
+      style={[
+        styles.updateInfo,
+        !book.introduction.trim() && styles.updateInfoWithoutIntroduction,
+        { backgroundColor: hexWithAlpha(palette.surfaceContainerHighest, 0.5) },
+      ]}
+    >
+      <IconProgressBolt color={palette.onSurfaceVariant} size={18} strokeWidth={2} />
+      <Text numberOfLines={1} style={[styles.updateText, { color: palette.onSurfaceVariant }]}>
+        {latestChapter
+          ? t('detail.latestWithChapter', {
+              chapter: latestChapter,
+              time: formatRelativeTime(book.lastUpdatedAt, locale) || t('detail.unknownTime'),
+            })
+          : t('detail.latest', {
+              time: formatRelativeTime(book.lastUpdatedAt, locale) || t('detail.unknownTime'),
+            })}
+      </Text>
+    </View>
+  );
+}
+
+function BookChapterList({
+  book,
+  bookType,
+  currentSortNum,
+  horizontalPadding,
+  palette,
+}: {
+  book: BookDetail;
+  bookType: 'Novel' | 'Comic' | undefined;
+  currentSortNum: number | null;
+  horizontalPadding: number;
+  palette: BookDetailPalette;
+}) {
+  const { t } = useTranslation('book');
+  return (
+    <View style={[styles.chapterList, { paddingHorizontal: horizontalPadding - 12 }]}>
+      {book.chapters.map((chapter, index) => {
+        const sortNum = index + 1;
+        const isCurrent = sortNum === currentSortNum;
+        return (
+          <TouchableRipple
+            accessibilityLabel={t('detail.readChapter', { number: sortNum, title: chapter.title })}
+            accessibilityRole="button"
+            key={chapter.id}
+            onPress={() => openReader(book.id, book.type ?? bookType ?? 'Novel', sortNum)}
+            rippleColor={hexWithAlpha(palette.primary, 0.1)}
+            style={styles.chapterRipple}
+          >
+            <View style={styles.chapterRow}>
+              <View style={styles.chapterNumberSlot}>
+                <Text
+                  style={[
+                    styles.chapterNumber,
+                    { color: isCurrent ? palette.primary : palette.onSurfaceVariant },
+                    isCurrent && styles.currentChapterText,
+                  ]}
+                >
+                  {sortNum}
+                </Text>
+              </View>
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.chapterTitle,
+                  { color: isCurrent ? palette.primary : palette.onSurface },
+                  isCurrent && styles.currentChapterTitle,
+                ]}
+              >
+                {chapter.title}
+              </Text>
+              {isCurrent ? (
+                <View
+                  style={[styles.currentBadge, { backgroundColor: palette.primaryContainer }]}
+                >
+                  <Text style={[styles.currentBadgeLabel, { color: palette.onPrimaryContainer }]}>
+                    {t('detail.current')}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          </TouchableRipple>
+        );
+      })}
     </View>
   );
 }
@@ -749,16 +1037,37 @@ function BookHeroContent({
   );
 }
 
-function MetaChip({ icon: Icon, palette, value }: { icon: TablerIcon; palette: BookDetailPalette; value: string }) {
+function MetaChip({
+  icon: Icon,
+  onCover = false,
+  palette,
+  value,
+}: {
+  icon: TablerIcon;
+  onCover?: boolean;
+  palette: BookDetailPalette;
+  value: string;
+}) {
   return (
     <View
       style={[
         styles.metaChip,
-        { backgroundColor: hexWithAlpha(palette.surfaceContainerHighest, 0.71) },
+        {
+          backgroundColor: onCover
+            ? 'rgba(255, 255, 255, 0.22)'
+            : hexWithAlpha(palette.surfaceContainerHighest, 0.71),
+        },
       ]}
     >
-      <Icon color={palette.onSurfaceVariant} size={14} strokeWidth={2} />
-      <Text style={[styles.metaChipText, { color: palette.onSurfaceVariant }]}>{value}</Text>
+      <Icon color={onCover ? '#FFFFFF' : palette.onSurfaceVariant} size={14} strokeWidth={2} />
+      <Text
+        style={[
+          styles.metaChipText,
+          { color: onCover ? '#FFFFFF' : palette.onSurfaceVariant },
+        ]}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
@@ -881,6 +1190,7 @@ const styles = StyleSheet.create({
   chapterList: {},
   chapterNumber: { fontSize: 13, fontVariant: ['tabular-nums'], fontWeight: '500', letterSpacing: 0.5, lineHeight: 19 },
   chapterNumberSlot: { alignItems: 'center', width: 32 },
+  chapterRipple: { borderCurve: 'continuous', borderRadius: 12, overflow: 'hidden' },
   chapterRow: { alignItems: 'center', flexDirection: 'row', gap: 16, minHeight: 48, paddingHorizontal: 12 },
   chapterTitle: { flex: 1, fontSize: 14, letterSpacing: 0.5, lineHeight: 21 },
   chips: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 20 },
@@ -904,6 +1214,12 @@ const styles = StyleSheet.create({
   introductionClipWithRuby: { maxHeight: 1000 },
   introductionPreview: { borderRadius: 8, paddingVertical: 4 },
   introductionSection: { gap: 8, paddingBottom: 24, paddingTop: 24 },
+  landscapeAuthor: { color: 'rgba(255, 255, 255, 0.82)', fontSize: 14, letterSpacing: 0.25, lineHeight: 20 },
+  landscapeBody: { flex: 1 },
+  landscapeCover: { overflow: 'hidden' },
+  landscapeCoverContent: { bottom: 0, gap: 10, left: 0, position: 'absolute', right: 0 },
+  landscapeRow: { flex: 1, flexDirection: 'row' },
+  landscapeTitle: { color: '#FFFFFF', fontSize: 24, fontWeight: '700', letterSpacing: 0, lineHeight: 30 },
   quickSearchPressed: { opacity: 0.72 },
   quickSearchTarget: { borderRadius: 4 },
   loadingActions: { flexDirection: 'row', gap: 12 },
