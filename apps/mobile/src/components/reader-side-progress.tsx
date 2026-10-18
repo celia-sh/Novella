@@ -7,6 +7,8 @@ import { ReaderProgressSlider } from '@/components/reader-progress-slider';
 import { resolveReaderSideProgressInfo } from '@/services/reader-page-progress';
 
 export interface ReaderSideProgressProps {
+  /** Matches the reader's page direction, so the popover slider follows it. */
+  direction?: 'ltr' | 'rtl';
   foregroundColor: string;
   onPageProgressChange: (progress: number) => void;
   pageCurrent: number;
@@ -29,6 +31,7 @@ const MAX_POPOVER_WIDTH = 360;
  * free for text on devices with a vertical navigation bar.
  */
 export function ReaderSideProgress({
+  direction = 'ltr',
   foregroundColor,
   onPageProgressChange,
   pageCurrent,
@@ -74,6 +77,7 @@ export function ReaderSideProgress({
       >
         <View style={styles.slider}>
           <ReaderProgressSlider
+            direction={direction}
             displayMode={progressMode}
             layoutWidth={sliderWidth}
             onValueChange={onPageProgressChange}

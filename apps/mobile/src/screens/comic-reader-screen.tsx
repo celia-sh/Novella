@@ -1075,6 +1075,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
         })}
         sideChrome={sideChrome}
         sideProgress={{
+          direction: mode === 'paged' ? settings.comicPagedDirection : 'ltr',
           onPageProgressChange: jumpToProgress,
           pageCurrent: pageProgress.current,
           pageProgress: pageProgress.progress,
