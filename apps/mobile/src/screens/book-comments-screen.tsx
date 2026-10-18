@@ -11,8 +11,6 @@ import {
 
 import { showAlert } from '@/components/native-alert-dialog';
 import { IconMessage, IconRefresh } from '@tabler/icons-react-native';
-import { PaperProvider } from 'react-native-paper';
-
 import { BookCommentsNavigation } from '@/components/book-comments-navigation';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import type { CommentThreadPalette } from '@/components/comment-thread';
@@ -112,7 +110,7 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
   );
 
   return (
-    <PaperProvider theme={detailTheme.paperTheme}>
+    <>
       <BookCommentsNavigation onCompose={openComposer} palette={palette} />
 
         <HorizontalSafeArea style={[styles.root, { backgroundColor: palette.surface }]}>
@@ -177,7 +175,7 @@ export function BookCommentsScreen({ bookId, target: commentTarget }: BookCommen
         />
         </HorizontalSafeArea>
 
-    </PaperProvider>
+    </>
   );
 }
 

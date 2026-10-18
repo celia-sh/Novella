@@ -2,6 +2,7 @@ import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { Button } from 'panelui-native/components/button';
 import { Skeleton } from 'panelui-native/components/skeleton';
 import { useTranslation } from 'react-i18next';
 import {
@@ -12,8 +13,10 @@ import {
 } from 'react';
 import { useSettledLayout } from '@/hooks/use-settled-layout';
 import {
-  Pressable,  ScrollView,
+  Pressable,
+  ScrollView,
   StyleSheet,
+  Text,
   View,
   type StyleProp,
   type ViewStyle,
@@ -27,15 +30,6 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import {
-  ActivityIndicator,
-  Button,
-  IconButton,
-  PaperProvider,
-  Surface,
-  Text,
-  TouchableRipple,
-} from 'react-native-paper';
-import {
   IconBookmark,
   IconBookmarkFilled,
   IconBooks,
@@ -43,6 +37,7 @@ import {
   IconHeart,
   IconPlayerPlayFilled,
   IconProgressBolt,
+  IconRefresh,
 } from '@tabler/icons-react-native';
 
 import {
@@ -152,7 +147,7 @@ export function BookDetailScreen({
   });
 
   return (
-    <PaperProvider theme={detailTheme.paperTheme}>
+    <>
       <View style={[styles.root, { backgroundColor: detailTheme.palette.surface }]}>
         <BookDetailNavigation
           book={book}
@@ -181,7 +176,7 @@ export function BookDetailScreen({
           />
         )}
       </View>
-    </PaperProvider>
+    </>
   );
 }
 
@@ -701,33 +696,34 @@ function BookPrimaryActions({
   return (
     <>
       <View style={styles.actions}>
-        {/* Paper's Surface splits border styles across two layers and drops
-            borderCurve from the outer one, so the clip view owns the curve. */}
+        {/* The clip view owns the shape, tint, and glass; the buttons inside
+            are transparent so panelui's ghost classes have nothing to fight. */}
         <BackdropGlass
+          fallbackColor={shelfTint}
           glass={useGlass}
           interactive
           style={styles.shelfButtonClip}
           tintColor={shelfTint}
         >
-          <IconButton
+          <Button
             accessibilityLabel={isInShelf ? t('detail.removeFromShelf') : t('detail.addToShelf')}
-            containerColor={useGlass ? 'transparent' : shelfTint}
-            disabled={isShelfLoading}
-            icon={() =>
-              isInShelf ? (
-                <IconBookmarkFilled color={shelfIconColor} size={25} />
-              ) : (
-                <IconBookmark color={shelfIconColor} size={25} strokeWidth={2} />
-              )
-            }
             loading={isShelfLoading}
             onPress={() => void onToggleShelf()}
-            size={25}
+            size="icon"
+            spinnerProps={{ color: shelfIconColor }}
             style={styles.shelfButton}
-          />
+            variant="ghost"
+          >
+            {isInShelf ? (
+              <IconBookmarkFilled color={shelfIconColor} size={25} />
+            ) : (
+              <IconBookmark color={shelfIconColor} size={25} strokeWidth={2} />
+            )}
+          </Button>
         </BackdropGlass>
 
         <BackdropGlass
+          fallbackColor={palette.primary}
           glass={useGlass}
           interactive
           style={styles.readButtonClip}
@@ -737,19 +733,20 @@ function BookPrimaryActions({
             accessibilityLabel={resumeChapter
               ? t('detail.continueReading', { title: resumeChapter.title })
               : t('detail.startReading')}
-            buttonColor={useGlass ? 'transparent' : palette.primary}
-            contentStyle={styles.readButtonContent}
             disabled={book.chapters.length === 0}
-            icon={({ color }) => <IconPlayerPlayFilled color={color} size={22} />}
-            labelStyle={styles.readButtonLabel}
-            mode="contained"
             onPress={() => openReader(book.id, book.type ?? bookType ?? 'Novel', startSortNum)}
+            startContent={<IconPlayerPlayFilled color={palette.onPrimary} size={22} />}
             style={styles.readButton}
-            textColor={palette.onPrimary}
+            variant="ghost"
           >
-            {cleanResumeTitle
-              ? t('detail.continueReadingButton', { title: shortenChapterTitle(cleanResumeTitle) })
-              : t('detail.startReading')}
+            <Text
+              numberOfLines={1}
+              style={[styles.readButtonLabel, { color: palette.onPrimary }]}
+            >
+              {cleanResumeTitle
+                ? t('detail.continueReadingButton', { title: shortenChapterTitle(cleanResumeTitle) })
+                : t('detail.startReading')}
+            </Text>
           </Button>
         </BackdropGlass>
       </View>
@@ -816,18 +813,19 @@ function BookIntroductionPreview({
   return (
     <View style={styles.introductionSection}>
       <SectionTitle palette={palette}>{t('detail.introduction')}</SectionTitle>
-      <TouchableRipple
+      <Pressable
         accessibilityLabel={t('detail.openIntroduction')}
         accessibilityRole="button"
-        borderless
         onPress={() =>
           router.push({
             pathname: '/book/[id]/introduction',
             params: { id: String(book.id), ...(book.type ? { type: book.type } : {}) },
           })
         }
-        rippleColor={hexWithAlpha(palette.primary, 0.08)}
-        style={styles.introductionPreview}
+        style={({ pressed }) => [
+          styles.introductionPreview,
+          pressed && { backgroundColor: hexWithAlpha(palette.primary, 0.08) },
+        ]}
       >
         <View
           style={[
@@ -842,7 +840,7 @@ function BookIntroductionPreview({
             textColor={palette.onSurfaceVariant}
           />
         </View>
-      </TouchableRipple>
+      </Pressable>
     </View>
   );
 }
@@ -906,13 +904,15 @@ function BookChapterList({
         const sortNum = index + 1;
         const isCurrent = sortNum === currentSortNum;
         return (
-          <TouchableRipple
+          <Pressable
             accessibilityLabel={t('detail.readChapter', { number: sortNum, title: chapter.title })}
             accessibilityRole="button"
             key={chapter.id}
             onPress={() => openReader(book.id, book.type ?? bookType ?? 'Novel', sortNum)}
-            rippleColor={hexWithAlpha(palette.primary, 0.1)}
-            style={styles.chapterRipple}
+            style={({ pressed }) => [
+              styles.chapterRipple,
+              pressed && { backgroundColor: hexWithAlpha(palette.primary, 0.1) },
+            ]}
           >
             <View style={styles.chapterRow}>
               <View style={styles.chapterNumberSlot}>
@@ -946,7 +946,7 @@ function BookChapterList({
                 </View>
               ) : null}
             </View>
-          </TouchableRipple>
+          </Pressable>
         );
       })}
     </View>
@@ -1125,8 +1125,7 @@ function BookHeroContent({
   const title = book.title.trim();
 
   return (
-    <Surface
-      elevation={0}
+    <View
       pointerEvents="box-none"
       style={[
         styles.hero,
@@ -1223,7 +1222,7 @@ function BookHeroContent({
           ) : null}
         </View>
       </View>
-    </Surface>
+    </View>
   );
 }
 
@@ -1312,12 +1311,16 @@ function BookDetailError({
       <Text style={[styles.errorText, { color: palette.onSurfaceVariant }]}>
         {error.kind === 'raw' ? error.text : t(error.key)}
       </Text>
-      <Button icon="refresh" mode="text" onPress={onRetry} textColor={palette.primary}>
-        {tCommon('actions.retry')}
+      <Button
+        onPress={onRetry}
+        startContent={<IconRefresh color={palette.primary} size={18} />}
+        variant="ghost"
+      >
+        <Text style={[styles.errorAction, { color: palette.primary }]}>{tCommon('actions.retry')}</Text>
       </Button>
       {requiresAuth ? (
-        <Button mode="text" onPress={() => router.push('/sign-in')} textColor={palette.primary}>
-          {t('actions.signIn')}
+        <Button onPress={() => router.push('/sign-in')} variant="ghost">
+          <Text style={[styles.errorAction, { color: palette.primary }]}>{t('actions.signIn')}</Text>
         </Button>
       ) : null}
     </ScrollView>
@@ -1438,15 +1441,15 @@ const styles = StyleSheet.create({
   loadingUpdate: { borderCurve: 'continuous', borderRadius: 12, height: 42, width: '100%' },
   metaChip: { alignItems: 'center', borderCurve: 'continuous', borderRadius: 8, flexDirection: 'row', gap: 4, height: 26, paddingHorizontal: 10 },
   metaChipText: { fontSize: 12, fontWeight: '500', letterSpacing: 0.25, lineHeight: 17 },
-  readButton: { borderRadius: 16, flex: 1, height: 56 },
+  readButton: { height: 56, width: '100%' },
   readButtonClip: { borderCurve: 'continuous', borderRadius: 16, flex: 1, height: 56, overflow: 'hidden' },
-  readButtonContent: { height: 56 },
   readButtonLabel: { fontSize: 15, fontWeight: '600', letterSpacing: 0.1, lineHeight: 21.5 },
+  errorAction: { fontSize: 16, fontWeight: '600' },
   root: { flex: 1 },
   scrollBody: { flex: 1 },
   scrollView: { flex: 1 },
   sectionTitle: { fontSize: 13, fontWeight: '600', letterSpacing: 0.5, lineHeight: 19 },
-  shelfButton: { borderRadius: 16, height: 56, margin: 0, width: 56 },
+  shelfButton: { height: 56, width: 56 },
   shelfButtonClip: { borderCurve: 'continuous', borderRadius: 16, height: 56, overflow: 'hidden', width: 56 },
   updateInfo: { alignItems: 'center', borderCurve: 'continuous', borderRadius: 12, flexDirection: 'row', gap: 8, marginBottom: 24, padding: 12 },
   updateInfoWithoutIntroduction: { marginTop: 24 },

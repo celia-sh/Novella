@@ -2,7 +2,6 @@ import {
   hexFromArgb,
   Score,
 } from '@material/material-color-utilities';
-import { MD3DarkTheme, MD3LightTheme, type MD3Theme } from 'react-native-paper';
 import { extractBlurHashPlaceholder } from '@novella/api-client';
 
 import {
@@ -33,7 +32,6 @@ export interface BookDetailPalette {
 
 export interface BookDetailTheme {
   palette: BookDetailPalette;
-  paperTheme: MD3Theme;
 }
 
 export function interpolateBookDetailTheme(
@@ -97,14 +95,6 @@ export function interpolateBookDetailTheme(
         amount,
       ),
     },
-    paperTheme: {
-      ...to.paperTheme,
-      colors: interpolateColorValues(
-        from.paperTheme.colors,
-        to.paperTheme.colors,
-        amount,
-      ) as MD3Theme['colors'],
-    },
   };
 }
 
@@ -137,7 +127,6 @@ export function createBookDetailTheme({
       : extractedSeed,
     variant: extractedSeed === null ? dynamicSchemeVariant : 'tonalSpot',
   });
-  const base = isDark ? MD3DarkTheme : MD3LightTheme;
   const schemeColors = {
     primary: hexFromArgb(scheme.primary),
     onPrimary: hexFromArgb(scheme.onPrimary),
@@ -193,20 +182,6 @@ export function createBookDetailTheme({
     surface,
   ];
 
-  const paperTheme: MD3Theme = {
-    ...base,
-    dark: isDark,
-    colors: {
-      ...base.colors,
-      ...schemeColors,
-      background: surface,
-      surface,
-      onSurface,
-      onSurfaceVariant,
-      outlineVariant,
-    },
-  };
-
   return {
     palette: {
       background: surface,
@@ -226,7 +201,6 @@ export function createBookDetailTheme({
       surface,
       surfaceContainerHighest,
     },
-    paperTheme,
   };
 }
 
@@ -300,21 +274,6 @@ function rgbaFromHex(hex: string, alpha: number): string {
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
-function interpolateColorValues(from: unknown, to: unknown, progress: number): unknown {
-  if (typeof from === 'string' && typeof to === 'string') {
-    return interpolateCssColor(from, to, progress);
-  }
-  if (isPlainObject(from) && isPlainObject(to)) {
-    return Object.fromEntries(
-      Object.entries(to).map(([key, value]) => [
-        key,
-        interpolateColorValues(from[key], value, progress),
-      ]),
-    );
-  }
-  return to;
-}
-
 function interpolateCssColor(from: string, to: string, progress: number): string {
   const fromColor = parseCssColor(from);
   const toColor = parseCssColor(to);
@@ -342,10 +301,6 @@ function parseCssColor(value: string): (Rgb & { a: number }) | null {
     g: Number(rgbaMatch[2]),
     r: Number(rgbaMatch[1]),
   };
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function enhanceCoverForBackground(seed: string): string {
