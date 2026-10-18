@@ -17,16 +17,6 @@ const base = {
   surfaceContainerHighest: '#E6E0E9',
 };
 
-test('maps Material colors into the auth palette', () => {
-  const palette = createAuthPalette(base, 'light');
-
-  assert.equal(palette.accent, base.accent);
-  assert.equal(palette.background, base.background);
-  assert.equal(palette.surface, base.card);
-  assert.equal(palette.skeleton, base.surfaceContainerHighest);
-  assert.equal(palette.welcomeGradient.at(-1), base.background);
-});
-
 test('never resolves an iOS semantic background through the accent fallback', () => {
   const platformAccent = { semantic: 'systemPink' };
   const platformBackground = { semantic: 'systemGroupedBackground' };

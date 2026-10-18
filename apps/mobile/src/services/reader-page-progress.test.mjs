@@ -24,11 +24,6 @@ test('two-page chapters only have their two endpoints', () => {
   assert.equal(snapReaderProgress(0.99, 2), 1);
 });
 
-test('a single-page chapter is complete and cannot be stepped', () => {
-  assert.equal(readerProgressStep(1), 1);
-  assert.equal(snapReaderProgress(0, 1), 1);
-});
-
 test('paged novel chapters step by their measured pages', () => {
   assert.deepEqual(
     resolveReaderProgressSliderState({

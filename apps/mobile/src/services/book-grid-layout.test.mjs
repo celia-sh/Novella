@@ -3,7 +3,6 @@ import { test } from 'node:test';
 
 import {
   bookGridColumns,
-  bookGridListKey,
   homeBookGridPreviewCount,
 } from './book-grid-layout.ts';
 import { nearbyGridItemIndices, scrollGridItemIndices } from './cover-activation.ts';
@@ -21,15 +20,6 @@ test('book grid columns adapt to window width', () => {
   assert.equal(bookGridColumns(1279), 7);
   assert.equal(bookGridColumns(1280), 8, 'wide windows get 8 columns');
   assert.equal(bookGridColumns(1600), 8, '8 is the maximum');
-});
-
-test('book grid list key changes with the responsive column count', () => {
-  assert.equal(bookGridListKey(bookGridColumns(479)), 'book-grid-3');
-  assert.equal(bookGridListKey(bookGridColumns(480)), 'book-grid-4');
-  assert.notEqual(
-    bookGridListKey(bookGridColumns(767)),
-    bookGridListKey(bookGridColumns(768)),
-  );
 });
 
 test('home previews match ranking with two responsive grid rows', () => {

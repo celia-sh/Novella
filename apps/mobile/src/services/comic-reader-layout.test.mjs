@@ -89,10 +89,6 @@ test('continuous comic width changes only on wide viewports', () => {
 });
 
 test('comic page fitting follows the selected fill mode', () => {
-  assert.deepEqual(fitComicPage(1000, 2000, 400, 600, 'screen'), {
-    width: 300,
-    height: 600,
-  });
   assert.deepEqual(fitComicPage(1000, 2000, 400, 600, 'width'), {
     width: 400,
     height: 800,

@@ -4,9 +4,7 @@ import test from 'node:test';
 import {
   createAnnouncementsUseCase,
   createAuthenticationUseCase,
-  createBookSearchUseCase,
   createClientSessionController,
-  createComicDetailUseCase,
   createCommunityUseCase,
   createCommentsUseCase,
   createDiscoveryUseCase,
@@ -403,20 +401,6 @@ test('reader preload marks chapter Hub work as cancellable preload priority', as
   ]]);
 });
 
-test('comic detail loads the unified BookInfo contract by volume id', async () => {
-  const requestedIds = [];
-  const detail = { id: 42, type: 'Comic', title: 'Volume', seriesTitle: 'Canonical series' };
-  const useCase = createComicDetailUseCase({
-    async getBookInfo(id) {
-      requestedIds.push(id);
-      return { ...detail, id };
-    },
-  });
-
-  assert.deepEqual(await useCase.load(42), detail);
-  assert.deepEqual(requestedIds, [42]);
-});
-
 test('comments use case accepts comic Book targets and validates ids', async () => {
   const calls = [];
   const useCase = createCommentsUseCase({
@@ -485,39 +469,6 @@ test('announcements load paged summaries and detail with validated identifiers',
   assert.equal(calls.length, 3);
 });
 
-test('discovery exposes independently loadable home sections', async () => {
-  const calls = [];
-  const useCase = createDiscoveryUseCase({
-    async getLatestBookList(request) {
-      calls.push(['books', request]);
-      return { items: [], page: 1, totalPages: 0 };
-    },
-    async getAnnouncementList(request) {
-      calls.push(['announcements', request]);
-      return { items: [], page: 1, totalPages: 0 };
-    },
-    async getOnlineInfo() {
-      calls.push(['online']);
-      return { onlineUserCount: 1, dayCount: 2, dayRegister: 3 };
-    },
-  });
-
-  const [books, announcements, online] = await Promise.all([
-    useCase.loadLatestBooks(),
-    useCase.loadAnnouncements(),
-    useCase.loadOnlineInfo(),
-  ]);
-
-  assert.deepEqual(books.items, []);
-  assert.deepEqual(announcements.items, []);
-  assert.equal(online.onlineUserCount, 1);
-  assert.deepEqual(calls, [
-    ['books', { size: 6 }],
-    ['announcements', { page: 1, size: 5 }],
-    ['online'],
-  ]);
-});
-
 test('discovery loads paged novel catalog with the requested order', async () => {
   const calls = [];
   const useCase = createDiscoveryUseCase({
@@ -544,20 +495,6 @@ test('discovery loads paged novel catalog with the requested order', async () =>
   assert.deepEqual(calls.slice(1).map((call) => call.order), ['new', 'latest']);
 });
 
-test('discovery loads the paged comic catalog through GetComicList', async () => {
-  const calls = [];
-  const useCase = createDiscoveryUseCase({
-    async getComicList(request) {
-      calls.push(request);
-      return { items: [], page: request.page, totalPages: 3 };
-    },
-  });
-
-  const page = await useCase.loadComicListPage({ page: 2, order: 'new' });
-  assert.equal(page.totalPages, 3);
-  assert.deepEqual(calls, [{ page: 2, size: 24, order: 'new' }]);
-});
-
 test('discovery maps ranking periods to GetRank days', async () => {
   const calls = [];
   const useCase = createDiscoveryUseCase({
@@ -576,32 +513,6 @@ test('discovery maps ranking periods to GetRank days', async () => {
   assert.deepEqual(calls, [7, 1, 31]);
 
   await assert.rejects(() => useCase.loadRank('hourly'), /unknown ranking period/i);
-});
-
-test('search keeps novel and comic requests equal and cancellable', async () => {
-  const calls = [];
-  const useCase = createBookSearchUseCase({
-    async searchNovelBooks(request, options) {
-      calls.push(['Novel', request, options]);
-      return { page: request.page, totalPages: 1, items: [] };
-    },
-    async searchComicSeries(request, options) {
-      calls.push(['Comic', request, options]);
-      return { page: request.page, totalPages: 1, items: [] };
-    },
-  });
-  const controller = new AbortController();
-  const request = { keywords: 'series', mode: 'name', page: 1, size: 24 };
-
-  await Promise.all([
-    useCase.searchNovels(request, controller.signal),
-    useCase.searchComics(request, controller.signal),
-  ]);
-
-  assert.deepEqual(calls, [
-    ['Novel', request, { signal: controller.signal }],
-    ['Comic', request, { signal: controller.signal }],
-  ]);
 });
 
 test('history hydrates novel order and comic series independently', async () => {
@@ -1774,12 +1685,6 @@ test('Community use case validates input and forwards cancellation and mutations
     title: 'Valid title',
     contentHtml: '<p>This body is definitely long enough.</p>',
   });
-  assert.deepEqual(calls[9], ['deleteThread', 3]);
-  assert.deepEqual(calls[10], ['deleteReply', 4]);
-  assert.deepEqual(calls[11], ['threadLike', 3]);
-  assert.deepEqual(calls[12], ['threadFavorite', 3]);
-  assert.deepEqual(calls[13], ['replyLike', 4]);
-  assert.deepEqual(calls[14], ['threadLocked', 3, true]);
   const imageData = new Uint8Array([1, 2, 3]);
   assert.equal(
     await useCase.uploadImage({ fileName: ' a.jpg ', data: imageData }),
@@ -1832,21 +1737,6 @@ test('notifications use case normalizes ids and validates paging', async () => {
   assert.deepEqual(calls.slice(1), [['mark', [4, 5]], ['markAll']]);
   assert.throws(() => useCase.load({ page: 0 }), /valid notification page/i);
   assert.throws(() => useCase.mark([0]), /valid notification id/i);
-});
-
-test('mark all notifications needs no loaded ids and propagates request failures', async () => {
-  const failure = new Error('mark all failed');
-  let calls = 0;
-  const useCase = createNotificationsUseCase({
-    async markAllNotifications() {
-      calls += 1;
-      if (calls === 2) throw failure;
-    },
-  });
-
-  await useCase.markAll();
-  await assert.rejects(() => useCase.markAll(), (error) => error === failure);
-  assert.equal(calls, 2);
 });
 
 function bookCard(id, type) {

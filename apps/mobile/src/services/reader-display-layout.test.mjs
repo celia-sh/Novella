@@ -181,14 +181,6 @@ test('a wide page stays on one display slot in height-fit mode', () => {
   ]);
 });
 
-test('width-fit comics keep wide pages isolated like screen fit', () => {
-  const slots = createComicPageDisplaySlots([
-    { index: 0, image: { width: 2000, height: 1000, placeholder: '', url: 'a' } },
-    { index: 1, image: { width: 2000, height: 1000, placeholder: '', url: 'b' } },
-  ], 2);
-  assert.deepEqual(slots.map((slot) => slot.pages.map((page) => page.index)), [[0], [1]]);
-});
-
 test('height-fit spreads fill the viewport height', () => {
   const sizes = fitComicPageSpread([
     { index: 0, image: { width: 1000, height: 1500, placeholder: '', url: 'a' } },

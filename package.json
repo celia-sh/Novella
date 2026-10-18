@@ -13,7 +13,7 @@
     "dev:mobile": "npm run dev --workspace @novella/mobile",
     "start": "npm run dev:mobile",
     "ios": "npm run ios --workspace @novella/mobile",
-    "test:client": "npm run test --workspace @novella/client-core && npm run test --workspace @novella/api-client && npm run test --workspace @novella/reader-engine && npm run test:image --workspace @novella/mobile && npm run test:navigation --workspace @novella/mobile && npm run test:shelf --workspace @novella/mobile && npm run test:community --workspace @novella/mobile && npm run test:settings --workspace @novella/mobile",
+    "test:client": "npm run test --workspace @novella/client-core && npm run test --workspace @novella/api-client && npm run test --workspace @novella/reader-engine && npm run test:image --workspace @novella/mobile && npm run test:navigation --workspace @novella/mobile && npm run test:shelf --workspace @novella/mobile && npm run test:community --workspace @novella/mobile && npm run test:settings --workspace @novella/mobile && npm run test:theme --workspace @novella/mobile && npm run test:localization --workspace @novella/mobile && npm run test:update --workspace @novella/mobile",
     "test:reader": "npm run test --workspace @novella/reader-engine && npm run test --workspace @novella/api-client && npm run test:reader --workspace @novella/mobile",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
