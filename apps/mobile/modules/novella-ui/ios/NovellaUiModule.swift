@@ -54,6 +54,33 @@ public final class NovellaUiModule: Module {
       try await ReaderImageRasterizer.rasterize(uri: uri, maxPixelSize: maxPixelSize)
     }
 
+    /// The radius of the display's own rounded corners, in points. UIKit only
+    /// exposes it through concentric corner resolution (iOS 26+): a probe that
+    /// fills the window and asks for a container-concentric radius resolves to
+    /// the window's corners, which follow the display. 0 before iOS 26 or when
+    /// no window is attached.
+    AsyncFunction("getDisplayCornerRadius") { () async -> Double in
+      if #available(iOS 26.0, *) {
+        return await MainActor.run {
+          let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+          let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+          guard let window = scene?.windows.first(where: \.isKeyWindow) ?? scene?.windows.first else {
+            return 0
+          }
+          let probe = UIView(frame: window.bounds)
+          probe.isUserInteractionEnabled = false
+          probe.isHidden = true
+          probe.cornerConfiguration = .uniformCorners(radius: .containerConcentric())
+          window.addSubview(probe)
+          probe.layoutIfNeeded()
+          let radius = probe.effectiveRadius(corner: .topLeft)
+          probe.removeFromSuperview()
+          return Double(radius)
+        }
+      }
+      return 0
+    }
+
     /// The edge on which iOS 27 renders a vertical navigation bar. It is
     /// `unspecified` on hardware and in window contexts that never use one, so
     /// the reader can opt into edge chrome without guessing from screen size.
