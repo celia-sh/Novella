@@ -4,7 +4,6 @@ import { ToastProvider } from '@celia-sh/react-native-pretty-toast';
 import { PanelUIProvider } from 'panelui-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { Stack } from 'expo-router/stack';
-import { StatusBar } from 'expo-status-bar';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -107,7 +106,6 @@ function RootLayoutContent() {
 
   return (
     <ThemeProvider value={navigationTheme}>
-        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         <BookDetailThemeProvider>
           <Stack screenOptions={systemScreenStackPreset}>
             <Stack.Protected guard={hasAuthenticatedSession}>

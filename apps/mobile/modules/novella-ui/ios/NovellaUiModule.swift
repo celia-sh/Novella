@@ -9,6 +9,83 @@ public final class NovellaUiModule: Module {
       try await ReaderImageRasterizer.rasterize(uri: uri, maxPixelSize: maxPixelSize)
     }
 
+    /// The edge on which iOS 27 renders a vertical navigation bar. It is
+    /// `unspecified` on hardware and in window contexts that never use one, so
+    /// the reader can opt into edge chrome without guessing from screen size.
+    AsyncFunction("getVerticalBarEdge") { () async -> String in
+      if #available(iOS 27.1, *) {
+        return await MainActor.run {
+          let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+          let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+          let window = scene?.windows.first(where: \.isKeyWindow) ?? scene?.windows.first
+          let edge = window?.traitCollection.verticalBarEdge
+            ?? window?.rootViewController?.traitCollection.verticalBarEdge
+            ?? .unspecified
+          switch edge {
+          case .leading:
+            return "leading"
+          case .trailing:
+            return "trailing"
+          default:
+            return "unspecified"
+          }
+        }
+      }
+      return "unspecified"
+    }
+
+    /// Expo Router clears the toolbar items but leaves the now-empty bottom
+    /// toolbar on screen when the last `Stack.Toolbar placement="bottom"`
+    /// unmounts. In the reader's vertical-bar layout the slider moved into the
+    /// side bar, and the empty toolbar still reserves its height plus the home
+    /// indicator as a bottom safe area. Hide it explicitly so the text can use
+    /// that space and the top/bottom margins match.
+    AsyncFunction("setReaderBottomToolbarHidden") { (hidden: Bool) async in
+      await MainActor.run {
+        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
+          for window in scene.windows {
+            for navigationController in NovellaUiModule.navigationControllers(
+              in: window.rootViewController
+            ) {
+              navigationController.setToolbarHidden(hidden, animated: false)
+            }
+          }
+        }
+      }
+    }
+
+    /// A fold moves the system bars between displays and rebuilds the vertical
+    /// column from the bar button items UIKit already holds; it does not ask
+    /// the screen for them again. Re-assign the item list so the column is laid
+    /// out with the new display's width, and keep the reader's items ahead of
+    /// the tab bar when the column is short.
+    AsyncFunction("refreshReaderSideBar") { () async in
+      if #available(iOS 27.1, *) {
+        await MainActor.run {
+          for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
+            for window in scene.windows {
+              let navigationControllers = NovellaUiModule.navigationControllers(
+                in: window.rootViewController
+              )
+              guard let navigationController = navigationControllers.last(where: {
+                $0.viewIfLoaded?.window != nil
+                  && $0.topViewController?.viewIfLoaded?.window != nil
+              }) else { continue }
+              guard let item = navigationController.topViewController?.navigationItem else { continue }
+              item.verticalBarCompressionBehavior = .prefersBarItems
+              if let items = item.rightBarButtonItems {
+                item.rightBarButtonItems = items
+              }
+              if let items = item.leftBarButtonItems {
+                item.leftBarButtonItems = items
+              }
+              navigationController.navigationBar.setNeedsLayout()
+            }
+          }
+        }
+      }
+    }
+
     View(NovellaSearchBarView.self) {
       ViewName("SearchBar")
 
@@ -85,4 +162,22 @@ public final class NovellaUiModule: Module {
       Events("onValueChange")
     }
   }
+
+  private static func navigationControllers(
+    in root: UIViewController?
+  ) -> [UINavigationController] {
+    guard let root else { return [] }
+    var controllers: [UINavigationController] = []
+    if let navigationController = root as? UINavigationController {
+      controllers.append(navigationController)
+    }
+    for child in root.children {
+      controllers.append(contentsOf: navigationControllers(in: child))
+    }
+    if let presented = root.presentedViewController, presented !== root {
+      controllers.append(contentsOf: navigationControllers(in: presented))
+    }
+    return controllers
+  }
+
 }

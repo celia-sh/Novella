@@ -33,6 +33,7 @@ import {
   type ComicPageDisplayItem,
   type ComicPageDisplaySize,
   type ComicPageDisplaySlot,
+  type ComicPageFitMode,
 } from '@/services/reader-display-layout';
 import {
   clampComicPageIndex,
@@ -66,7 +67,8 @@ import {
 } from '@/hooks/use-reader-chrome-visibility';
 import { useReaderLifecycleSave } from '@/hooks/use-reader-lifecycle-save';
 import { useReaderPositionSaver } from '@/hooks/use-reader-position-saver';
-import { updateAppSettings, useAppSettings } from '@/services/settings';
+import { useReaderSideChrome } from '@/hooks/use-reader-side-chrome';
+import { readerImagePreviewIncludes, updateAppSettings, useAppSettings } from '@/services/settings';
 import {
   resolveReaderBoundaryAxis,
   resolveReaderBoundaryChapterAction,
@@ -137,17 +139,23 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   const { colors } = useAppTheme();
   const colorScheme = useAppColorScheme();
   const { height: windowHeight, width } = useWindowDimensions();
+  const sideChrome = useReaderSideChrome();
   // Comic pages occupy the complete reader viewport. Navigation bars are
   // overlays, matching Aidoku's contentInsetAdjustmentBehavior = .never.
   const comicViewportHeight = Math.max(1, windowHeight);
   const settings = useAppSettings();
+  const comicFitMode = settings.comicPageFitMode;
+  const comicImagePreviewEnabled = readerImagePreviewIncludes(
+    settings.readerImagePreviewScope,
+    'comic',
+  );
   const navigation = useNavigation<{
     setParams(params: { position: ReaderOpenPosition; sortNum: string; type: 'Comic' }): void;
   }>();
   const route = useRoute();
   const [mode, setMode] = useState<ReaderMode>(settings.comicReaderViewMode);
   const useDoublePage = mode === 'paged' && shouldUseReaderDoublePage(width, windowHeight);
-  const pagedLayoutKey = useDoublePage && settings.comicDoublePageOffset ? 'offset' : 'normal';
+  const pagedLayoutKey = `${comicFitMode}:${useDoublePage && settings.comicDoublePageOffset ? 'offset' : 'normal'}`;
   const pagedPageHeight = comicViewportHeight;
   const pagedContentPadding = { paddingBottom: 0, paddingTop: 0 };
   const [modeRestoreTarget, setModeRestoreTarget] = useState<{
@@ -370,12 +378,14 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   const pagedDisplaySlots = useMemo(
     () => createComicPageDisplaySlots(activeSlots, pagedColumns, {
       doublePageOffset: useDoublePage && settings.comicDoublePageOffset,
+      fitMode: comicFitMode,
       splitLongPages,
       viewportHeight: comicViewportHeight,
       viewportWidth: width,
     }),
     [
       activeSlots,
+      comicFitMode,
       comicViewportHeight,
       pagedColumns,
       settings.comicDoublePageOffset,
@@ -386,11 +396,12 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   );
   const scrollDisplaySlots = useMemo(
     () => createComicPageDisplaySlots(activeSlots, 1, {
-      splitLongPages,
+      fitMode: 'screen',
+      splitLongPages: comicFitMode === 'height' ? false : splitLongPages,
       viewportHeight: comicViewportHeight,
       viewportWidth: width,
     }),
-    [activeSlots, comicViewportHeight, splitLongPages, width],
+    [activeSlots, comicFitMode, comicViewportHeight, splitLongPages, width],
   );
   const scrollDisplayItems = useMemo(
     () => scrollDisplaySlots.flatMap((slot) => slot.items),
@@ -410,8 +421,13 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   const pageWidth = width;
   const continuousContentWidth = pageWidth;
   const scrollLayouts = useMemo(
-    () => createComicPageLayouts(scrollDisplayItems, continuousContentWidth),
-    [continuousContentWidth, scrollDisplayItems],
+    () => createComicPageLayouts(
+      scrollDisplayItems,
+      continuousContentWidth,
+      comicFitMode,
+      pagedPageHeight,
+    ),
+    [comicFitMode, continuousContentWidth, pagedPageHeight, scrollDisplayItems],
   );
   const savedPageIndex = Math.max(0, Number(activeChapter?.readPosition?.position ?? 1) - 1);
   const restoredPageIndex = resolveReaderInitialIndex(openPosition, savedPageIndex, activeSlots.length);
@@ -941,7 +957,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           contentInsetAdjustmentBehavior="never"
           contentContainerStyle={pagedContentPadding}
           data={pagedDisplaySlots}
-          key={`paged-${activeChapter.chapter.id}:${pagedColumns}:${pagedLayoutKey}`}
+          key={`paged-${activeChapter.chapter.id}:${pagedColumns}:${pagedLayoutKey}:${Math.round(width)}x${Math.round(comicViewportHeight)}`}
           horizontal
           inverted={isPagedRtl}
           initialScrollIndex={Math.min(initialDisplayIndex, Math.max(0, pagedDisplaySlots.length - 1))}
@@ -955,6 +971,8 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
             <ComicPageSpread
               batchFailed={(page) => failedBatches.has(getComicPageBatchStart(page.index, activeSlots.length, PAGE_BATCH))}
               contentWidth={pageWidth}
+              fitMode={comicFitMode}
+              imagePreviewEnabled={comicImagePreviewEnabled}
               maxHeight={pagedPageHeight}
               onRetryBatch={(page) => { void loadBatch(page.index, true); }}
               priority={(page) => Math.abs(page.index - visiblePage) <= 1 ? 'high' : 'normal'}
@@ -994,7 +1012,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           ref={scrollListRef}
           contentInsetAdjustmentBehavior="never"
           data={scrollDisplayItems}
-          key={`scroll-${activeChapter.chapter.id}`}
+          key={`scroll-${activeChapter.chapter.id}:${comicFitMode}:${Math.round(width)}x${Math.round(comicViewportHeight)}`}
           initialScrollIndex={Math.min(initialScrollDisplayIndex, Math.max(0, scrollDisplayItems.length - 1))}
           keyExtractor={(item) => `${item.page.index}:${item.segmentIndex}`}
           getItemLayout={(_, index) => scrollLayouts[index] ?? { index, length: continuousContentWidth * 1.5, offset: 0 }}
@@ -1013,9 +1031,11 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
             return (
               <ComicPage
                 batchFailed={failedBatches.has(getComicPageBatchStart(item.page.index, activeSlots.length, PAGE_BATCH))}
-                contentWidth={displaySize?.width ?? continuousContentWidth}
+                contentWidth={displaySize?.width ?? scrollItemContentWidth(item, comicFitMode, continuousContentWidth, pagedPageHeight)}
                 displayItem={item}
                 {...(displaySize ? { displaySize } : {})}
+                fitMode={comicFitMode}
+                imagePreviewEnabled={comicImagePreviewEnabled}
                 onRetryBatch={() => { void loadBatch(item.page.index, true); }}
                 priority={Math.abs(item.page.index - visiblePage) <= 1 ? 'high' : 'normal'}
                 slot={item.page}
@@ -1057,12 +1077,20 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           pathname: '/reader/[bookId]/settings',
           params: { bookId: String(bookId), readerKey: route.key, sortNum: String(selectedChapterIndex + 1), type: 'Comic' },
         })}
+        sideChrome={sideChrome}
+        sideProgress={{
+          onPageProgressChange: jumpToProgress,
+          pageCurrent: pageProgress.current,
+          pageProgress: pageProgress.progress,
+          pageTotal: pageProgress.total,
+        }}
         statusBarStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
         title={activeChapter?.chapter.title ?? t('titles.comicReader')}
       />
       <ReaderChapterNavigation
         chromeHidden={chromeHidden}
         direction={mode === 'paged' ? settings.comicPagedDirection : 'ltr'}
+        sideChrome={sideChrome}
         pageCurrent={pageProgress.current}
         pageTotal={pageProgress.total}
         onPageProgressChange={jumpToProgress}
@@ -1075,6 +1103,8 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
 interface ComicPageSpreadProps {
   batchFailed: (page: ComicPageSlot) => boolean;
   contentWidth: number;
+  fitMode: ComicPageFitMode;
+  imagePreviewEnabled: boolean;
   maxHeight: number;
   onRetryBatch: (page: ComicPageSlot) => void;
   priority: (page: ComicPageSlot) => 'high' | 'normal';
@@ -1086,6 +1116,8 @@ interface ComicPageSpreadProps {
 function ComicPageSpread({
   batchFailed,
   contentWidth,
+  fitMode,
+  imagePreviewEnabled,
   maxHeight,
   onRetryBatch,
   priority,
@@ -1095,7 +1127,7 @@ function ComicPageSpread({
 }: ComicPageSpreadProps) {
   const items = readingDirection === 'rtl' ? [...slot.items].reverse() : slot.items;
   const pages = items.map((item) => item.page);
-  const displaySizes = fitComicPageSpread(pages, contentWidth, maxHeight);
+  const displaySizes = fitComicPageSpread(pages, contentWidth, maxHeight, fitMode);
   return (
     <View style={[styles.spread, { height: maxHeight, width: viewportWidth }]}>
       {items.map((item, index) => {
@@ -1117,6 +1149,8 @@ function ComicPageSpread({
             contentWidth={displaySize.width}
             displayItem={item}
             displaySize={displaySize}
+            fitMode={fitMode}
+            imagePreviewEnabled={imagePreviewEnabled}
             maxHeight={maxHeight}
             sourceSegmentIndex={sourceSegmentIndex}
             onRetryBatch={() => onRetryBatch(page)}
@@ -1135,6 +1169,8 @@ interface ComicPageProps {
   contentWidth: number;
   displayItem?: ComicPageDisplayItem;
   displaySize?: ComicPageDisplaySize;
+  fitMode: ComicPageFitMode;
+  imagePreviewEnabled: boolean;
   maxHeight?: number;
   onRetryBatch: () => void;
   priority: 'high' | 'normal';
@@ -1148,6 +1184,8 @@ function ComicPage({
   contentWidth,
   displayItem,
   displaySize,
+  fitMode,
+  imagePreviewEnabled,
   maxHeight,
   onRetryBatch,
   priority,
@@ -1240,7 +1278,9 @@ function ComicPage({
   ) : renderedImage;
   const renderedImageWithViewer = image ? (
     <ReaderImageViewer
+      activation="longPress"
       alt={t('accessibility.comicPage', { number: slot.index + 1 })}
+      disabled={!imagePreviewEnabled}
       height={Math.max(1, image.height)}
       radius={0}
       source={image.url}
@@ -1324,15 +1364,30 @@ function createComicDisplaySignature(
     .join('|');
 }
 
+function scrollItemContentWidth(
+  item: ComicPageDisplayItem,
+  fitMode: ComicPageFitMode,
+  width: number,
+  viewportHeight: number,
+): number {
+  if (fitMode !== 'height' || item.segmentCount > 1) return width;
+  const image = item.page.image;
+  if (!image || image.width <= 0 || image.height <= 0) return width;
+  return Math.min(width, viewportHeight * (image.width / image.height));
+}
+
 function createComicPageLayouts(
   items: readonly ComicPageDisplayItem[],
   width: number,
+  fitMode: ComicPageFitMode,
+  viewportHeight: number,
 ): Array<{ length: number; offset: number; index: number }> {
   const heightFor = (item: ComicPageDisplayItem | undefined) => {
     if (!item) return width * 1.5;
     if (item.segmentCount > 1) return item.segmentHeight;
     const image = item.page.image;
-    return width * (image ? Math.max(0.2, image.height / image.width) : 1.5);
+    const itemWidth = scrollItemContentWidth(item, fitMode, width, viewportHeight);
+    return itemWidth * (image ? Math.max(0.2, image.height / image.width) : 1.5);
   };
   let offset = 0;
   return items.map((item, index) => {

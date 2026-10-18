@@ -61,6 +61,48 @@ export function resolveReaderProgressSliderState({
   };
 }
 
+export interface ReaderSideProgressInfo {
+  /** `current/total`, or empty until the reader has measured a page count. */
+  pageLabel: string;
+  /** Whole-number percentage shown in the side bar capsule. */
+  percent: number;
+}
+
+/**
+ * Text for the compact side-bar progress capsule. The novel reader reports
+ * chapter progression rather than a page index, so when `pageCurrent` is not
+ * available the page number is derived from the snapped progression.
+ */
+export function resolveReaderSideProgressInfo({
+  displayMode,
+  pageCurrent,
+  pageStepped = false,
+  pageTotal,
+  progress,
+}: {
+  displayMode: 'pages' | 'percentage';
+  pageCurrent: number;
+  pageStepped?: boolean;
+  pageTotal: number;
+  progress: number;
+}): ReaderSideProgressInfo {
+  const total = Math.max(0, Math.trunc(pageTotal));
+  const state = resolveReaderProgressSliderState({
+    displayMode,
+    pageStepped,
+    pageTotal,
+    progress,
+  });
+  const percent = Math.round(
+    (total > 0 ? state.progress : clampProgress(progress)) * 100,
+  );
+  if (total === 0) return { pageLabel: '', percent };
+  const current = pageCurrent >= 1
+    ? Math.min(Math.max(Math.trunc(pageCurrent), 1), total)
+    : Math.min(total, Math.max(1, Math.round(state.progress * (total - 1)) + 1));
+  return { pageLabel: `${current}/${total}`, percent };
+}
+
 export function resolveComicPageProgress(index: number, total: number): ReaderPageProgress {
   const safeTotal = Math.max(0, Math.trunc(total));
   if (safeTotal === 0) return { current: 0, progress: 0, total: 0 };

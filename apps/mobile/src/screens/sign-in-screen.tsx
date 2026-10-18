@@ -1,6 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,7 +33,6 @@ export function AuthWelcomeScreen() {
 
   return (
     <View style={[styles.welcomeRoot, { backgroundColor: palette.background }]}>
-      <StatusBar style={palette.isDark ? 'light' : 'dark'} />
       <View
         pointerEvents="none"
         style={isLargeScreen ? [styles.largeCoverPane, { width: trackWidth }] : StyleSheet.absoluteFill}

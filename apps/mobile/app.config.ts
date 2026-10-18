@@ -122,10 +122,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     icon: './assets/Novella.icon',
     infoPlist: {
       CFBundleAllowMixedLocalizations: true,
-      // Expo StatusBar / RCTStatusBarManager owns app-wide and route-local
-      // status-bar appearance. react-native-pretty-toast cannot toggle the
-      // bar through its overlay controller in this configuration.
-      UIViewControllerBasedStatusBarAppearance: false,
+      // iOS 27 no longer applies `UIApplication`'s app-wide status bar style or
+      // visibility, so the appearance comes from each screen's view controller
+      // (react-native-screens forwards the native-stack options to it).
+      // In Debug builds the Expo dev-menu's floating Tools window sits above the
+      // app window and owns the status bar configuration; disable that button
+      // (`__expo_disable_fab=1`) or test a Release build.
+      UIViewControllerBasedStatusBarAppearance: true,
       NSPhotoLibraryAddUsageDescription: '允许 Novella 将图片保存到你的照片图库。',
     },
   },

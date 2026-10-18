@@ -1,9 +1,14 @@
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Stack } from 'expo-router';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ReaderNavigationProps } from '@/components/reader-navigation.types';
+import { ReaderSideProgress } from '@/components/reader-side-progress';
+import { ReaderSideTitle } from '@/components/reader-side-title';
+import { refreshReaderSideBar } from '@/services/reader-side-chrome';
 
 const hasLiquidGlass = isLiquidGlassAvailable();
 const READER_NAVIGATION_ITEM_HEIGHT = 44;
@@ -22,8 +27,24 @@ export function ReaderNavigation({
   statusBarStyle,
   title,
   chromeHidden,
+  sideChrome = false,
+  sideProgress,
 }: ReaderNavigationProps) {
   const { t } = useTranslation('reader');
+  const { height, width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
+  // A fold between displays keeps the same native bar button items but rebuilds
+  // the vertical column around them. Re-apply the item list once the new layout
+  // has settled so the title and progress are measured against the new column.
+  useEffect(() => {
+    if (!sideChrome) return;
+    const frame = requestAnimationFrame(() => {
+      void refreshReaderSideBar().catch(() => undefined);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [height, insets.bottom, insets.left, insets.right, insets.top, sideChrome, width]);
+
   return (
     <>
       <Stack.Screen
@@ -37,7 +58,7 @@ export function ReaderNavigation({
             top: 'soft',
           },
           headerTintColor: foregroundColor,
-          headerTitle: () => (
+          headerTitle: sideChrome ? '' : () => (
             <ReaderHeaderTitle
               forceLightAppearance={forceLightAppearance ?? false}
               foregroundColor={foregroundColor}
@@ -55,17 +76,29 @@ export function ReaderNavigation({
                 },
               }
             : {}),
+          statusBarHidden: chromeHidden,
+          statusBarStyle: nativeStatusBarStyle(statusBarStyle),
           title,
         }}
       />
-      <StatusBar
-        animated
-        barStyle={statusBarStyle}
-        hidden={chromeHidden}
-        showHideTransition="fade"
-      />
       {!chromeHidden ? (
         <Stack.Toolbar placement="right">
+          {sideChrome && title ? (
+            <Stack.Toolbar.View>
+              <ReaderSideTitle
+                foregroundColor={foregroundColor}
+                title={title}
+              />
+            </Stack.Toolbar.View>
+          ) : null}
+          {sideChrome && sideProgress ? (
+            <Stack.Toolbar.View>
+              <ReaderSideProgress
+                foregroundColor={foregroundColor}
+                {...sideProgress}
+              />
+            </Stack.Toolbar.View>
+          ) : null}
           <Stack.Toolbar.Button
             accessibilityLabel={t('accessibility.chapterList')}
             hidden={chromeHidden}
@@ -84,6 +117,21 @@ export function ReaderNavigation({
       ) : null}
     </>
   );
+}
+
+type NativeStatusBarStyle = 'auto' | 'light' | 'dark';
+
+/**
+ * iOS 27 ignores `UIApplication`'s app-wide status bar style; the appearance
+ * comes from the screen's view controller instead, and react-native-screens
+ * forwards the native-stack `statusBarStyle` option to it.
+ */
+function nativeStatusBarStyle(
+  style: ReaderNavigationProps['statusBarStyle'],
+): NativeStatusBarStyle {
+  if (style === 'light-content') return 'light';
+  if (style === 'dark-content') return 'dark';
+  return 'auto';
 }
 
 type ReaderHeaderTitleProps = Pick<

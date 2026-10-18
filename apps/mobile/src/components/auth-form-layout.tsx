@@ -1,4 +1,3 @@
-import { StatusBar } from 'expo-status-bar';
 import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -33,7 +32,6 @@ export function AuthFormLayout({
         behavior="padding"
         style={[styles.root, { backgroundColor: palette.background }]}
       >
-        <StatusBar style={palette.isDark ? 'light' : 'dark'} />
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={[

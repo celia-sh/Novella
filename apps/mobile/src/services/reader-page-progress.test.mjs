@@ -5,6 +5,7 @@ import {
   readerProgressStep,
   resolveComicPageProgress,
   resolveReaderProgressSliderState,
+  resolveReaderSideProgressInfo,
   snapReaderProgress,
 } from './reader-page-progress.ts';
 
@@ -100,6 +101,37 @@ test('comic pages always step by page and lock a single page', () => {
       progress: 0,
     }),
     { disabled: true, progress: 1, step: 1, stepped: false },
+  );
+});
+
+test('side-bar progress combines percentage and page count', () => {
+  assert.deepEqual(
+    resolveReaderSideProgressInfo({
+      displayMode: 'percentage',
+      pageCurrent: 0,
+      pageStepped: true,
+      pageTotal: 5,
+      progress: 0.5,
+    }),
+    { pageLabel: '3/5', percent: 50 },
+  );
+  assert.deepEqual(
+    resolveReaderSideProgressInfo({
+      displayMode: 'pages',
+      pageCurrent: 4,
+      pageTotal: 10,
+      progress: 0.3,
+    }),
+    { pageLabel: '4/10', percent: 33 },
+  );
+  assert.deepEqual(
+    resolveReaderSideProgressInfo({
+      displayMode: 'percentage',
+      pageCurrent: 0,
+      pageTotal: 0,
+      progress: 0.42,
+    }),
+    { pageLabel: '', percent: 42 },
   );
 });
 

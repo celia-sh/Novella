@@ -28,6 +28,8 @@ export interface ReaderProgressSliderProps {
   direction?: 'ltr' | 'rtl';
   displayMode?: 'pages' | 'percentage';
   hidden?: boolean;
+  /** Overrides the window-based width when the slider sits in a panel. */
+  layoutWidth?: number;
   onValueChange: (value: number) => void;
   pageCurrent: number;
   /**
@@ -71,6 +73,7 @@ export function ReaderProgressSlider({
   direction = 'ltr',
   displayMode = 'pages',
   hidden = false,
+  layoutWidth,
   onValueChange,
   pageCurrent,
   pageStepped = true,
@@ -219,7 +222,7 @@ export function ReaderProgressSlider({
   if (hidden || !visible) return null;
 
   return (
-    <View style={[styles.root, { width: Math.max(1, width - 42) }]}>
+    <View style={[styles.root, { width: layoutWidth ?? Math.max(1, width - 42) }]}>
       <GestureDetector gesture={gesture}>
         <View
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}

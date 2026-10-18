@@ -1,7 +1,7 @@
 import { router, useNavigation, useRoute } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-context';
 import type {
   NovellaReadiumViewHandle,
@@ -23,7 +23,10 @@ import { ReaderImagePreviewHost, type ReaderImagePreviewHostHandle } from '@/com
 import { ReaderLoadingOverlay, ReaderLoadingState } from '@/components/reader-loading-state';
 import { ReaderNavigation } from '@/components/reader-navigation';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
-import { createReaderChromeInsets } from '@/services/reader-chrome-layout';
+import {
+  createReaderChromeInsets,
+  createReaderSideChromeInsets,
+} from '@/services/reader-chrome-layout';
 import { shouldUseReaderDoublePage } from '@/services/reader-display-layout';
 import { useReaderChapter, type ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
@@ -31,6 +34,7 @@ import { useReaderFont } from '@/hooks/use-reader-font';
 import { useReaderPositionSaver } from '@/hooks/use-reader-position-saver';
 import { useReaderWindowDimensions } from '@/hooks/use-reader-window-dimensions';
 import { useReadiumPublication } from '@/hooks/use-readium-publication';
+import { useReaderSideChrome } from '@/hooks/use-reader-side-chrome';
 import { subscribeReaderChapterSelection } from '@/services/reader-chapter-selection';
 import {
   type ReaderProgressCheckpoint,
@@ -45,7 +49,7 @@ import {
   readiumLocatorToReaderPosition,
   readerPositionToReadiumLocator,
 } from '@/services/reader-locator-mapping';
-import { updateAppSettings, useAppSettings } from '@/services/settings';
+import { readerImagePreviewIncludes, updateAppSettings, useAppSettings } from '@/services/settings';
 import { useReaderLifecycleSave } from '@/hooks/use-reader-lifecycle-save';
 import { useAppColorScheme, useAppTheme } from '@/theme/app-theme';
 import {
@@ -142,15 +146,28 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     height: screenHeight,
     width: screenWidth,
   } = useReaderWindowDimensions();
+  // Foldables and Stage Manager can report a window that is not the reader's
+  // actual layout size. Measure the reader surface so a two-page spread follows
+  // the viewport the text is really drawn into.
+  const [readerViewport, setReaderViewport] = useState<{
+    height: number;
+    width: number;
+  } | null>(null);
+  const viewportWidth = readerViewport?.width ?? screenWidth;
+  const viewportHeight = readerViewport?.height ?? screenHeight;
   const stableSafeArea = useMemo(
     () => ({ bottom: insets.bottom, top: insets.top }),
     [safeAreaFrame.height, safeAreaFrame.width, safeAreaFrame.x, safeAreaFrame.y],
   );
-  const useDoublePage = mode === 'paged' && shouldUseReaderDoublePage(screenWidth, screenHeight);
-  const readerChromeInsets = createReaderChromeInsets(
-    stableSafeArea.top,
-    stableSafeArea.bottom,
-  );
+  const useDoublePage = mode === 'paged'
+    && shouldUseReaderDoublePage(viewportWidth, viewportHeight);
+  const sideChrome = useReaderSideChrome();
+  const readerChromeInsets = sideChrome
+    // Side chrome hides the native bottom toolbar and samples the live safe
+    // area: the toolbar's height disappears from `insets.bottom` without a
+    // frame change, which the stable pair below intentionally ignores.
+    ? createReaderSideChromeInsets(insets.top, insets.bottom)
+    : createReaderChromeInsets(stableSafeArea.top, stableSafeArea.bottom);
   const readerInsets = useMemo(
     () => createReadiumContentInsets(
       readerChromeInsets.top,
@@ -341,7 +358,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     doublePage: useDoublePage,
     firstLineIndent: settings.readerFirstLineIndent,
     fontSize: settings.fontSize,
-    imagePreviewOpenOnLongPress: settings.readerImagePreviewOpenOnLongPress,
+    imagePreviewEnabled: readerImagePreviewIncludes(settings.readerImagePreviewScope, 'novel'),
     lineHeight: settings.readerLineHeight,
     mode,
     pagedTapNavigation: settings.readerPagedTapNavigation,
@@ -354,7 +371,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     readerTextColor,
     settings.fontSize,
     settings.readerFirstLineIndent,
-    settings.readerImagePreviewOpenOnLongPress,
+    settings.readerImagePreviewScope,
     settings.readerLineHeight,
     settings.readerPagedTapNavigation,
     settings.readerParagraphSpacing,
@@ -378,9 +395,21 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const translateMessage = (message: ReaderUserMessage) =>
     message.kind === 'raw' ? message.text : t(message.key);
 
+  const handleReaderLayout = useCallback((event: LayoutChangeEvent) => {
+    const { height, width } = event.nativeEvent.layout;
+    if (width <= 0 || height <= 0) return;
+    setReaderViewport((current) => (
+      current
+      && Math.abs(current.width - width) < 0.5
+      && Math.abs(current.height - height) < 0.5
+        ? current
+        : { height, width }
+    ));
+  }, []);
+
   return (
     <>
-      <View style={[styles.root, { backgroundColor: readerBackground }]}>
+      <View onLayout={handleReaderLayout} style={[styles.root, { backgroundColor: readerBackground }]}>
         {requiresReaderFont && readerFont.status === 'error' ? (
           <ReaderErrorState message={t('errors.fontLoad')} onRetry={readerFont.retry} />
         ) : chapterError ? (
@@ -445,12 +474,22 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
           pathname: '/reader/[bookId]/settings',
           params: { bookId: String(bookId), readerKey: route.key, sortNum: String(sortNum), type: 'Novel' },
         })}
+        sideChrome={sideChrome}
+        sideProgress={{
+          onPageProgressChange: handleProgressChange,
+          pageCurrent: 0,
+          pageProgress: previewProgression,
+          pageStepped: chapterMetrics.paged,
+          pageTotal: chapterMetrics.pageCount,
+          progressMode: 'percentage',
+        }}
         statusBarStyle={readerStatusBarStyle}
         title={readerTitle || t('titles.reader')}
       />
       <ReaderChapterNavigation
         chromeHidden={chromeHidden || imagePreviewOpen || !nativeReady}
         direction="ltr"
+        sideChrome={sideChrome}
         onPageProgressChange={handleProgressChange}
         pageCurrent={0}
         pageProgress={previewProgression}
