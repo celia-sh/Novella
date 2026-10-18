@@ -37,6 +37,7 @@ import {
   useScrollGridCoverActivation,
   type CoverScrollViewportController,
 } from '@/hooks/use-cover-activation';
+import { PAGE_TOP_SPACING, usePageMargin } from '@/hooks/use-wide-layout';
 import { useAppLocale } from '@/localization/localization-provider';
 import type { LibraryMessage } from '@/localization/locales/library';
 import { useHomeComicPreview } from '@/hooks/use-comic-list';
@@ -58,13 +59,14 @@ export function HomeScreen() {
     retryOnlineInfo,
   } = useDiscovery();
   const coverViewport = useCoverScrollViewport();
+  const pageMargin = usePageMargin();
 
   return (
     <>
       <HorizontalSafeArea style={styles.root}>
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingHorizontal: pageMargin }]}
           onLayout={coverViewport.onLayout}
           onScroll={coverViewport.onScroll}
           scrollEventThrottle={16}
@@ -105,7 +107,7 @@ function RankingSection({ viewport }: { viewport: CoverScrollViewportController 
   const styles = useHomeScreenStyles();
   const { colors } = useAppTheme();
   const { books, error, period, reload, retry, status } = useHomeRanking();
-  const { columns, contentWidth, tileWidth } = useBookGridLayout(16);
+  const { columns, contentWidth, tileWidth } = useBookGridLayout();
   const previewBooks = useMemo(
     () => books.slice(0, homeBookGridPreviewCount(columns)),
     [books, columns],
@@ -193,7 +195,7 @@ function LatestBooksSection({
 }) {
   const { t } = useTranslation('library');
   const styles = useHomeScreenStyles();
-  const { columns, contentWidth, tileWidth } = useBookGridLayout(16);
+  const { columns, contentWidth, tileWidth } = useBookGridLayout();
   const books = useMemo(
     () => state.data?.items.slice(0, homeBookGridPreviewCount(columns)) ?? [],
     [columns, state.data],
@@ -257,7 +259,7 @@ function ComicsSection({ viewport }: { viewport: CoverScrollViewportController }
   const styles = useHomeScreenStyles();
   const { colors } = useAppTheme();
   const { books, error, reload, retry, status } = useHomeComicPreview();
-  const { columns, contentWidth, tileWidth } = useBookGridLayout(16);
+  const { columns, contentWidth, tileWidth } = useBookGridLayout();
   const previewBooks = useMemo(
     () => books.slice(0, homeBookGridPreviewCount(columns)),
     [books, columns],
@@ -602,8 +604,7 @@ const useHomeScreenStyles = createThemedStyles((colors) => ({
   content: {
     gap: 18,
     paddingBottom: 120,
-    paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: PAGE_TOP_SPACING,
   },
   inlineError: {
     alignItems: 'flex-start',

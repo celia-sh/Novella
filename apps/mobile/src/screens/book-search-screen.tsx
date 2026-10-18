@@ -63,7 +63,7 @@ export function BookSearchScreen({
   const initialSearchPending =
     initialQueryValue !== '' && search.status === 'idle' && search.committedQuery === '';
   const visibleStatus = initialSearchPending ? 'loading' : search.status;
-  const { columns, contentWidth, height, listKey, tileWidth } = useBookGridLayout(16);
+  const { pageMargin, columns, contentWidth, height, listKey, tileWidth } = useBookGridLayout();
   const results = useMemo<SearchResult[]>(() => search.format === 'Novel'
     ? search.novels.map((item) => ({ key: `Novel:${item.id}`, kind: 'Novel', item }))
     : search.comics.map((item) => ({ key: `Comic:${item.title}`, kind: 'Comic', item })),
@@ -157,7 +157,7 @@ export function BookSearchScreen({
           </View>
         }
         columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingHorizontal: pageMargin }]}
         contentInsetAdjustmentBehavior="automatic"
         data={data}
         extraData={coverActivation.activatedKeys}
@@ -284,12 +284,14 @@ function SearchEmpty({
 }
 
 const useBookSearchScreenStyles = createThemedStyles((colors) => ({
-  content: { gap: 14, paddingBottom: 100, paddingHorizontal: 16 },
+  content: { gap: 14, paddingBottom: 100 },
   root: { flex: 1 },
   empty: { alignItems: 'center', gap: 10, paddingHorizontal: 28, paddingVertical: 56 },
   emptyText: { color: colors.secondaryLabel, fontSize: 14, lineHeight: 20, textAlign: 'center' },
   emptyTitle: { color: colors.label, fontSize: 17, fontWeight: '700' },
-  header: { gap: 14, paddingTop: 8 },
+  // The native search bar already pads its field about 10pt inside its frame,
+  // which stands in for the shared gap under the large title.
+  header: { gap: 14 },
   historyChip: { backgroundColor: colors.card, borderCurve: 'continuous', borderRadius: 10, maxWidth: '100%', paddingHorizontal: 12, paddingVertical: 8 },
   historyHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   historyLabel: { color: colors.label, fontSize: 14 },

@@ -24,7 +24,7 @@ import { CommunityErrorState } from '@/components/community/community-ui';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { showAlert } from '@/components/native-alert-dialog';
 import { NativePickerControl } from '@/components/native-picker-control';
-import { PAGE_PADDING, readingColumnWidth, useWideLayout } from '@/hooks/use-wide-layout';
+import { readingColumnWidth, useWideLayout } from '@/hooks/use-wide-layout';
 import { community, storage } from '@/services/client';
 import { markCommunityThreadChanged } from '@/services/community-reply-events';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
@@ -41,7 +41,7 @@ export function CommunityComposeScreen({
   const isEditing = threadId !== undefined && threadId > 0;
   const styles = useCommunityComposeStyles();
   const { colors } = useAppTheme();
-  const { isWide, usableWidth } = useWideLayout();
+  const { isWide, pageMargin, usableWidth } = useWideLayout();
   const { t } = useTranslation('community');
   const { t: tCommon } = useTranslation('common');
   const editorRef = useRef<CommunityRichEditorHandle>(null);
@@ -360,7 +360,7 @@ export function CommunityComposeScreen({
         </KeyboardAwareScrollView>
         <View style={styles.splitDivider} />
         <ScrollView
-          contentContainerStyle={styles.panelContent}
+          contentContainerStyle={[styles.panelContent, { paddingHorizontal: pageMargin }]}
           contentInsetAdjustmentBehavior="automatic"
           keyboardShouldPersistTaps="handled"
           style={[styles.fixedPane, { width: panelWidth }]}
@@ -380,7 +380,7 @@ export function CommunityComposeScreen({
       <HorizontalSafeArea style={styles.root}>
         <KeyboardAwareScrollView
           bottomOffset={16}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingHorizontal: pageMargin }]}
           contentInsetAdjustmentBehavior="automatic"
           disableScrollOnKeyboardHide
           keyboardDismissMode="interactive"
@@ -472,7 +472,7 @@ function extractCommunityPlainText(html: string): string {
 
 const useCommunityComposeStyles = createThemedStyles((colors) => ({
   center: { alignItems: 'center', flex: 1, justifyContent: 'center' },
-  content: { gap: 20, paddingBottom: 48, paddingHorizontal: PAGE_PADDING, paddingTop: 8 },
+  content: { gap: 20, paddingBottom: 48, paddingTop: 8 },
   counter: { color: colors.secondaryLabel, fontSize: 13 },
   // ScrollView defaults to flexGrow/flexShrink 1; pin the side panel to its width.
   fixedPane: { flexGrow: 0, flexShrink: 0 },
@@ -480,7 +480,7 @@ const useCommunityComposeStyles = createThemedStyles((colors) => ({
   group: { backgroundColor: colors.card, borderCurve: 'continuous', borderRadius: 14, overflow: 'hidden' },
   groupFooter: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 18, paddingHorizontal: 16 },
   metaRow: { flexDirection: 'row', gap: 12, justifyContent: 'space-between', marginTop: 4 },
-  panelContent: { gap: 24, paddingBottom: 32, paddingHorizontal: PAGE_PADDING, paddingTop: 8 },
+  panelContent: { gap: 24, paddingBottom: 32, paddingTop: 8 },
   root: { backgroundColor: colors.background, flex: 1 },
   rules: { gap: 6, paddingHorizontal: 16 },
   rulesText: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 19 },

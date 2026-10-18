@@ -16,6 +16,7 @@ import type { DirectConversationItem } from '@novella/api-client';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { PublicUserAvatar } from '@/components/public-user-avatar';
 import { useDirectMessages } from '@/hooks/use-direct-messages';
+import { usePageMargin } from '@/hooks/use-wide-layout';
 import { formatRelativeTime } from '@/localization/formatters';
 import { useAppLocale } from '@/localization/localization-provider';
 import { directMessages } from '@/services/client';
@@ -26,17 +27,17 @@ import {
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 const AVATAR_SIZE = 54;
-// The row's text column starts after the horizontal padding plus the avatar and
-// its gap, so the separator inset lines up with the name instead of the avatar.
-const ROW_HORIZONTAL_PADDING = 16;
+// Rows are padded by the page margin so avatars line up with the large title.
+// The text column starts after that margin plus the avatar and its gap, so the
+// separator inset lines up with the name instead of the avatar.
 const ROW_GAP = 12;
-const SEPARATOR_INSET = ROW_HORIZONTAL_PADDING + AVATAR_SIZE + ROW_GAP;
 
 export function DirectMessageConversationsScreen() {
   const styles = useConversationListStyles();
   const { colors } = useAppTheme();
   const { t } = useTranslation('messages');
   const snapshot = useDirectMessages();
+  const pageMargin = usePageMargin();
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -92,7 +93,9 @@ export function DirectMessageConversationsScreen() {
       contentInsetAdjustmentBehavior="automatic"
       data={snapshot.conversations}
       keyExtractor={(item) => String(item.peer.id)}
-      ItemSeparatorComponent={() => <View style={styles.separator} />}
+      ItemSeparatorComponent={() => (
+        <View style={[styles.separator, { marginLeft: pageMargin + AVATAR_SIZE + ROW_GAP }]} />
+      )}
       onEndReached={() => {
         if (!pageError) void loadMore();
       }}
@@ -164,6 +167,7 @@ function ConversationRow({ conversation }: { conversation: DirectConversationIte
   const styles = useConversationListStyles();
   const { t } = useTranslation('messages');
   const locale = useAppLocale();
+  const pageMargin = usePageMargin();
   const name = resolveDirectMessagePeerName(conversation.peer, t('conversations.deletedUser'));
   const unread = conversation.unreadCount;
 
@@ -177,7 +181,7 @@ function ConversationRow({ conversation }: { conversation: DirectConversationIte
           params: { peerId: String(conversation.peer.id) },
         })
       }
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.row, { paddingHorizontal: pageMargin }, pressed && styles.pressed]}
     >
       <PublicUserAvatar
         avatarUrl={conversation.peer.avatarUrl}
@@ -261,13 +265,11 @@ const useConversationListStyles = createThemedStyles((colors) =>
       alignItems: 'center',
       flexDirection: 'row',
       gap: ROW_GAP,
-      paddingHorizontal: ROW_HORIZONTAL_PADDING,
       paddingVertical: 9,
     },
     separator: {
       backgroundColor: colors.separator,
       height: StyleSheet.hairlineWidth,
-      marginLeft: SEPARATOR_INSET,
     },
     stateText: {
       color: colors.secondaryLabel,

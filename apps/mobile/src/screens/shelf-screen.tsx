@@ -45,6 +45,7 @@ import { ReorderableShelfGrid } from '@/components/reorderable-shelf-grid';
 import { ReflowFade } from '@/components/reflow-fade';
 import { SectionCard } from '@/components/section-card';
 import { useBookGridLayout, BOOK_GRID_COLUMN_GAP } from '@/hooks/use-book-grid-layout';
+import { PAGE_TOP_SPACING } from '@/hooks/use-wide-layout';
 import {
   useCoverScrollViewport,
   useScrollGridCoverActivation,
@@ -102,7 +103,7 @@ export function ShelfScreen({ media: initialMedia = 'All', parents = [] }: Shelf
   const scrollOffsetRef = useRef(0);
   const viewportHeightRef = useRef(0);
   const coverViewport = useCoverScrollViewport();
-  const { columns, contentWidth, listKey, tileWidth } = useBookGridLayout(16);
+  const { pageMargin, columns, contentWidth, listKey, tileWidth } = useBookGridLayout();
   const isFolder = parents.length > 0;
 
   const projection = useMemo(
@@ -280,7 +281,7 @@ export function ShelfScreen({ media: initialMedia = 'All', parents = [] }: Shelf
           <HorizontalSafeArea style={styles.scrollView}>
           <ScrollView
             contentInsetAdjustmentBehavior="automatic"
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[styles.content, { paddingHorizontal: pageMargin }]}
             onLayout={(event) => {
               viewportHeightRef.current = event.nativeEvent.layout.height;
               coverViewport.onLayout(event);
@@ -592,7 +593,7 @@ function ShelfContent({
 
 function LoadingState() {
   const styles = useShelfScreenStyles();
-  const { columns, contentWidth, height, tileWidth } = useBookGridLayout(16);
+  const { columns, contentWidth, height, tileWidth } = useBookGridLayout();
   const count = bookGridSkeletonCount({
     columns,
     headerOffset: 120,
@@ -804,7 +805,7 @@ const useShelfScreenStyles = createThemedStyles((colors) => ({
   breadcrumb: { color: colors.secondaryLabel, fontSize: 14, lineHeight: 19 },
   cardDescription: { color: colors.secondaryLabel, fontSize: 15, lineHeight: 21 },
   cardTitle: { color: colors.label, flex: 1, fontSize: 17, fontWeight: '700', lineHeight: 22 },
-  content: { gap: 16, paddingBottom: 120, paddingHorizontal: 16, paddingTop: 20 },
+  content: { gap: 16, paddingBottom: 120, paddingTop: PAGE_TOP_SPACING },
   emptyState: { alignItems: 'center', gap: 10, paddingVertical: 18 },
   errorBlock: { alignItems: 'center', gap: 12, paddingHorizontal: 28, paddingVertical: 56 },
   errorText: { color: colors.secondaryLabel, fontSize: 14, lineHeight: 20, textAlign: 'center' },

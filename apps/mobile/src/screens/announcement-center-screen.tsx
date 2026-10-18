@@ -21,7 +21,7 @@ import {
   useAnnouncements,
   type AnnouncementListEntry,
 } from '@/hooks/use-announcements';
-import { PAGE_PADDING, useWideLayout } from '@/hooks/use-wide-layout';
+import { PAGE_PADDING, PAGE_TOP_SPACING, usePageMargin, useWideLayout } from '@/hooks/use-wide-layout';
 import { formatDate } from '@/localization/formatters';
 import { useAppLocale } from '@/localization/localization-provider';
 import { AnnouncementDetailPane } from '@/screens/announcement-detail-screen';
@@ -101,11 +101,13 @@ function AnnouncementList({
   const styles = useAnnouncementCenterStyles();
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
+  const pageMargin = usePageMargin();
 
   return (
     <FlatList
       contentContainerStyle={[
         styles.content,
+        { paddingHorizontal: pageMargin },
         items.length === 0 && !loading && styles.emptyContent,
       ]}
       contentInsetAdjustmentBehavior="automatic"
@@ -334,7 +336,7 @@ function AnnouncementState({
 }
 
 const useAnnouncementCenterStyles = createThemedStyles((colors) => ({
-  content: { paddingBottom: 40, paddingHorizontal: PAGE_PADDING, paddingTop: 8 },
+  content: { paddingBottom: 40, paddingHorizontal: PAGE_PADDING, paddingTop: PAGE_TOP_SPACING },
   detailPane: { flex: 1 },
   emptyContent: { flexGrow: 1, justifyContent: 'center' },
   list: { flex: 1 },

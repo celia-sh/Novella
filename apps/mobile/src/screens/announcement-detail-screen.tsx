@@ -30,15 +30,12 @@ import type { CommentThreadPalette } from '@/components/comment-thread';
 import { showAlert } from '@/components/native-alert-dialog';
 import { useAnnouncementDetail } from '@/hooks/use-announcement-detail';
 import { useComments } from '@/hooks/use-comments';
-import { readingColumnWidth, useWideLayout } from '@/hooks/use-wide-layout';
+import { readingColumnWidth, usePageMargin, useWideLayout } from '@/hooks/use-wide-layout';
 import { formatDate } from '@/localization/formatters';
 import { flattenCommentRows, type CommentListRow } from '@/services/comment-list-rows';
 import { useAppLocale } from '@/localization/localization-provider';
 import { consumeCommentsChanged } from '@/services/comment-events';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
-
-/** Horizontal padding of the reading column when the pane is narrow. */
-const ARTICLE_PADDING = 20;
 
 export function AnnouncementDetailScreen({
   id,
@@ -100,8 +97,10 @@ export function AnnouncementDetailPane({
       },
     });
   }, [serverId]);
-  const columnWidth = readingColumnWidth(paneWidth, embedded ? 28 : ARTICLE_PADDING);
-  const sidePadding = Math.max(ARTICLE_PADDING, (paneWidth - columnWidth) / 2);
+  const pageMargin = usePageMargin();
+  const articlePadding = embedded ? 28 : pageMargin;
+  const columnWidth = readingColumnWidth(paneWidth, articlePadding);
+  const sidePadding = Math.max(articlePadding, (paneWidth - columnWidth) / 2);
 
   return (
     <>

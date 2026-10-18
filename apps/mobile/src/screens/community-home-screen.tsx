@@ -38,7 +38,7 @@ import {
   type CommunityHomeQuery,
   type CommunityHomeState,
 } from '@/hooks/use-community-home';
-import { PAGE_PADDING, useWideLayout } from '@/hooks/use-wide-layout';
+import { PAGE_TOP_SPACING, usePageMargin, useWideLayout } from '@/hooks/use-wide-layout';
 import { useAppLocale } from '@/localization/localization-provider';
 import { resolveCommunityBoardIcon } from '@/services/community-board-icons';
 import { formatCommunityCount } from '@/services/community-utils';
@@ -62,7 +62,8 @@ export function CommunityHomeScreen() {
   const styles = useCommunityHomeStyles();
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
-  const { isWide, usableWidth } = useWideLayout();
+  const { isWide, pageMargin, usableWidth } = useWideLayout();
+  const margin = { paddingHorizontal: pageMargin };
   const { loadMore, refresh, retry, state, updateQuery } = useCommunityHome();
   const { home, query } = state;
 
@@ -114,7 +115,7 @@ export function CommunityHomeScreen() {
             style={styles.flex}
           >
             {home ? (
-              <View style={styles.phoneHeader}>
+              <View style={[styles.phoneHeader, margin]}>
                 <CommunityStatsLine home={home} query={query} />
                 <AnnouncementRow home={home} />
               </View>
@@ -141,7 +142,7 @@ export function CommunityHomeScreen() {
                 updateQuery={updateQuery}
               />
             ) : null}
-            <View style={styles.feedPadding}>
+            <View style={margin}>
               <CommunityFeed
                 columns={1}
                 onOpenThread={openThread}
@@ -164,7 +165,7 @@ export function CommunityHomeScreen() {
   // Landscape: boards become a sidebar list, so the feed starts at the top of
   // the window instead of below a summary, an announcement, and filter rows.
   const sidebarWidth = Math.round(Math.min(300, Math.max(240, usableWidth * 0.3)));
-  const feedWidth = usableWidth - sidebarWidth - StyleSheet.hairlineWidth - PAGE_PADDING * 2;
+  const feedWidth = usableWidth - sidebarWidth - StyleSheet.hairlineWidth - pageMargin * 2;
   const columns = feedWidth >= FEED_TWO_COLUMN_MIN_WIDTH ? 2 : 1;
 
   return (
@@ -174,7 +175,7 @@ export function CommunityHomeScreen() {
       <Stack.Screen options={{ headerLargeTitle: false, title: '' }} />
       <HorizontalSafeArea style={[styles.root, styles.splitRow]}>
         <ScrollView
-          contentContainerStyle={styles.sidebarContent}
+          contentContainerStyle={[styles.sidebarContent, margin]}
           contentInsetAdjustmentBehavior="automatic"
           showsVerticalScrollIndicator={false}
           style={[styles.fixedPane, { width: sidebarWidth }]}
@@ -206,7 +207,7 @@ export function CommunityHomeScreen() {
         <View style={styles.splitDivider} />
         <ScrollView
           alwaysBounceVertical
-          contentContainerStyle={styles.wideFeedContent}
+          contentContainerStyle={[styles.wideFeedContent, margin]}
           contentInsetAdjustmentBehavior="automatic"
           onScroll={handleScroll}
           refreshControl={refreshControl}
@@ -321,9 +322,10 @@ function AnnouncementRow({
 
 function ChipRow({ children, inset = true }: { children: ReactNode; inset?: boolean }) {
   const styles = useCommunityHomeStyles();
+  const pageMargin = usePageMargin();
   return (
     <ScrollView
-      contentContainerStyle={[styles.chipRow, inset && styles.chipRowInset]}
+      contentContainerStyle={[styles.chipRow, inset && { paddingHorizontal: pageMargin }]}
       horizontal
       showsHorizontalScrollIndicator={false}
       style={styles.chipScroll}
@@ -392,13 +394,14 @@ function SubCategoryChips({
   const styles = useCommunityHomeStyles();
   const { t } = useTranslation('community');
   const locale = useAppLocale();
+  const pageMargin = usePageMargin();
 
   if (loading) {
     return (
       <View
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
-        style={[styles.chipRow, inset && styles.chipRowInset, styles.chipScroll]}
+        style={[styles.chipRow, inset && { paddingHorizontal: pageMargin }, styles.chipScroll]}
       >
         <Skeleton style={styles.subChipSkeleton} />
         <Skeleton style={styles.subChipSkeleton} />
@@ -636,13 +639,14 @@ const SKELETON_BOARD_WIDTHS = ['52%', '30%', '30%', '30%', '30%', '30%'] as cons
 /** Stats line, announcement row, and board chips, at their real sizes. */
 function PhoneHeaderSkeleton() {
   const styles = useCommunityHomeStyles();
+  const margin = { paddingHorizontal: usePageMargin() };
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <View style={styles.phoneHeader}>
+      <View style={[styles.phoneHeader, margin]}>
         <StatsSkeleton />
         <AnnouncementSkeleton />
       </View>
-      <View style={[styles.chipRow, styles.chipRowInset, styles.chipScroll, styles.skeletonChipRow]}>
+      <View style={[styles.chipRow, margin, styles.chipScroll, styles.skeletonChipRow]}>
         {SKELETON_CHIP_WIDTHS.map((width, index) => (
           <Skeleton key={index} style={[styles.pageBone, styles.skeletonChip, { width }]} />
         ))}
@@ -752,7 +756,6 @@ const useCommunityHomeStyles = createThemedStyles((colors) => ({
   },
   chipPressed: { backgroundColor: colors.surfaceContainerHighest },
   chipRow: { alignItems: 'center', gap: 8 },
-  chipRowInset: { paddingHorizontal: PAGE_PADDING },
   chipScroll: { flexGrow: 0, marginBottom: 12 },
   chipSelected: { backgroundColor: colors.accent },
   chipText: { color: colors.label, fontSize: 15, fontWeight: '500' },
@@ -763,18 +766,17 @@ const useCommunityHomeStyles = createThemedStyles((colors) => ({
   fixedPane: { flexGrow: 0, flexShrink: 0 },
   feedGrid: { gap: FEED_GAP },
   feedGridRow: { alignItems: 'stretch', flexDirection: 'row', gap: FEED_GAP },
-  feedPadding: { paddingHorizontal: PAGE_PADDING },
   flex: { flex: 1 },
   footer: { gap: 16, paddingTop: FEED_GAP },
   groupFirst: { borderTopLeftRadius: 14, borderTopRightRadius: 14 },
   groupLast: { borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
   phoneContent: { paddingBottom: 40 },
-  phoneHeader: { gap: 12, paddingBottom: 14, paddingHorizontal: PAGE_PADDING, paddingTop: 4 },
+  phoneHeader: { gap: 12, paddingBottom: 14, paddingTop: PAGE_TOP_SPACING },
   root: { backgroundColor: colors.background, flex: 1 },
   rowPressed: { backgroundColor: colors.surfaceContainerHighest },
   rowSeparator: { borderBottomColor: colors.separator, borderBottomWidth: StyleSheet.hairlineWidth },
   sectionCaption: { color: colors.secondaryLabel, fontSize: 13, marginBottom: 6 },
-  sidebarContent: { gap: 20, paddingBottom: 32, paddingHorizontal: PAGE_PADDING, paddingTop: 8 },
+  sidebarContent: { gap: 20, paddingBottom: 32, paddingTop: 8 },
   sidebarSection: { gap: 0 },
   // Bones on a card use the raised fill; bones on the page use the card fill.
   bone: { backgroundColor: colors.surfaceContainerHighest, borderRadius: 6 },
@@ -806,5 +808,5 @@ const useCommunityHomeStyles = createThemedStyles((colors) => ({
   subChipSkeleton: { backgroundColor: colors.card, borderRadius: 15, height: 30, width: 72 },
   subChipText: { color: colors.secondaryLabel, fontSize: 14 },
   subChipTextSelected: { color: colors.onPrimaryContainer, fontWeight: '600' },
-  wideFeedContent: { paddingBottom: 40, paddingHorizontal: PAGE_PADDING, paddingTop: 8 },
+  wideFeedContent: { paddingBottom: 40, paddingTop: 8 },
 }));

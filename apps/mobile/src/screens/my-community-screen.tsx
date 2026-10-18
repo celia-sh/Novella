@@ -27,6 +27,7 @@ import {
   type NativeSegmentedControlOption,
 } from "@/components/native-segmented-control";
 import { useMyCommunity } from "@/hooks/use-my-community";
+import { usePageMargin } from "@/hooks/use-wide-layout";
 import { useAppLocale } from "@/localization/localization-provider";
 import { formatCommunityTime } from "@/services/community-utils";
 import { createThemedStyles, useAppTheme } from "@/theme/app-theme";
@@ -38,6 +39,7 @@ export function MyCommunityScreen() {
   const { colors } = useAppTheme();
   const { t } = useTranslation("community");
   const locale = useAppLocale();
+  const pageMargin = usePageMargin();
   const [tab, setTab] = useState<MyCommunityTab>("published");
   const { error, load, loading, overview, refresh, refreshing } =
     useMyCommunity();
@@ -59,7 +61,7 @@ export function MyCommunityScreen() {
     <HorizontalSafeArea style={styles.root}>
         <ScrollView
           alwaysBounceVertical
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingHorizontal: pageMargin }]}
           contentInsetAdjustmentBehavior="automatic"
           refreshControl={
             <RefreshControl
@@ -208,7 +210,7 @@ function MyReplyCard({ reply }: { reply: CommunityMyReplyItem }) {
 
 const useMyCommunityStyles = createThemedStyles((colors) => ({
   boardLabel: { color: colors.secondaryLabel, flex: 1, fontSize: 13 },
-  content: { gap: 16, paddingBottom: 44, paddingHorizontal: 16, paddingTop: 8 },
+  content: { gap: 16, paddingBottom: 44, paddingTop: 8 },
   list: { gap: 12 },
   metricIcon: { color: colors.secondaryLabel },
   metricLabel: { color: colors.secondaryLabel, fontSize: 13, marginRight: 10 },

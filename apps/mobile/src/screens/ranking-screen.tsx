@@ -46,7 +46,7 @@ export function RankingScreen() {
     retry,
     status,
   } = useRankingPage(settings.homeRankType);
-  const { columns, contentWidth, height, listKey, tileWidth } = useBookGridLayout(16);
+  const { pageMargin, columns, contentWidth, height, listKey, tileWidth } = useBookGridLayout();
   const skeletonCount =
     status === 'loading' && books.length === 0
       ? bookGridSkeletonCount({ columns, headerOffset: 110, height, tileWidth })
@@ -101,7 +101,7 @@ export function RankingScreen() {
             </View>
           }
           columnWrapperStyle={styles.row}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingHorizontal: pageMargin }]}
           contentInsetAdjustmentBehavior="automatic"
           data={data}
           extraData={coverActivation.activatedKeys}
@@ -189,7 +189,6 @@ const useRankingScreenStyles = createThemedStyles((colors) => ({
   content: {
     gap: 12,
     paddingBottom: 40,
-    paddingHorizontal: 16,
   },
   emptyDescription: {
     color: colors.secondaryLabel,

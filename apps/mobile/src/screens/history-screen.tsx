@@ -28,6 +28,7 @@ import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { ReflowFade } from '@/components/reflow-fade';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
+import { PAGE_TOP_SPACING } from '@/hooks/use-wide-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
 import { type HistoryTab, useReadHistory } from '@/hooks/use-read-history';
@@ -40,7 +41,7 @@ export function HistoryScreen() {
   const { colors } = useAppTheme();
   const { clear, loadMore, refresh, retry, state } = useReadHistory();
   const [tab, setTab] = useState<HistoryTab>('Novel');
-  const { columns, height, listKey, tileWidth } = useBookGridLayout(16);
+  const { pageMargin, columns, height, listKey, tileWidth } = useBookGridLayout();
   const activeTabState = tab === 'Novel' ? state.novel : state.comic;
   const hasAnyHistory =
     (state.ids?.novelIds.length ?? 0) > 0 || (state.ids?.comicIds.length ?? 0) > 0;
@@ -155,7 +156,7 @@ export function HistoryScreen() {
               </View>
             }
             columnWrapperStyle={styles.row}
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[styles.content, { paddingHorizontal: pageMargin }]}
             contentInsetAdjustmentBehavior="automatic"
             data={data}
             extraData={coverActivation.activatedKeys}
@@ -289,8 +290,7 @@ const useHistoryScreenStyles = createThemedStyles((colors) => ({
   content: {
     gap: 12,
     paddingBottom: 40,
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: PAGE_TOP_SPACING,
   },
   pressed: { opacity: 0.72 },
   retryButton: {

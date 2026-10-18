@@ -8,6 +8,7 @@ import {
 } from '@/components/community/community-insights';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { useCachedCommunityHome } from '@/hooks/community-home-cache';
+import { usePageMargin } from '@/hooks/use-wide-layout';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 export function CommunityRankingsScreen() {
@@ -15,6 +16,7 @@ export function CommunityRankingsScreen() {
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
   const home = useCachedCommunityHome();
+  const pageMargin = usePageMargin();
 
   const openThread = (item: { id: number }) => {
     router.push({
@@ -27,7 +29,7 @@ export function CommunityRankingsScreen() {
     <HorizontalSafeArea style={styles.root}>
       <ScrollView
         alwaysBounceVertical
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingHorizontal: pageMargin }]}
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
         style={styles.scroll}
@@ -55,7 +57,7 @@ export function CommunityRankingsScreen() {
 
 const useCommunityRankingsStyles = createThemedStyles((colors) => ({
   body: { gap: 24 },
-  content: { paddingBottom: 44, paddingHorizontal: 16, paddingTop: 8 },
+  content: { paddingBottom: 44, paddingTop: 8 },
   empty: { alignItems: 'center', gap: 8, paddingTop: 96 },
   emptyDescription: {
     color: colors.secondaryLabel,

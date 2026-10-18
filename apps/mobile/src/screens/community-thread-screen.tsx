@@ -65,7 +65,7 @@ export function CommunityThreadScreen({
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
   const { t: tCommon } = useTranslation('common');
-  const { isWide, usableWidth } = useWideLayout();
+  const { isWide, pageMargin, usableWidth } = useWideLayout();
   const commentPalette = useMemo(() => toCommunityCommentPalette(colors), [colors]);
   const listRef = useRef<FlatList<CommunityThreadRow>>(null);
   const hasFocused = useRef(false);
@@ -379,8 +379,8 @@ export function CommunityThreadScreen({
     );
   }
 
-  const columnWidth = readingColumnWidth(usableWidth);
-  const sidePadding = Math.max(16, (usableWidth - columnWidth) / 2);
+  const columnWidth = readingColumnWidth(usableWidth, pageMargin);
+  const sidePadding = Math.max(pageMargin, (usableWidth - columnWidth) / 2);
   return (
     <>
       {navigation}
