@@ -3,7 +3,6 @@ import { Stack } from 'expo-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ReaderNavigationProps } from '@/components/reader-navigation.types';
 import { ReaderSideProgress } from '@/components/reader-side-progress';
@@ -32,24 +31,29 @@ export function ReaderNavigation({
 }: ReaderNavigationProps) {
   const { t } = useTranslation('reader');
   const { height, width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
 
   // A fold between displays keeps the same native bar button items but rebuilds
   // the vertical column around them. Re-apply the item list once the new layout
   // has settled so the title and progress are measured against the new column.
+  //
+  // Only real window-size changes are a fold. Safe-area insets also change when
+  // the status bar hides with the reader chrome, and re-assigning the item list
+  // at that moment re-inserts the custom title/progress views into the glass
+  // column, which plays iOS 26's item transition (the text visibly pops).
   useEffect(() => {
     if (!sideChrome) return;
     const frame = requestAnimationFrame(() => {
       void refreshReaderSideBar().catch(() => undefined);
     });
     return () => cancelAnimationFrame(frame);
-  }, [height, insets.bottom, insets.left, insets.right, insets.top, sideChrome, width]);
+  }, [height, sideChrome, width]);
 
   return (
     <>
       <Stack.Screen
         options={{
           headerLargeTitle: false,
+          headerBackVisible: !chromeHidden,
           headerShadowVisible: false,
           scrollEdgeEffects: {
             bottom: 'hidden',
@@ -81,40 +85,45 @@ export function ReaderNavigation({
           title,
         }}
       />
-      {!chromeHidden ? (
-        <Stack.Toolbar placement="right">
-          {sideChrome && title ? (
-            <Stack.Toolbar.View>
-              <ReaderSideTitle
-                foregroundColor={foregroundColor}
-                title={title}
-              />
-            </Stack.Toolbar.View>
-          ) : null}
-          {sideChrome && sideProgress ? (
-            <Stack.Toolbar.View>
-              <ReaderSideProgress
-                foregroundColor={foregroundColor}
-                {...sideProgress}
-              />
-            </Stack.Toolbar.View>
-          ) : null}
-          <Stack.Toolbar.Button
-            accessibilityLabel={t('accessibility.chapterList')}
-            hidden={chromeHidden}
-            icon="list.bullet"
-            onPress={onOpenChapters}
-            tintColor={foregroundColor}
-          />
-          <Stack.Toolbar.Button
-            accessibilityLabel={t('accessibility.readerSettings')}
-            hidden={chromeHidden}
-            icon="gearshape"
-            onPress={onOpenSettings}
-            tintColor={foregroundColor}
-          />
-        </Stack.Toolbar>
-      ) : null}
+      {/*
+        The toolbar stays mounted while the chrome is hidden. The custom title
+        and progress views are inserted into the glass column when they mount,
+        and iOS 26 animates that insertion; mounting the toolbar with the
+        chrome made the text pop every time the bar appeared. `headerShown`
+        still owns visibility, and the native buttons keep their own `hidden`.
+      */}
+      <Stack.Toolbar placement="right">
+        {sideChrome && title ? (
+          <Stack.Toolbar.View hidden={chromeHidden}>
+            <ReaderSideTitle
+              foregroundColor={foregroundColor}
+              title={title}
+            />
+          </Stack.Toolbar.View>
+        ) : null}
+        {sideChrome && sideProgress ? (
+          <Stack.Toolbar.View hidden={chromeHidden}>
+            <ReaderSideProgress
+              foregroundColor={foregroundColor}
+              {...sideProgress}
+            />
+          </Stack.Toolbar.View>
+        ) : null}
+        <Stack.Toolbar.Button
+          accessibilityLabel={t('accessibility.chapterList')}
+          hidden={chromeHidden}
+          icon="list.bullet"
+          onPress={onOpenChapters}
+          tintColor={foregroundColor}
+        />
+        <Stack.Toolbar.Button
+          accessibilityLabel={t('accessibility.readerSettings')}
+          hidden={chromeHidden}
+          icon="gearshape"
+          onPress={onOpenSettings}
+          tintColor={foregroundColor}
+        />
+      </Stack.Toolbar>
     </>
   );
 }
