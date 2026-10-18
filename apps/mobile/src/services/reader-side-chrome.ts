@@ -1,4 +1,7 @@
-import { requireNativeModule } from 'expo';
+import {
+  requireNativeModule,
+  type EventSubscription,
+} from 'expo';
 
 /**
  * The edge where iOS 27 places its vertical navigation bar. `unspecified`
@@ -11,6 +14,10 @@ interface NovellaUiModule {
   getVerticalBarEdge(): Promise<ReaderVerticalBarEdge>;
   refreshReaderSideBar?(): Promise<void>;
   setReaderBottomToolbarHidden?(hidden: boolean): Promise<void>;
+  addListener?(
+    eventName: 'onLayoutWillChange' | 'onLayoutDidChange',
+    listener: () => void,
+  ): EventSubscription;
 }
 
 const NativeNovellaUi = requireNativeModule<NovellaUiModule>('NovellaUi');
@@ -42,4 +49,23 @@ export function setReaderBottomToolbarHidden(hidden: boolean): Promise<void> {
  */
 export function refreshReaderSideBar(): Promise<void> {
   return NativeNovellaUi.refreshReaderSideBar?.() ?? Promise.resolve();
+}
+
+/**
+ * Reported from the native window's size transition, before React Native's
+ * `useWindowDimensions` updates. The `Will` event starts before UIKit applies
+ * the new size; `Did` runs when the transition finishes or is cancelled.
+ * Returns `null` on a dev client that predates the events so the caller can
+ * fall back to dimension changes.
+ */
+export function addReaderLayoutWillChangeListener(
+  listener: () => void,
+): EventSubscription | null {
+  return NativeNovellaUi.addListener?.('onLayoutWillChange', listener) ?? null;
+}
+
+export function addReaderLayoutDidChangeListener(
+  listener: () => void,
+): EventSubscription | null {
+  return NativeNovellaUi.addListener?.('onLayoutDidChange', listener) ?? null;
 }

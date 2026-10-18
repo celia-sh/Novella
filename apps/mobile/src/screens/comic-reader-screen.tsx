@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router, useNavigation, useRoute } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FlatList,
@@ -45,6 +45,7 @@ import {
 import { bookDetails, reader } from '@/services/client';
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
 import { ReaderImageViewer } from '@/components/reader-image-viewer';
+import { ReaderLayoutTransition } from '@/components/reader-layout-transition';
 import { ReaderErrorState, ReaderPreparationState } from '@/components/reader-chrome';
 import { ReaderNavigation } from '@/components/reader-navigation';
 import { subscribeReaderChapterSelection } from '@/services/reader-chapter-selection';
@@ -414,12 +415,21 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     ? Math.min(modeRestoreTarget.index, Math.max(0, activeSlots.length - 1))
     : restoredPageIndex;
   const lastVisiblePageRef = useRef(initialPageIndex);
+  // The page a remount should start on. It follows the live position, not the
+  // position the chapter was opened at: a fit-mode change or a double-page
+  // toggle remounts the list, and starting at the entry page would make it
+  // jump through every page between the entry and the current one.
+  const listAnchorRef = useRef<{ chapterId: number; pageIndex: number } | null>(null);
+  const listAnchorPageIndex =
+    activeChapter && listAnchorRef.current?.chapterId === activeChapter.chapter.id
+      ? listAnchorRef.current.pageIndex
+      : initialPageIndex;
   const initialDisplayIndex = resolveComicDisplaySlotIndex(
-    initialPageIndex,
+    listAnchorPageIndex,
     pagedDisplaySlots,
   );
   const initialScrollDisplayIndex = resolveComicDisplaySlotIndex(
-    initialPageIndex,
+    listAnchorPageIndex,
     scrollDisplaySlots,
   );
   const visibleDisplayIndexRef = useRef<number | null>(null);
@@ -453,6 +463,9 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     setVisiblePage(initialPageIndex);
     setReadingDirection(1);
     lastVisiblePageRef.current = initialPageIndex;
+    listAnchorRef.current = activeChapter
+      ? { chapterId: activeChapter.chapter.id, pageIndex: initialPageIndex }
+      : null;
     visibleDisplayIndexRef.current = initialDisplayIndexRef.current;
     pagedTapTargetRef.current = null;
     pendingScrollEndRestoreRef.current = activeChapter
@@ -541,6 +554,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       setReadingDirection(nextIndex > previousIndex ? 1 : -1);
     }
     lastVisiblePageRef.current = nextIndex;
+    listAnchorRef.current = { chapterId: activeChapter.chapter.id, pageIndex: nextIndex };
     if (displayIndex !== undefined && displayIndex >= 0) {
       visibleDisplayIndexRef.current = displayIndex;
     }
@@ -554,8 +568,10 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   // FlatList preserves a pixel offset when the window changes size. That is
   // not a stable comic position because every page's height/width changes and
   // a landscape rotation can also change the number of pages in a spread.
-  // Re-anchor to the live page index after the new viewport has been laid out.
-  useEffect(() => {
+  // Re-anchor to the live page index before the frame with the new width is
+  // painted; otherwise the old point offset shows the page shifted sideways
+  // and the next frame snaps it back.
+  useLayoutEffect(() => {
     if (!activeChapter || activeSlots.length === 0) {
       viewportSignatureRef.current = null;
       return;
@@ -600,6 +616,15 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     if (mode === 'paged') visibleDisplayIndexRef.current = displayIndex;
     lastVisiblePageRef.current = pageIndex;
     setVisiblePage(pageIndex);
+
+    // Apply the new item width's offset synchronously. getItemLayout is
+    // derived from the same render, so the list can jump straight to the
+    // target instead of painting the stale point offset for a frame.
+    if (mode === 'paged') {
+      pagedListRef.current?.scrollToIndex({ animated: false, index: displayIndex });
+    } else {
+      scrollListRef.current?.scrollToIndex({ animated: false, index: displayIndex });
+    }
 
     if (viewportRestoreFrameRef.current !== null) {
       cancelAnimationFrame(viewportRestoreFrameRef.current);
@@ -915,7 +940,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           contentInsetAdjustmentBehavior="never"
           contentContainerStyle={pagedContentPadding}
           data={pagedDisplaySlots}
-          key={`paged-${activeChapter.chapter.id}:${pagedColumns}:${pagedLayoutKey}:${Math.round(width)}x${Math.round(comicViewportHeight)}`}
+          key={`paged-${activeChapter.chapter.id}:${pagedLayoutKey}`}
           horizontal
           inverted={isPagedRtl}
           initialScrollIndex={Math.min(initialDisplayIndex, Math.max(0, pagedDisplaySlots.length - 1))}
@@ -968,7 +993,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           ref={scrollListRef}
           contentInsetAdjustmentBehavior="never"
           data={scrollDisplayItems}
-          key={`scroll-${activeChapter.chapter.id}:${comicFitMode}:${Math.round(width)}x${Math.round(comicViewportHeight)}`}
+          key={`scroll-${activeChapter.chapter.id}:${comicFitMode}`}
           initialScrollIndex={Math.min(initialScrollDisplayIndex, Math.max(0, scrollDisplayItems.length - 1))}
           keyExtractor={(item) => String(item.index)}
           getItemLayout={(_, index) => scrollLayouts[index] ?? { index, length: continuousContentWidth * 1.5, offset: 0 }}
@@ -1010,6 +1035,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       )}
         </>
       )}
+      <ReaderLayoutTransition />
       </View>
       <ReaderNavigation
         chromeHidden={chromeHidden}
