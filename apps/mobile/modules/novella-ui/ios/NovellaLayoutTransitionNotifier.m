@@ -18,22 +18,62 @@ typedef void (*NovellaViewWillTransitionIMP)(
 
 static NovellaViewWillTransitionIMP NovellaOriginalViewWillTransition = NULL;
 
+/// Whether this call is a window size transition or just UIKit sizing a
+/// presented hierarchy.
+///
+/// Presenting a popover (the reading-settings panels) or a sheet walks the
+/// presented controller through the same method so its content can adapt. That
+/// call carries the presented content's size, not the window's, and the screen
+/// behind it does not lay out again. Posting for it raised the cover over an
+/// unchanged screen, which read as a blur flash when a popover opened.
+///
+/// The presentation also forwards to the presented controller's children, so
+/// the check walks the parent chain instead of looking only at `self`.
+static BOOL NovellaIsInPresentedHierarchy(UIViewController *controller) {
+  for (UIViewController *current = controller; current != nil;
+       current = current.parentViewController) {
+    if (current.presentingViewController != nil) {
+      return YES;
+    }
+  }
+  return NO;
+}
+
+static BOOL NovellaIsWindowSizeTransition(
+    UIViewController *controller,
+    CGSize size) {
+  if (NovellaIsInPresentedHierarchy(controller)) {
+    return NO;
+  }
+  UIWindow *window = controller.viewIfLoaded.window;
+  if (window != nil && CGSizeEqualToSize(size, window.bounds.size)) {
+    // The view already has this size: a presentation or layout pass, not a
+    // window transition.
+    return NO;
+  }
+  return YES;
+}
+
 static void NovellaViewWillTransition(
     id self,
     SEL selector,
     CGSize size,
     id<UIViewControllerTransitionCoordinator> coordinator) {
-  [[NSNotificationCenter defaultCenter]
-      postNotificationName:NovellaLayoutWillChangeNotification
-                    object:nil];
-  if (coordinator != nil) {
-    [coordinator animateAlongsideTransition:nil
-                                 completion:^(
-                                     id<UIViewControllerTransitionCoordinatorContext> context) {
-                                   [[NSNotificationCenter defaultCenter]
-                                       postNotificationName:NovellaLayoutDidChangeNotification
-                                                     object:nil];
-                                 }];
+  BOOL isWindowTransition = NovellaIsWindowSizeTransition(
+      (UIViewController *)self, size);
+  if (isWindowTransition) {
+    [[NSNotificationCenter defaultCenter]
+        postNotificationName:NovellaLayoutWillChangeNotification
+                      object:nil];
+    if (coordinator != nil) {
+      [coordinator animateAlongsideTransition:nil
+                                   completion:^(
+                                       id<UIViewControllerTransitionCoordinatorContext> context) {
+                                     [[NSNotificationCenter defaultCenter]
+                                         postNotificationName:NovellaLayoutDidChangeNotification
+                                                       object:nil];
+                                   }];
+    }
   }
   if (NovellaOriginalViewWillTransition != NULL) {
     NovellaOriginalViewWillTransition(self, selector, size, coordinator);
