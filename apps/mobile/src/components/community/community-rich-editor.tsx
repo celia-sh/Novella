@@ -7,14 +7,13 @@ import {
   IconStrikethrough,
   IconUnderline,
 } from '@tabler/icons-react-native';
-import { Button } from 'panelui-native/components/button';
 import {
   forwardRef,
   useImperativeHandle,
   useRef,
   useState,
 } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import {
   EnrichedTextInput,
@@ -33,6 +32,8 @@ export interface CommunityRichEditorHandle {
 interface CommunityRichEditorProps {
   editable?: boolean;
   initialHtml?: string;
+  /** Minimum height of the writing area. */
+  minHeight?: number;
   onTextChange(text: string): void;
   onTouchEnd?(): void;
   onTouchStart?(): void;
@@ -55,6 +56,7 @@ export const CommunityRichEditor = forwardRef<
   {
     editable = true,
     initialHtml = '',
+    minHeight = 260,
     onTextChange,
     onTouchEnd,
     onTouchStart,
@@ -142,40 +144,45 @@ export const CommunityRichEditor = forwardRef<
     <View
       onTouchEnd={onTouchEnd}
       onTouchStart={onTouchStart}
-      style={[styles.container, { borderColor: colors.separator }]}
+      style={styles.container}
     >
       <ScrollView
         contentContainerStyle={styles.toolbar}
         horizontal
         keyboardShouldPersistTaps="always"
         showsHorizontalScrollIndicator={false}
+        style={[styles.toolbarBar, { backgroundColor: colors.card }]}
       >
         {actions.map((action) => {
           const Icon = action.icon;
+          const disabled = !editable || action.blocked;
           return (
-            <Button
+            <Pressable
               accessibilityLabel={action.label}
-              accessibilityState={{ disabled: !editable || action.blocked, selected: action.active }}
-              disabled={!editable || action.blocked}
+              accessibilityRole="button"
+              accessibilityState={{ disabled, selected: action.active }}
+              disabled={disabled}
               key={action.id}
               onPress={() => {
                 const editor = editorRef.current;
                 if (editor) action.run(editor);
               }}
-              size="icon"
-              style={action.active ? { backgroundColor: colors.primaryContainer } : undefined}
-              variant={action.active ? 'secondary' : 'ghost'}
+              style={({ pressed }) => [
+                styles.toolButton,
+                action.active && { backgroundColor: colors.primaryContainer },
+                pressed && !action.active && { backgroundColor: colors.surfaceContainerHighest },
+                disabled && styles.toolButtonDisabled,
+              ]}
             >
               <Icon
                 color={action.active ? colors.onPrimaryContainer as string : colors.label as string}
                 size={19}
                 strokeWidth={2}
               />
-            </Button>
+            </Pressable>
           );
         })}
       </ScrollView>
-      <View style={[styles.divider, { backgroundColor: colors.separator }]} />
       <EnrichedTextInput
         autoCapitalize="sentences"
         cursorColor={colors.accent}
@@ -184,9 +191,9 @@ export const CommunityRichEditor = forwardRef<
         htmlStyle={{
           a: { color: colors.accent, textDecorationLine: 'underline' },
           blockquote: {
-            borderColor: colors.accent,
+            borderColor: colors.separator,
             borderWidth: 3,
-            color: colors.label,
+            color: colors.secondaryLabel,
             gapWidth: 10,
           },
           ol: { markerColor: colors.secondaryLabel },
@@ -202,12 +209,11 @@ export const CommunityRichEditor = forwardRef<
         scrollEnabled
         selectionColor={colors.primaryContainer}
         style={{
-          backgroundColor: colors.card,
           color: colors.label,
-          fontSize: 16,
-          lineHeight: 24,
-          minHeight: 220,
-          padding: 14,
+          fontSize: 17,
+          lineHeight: 26,
+          minHeight,
+          paddingVertical: 4,
         }}
       />
     </View>
@@ -215,12 +221,15 @@ export const CommunityRichEditor = forwardRef<
 });
 
 const styles = StyleSheet.create({
-  container: {
-    borderCurve: 'continuous',
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
+  container: { gap: 12 },
+  toolButton: {
+    alignItems: 'center',
+    borderRadius: 18,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
   },
-  divider: { height: StyleSheet.hairlineWidth },
-  toolbar: { gap: 4, paddingHorizontal: 8, paddingVertical: 7 },
+  toolButtonDisabled: { opacity: 0.4 },
+  toolbar: { gap: 2, paddingHorizontal: 4, paddingVertical: 4 },
+  toolbarBar: { borderCurve: 'continuous', borderRadius: 22, flexGrow: 0 },
 });

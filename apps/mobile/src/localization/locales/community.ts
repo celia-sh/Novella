@@ -31,6 +31,7 @@ export const zhCNCommunity = {
     understand: '我已了解',
   },
   accessibility: {
+    sortAndFilter: '排序与筛选：{{order}}，{{scope}}',
     newPost: '发布社区帖子',
     notifications: '社区通知',
     menu: '社区菜单',
@@ -133,6 +134,7 @@ export const zhCNCommunity = {
     beforePostMessage: '社区用于友好交流，请在发布前确认：\n\n• 尊重他人，避免攻击、嘲讽或引战。\n• 请勿求书，也不要请求他人上传或发送书籍。\n• 不要在站点社区反馈软件问题。',
     board: '版面',
     category: '分类',
+    choose: '请选择',
     selectCategory: '请选择分类。',
     title: '标题',
     titlePlaceholder: '清楚描述讨论主题',
@@ -294,6 +296,7 @@ export const zhTWCommunity: TranslationShape<typeof zhCNCommunity> = {
     understand: '我瞭解了',
   },
   accessibility: {
+    sortAndFilter: '排序與篩選：{{order}}，{{scope}}',
     newPost: '發表社群文章',
     notifications: '社群通知',
     menu: '社群選單',
@@ -395,6 +398,7 @@ export const zhTWCommunity: TranslationShape<typeof zhCNCommunity> = {
     beforePostTitle: '發表前請留意',
     beforePostMessage: '社群用於友善交流，請在發表前確認：\n\n• 尊重他人，避免攻擊、嘲諷或引戰。\n• 請勿求書，也不要要求他人上傳或傳送書籍。\n• 不要在站點社群回報軟體問題。',
     board: '看板',
+    choose: '請選擇',
     category: '分類',
     selectCategory: '請選擇分類。',
     title: '標題',

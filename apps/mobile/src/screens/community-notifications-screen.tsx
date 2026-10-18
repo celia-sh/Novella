@@ -31,7 +31,6 @@ import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import {
   CommunityEmptyState,
   CommunityErrorState,
-  CommunityPaperProvider,
 } from '@/components/community/community-ui';
 import { showAlert } from '@/components/native-alert-dialog';
 import { PublicUserAvatar } from '@/components/public-user-avatar';
@@ -119,7 +118,6 @@ export function CommunityNotificationsScreen() {
   );
 
   return (
-    <CommunityPaperProvider>
       <>
         <Stack.Screen options={{ title: t('notifications.title') }} />
 
@@ -180,7 +178,6 @@ export function CommunityNotificationsScreen() {
           onMarkAll={() => void markAll()}
         />
       </>
-    </CommunityPaperProvider>
   );
 }
 

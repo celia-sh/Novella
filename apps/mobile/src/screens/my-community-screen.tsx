@@ -1,10 +1,8 @@
 import { IconHeart, IconMessageCircle } from "@tabler/icons-react-native";
 import { router } from "expo-router";
-import { Card, Chip } from "react-native-paper";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -20,8 +18,8 @@ import type {
 import {
   CommunityEmptyState,
   CommunityErrorState,
-  CommunityPaperProvider,
   CommunityThreadCard,
+  CommunityThreadSkeleton,
 } from "@/components/community/community-ui";
 import { HorizontalSafeArea } from "@/components/horizontal-safe-area";
 import {
@@ -58,8 +56,7 @@ export function MyCommunityScreen() {
   const localizedError = error ? t("myCommunity.loadError") : null;
 
   return (
-    <CommunityPaperProvider>
-      <HorizontalSafeArea style={styles.root}>
+    <HorizontalSafeArea style={styles.root}>
         <ScrollView
           alwaysBounceVertical
           contentContainerStyle={styles.content}
@@ -76,20 +73,18 @@ export function MyCommunityScreen() {
           style={styles.scroll}
         >
           {overview ? (
-            <Card mode="outlined" style={styles.profileCard}>
-              <Card.Content style={styles.profileBody}>
-                <Text style={styles.title}>
-                  {overview.authorName || t("myCommunity.title")}
-                </Text>
-                <Text style={styles.summary}>
-                  {t("myCommunity.summary", {
-                    favorites: numberFormatter.format(overview.favoriteThreads.length),
-                    published: numberFormatter.format(overview.publishedThreads.length),
-                    replies: numberFormatter.format(overview.participatedReplies.length),
-                  })}
-                </Text>
-              </Card.Content>
-            </Card>
+            <View style={styles.profile}>
+              <Text style={styles.title}>
+                {overview.authorName || t("myCommunity.title")}
+              </Text>
+              <Text style={styles.summary}>
+                {t("myCommunity.summary", {
+                  favorites: numberFormatter.format(overview.favoriteThreads.length),
+                  published: numberFormatter.format(overview.publishedThreads.length),
+                  replies: numberFormatter.format(overview.participatedReplies.length),
+                })}
+              </Text>
+            </View>
           ) : null}
 
           <View style={styles.segmented}>
@@ -102,8 +97,10 @@ export function MyCommunityScreen() {
           </View>
 
           {loading && !overview ? (
-            <View style={styles.loadingState}>
-              <ActivityIndicator color={colors.accent as string} size="large" />
+            <View style={styles.list}>
+              <CommunityThreadSkeleton />
+              <CommunityThreadSkeleton />
+              <CommunityThreadSkeleton />
             </View>
           ) : localizedError && !overview ? (
             <CommunityErrorState
@@ -145,9 +142,7 @@ export function MyCommunityScreen() {
             </View>
           )}
         </ScrollView>
-      </HorizontalSafeArea>
-
-    </CommunityPaperProvider>
+    </HorizontalSafeArea>
   );
 }
 
@@ -184,92 +179,57 @@ function MyReplyCard({ reply }: { reply: CommunityMyReplyItem }) {
           },
         })
       }
-      style={({ pressed }) => pressed && styles.pressed}
+      style={({ pressed }) => [styles.replyCard, pressed && styles.replyCardPressed]}
     >
-      <Card mode="outlined" style={styles.replyCard}>
-        <Card.Content style={styles.replyBody}>
-          <View style={styles.replyHeader}>
-            <Chip
-              compact
-              mode="flat"
-              style={styles.boardChip}
-              textStyle={styles.boardChipText}
-            >
-              {reply.boardName}
-            </Chip>
-            <Text style={styles.time}>
-              {formatCommunityTime(reply.publishedAt, locale)}
-            </Text>
-          </View>
-          <Text numberOfLines={2} style={styles.replyTitle}>
-            {reply.threadTitle}
-          </Text>
-          {reply.replyToName ? (
-            <Text style={styles.replyTo}>{t("labels.replyingTo", { name: reply.replyToName })}</Text>
-          ) : null}
-          <Text numberOfLines={4} style={styles.replyContent}>
-            {reply.content}
-          </Text>
-          <View style={styles.replyMetrics}>
-            <IconMessageCircle color={styles.metricIcon.color} size={15} />
-            <Text style={styles.metricLabel}>{t("actions.openDiscussion")}</Text>
-            <IconHeart color={styles.metricIcon.color} size={15} />
-            <Text style={styles.metricLabel}>{reply.likes}</Text>
-          </View>
-        </Card.Content>
-      </Card>
+      <View style={styles.replyHeader}>
+        <Text numberOfLines={1} style={styles.boardLabel}>{reply.boardName}</Text>
+        <Text style={styles.time}>
+          {formatCommunityTime(reply.publishedAt, locale)}
+        </Text>
+      </View>
+      <Text numberOfLines={2} style={styles.replyTitle}>
+        {reply.threadTitle}
+      </Text>
+      {reply.replyToName ? (
+        <Text style={styles.replyTo}>{t("labels.replyingTo", { name: reply.replyToName })}</Text>
+      ) : null}
+      <Text numberOfLines={4} style={styles.replyContent}>
+        {reply.content}
+      </Text>
+      <View style={styles.replyMetrics}>
+        <IconMessageCircle color={styles.metricIcon.color} size={15} />
+        <Text style={styles.metricLabel}>{t("actions.openDiscussion")}</Text>
+        <IconHeart color={styles.metricIcon.color} size={15} />
+        <Text style={styles.metricLabel}>{reply.likes}</Text>
+      </View>
     </Pressable>
   );
 }
 
 const useMyCommunityStyles = createThemedStyles((colors) => ({
-  boardChip: {
-    backgroundColor: colors.primaryContainer,
-    borderRadius: 999,
-  },
-  boardChipText: {
-    color: colors.onPrimaryContainer,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  content: { gap: 16, paddingBottom: 44, paddingHorizontal: 12, paddingTop: 8 },
+  boardLabel: { color: colors.secondaryLabel, flex: 1, fontSize: 13 },
+  content: { gap: 16, paddingBottom: 44, paddingHorizontal: 16, paddingTop: 8 },
   list: { gap: 12 },
-  loadingState: { alignItems: "center", justifyContent: "center", minHeight: 240 },
   metricIcon: { color: colors.secondaryLabel },
-  metricLabel: { color: colors.secondaryLabel, fontSize: 12 },
-  pressed: { opacity: 0.68 },
-  profileBody: { gap: 5, padding: 17 },
-  profileCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.separator,
-    borderCurve: "continuous",
-    borderRadius: 20,
-  },
-  replyBody: { gap: 9, padding: 15 },
+  metricLabel: { color: colors.secondaryLabel, fontSize: 13, marginRight: 10 },
+  profile: { gap: 4, paddingHorizontal: 4 },
   replyCard: {
     backgroundColor: colors.card,
-    borderColor: colors.separator,
     borderCurve: "continuous",
-    borderRadius: 20,
+    borderRadius: 16,
+    gap: 8,
+    padding: 16,
   },
-  replyContent: { color: colors.label, fontSize: 14, lineHeight: 21 },
-  replyHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  replyMetrics: { alignItems: "center", flexDirection: "row", gap: 5 },
-  replyTitle: {
-    color: colors.label,
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 21,
-  },
-  replyTo: { color: colors.accent, fontSize: 12, fontWeight: "600" },
+  replyCardPressed: { backgroundColor: colors.surfaceContainerHighest },
+  replyContent: { color: colors.label, fontSize: 15, lineHeight: 22 },
+  replyHeader: { alignItems: "center", flexDirection: "row", gap: 8 },
+  replyMetrics: { alignItems: "center", flexDirection: "row", gap: 4, marginTop: 2 },
+  replyTitle: { color: colors.label, fontSize: 17, fontWeight: "600", lineHeight: 23 },
+  replyTo: { color: colors.accent, fontSize: 13, fontWeight: "600" },
   root: { backgroundColor: colors.background, flex: 1 },
   scroll: { flex: 1 },
   segmented: { minHeight: 48, width: "100%" },
-  summary: { color: colors.secondaryLabel, fontSize: 13 },
-  time: { color: colors.secondaryLabel, fontSize: 12 },
-  title: { color: colors.label, fontSize: 23, fontWeight: "800" },
+  summary: { color: colors.secondaryLabel, fontSize: 15 },
+  time: { color: colors.secondaryLabel, fontSize: 13 },
+  title: { color: colors.label, fontSize: 26, fontWeight: "700" },
 }));

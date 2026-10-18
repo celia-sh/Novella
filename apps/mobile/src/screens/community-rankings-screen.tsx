@@ -54,8 +54,8 @@ export function CommunityRankingsScreen() {
 }
 
 const useCommunityRankingsStyles = createThemedStyles((colors) => ({
-  body: { gap: 16 },
-  content: { paddingBottom: 44, paddingHorizontal: 12, paddingTop: 8 },
+  body: { gap: 24 },
+  content: { paddingBottom: 44, paddingHorizontal: 16, paddingTop: 8 },
   empty: { alignItems: 'center', gap: 8, paddingTop: 96 },
   emptyDescription: {
     color: colors.secondaryLabel,

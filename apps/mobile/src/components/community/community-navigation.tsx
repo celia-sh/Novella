@@ -1,17 +1,80 @@
 import { router, Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
+import type { CommunityFeedOrder, CommunityFeedScope } from '@novella/api-client';
+
 import { useProfile } from '@/hooks/use-profile';
 import { formatUnreadBadge, getUnreadCounts } from '@/services/unread-counts';
 
-export function CommunityHomeNavigation() {
+const FEED_ORDERS = ['reply', 'latest', 'hot', 'featured'] as const satisfies readonly CommunityFeedOrder[];
+const FEED_SCOPES = ['all', 'today', 'week'] as const satisfies readonly CommunityFeedScope[];
+const FEED_ORDER_LABEL_KEYS = {
+  featured: 'home.order.featured',
+  hot: 'home.order.hot',
+  latest: 'home.order.latest',
+  reply: 'home.order.recentReplies',
+} as const satisfies Record<CommunityFeedOrder, string>;
+const FEED_SCOPE_LABEL_KEYS = {
+  all: 'home.scope.all',
+  today: 'home.scope.today',
+  week: 'home.scope.week',
+} as const satisfies Record<CommunityFeedScope, string>;
+
+/**
+ * Community home toolbar. Sort order and time range live in one native menu
+ * here instead of two rows of pills above the feed.
+ */
+export function CommunityHomeNavigation({
+  onChangeOrder,
+  onChangeScope,
+  order,
+  scope,
+}: {
+  onChangeOrder(order: CommunityFeedOrder): void;
+  onChangeScope(scope: CommunityFeedScope): void;
+  order: CommunityFeedOrder;
+  scope: CommunityFeedScope;
+}) {
   const { t } = useTranslation('community');
   const { profile } = useProfile();
   const unread = getUnreadCounts(profile);
   const directMessageBadge = formatUnreadBadge(unread.directMessages);
   const notificationBadge = formatUnreadBadge(unread.notifications);
+  const filtered = order !== 'reply' || scope !== 'all';
   return (
     <Stack.Toolbar placement="right">
+      <Stack.Toolbar.Menu
+        accessibilityLabel={t('accessibility.sortAndFilter', {
+          order: t(FEED_ORDER_LABEL_KEYS[order]),
+          scope: t(FEED_SCOPE_LABEL_KEYS[scope]),
+        })}
+        icon={filtered
+          ? 'line.3.horizontal.decrease.circle.fill'
+          : 'line.3.horizontal.decrease.circle'}
+      >
+        <Stack.Toolbar.Menu inline title={t('home.sort')}>
+          {FEED_ORDERS.map((value) => (
+            <Stack.Toolbar.MenuAction
+              isOn={order === value}
+              key={value}
+              onPress={() => onChangeOrder(value)}
+            >
+              {t(FEED_ORDER_LABEL_KEYS[value])}
+            </Stack.Toolbar.MenuAction>
+          ))}
+        </Stack.Toolbar.Menu>
+        <Stack.Toolbar.Menu inline title={t('home.time')}>
+          {FEED_SCOPES.map((value) => (
+            <Stack.Toolbar.MenuAction
+              isOn={scope === value}
+              key={value}
+              onPress={() => onChangeScope(value)}
+            >
+              {t(FEED_SCOPE_LABEL_KEYS[value])}
+            </Stack.Toolbar.MenuAction>
+          ))}
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar.Menu>
       <Stack.Toolbar.Button
         accessibilityLabel={t('accessibility.newPost')}
         icon="square.and.pencil"
