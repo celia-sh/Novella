@@ -25,6 +25,7 @@ import {
 } from '@/components/book-cover-grid-item';
 import { DiscoverNavigation } from '@/components/discover-navigation';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
+import { ReflowFade } from '@/components/reflow-fade';
 import { SectionCard } from '@/components/section-card';
 import {
   homeBookGridPreviewCount,
@@ -387,7 +388,7 @@ function BookGrid({
   }
 
   return (
-    <View style={[styles.bookGrid, { width }]}>
+    <ReflowFade layoutKey={`book-grid-${columns}`} style={[styles.bookGrid, { width }]}>
       {rows.map((row, rowIndex) => (
         <View key={`book-row-${rowIndex}`} style={styles.bookRow}>
           {row.map((book, columnIndex) => (
@@ -409,7 +410,7 @@ function BookGrid({
           ) : null}
         </View>
       ))}
-    </View>
+    </ReflowFade>
   );
 }
 

@@ -42,6 +42,7 @@ import { ShelfNavigation } from '@/components/shelf-navigation';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import type { ShelfEditInteraction } from '@/components/shelf-navigation.types';
 import { ReorderableShelfGrid } from '@/components/reorderable-shelf-grid';
+import { ReflowFade } from '@/components/reflow-fade';
 import { SectionCard } from '@/components/section-card';
 import { useBookGridLayout, BOOK_GRID_COLUMN_GAP } from '@/hooks/use-book-grid-layout';
 import {
@@ -569,21 +570,23 @@ function ShelfContent({
   }
 
   return (
-    <View
-      onLayout={coverActivation.onGridLayout}
-      style={[styles.grid, { width: contentWidth }]}
-    >
-      {rows.map((row, rowIndex) => (
-        <View key={`shelf-row-${rowIndex}`} style={styles.gridRow}>
-          {row.map((item) => renderShelfItem(item))}
-          {row.length < columns ? (
-            <View
-              style={{ width: (columns - row.length) * (tileWidth + BOOK_GRID_COLUMN_GAP) }}
-            />
-          ) : null}
-        </View>
-      ))}
-    </View>
+    <ReflowFade layoutKey={`shelf-grid-${columns}`} style={{ width: contentWidth }}>
+      <View
+        onLayout={coverActivation.onGridLayout}
+        style={[styles.grid, { width: contentWidth }]}
+      >
+        {rows.map((row, rowIndex) => (
+          <View key={`shelf-row-${rowIndex}`} style={styles.gridRow}>
+            {row.map((item) => renderShelfItem(item))}
+            {row.length < columns ? (
+              <View
+                style={{ width: (columns - row.length) * (tileWidth + BOOK_GRID_COLUMN_GAP) }}
+              />
+            ) : null}
+          </View>
+        ))}
+      </View>
+    </ReflowFade>
   );
 }
 

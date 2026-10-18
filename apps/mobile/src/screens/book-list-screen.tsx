@@ -22,6 +22,7 @@ import {
 } from '@/components/book-grid-skeleton';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
+import { ReflowFade } from '@/components/reflow-fade';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
@@ -75,6 +76,7 @@ export function BookListScreen() {
       <Stack.Screen options={{ title: t('catalog.allNovels') }} />
 
         <HorizontalSafeArea style={styles.root}>
+        <ReflowFade fill layoutKey={listKey} style={styles.list}>
         <FlatList
           style={styles.list}
           ListEmptyComponent={
@@ -132,6 +134,7 @@ export function BookListScreen() {
           showsVerticalScrollIndicator={false}
           viewabilityConfig={coverActivation.viewabilityConfig}
         />
+        </ReflowFade>
         </HorizontalSafeArea>
 
     </>

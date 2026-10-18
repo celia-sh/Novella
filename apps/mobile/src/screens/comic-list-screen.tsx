@@ -22,6 +22,7 @@ import {
 } from '@/components/book-grid-skeleton';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
+import { ReflowFade } from '@/components/reflow-fade';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
@@ -72,6 +73,7 @@ export function ComicListScreen() {
       <Stack.Screen options={{ title: t('catalog.allComics') }} />
 
         <HorizontalSafeArea style={styles.root}>
+        <ReflowFade fill layoutKey={listKey} style={styles.list}>
         <FlatList
           style={styles.list}
           ListEmptyComponent={
@@ -124,6 +126,7 @@ export function ComicListScreen() {
           showsVerticalScrollIndicator={false}
           viewabilityConfig={coverActivation.viewabilityConfig}
         />
+        </ReflowFade>
         </HorizontalSafeArea>
 
     </>

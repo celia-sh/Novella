@@ -26,6 +26,7 @@ import {
   bookGridSkeletonCount,
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
+import { ReflowFade } from '@/components/reflow-fade';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
@@ -98,6 +99,7 @@ export function BookSearchScreen({
 
   return (
     <HorizontalSafeArea style={styles.root}>
+      <ReflowFade fill layoutKey={listKey} style={styles.root}>
       <FlatList
         ListEmptyComponent={
           <SearchEmpty
@@ -187,6 +189,7 @@ export function BookSearchScreen({
         showsVerticalScrollIndicator={false}
         viewabilityConfig={coverActivation.viewabilityConfig}
       />
+      </ReflowFade>
     </HorizontalSafeArea>
   );
 }

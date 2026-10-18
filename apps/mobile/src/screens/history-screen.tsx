@@ -26,6 +26,7 @@ import {
 import { HistoryNavigation } from '@/components/history-navigation';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
+import { ReflowFade } from '@/components/reflow-fade';
 import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
@@ -126,6 +127,7 @@ export function HistoryScreen() {
 
         <View style={styles.root}>
           <HorizontalSafeArea style={styles.list}>
+            <ReflowFade fill layoutKey={listKey} style={styles.list}>
             <FlatList
             ListEmptyComponent={
               state.initialError !== null ? (
@@ -196,6 +198,7 @@ export function HistoryScreen() {
             showsVerticalScrollIndicator={false}
             viewabilityConfig={coverActivation.viewabilityConfig}
             />
+            </ReflowFade>
           </HorizontalSafeArea>
         </View>
 
