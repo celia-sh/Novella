@@ -42,7 +42,7 @@ export function ComicListScreen() {
     retry,
     status,
   } = useComicListPage('latest');
-  const { columns, contentWidth, height, listKey, tileWidth } = useBookGridLayout(20);
+  const { columns, contentWidth, height, listKey, tileWidth } = useBookGridLayout(16);
   const skeletonCount =
     status === 'loading' && books.length === 0
       ? bookGridSkeletonCount({ columns, headerOffset: 110, height, tileWidth })
@@ -193,7 +193,7 @@ const useComicListScreenStyles = createThemedStyles((colors) => ({
   content: {
     gap: 12,
     paddingBottom: 40,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   emptyDescription: {
     color: colors.secondaryLabel,

@@ -104,7 +104,7 @@ function RankingSection({ viewport }: { viewport: CoverScrollViewportController 
   const styles = useHomeScreenStyles();
   const { colors } = useAppTheme();
   const { books, error, period, reload, retry, status } = useHomeRanking();
-  const { columns, contentWidth, tileWidth } = useBookGridLayout(20);
+  const { columns, contentWidth, tileWidth } = useBookGridLayout(16);
   const previewBooks = useMemo(
     () => books.slice(0, homeBookGridPreviewCount(columns)),
     [books, columns],
@@ -192,7 +192,7 @@ function LatestBooksSection({
 }) {
   const { t } = useTranslation('library');
   const styles = useHomeScreenStyles();
-  const { columns, contentWidth, tileWidth } = useBookGridLayout(20);
+  const { columns, contentWidth, tileWidth } = useBookGridLayout(16);
   const books = useMemo(
     () => state.data?.items.slice(0, homeBookGridPreviewCount(columns)) ?? [],
     [columns, state.data],
@@ -256,7 +256,7 @@ function ComicsSection({ viewport }: { viewport: CoverScrollViewportController }
   const styles = useHomeScreenStyles();
   const { colors } = useAppTheme();
   const { books, error, reload, retry, status } = useHomeComicPreview();
-  const { columns, contentWidth, tileWidth } = useBookGridLayout(20);
+  const { columns, contentWidth, tileWidth } = useBookGridLayout(16);
   const previewBooks = useMemo(
     () => books.slice(0, homeBookGridPreviewCount(columns)),
     [books, columns],
@@ -601,7 +601,7 @@ const useHomeScreenStyles = createThemedStyles((colors) => ({
   content: {
     gap: 18,
     paddingBottom: 120,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 20,
   },
   inlineError: {
