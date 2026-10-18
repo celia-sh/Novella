@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useNavigation, useRoute } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -162,6 +163,13 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const useDoublePage = mode === 'paged'
     && shouldUseReaderDoublePage(viewportWidth, viewportHeight);
   const sideChrome = useReaderSideChrome();
+
+  // The Duo's vertical bar is part of the text gutter: hiding it leaves the
+  // clipped column behind, so the novel keeps its chrome. Comics keep the
+  // tap toggle.
+  useEffect(() => {
+    if (sideChrome) setChromeHidden(false);
+  }, [sideChrome]);
   const readerChromeInsets = sideChrome
     // Side chrome hides the native bottom toolbar and samples the live safe
     // area: the toolbar's height disappears from `insets.bottom` without a
@@ -445,7 +453,13 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               onProgressMetrics={({ pageCount, paged }) => setChapterMetrics({ pageCount, paged })}
               onReady={() => setNativeReady(true)}
               onStatus={() => undefined}
-              onTap={() => setChromeHidden((current) => !current)}
+              onTap={() => {
+                // The Duo's vertical bar is part of the page gutter: the text
+                // is clipped at its edge, so hiding the bar would only leave
+                // the clipped column behind. Comics keep the tap toggle.
+                if (sideChrome) return;
+                setChromeHidden((current) => !current);
+              }}
               preferences={readerPreferences}
               publicationId={preparedPublication.publicationId}
               publicationUri={preparedPublication.directoryUri}
@@ -457,6 +471,22 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
                 backgroundColor={readerBackground}
                 phase="publication"
                 textColor={readerTextColor}
+              />
+            ) : null}
+            {sideChrome ? (
+              // The web view is inset by the safe area, so the text ends hard
+              // against the vertical bar. Fade the last strip of the page into
+              // the reader background instead of letting it be clipped. The
+              // alpha follows an ease-in curve: the page stays readable for
+              // most of the strip and drops to the background quickly at the
+              // bar, so the clipped edge has nothing left to show.
+              <LinearGradient
+                colors={sideFadeColors(readerBackground)}
+                end={{ x: 1, y: 0.5 }}
+                locations={SIDE_FADE_LOCATIONS}
+                pointerEvents="none"
+                start={{ x: 0, y: 0.5 }}
+                style={[styles.sideFade, { right: insets.right }]}
               />
             ) : null}
           </View>
@@ -501,7 +531,37 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   );
 }
 
+// A smoothstep ramp: both ends level off, so the strip has no visible start
+// or end line. A linear or ease-in ramp still reads as a band, and readable
+// half-faded glyphs remain at the bar edge.
+const SIDE_FADE_STEP_COUNT = 10;
+const SIDE_FADE_LOCATIONS = Array.from(
+  { length: SIDE_FADE_STEP_COUNT + 1 },
+  (_, index) => index / SIDE_FADE_STEP_COUNT,
+) as [number, number, ...number[]];
+const SIDE_FADE_ALPHA_STOPS = SIDE_FADE_LOCATIONS.map(
+  (t) => t * t * (3 - 2 * t),
+);
+
+function sideFadeColors(background: string): [string, string, ...string[]] {
+  const base = background.slice(0, 7);
+  const colors = SIDE_FADE_ALPHA_STOPS.map((alpha) => {
+    const byte = Math.round(alpha * 255)
+      .toString(16)
+      .padStart(2, '0')
+      .toUpperCase();
+    return `${base}${byte}`;
+  });
+  return colors as [string, string, ...string[]];
+}
+
 const styles = StyleSheet.create({
   reader: { flex: 1 },
   root: { flex: 1 },
+  sideFade: {
+    bottom: 0,
+    position: 'absolute',
+    top: 0,
+    width: 64,
+  },
 });
