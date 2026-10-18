@@ -1,5 +1,6 @@
-import { Popover } from 'panelui-native';
+import { Glass, Popover, usePopoverAnchor } from 'panelui-native';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import { ReaderProgressSlider } from '@/components/reader-progress-slider';
@@ -17,6 +18,7 @@ export interface ReaderSideProgressProps {
 
 const CAPSULE_SIZE = 44;
 const POPOVER_PADDING = 16;
+const POPOVER_RADIUS = 16;
 const MIN_POPOVER_WIDTH = 240;
 const MAX_POPOVER_WIDTH = 360;
 
@@ -35,7 +37,6 @@ export function ReaderSideProgress({
   pageTotal,
   progressMode = 'pages',
 }: ReaderSideProgressProps) {
-  const { t } = useTranslation('reader');
   const { width: windowWidth } = useWindowDimensions();
   const { pageLabel, percent } = resolveReaderSideProgressInfo({
     displayMode: progressMode,
@@ -52,34 +53,23 @@ export function ReaderSideProgress({
 
   return (
     <Popover>
-      <Popover.Trigger>
-        <Pressable
-          accessibilityLabel={t('accessibility.readingProgress')}
-          accessibilityRole="button"
-          accessibilityValue={{ max: 100, min: 0, now: percent }}
-          hitSlop={8}
-          style={styles.capsule}
-        >
-          <Text
-            numberOfLines={1}
-            style={[styles.percent, { color: foregroundColor }]}
-          >
-            {`${percent}%`}
-          </Text>
-          {pageLabel ? (
-            <Text
-              numberOfLines={1}
-              style={[styles.pages, { color: foregroundColor }]}
-            >
-              {pageLabel}
-            </Text>
-          ) : null}
-        </Pressable>
-      </Popover.Trigger>
+      <SideProgressTrigger
+        foregroundColor={foregroundColor}
+        pageLabel={pageLabel}
+        percent={percent}
+      />
       <Popover.Content
-        align="center"
-        placement="left"
+        align="end"
+        background={
+          <Glass
+            fallbackClassName="border border-border bg-popover"
+            radius={POPOVER_RADIUS}
+            style={StyleSheet.absoluteFill}
+          />
+        }
+        placement="top"
         style={styles.popover}
+        unstyled
         width={popoverWidth}
       >
         <View style={styles.slider}>
@@ -96,6 +86,65 @@ export function ReaderSideProgress({
         </View>
       </Popover.Content>
     </Popover>
+  );
+}
+
+interface SideProgressTriggerProps {
+  foregroundColor: string;
+  pageLabel: string | null;
+  percent: number;
+}
+
+function SideProgressTrigger({
+  foregroundColor,
+  pageLabel,
+  percent,
+}: SideProgressTriggerProps) {
+  const { t } = useTranslation('reader');
+  const { open, setOpen, anchorTo } = usePopoverAnchor('ReaderSideProgress');
+  const { height, width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
+  return (
+    <Pressable
+      accessibilityLabel={t('accessibility.readingProgress')}
+      accessibilityRole="button"
+      accessibilityValue={{ max: 100, min: 0, now: percent }}
+      hitSlop={8}
+      onPress={() => {
+        if (open) {
+          setOpen(false);
+          return;
+        }
+        // Anchor to the bottom-right corner instead of measuring this view.
+        // The trigger is hosted inside the native vertical bar, whose window
+        // coordinates change as the bar is rebuilt, which made the panel
+        // appear in a different place on each open.
+        anchorTo({
+          x: width - insets.right,
+          y: height - insets.bottom,
+          width: 0,
+          height: 0,
+        });
+        setOpen(true);
+      }}
+      style={styles.capsule}
+    >
+      <Text
+        numberOfLines={1}
+        style={[styles.percent, { color: foregroundColor }]}
+      >
+        {`${percent}%`}
+      </Text>
+      {pageLabel ? (
+        <Text
+          numberOfLines={1}
+          style={[styles.pages, { color: foregroundColor }]}
+        >
+          {pageLabel}
+        </Text>
+      ) : null}
+    </Pressable>
   );
 }
 
