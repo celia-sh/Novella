@@ -39,12 +39,23 @@ interface ReaderImageSize {
   width: number;
 }
 
-function useCachedReaderImageSource(source: string): string {
+/**
+ * The viewer draws with React Native's `Image`, which does not share
+ * expo-image's cache: given the remote URL it downloads the picture again and
+ * the open flight shows an empty frame until it arrives. So the viewer reads
+ * expo-image's file for the URL instead. That file only exists once the page
+ * image has loaded, so the lookup runs again when `loaded` turns true.
+ */
+function useCachedReaderImageSource(source: string, loaded: boolean): string {
   const [cachedSource, setCachedSource] = useState(source);
+  const [previousSource, setPreviousSource] = useState(source);
+  if (previousSource !== source) {
+    setPreviousSource(source);
+    setCachedSource(source);
+  }
 
   useEffect(() => {
     let active = true;
-    setCachedSource(source);
     if (!/^https?:\/\//iu.test(source)) return () => {
       active = false;
     };
@@ -57,7 +68,7 @@ function useCachedReaderImageSource(source: string): string {
     return () => {
       active = false;
     };
-  }, [source]);
+  }, [loaded, source]);
 
   return cachedSource;
 }
@@ -130,6 +141,8 @@ export interface ReaderImageViewerProps {
   disabled?: boolean;
   /** Page of the enclosing `ReaderImageGallery` this image opens. */
   galleryIndex?: number;
+  /** The page's own image has loaded, so expo-image now holds its file. */
+  loaded?: boolean;
   height?: number;
   onOpenChange?: (open: boolean) => void;
   open?: boolean;
@@ -145,6 +158,7 @@ export function ReaderImageViewer({
   disabled = false,
   galleryIndex,
   height,
+  loaded = false,
   onOpenChange,
   open,
   radius = 4,
@@ -153,7 +167,7 @@ export function ReaderImageViewer({
 }: ReaderImageViewerProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const { t } = useTranslation('reader');
-  const cachedSource = useCachedReaderImageSource(source);
+  const cachedSource = useCachedReaderImageSource(source, loaded);
   const imageSource = useMemo(() => ({ uri: cachedSource }), [cachedSource]);
   const imageSize = width !== undefined && height !== undefined
     ? { height, width }

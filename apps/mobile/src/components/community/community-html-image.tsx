@@ -75,6 +75,7 @@ function CommunityHtmlImage({
   const [attempt, setAttempt] = useState(0);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState<ImageSize | null>(null);
+  const [displayed, setDisplayed] = useState(false);
   const encoded = useMemo(() => parseImageUrlDimensions(uri), [uri]);
   const natural = declared ?? encoded ?? loaded;
   const blurhash = useMemo(() => {
@@ -90,6 +91,7 @@ function CommunityHtmlImage({
 
   const handleLoad = (event: ImageLoadEventData) => {
     setFailed(false);
+    setDisplayed(true);
     if (!declared && !encoded) {
       setLoaded({ height: event.source.height, width: event.source.width });
     }
@@ -137,6 +139,7 @@ function CommunityHtmlImage({
           alt={label}
           {...(galleryIndex === undefined ? {} : { galleryIndex })}
           {...(natural ? { height: natural.height, width: natural.width } : {})}
+          loaded={displayed}
           radius={IMAGE_RADIUS}
           source={uri}
         >

@@ -1204,6 +1204,7 @@ function ComicPage({
   const { colors } = useAppTheme();
   const [failedImageUri, setFailedImageUri] = useState<string | null>(null);
   const [retryAttempt, setRetryAttempt] = useState(0);
+  const [loadedImageUri, setLoadedImageUri] = useState<string | null>(null);
   const image = slot.image;
   const ratio = image && image.width > 0 && image.height > 0
     ? image.height / image.width
@@ -1239,6 +1240,7 @@ function ComicPage({
       contentFit="contain"
       enforceEarlyResizing
       onError={() => setFailedImageUri(image.url)}
+      onLoad={() => setLoadedImageUri(image.url)}
       placeholderContentFit="contain"
       priority={priority}
       recyclingKey={imageInstanceKey}
@@ -1258,6 +1260,7 @@ function ComicPage({
       alt={t('accessibility.comicPage', { number: slot.index + 1 })}
       disabled={!imagePreviewEnabled}
       height={Math.max(1, image.height)}
+      loaded={loadedImageUri === image.url}
       radius={0}
       source={image.url}
       width={Math.max(1, image.width)}

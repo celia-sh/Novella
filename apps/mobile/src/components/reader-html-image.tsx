@@ -213,6 +213,7 @@ function ReaderHtmlImage({
         <ReaderImageViewer
           alt={accessibilityLabel}
           height={natural.height}
+          loaded={!loading && !failed}
           radius={4}
           source={uri}
           width={natural.width}
