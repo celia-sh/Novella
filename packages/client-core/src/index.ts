@@ -65,6 +65,7 @@ import {
   type SetDirectMessageBlockResult,
   type ShopItem,
   type SignInCalendar,
+  type UploadImageRequest,
   type UseComicQuotaCardResult,
   type UseSignMakeupCardResult,
   type SaveReadPositionRequest,
@@ -252,6 +253,8 @@ export interface CommunityUseCase {
   toggleThreadFavorite(threadId: number): Promise<CommunityFavoriteToggleResult>;
   toggleThreadLike(threadId: number): Promise<CommunityLikeToggleResult>;
   updateThread(request: UpdateCommunityThreadInput): Promise<CommunityThreadMutationResult>;
+  /** Uploads an image for a thread body and returns its URL. */
+  uploadImage(request: UploadImageRequest): Promise<string>;
 }
 
 export interface NotificationsUseCase {
@@ -1101,6 +1104,14 @@ export function createCommunityUseCase(api: ApiClient): CommunityUseCase {
     deleteReply(replyId: number) {
       assertPositiveInteger(replyId, 'A valid Community reply id is required.');
       return api.deleteCommunityReply(replyId);
+    },
+    async uploadImage(request: UploadImageRequest) {
+      const fileName = request.fileName.trim();
+      if (!fileName) throw new Error('An image file name is required.');
+      if (!(request.data instanceof Uint8Array) || request.data.byteLength === 0) {
+        throw new Error('Image data is required.');
+      }
+      return api.uploadImage({ fileName, data: request.data });
     },
     deleteThread(threadId: number) {
       assertPositiveInteger(threadId, 'A valid Community thread id is required.');

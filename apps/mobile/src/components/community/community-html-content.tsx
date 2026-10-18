@@ -2,6 +2,10 @@ import { memo, useMemo } from 'react';
 import { Linking } from 'react-native';
 import RenderHTML from 'react-native-render-html';
 
+import { createCommunityHtmlImageRenderer } from '@/components/community/community-html-image';
+import { ReaderImageGallery } from '@/components/reader-image-viewer';
+import { extractCommunityHtmlImages } from '@/services/community-html-images';
+import { resolveReaderImageUrl } from '@/services/reader-image-dimensions';
 import { useAppTheme } from '@/theme/app-theme';
 
 interface CommunityHtmlContentProps {
@@ -11,7 +15,9 @@ interface CommunityHtmlContentProps {
 }
 
 /** Article-style HTML for posts and announcements: left-aligned headings
- * with their own sizes, unlike the centred chapter headings of the reader. */
+ * with their own sizes, unlike the centred chapter headings of the reader.
+ * Every image in the HTML is a page of one gallery, so a tap opens the
+ * picture and a swipe moves through the rest of the post's pictures. */
 export const CommunityHtmlContent = memo(function CommunityHtmlContent({
   contentWidth,
   html,
@@ -44,15 +50,28 @@ export const CommunityHtmlContent = memo(function CommunityHtmlContent({
       marginBottom: 16,
       marginTop: 16,
     },
-    img: { maxWidth: width },
     li: { marginBottom: 6 },
     ol: { marginBottom: 12, marginTop: 0, paddingLeft: 22 },
     p: { marginBottom: 12, marginTop: 0 },
     strong: { fontWeight: '600' as const },
     ul: { marginBottom: 12, marginTop: 0, paddingLeft: 22 },
-  }), [colors, width]);
+  }), [colors]);
+  const images = useMemo(() => extractCommunityHtmlImages(html), [html]);
+  const galleryItems = useMemo(
+    () => images.map((image) => ({
+      source: resolveReaderImageUrl(image.source),
+      ...(image.width === undefined || image.height === undefined
+        ? {}
+        : { height: image.height, width: image.width }),
+    })),
+    [images],
+  );
+  const renderers = useMemo(
+    () => ({ img: createCommunityHtmlImageRenderer({ contentWidth: width, images }) }),
+    [images, width],
+  );
 
-  return (
+  const content = (
     <RenderHTML
       baseStyle={baseStyle}
       contentWidth={width}
@@ -65,10 +84,13 @@ export const CommunityHtmlContent = memo(function CommunityHtmlContent({
             if (/^https?:\/\//i.test(href)) void Linking.openURL(href);
           },
         },
-        img: { enableExperimentalPercentWidth: true },
       }}
+      renderers={renderers}
       source={{ html }}
       tagsStyles={tagsStyles}
     />
   );
+  return images.length > 0
+    ? <ReaderImageGallery items={galleryItems}>{content}</ReaderImageGallery>
+    : content;
 });

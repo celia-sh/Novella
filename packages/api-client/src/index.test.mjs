@@ -3,10 +3,12 @@ import test from 'node:test';
 
 import {
   ApiClient,
+  ApiError,
   RateLimitRequestScheduler,
   REQUEST_RATE_LIMIT,
   RequestCancelledError,
   decodeAppNotificationPage,
+  parseImageUrlDimensions,
   decodeBookDetail,
   decodeComicContent,
   decodeComicInfo,
@@ -512,6 +514,48 @@ test('maps profile, avatar, and check-in to Web-Master Hub contracts', async () 
     { method: 'SetAvatar', args: [{ Url: 'https://cdn.example/avatar.png' }, { UseGzip: true }] },
     { method: 'SignIn', args: [{}, { UseGzip: true }] },
   ]);
+});
+
+test('reads image sizes Web-Master encodes next to the BlurHash', () => {
+  assert.deepEqual(
+    parseImageUrlDimensions('https://cdn.example/a.jpg?placeholder=LEHV6nWB2yk8&size=1200x800'),
+    { width: 1200, height: 800 },
+  );
+  assert.equal(parseImageUrlDimensions('https://cdn.example/a.jpg?size=1200x800'), null);
+  assert.equal(parseImageUrlDimensions('https://cdn.example/a.jpg?placeholder=LEHV6nWB2yk8&size=0x8'), null);
+  assert.equal(parseImageUrlDimensions('https://cdn.example/a.jpg'), null);
+});
+
+test('uploads post images as raw bytes and validates the returned URL', async () => {
+  const calls = [];
+  let response = { Url: 'https://cdn.example/forum/a.jpg' };
+  const client = new ApiClient(
+    { async request() { throw new Error('unexpected HTTP request'); } },
+    {
+      async connect() {},
+      async close() {},
+      subscribe() { return () => {}; },
+      async invoke(method, args) {
+        calls.push({ method, args });
+        return { Success: true, Response: response };
+      },
+    },
+    null,
+    new RateLimitRequestScheduler(20, 10),
+  );
+  const data = new Uint8Array([0xff, 0xd8, 0xff]);
+
+  assert.equal(
+    await client.uploadImage({ fileName: 'a.jpg', data }),
+    'https://cdn.example/forum/a.jpg',
+  );
+  assert.deepEqual(calls, [
+    { method: 'UploadImage', args: [{ FileName: 'a.jpg', ImageData: data }, { UseGzip: true }] },
+  ]);
+  assert.ok(calls[0].args[0].ImageData instanceof Uint8Array);
+
+  response = { Url: 'javascript:alert(1)' };
+  await assert.rejects(client.uploadImage({ fileName: 'a.jpg', data }), ApiError);
 });
 
 test('fetches a public user summary through the current Hub contract', async () => {

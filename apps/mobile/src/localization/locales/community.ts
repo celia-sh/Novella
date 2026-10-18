@@ -155,6 +155,11 @@ export const zhCNCommunity = {
       updateDiscussion: '无法保存帖子修改。',
     },
   },
+  images: {
+    postImage: '帖子图片',
+    unavailableRetry: '图片加载失败，轻点重试',
+    reload: '重新加载 {{label}}',
+  },
   editor: {
     placeholder: '写下帖子内容……',
     bold: '粗体',
@@ -164,6 +169,11 @@ export const zhCNCommunity = {
     blockquote: '引用',
     bulletedList: '项目符号列表',
     numberedList: '编号列表',
+    image: '插入图片',
+    uploadingImages: '正在上传 {{done}}/{{total}} 张图片',
+    imageUploadFailed: '图片上传失败',
+    imageTooLarge: '图片太大，压缩后仍超过 {{limit}} MB。',
+    imageUploadFailedMessage: '{{count}} 张图片没有上传成功，请稍后重试。',
   },
   comments: {
     title: '评论',
@@ -420,6 +430,11 @@ export const zhTWCommunity: TranslationShape<typeof zhCNCommunity> = {
       updateDiscussion: '無法儲存文章修改。',
     },
   },
+  images: {
+    postImage: '文章圖片',
+    unavailableRetry: '圖片載入失敗，輕點重試',
+    reload: '重新載入 {{label}}',
+  },
   editor: {
     placeholder: '寫下文章內容……',
     bold: '粗體',
@@ -429,6 +444,11 @@ export const zhTWCommunity: TranslationShape<typeof zhCNCommunity> = {
     blockquote: '引用',
     bulletedList: '項目符號清單',
     numberedList: '編號清單',
+    image: '插入圖片',
+    uploadingImages: '正在上傳 {{done}}/{{total}} 張圖片',
+    imageUploadFailed: '圖片上傳失敗',
+    imageTooLarge: '圖片太大，壓縮後仍超過 {{limit}} MB。',
+    imageUploadFailedMessage: '{{count}} 張圖片沒有上傳成功，請稍後重試。',
   },
   comments: {
     title: '留言',

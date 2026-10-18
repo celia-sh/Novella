@@ -107,6 +107,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // headers on its search path under RN 0.88. Remove with the 1.2.0 upgrade.
     './plugins/with-enriched-html-react-headers',
     'expo-sharing',
+    // Community posts pick photos through PHPicker, which needs no library
+    // access; the plugin still writes a usage string, and no camera is used.
+    [
+      'expo-image-picker',
+      {
+        cameraPermission: false,
+        microphonePermission: false,
+        photosPermission: '允许 Novella 从你的照片图库选择图片插入社区帖子。',
+      },
+    ],
   ],
   extra: {
     // 运行时经 Constants.expoConfig.extra 读取，设置页展示构建渠道与标签。
@@ -130,6 +140,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       // (`__expo_disable_fab=1`) or test a Release build.
       UIViewControllerBasedStatusBarAppearance: true,
       NSPhotoLibraryAddUsageDescription: '允许 Novella 将图片保存到你的照片图库。',
+      NSPhotoLibraryUsageDescription: '允许 Novella 从你的照片图库选择图片插入社区帖子。',
     },
   },
 });

@@ -1721,6 +1721,10 @@ test('Community use case validates input and forwards cancellation and mutations
       calls.push(['replyLike', id]);
       return Promise.resolve({ liked: true, likes: 1 });
     },
+    uploadImage(request) {
+      calls.push(['uploadImage', request]);
+      return Promise.resolve('https://cdn.example/a.jpg');
+    },
   };
   const useCase = createCommunityUseCase(api);
 
@@ -1776,6 +1780,20 @@ test('Community use case validates input and forwards cancellation and mutations
   assert.deepEqual(calls[12], ['threadFavorite', 3]);
   assert.deepEqual(calls[13], ['replyLike', 4]);
   assert.deepEqual(calls[14], ['threadLocked', 3, true]);
+  const imageData = new Uint8Array([1, 2, 3]);
+  assert.equal(
+    await useCase.uploadImage({ fileName: ' a.jpg ', data: imageData }),
+    'https://cdn.example/a.jpg',
+  );
+  assert.deepEqual(calls[15], ['uploadImage', { fileName: 'a.jpg', data: imageData }]);
+  await assert.rejects(
+    () => useCase.uploadImage({ fileName: 'a.jpg', data: new Uint8Array() }),
+    /image data is required/i,
+  );
+  await assert.rejects(
+    () => useCase.uploadImage({ fileName: '  ', data: imageData }),
+    /file name is required/i,
+  );
   assert.throws(() => useCase.setThreadLocked(0, true), /valid Community thread id/i);
   assert.throws(() => useCase.setThreadLocked(3, 'true'), /valid thread lock state/i);
   assert.throws(() => useCase.deleteThread(0), /valid Community thread id/i);

@@ -9,7 +9,16 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -53,6 +62,65 @@ function useCachedReaderImageSource(source: string): string {
   return cachedSource;
 }
 
+export interface ReaderImageGalleryItem {
+  height?: number;
+  source: string;
+  width?: number;
+}
+
+/** Set inside a `ReaderImageGallery`: viewers become pages of its one viewer. */
+const ReaderImageGalleryContext = createContext(false);
+
+/**
+ * One viewer for several images, such as every picture in a post: opening any
+ * of them opens the gallery at that picture, and a sideways swipe turns to the
+ * next. `items` lists the images in page order; each `ReaderImageViewer`
+ * inside passes its position as `galleryIndex`. Save and share act on the page
+ * on screen.
+ */
+export function ReaderImageGallery({
+  children,
+  items,
+}: {
+  children: ReactNode;
+  items: readonly ReaderImageGalleryItem[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [index, setIndex] = useState(0);
+  const item = items[Math.min(index, Math.max(0, items.length - 1))];
+  const actions = useReaderImageActions(item?.source ?? '');
+  const imageSize = item?.width !== undefined && item.height !== undefined
+    ? { height: item.height, width: item.width }
+    : null;
+
+  return (
+    <>
+      <ImageViewer
+        blur
+        cornerRadius={READER_IMAGE_VIEWER_CORNER_RADIUS}
+        doubleTapScale={2.5}
+        haptics
+        index={index}
+        inset={READER_IMAGE_VIEWER_INSET}
+        maxScale={6}
+        onIndexChange={setIndex}
+        onOpenChange={setOpen}
+        open={open}
+        showClose={false}
+      >
+        <ReaderImageGalleryContext.Provider value>{children}</ReaderImageGalleryContext.Provider>
+      </ImageViewer>
+      {open && item ? (
+        <ReaderImageViewerActionPortal
+          {...actions}
+          imageSize={imageSize}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
+    </>
+  );
+}
+
 export interface ReaderImageViewerProps {
   /** Gesture that opens the viewer. `longPress` leaves taps to the page. */
   activation?: 'tap' | 'longPress';
@@ -60,6 +128,8 @@ export interface ReaderImageViewerProps {
   children: ReactNode;
   /** Render the image without a viewer. */
   disabled?: boolean;
+  /** Page of the enclosing `ReaderImageGallery` this image opens. */
+  galleryIndex?: number;
   height?: number;
   onOpenChange?: (open: boolean) => void;
   open?: boolean;
@@ -73,6 +143,7 @@ export function ReaderImageViewer({
   alt,
   children,
   disabled = false,
+  galleryIndex,
   height,
   onOpenChange,
   open,
@@ -96,7 +167,22 @@ export function ReaderImageViewer({
   const longPressActivation = activation === 'longPress';
   const longPressHandledRef = useRef(false);
 
+  const inGallery = useContext(ReaderImageGalleryContext);
+
   if (disabled) return <>{children}</>;
+  if (inGallery && galleryIndex !== undefined) {
+    return (
+      <ImageViewer.Trigger
+        alt={alt}
+        {...(imageSize ? { height: imageSize.height, width: imageSize.width } : {})}
+        index={galleryIndex}
+        radius={radius}
+        source={imageSource}
+      >
+        {children}
+      </ImageViewer.Trigger>
+    );
+  }
 
   return (
     <>

@@ -97,6 +97,7 @@ export function CommunityComposeScreen({
     };
   }, [initialBoardKey, initialSubCategoryKey, isEditing, loadToken, t, threadId]);
 
+  const [uploadingImages, setUploadingImages] = useState(false);
   const selectedBoard = useMemo(
     () => boards.find((board) => board.key === boardKey) ?? null,
     [boardKey, boards],
@@ -104,6 +105,7 @@ export function CommunityComposeScreen({
   const canPublish = Boolean(
     noticeAccepted &&
     !publishing &&
+    !uploadingImages &&
     boardKey &&
     title.trim().length >= 6 &&
     title.trim().length <= 60 &&
@@ -316,6 +318,7 @@ export function CommunityComposeScreen({
         onTextChange={setContentText}
         onTouchEnd={clearInteractiveTouch}
         onTouchStart={markInteractiveTouch}
+        onUploadingChange={setUploadingImages}
         placeholder={t('compose.postPlaceholder')}
         ref={editorRef}
       />
