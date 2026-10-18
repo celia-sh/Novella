@@ -6,11 +6,8 @@ import {
   fitComicPageSpread,
   isComicPagePairable,
   resolveComicDisplayIndex,
-  resolveComicDisplayItemIndex,
   resolveComicDisplaySlotIndex,
-  resolveComicSourceSegmentIndex,
   resolveComicViewportRestoreTarget,
-  shouldSplitLongComicPages,
   shouldUseReaderDoublePage,
   shouldUseReaderSideChrome,
 } from './reader-display-layout.ts';
@@ -99,86 +96,6 @@ test('comic viewport restore uses metadata-aware display slots', () => {
   });
 });
 
-test('phone paged mode splits a known wide spread into horizontal segments', () => {
-  const wideSpread = {
-    index: 0,
-    image: { width: 1854, height: 1500, placeholder: '', url: 'spread' },
-  };
-  const slots = createComicPageDisplaySlots([wideSpread], 1, {
-    splitLongPages: true,
-    viewportHeight: 844,
-    viewportWidth: 390,
-  });
-  assert.deepEqual(slots.map((slot) => slot.pages.map((page) => page.index)), [[0], [0]]);
-  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentAxis), ['horizontal', 'horizontal']);
-  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentIndex), [0, 1]);
-  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentCount), [2, 2]);
-  assert.equal(slots[0]?.items[0]?.segmentWidth, 390);
-  assert.ok(Math.abs((slots[0]?.items[0]?.segmentHeight ?? 0) - 631.067) < 0.01);
-  assert.equal(slots[0]?.items[0]?.renderedImageWidth, 780);
-  assert.equal(slots[0]?.items[0]?.segmentOffset, 0);
-  assert.equal(slots[1]?.items[0]?.segmentOffset, 390);
-  assert.equal(resolveComicDisplayItemIndex(0, slots, 1), 1);
-  assert.equal(resolveComicSourceSegmentIndex(0, 2, 'horizontal', 'ltr'), 0);
-  assert.equal(resolveComicSourceSegmentIndex(0, 2, 'horizontal', 'rtl'), 1);
-  assert.equal(resolveComicSourceSegmentIndex(1, 2, 'horizontal', 'rtl'), 0);
-  assert.equal(resolveComicSourceSegmentIndex(1, 2, 'vertical', 'rtl'), 1);
-});
-
-test('phone paged mode splits a known very tall page into virtual segments', () => {
-  const longPage = {
-    index: 0,
-    image: { width: 1000, height: 3000, placeholder: '', url: 'long' },
-  };
-  const slots = createComicPageDisplaySlots([longPage], 1, {
-    splitLongPages: true,
-    viewportHeight: 844,
-    viewportWidth: 390,
-  });
-  assert.equal(shouldSplitLongComicPages(390, 844, 1), true);
-  assert.deepEqual(slots.map((slot) => slot.pages.map((page) => page.index)), [[0], [0]]);
-  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentIndex), [0, 1]);
-  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentCount), [2, 2]);
-  assert.equal(slots[1]?.items[0]?.segmentOffset, 844);
-  assert.equal(slots[0]?.items[0]?.renderedImageHeight, 1170);
-  assert.equal(resolveComicDisplaySlotIndex(0, slots), 0);
-  assert.equal(resolveComicDisplayItemIndex(0, slots, 1), 1);
-  assert.deepEqual(resolveComicViewportRestoreTarget(0, 1, 1, slots, 1), {
-    displayIndex: 1,
-    pageIndex: 0,
-  });
-});
-
-test('long-page splitting is scoped to single-column phone-sized viewports', () => {
-  const longPage = {
-    index: 0,
-    image: { width: 1000, height: 3000, placeholder: '', url: 'long' },
-  };
-  const options = { splitLongPages: true, viewportHeight: 844, viewportWidth: 390 };
-  assert.equal(shouldSplitLongComicPages(1366, 1024, 2), false);
-  assert.equal(shouldSplitLongComicPages(1024, 1366, 1), false);
-  assert.equal(createComicPageDisplaySlots([longPage], 2, options).length, 1);
-  assert.equal(createComicPageDisplaySlots([longPage], 1, {
-    splitLongPages: true,
-    viewportHeight: 844,
-    viewportWidth: 390,
-  }).length, 2);
-});
-
-test('unknown dimensions and ordinary portrait pages are not split', () => {
-  const slots = createComicPageDisplaySlots([
-    { index: 0, image: null },
-    { index: 1, image: { width: 0, height: 3000, placeholder: '', url: 'invalid' } },
-    { index: 2, image: { width: 1000, height: 1500, placeholder: '', url: 'portrait' } },
-  ], 1, {
-    splitLongPages: true,
-    viewportHeight: 844,
-    viewportWidth: 390,
-  });
-  assert.deepEqual(slots.map((slot) => slot.pages.map((page) => page.index)), [[0], [1], [2]]);
-  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentCount), [1, 1, 1]);
-});
-
 test('comic viewport restore keeps the live page while changing spread columns', () => {
   assert.deepEqual(resolveComicViewportRestoreTarget(5, 12, 1), {
     displayIndex: 5,
@@ -237,55 +154,39 @@ test('comic display slots group adjacent pages without changing page indexes', (
   assert.equal(resolveComicDisplayIndex(2, 3, 2), 1);
 });
 
-test('width-fit paged comics split tall pages into viewport segments', () => {
+test('a tall page stays on one display slot in width-fit mode', () => {
   const longPage = {
     index: 0,
     image: { width: 1000, height: 3000, placeholder: '', url: 'long' },
   };
-  const slots = createComicPageDisplaySlots([longPage], 1, {
-    fitMode: 'width',
-    viewportHeight: 800,
-    viewportWidth: 1000,
-  });
-  assert.equal(slots.length, 4);
-  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentIndex), [0, 1, 2, 3]);
-  assert.equal(slots[0]?.items[0]?.segmentWidth, 1000);
-  assert.equal(slots[0]?.items[0]?.segmentHeight, 800);
-  assert.equal(slots[0]?.items[0]?.renderedImageWidth, 1000);
-  assert.equal(slots[0]?.items[0]?.renderedImageHeight, 3000);
-  assert.equal(slots[3]?.items[0]?.segmentOffset, 2400);
+  const slots = createComicPageDisplaySlots([longPage], 1);
+  assert.deepEqual(slots, [{ index: 0, pages: [longPage] }]);
+  // The page keeps its full height; the paged reader pans it vertically instead
+  // of moving the cropped remainder to a virtual next page.
+  assert.deepEqual(fitComicPageSpread([longPage], 1000, 800, 'width'), [
+    { width: 1000, height: 3000 },
+  ]);
 });
 
-test('height-fit paged comics split wide pages into viewport segments', () => {
+test('a wide page stays on one display slot in height-fit mode', () => {
   const widePage = {
     index: 0,
     image: { width: 4000, height: 1000, placeholder: '', url: 'wide' },
   };
-  const slots = createComicPageDisplaySlots([widePage], 1, {
-    fitMode: 'height',
-    viewportHeight: 800,
-    viewportWidth: 1000,
-  });
-  assert.equal(slots.length, 4);
-  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentIndex), [0, 1, 2, 3]);
-  assert.equal(slots[0]?.items[0]?.segmentWidth, 1000);
-  assert.equal(slots[0]?.items[0]?.segmentHeight, 800);
-  assert.equal(slots[0]?.items[0]?.renderedImageWidth, 3200);
-  assert.equal(slots[0]?.items[0]?.renderedImageHeight, 800);
-  assert.equal(slots[3]?.items[0]?.segmentOffset, 3000);
+  const slots = createComicPageDisplaySlots([widePage], 1);
+  assert.deepEqual(slots, [{ index: 0, pages: [widePage] }]);
+  // Height fit scales the page back to the viewport width rather than cropping.
+  assert.deepEqual(fitComicPageSpread([widePage], 1000, 800, 'height'), [
+    { width: 1000, height: 250 },
+  ]);
 });
 
-test('width-fit comics pair wide pages that screen fit would isolate', () => {
+test('width-fit comics keep wide pages isolated like screen fit', () => {
   const slots = createComicPageDisplaySlots([
     { index: 0, image: { width: 2000, height: 1000, placeholder: '', url: 'a' } },
     { index: 1, image: { width: 2000, height: 1000, placeholder: '', url: 'b' } },
-  ], 2, {
-    fitMode: 'width',
-    viewportHeight: 800,
-    viewportWidth: 1000,
-  });
-  assert.deepEqual(slots.map((slot) => slot.pages.map((page) => page.index)), [[0, 1]]);
-  assert.equal(slots[0]?.items[0]?.segmentCount, 1);
+  ], 2);
+  assert.deepEqual(slots.map((slot) => slot.pages.map((page) => page.index)), [[0], [1]]);
 });
 
 test('height-fit spreads fill the viewport height', () => {
@@ -307,43 +208,5 @@ test('width-fit spreads divide the viewport width between pages', () => {
   assert.deepEqual(sizes, [
     { width: 500, height: 750 },
     { width: 500, height: 750 },
-  ]);
-});
-
-test('height-fit wide pages are segmented instead of paired', () => {
-  const slots = createComicPageDisplaySlots([
-    { index: 0, image: { width: 2000, height: 1000, placeholder: '', url: 'a' } },
-    { index: 1, image: { width: 2000, height: 1000, placeholder: '', url: 'b' } },
-  ], 2, {
-    fitMode: 'height',
-    viewportHeight: 800,
-    viewportWidth: 1000,
-  });
-  assert.deepEqual(slots.map((slot) => slot.pages.map((page) => page.index)), [
-    [0],
-    [0],
-    [1],
-    [1],
-  ]);
-  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentIndex), [0, 1, 0, 1]);
-});
-
-test('a segmented opening page stays isolated in double-page offset mode', () => {
-  const slots = createComicPageDisplaySlots([
-    { index: 0, image: { width: 1000, height: 3000, placeholder: '', url: 'cover' } },
-    { index: 1, image: null },
-    { index: 2, image: null },
-  ], 2, {
-    doublePageOffset: true,
-    fitMode: 'width',
-    viewportHeight: 800,
-    viewportWidth: 1000,
-  });
-  assert.deepEqual(slots.map((slot) => slot.pages.map((page) => page.index)), [
-    [0],
-    [0],
-    [0],
-    [0],
-    [1, 2],
   ]);
 });
