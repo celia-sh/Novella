@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { memo } from 'react';
 import type { GestureResponderEvent } from 'react-native';
-import { Pressable, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { ProfileAvatar, type ProfileAvatarProps } from '@/components/profile-avatar';
@@ -33,7 +33,16 @@ export const PublicUserAvatar = memo(function PublicUserAvatar({
     />
   );
 
-  if (!valid) return avatar;
+  // A deleted or unknown user has no profile to open. The avatar still claims
+  // the touch, so it does nothing instead of falling through and pressing the
+  // card or row it sits in; scrolling can still take the touch over.
+  if (!valid) {
+    return (
+      <View onStartShouldSetResponder={() => true} style={style}>
+        {avatar}
+      </View>
+    );
+  }
 
   const name = userName.trim() || t('profile.title');
   const openProfile = (event: GestureResponderEvent) => {
