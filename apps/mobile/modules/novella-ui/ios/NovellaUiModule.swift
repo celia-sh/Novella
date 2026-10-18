@@ -117,14 +117,20 @@ public final class NovellaUiModule: Module {
                   && $0.topViewController?.viewIfLoaded?.window != nil
               }) else { continue }
               guard let item = navigationController.topViewController?.navigationItem else { continue }
-              item.verticalBarCompressionBehavior = .prefersBarItems
-              if let items = item.rightBarButtonItems {
-                item.rightBarButtonItems = items
+              // Re-assigning the list makes iOS re-insert the custom title and
+              // progress views. The fold is covered, but the retries are not
+              // guaranteed to be, so apply them without the item transition.
+              UIView.performWithoutAnimation {
+                item.verticalBarCompressionBehavior = .prefersBarItems
+                if let items = item.rightBarButtonItems {
+                  item.rightBarButtonItems = items
+                }
+                if let items = item.leftBarButtonItems {
+                  item.leftBarButtonItems = items
+                }
+                navigationController.navigationBar.setNeedsLayout()
+                navigationController.navigationBar.layoutIfNeeded()
               }
-              if let items = item.leftBarButtonItems {
-                item.leftBarButtonItems = items
-              }
-              navigationController.navigationBar.setNeedsLayout()
             }
           }
         }

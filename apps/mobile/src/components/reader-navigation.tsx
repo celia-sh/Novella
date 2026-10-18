@@ -7,7 +7,10 @@ import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { ReaderNavigationProps } from '@/components/reader-navigation.types';
 import { ReaderSideProgress } from '@/components/reader-side-progress';
 import { ReaderSideTitle } from '@/components/reader-side-title';
-import { refreshReaderSideBar } from '@/services/reader-side-chrome';
+import {
+  addReaderLayoutDidChangeListener,
+  refreshReaderSideBar,
+} from '@/services/reader-side-chrome';
 
 const hasLiquidGlass = isLiquidGlassAvailable();
 const READER_NAVIGATION_ITEM_HEIGHT = 44;
@@ -40,12 +43,25 @@ export function ReaderNavigation({
   // the status bar hides with the reader chrome, and re-assigning the item list
   // at that moment re-inserts the custom title/progress views into the glass
   // column, which plays iOS 26's item transition (the text visibly pops).
+  //
+  // The dimension commit can land before UIKit has finished rebuilding the
+  // column, which intermittently left the title and progress off the bar. Ask
+  // again when the native transition reports its end, and once more shortly
+  // after; `refreshReaderSideBar` applies the items without animation, and the
+  // transition cover is still up for the first retry.
   useEffect(() => {
     if (!sideChrome) return;
-    const frame = requestAnimationFrame(() => {
+    const refresh = () => {
       void refreshReaderSideBar().catch(() => undefined);
-    });
-    return () => cancelAnimationFrame(frame);
+    };
+    const frame = requestAnimationFrame(refresh);
+    const subscription = addReaderLayoutDidChangeListener(refresh);
+    const retry = setTimeout(refresh, 380);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(retry);
+      subscription?.remove();
+    };
   }, [height, sideChrome, width]);
 
   return (
