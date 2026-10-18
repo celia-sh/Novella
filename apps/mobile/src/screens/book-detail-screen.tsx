@@ -1,4 +1,6 @@
-import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Skeleton } from 'panelui-native/components/skeleton';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +15,7 @@ import {
   Pressable,  ScrollView,
   StyleSheet,
   View,
+  type StyleProp,
   type ViewStyle,
 } from 'react-native';
 import Animated, {
@@ -47,6 +50,7 @@ import {
   type BookDetail,
 } from '@novella/api-client';
 
+import { BookCoverBlurHash } from '@/components/book-cover-blur-hash';
 import { BookCoverImage } from '@/components/book-cover-image';
 import { BookDetailNavigation } from '@/components/book-detail-navigation';
 import { useBookDetailRouteTheme } from '@/components/book-detail-theme-provider';
@@ -65,7 +69,11 @@ import {
   toBookSearchRouteParams,
   type BookQuickSearchTarget,
 } from '@/services/book-quick-search';
+import { useDisplayCornerRadius } from '@/services/display-corner-radius';
 import { useAppSettings } from '@/services/settings';
+import { createBookCoverBlurHashPlaceholder } from '@/services/blurhash';
+import { coverImageCacheKey } from '@/services/cover-image-keys';
+import { sizedImageUrl } from '@/services/image-sizing';
 import type { BookDetailPalette } from '@/theme/book-detail-theme';
 
 export interface BookDetailScreenProps {
@@ -90,6 +98,18 @@ const BOOK_HERO_HEIGHT = 280;
 const BOOK_HERO_TOOLBAR_HEIGHT = 56;
 const BOOK_HERO_COLLAPSE_DISTANCE = BOOK_HERO_HEIGHT - BOOK_HERO_TOOLBAR_HEIGHT;
 const LANDSCAPE_PADDING = 24;
+const hasLiquidGlass = isLiquidGlassAvailable();
+/** Novella covers are 2:3; the landscape pane matches it so nothing is cropped. */
+const BOOK_COVER_ASPECT_RATIO = 2 / 3;
+/** The landscape backdrop is blurred to colour only, so a tiny variant is enough. */
+const BOOK_COVER_BACKDROP_HEIGHT = 64;
+const BACKDROP_BLUR_INTENSITY = 90;
+const BACKDROP_SCRIM_ALPHA = 0.55;
+/** Chips and the update card read as frosted panes over the backdrop. */
+const BACKDROP_FROSTED_ALPHA = 0.65;
+/** The shelf button sits beside a solid read button, so it is nearly opaque. */
+const BACKDROP_SOLID_ALPHA = 0.85;
+const BACKDROP_SHELF_PRIMARY_MIX = 0.3;
 
 export function BookDetailScreen({
   bookId,
@@ -236,6 +256,7 @@ function BookDetailContent({
     },
     width,
   } = useSettledLayout();
+  const displayCornerRadius = useDisplayCornerRadius();
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollViewOffset(scrollRef);
   const usableWidth = Math.max(1, width - leftInset - rightInset);
@@ -270,18 +291,41 @@ function BookDetailContent({
   const heroHeight = BOOK_HERO_HEIGHT + topInset;
 
   if (width > height) {
-    // Landscape: the cover becomes an immersive left pane with the title and
-    // primary actions over it, and the text column scrolls on the right. Same
-    // building blocks as portrait, only rearranged.
-    const coverPaneWidth = leftInset + Math.round(usableWidth * 0.55);
+    // Landscape: the whole cover runs full height on the left, uncropped, and
+    // a heavily blurred copy of it fills the screen behind the text column.
+    // Both sides come from the same image, so the seam stays a hard edge.
+    const coverPaneWidth = Math.round(Math.min(
+      height * BOOK_COVER_ASPECT_RATIO,
+      leftInset + usableWidth * 0.5,
+    ));
     const bodyContentWidth = Math.max(
       1,
-      Math.round(usableWidth * 0.45) - LANDSCAPE_PADDING * 2,
+      width - coverPaneWidth - rightInset - LANDSCAPE_PADDING * 2,
     );
     return (
       <View style={[styles.detailContent, { backgroundColor: palette.surface }]}>
+        <BookCoverBackdrop
+          coverPlaceholder={coverPlaceholder}
+          coverUrl={coverUrl}
+          height={height}
+          palette={palette}
+          tileWidth={coverPaneWidth}
+          width={width}
+        />
         <View style={styles.landscapeRow}>
-          <View style={[styles.landscapeCover, { width: coverPaneWidth }]}>
+          {/* The pane's outer corners are the display's own. Rounding the
+              inner two by the same radius makes the cover read as one card
+              cut to the device's curvature. */}
+          <View
+            style={[
+              styles.landscapeCover,
+              {
+                borderBottomRightRadius: displayCornerRadius,
+                borderTopRightRadius: displayCornerRadius,
+                width: coverPaneWidth,
+              },
+            ]}
+          >
             {coverUrl ? (
               <BookCoverImage
                 accessibilityLabel={t('cover.accessibility', { title: book.title })}
@@ -300,69 +344,6 @@ function BookDetailContent({
                 <IconBooks color={palette.onSurfaceVariant} size={40} strokeWidth={1.8} />
               </View>
             )}
-            {/* The immersive cover needs its own scrim: the title, chips, and
-                buttons sit on the artwork, not on the palette surface. */}
-            <LinearGradient
-              colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.52)', 'rgba(0, 0, 0, 0.86)']}
-              locations={[0.2, 0.58, 1]}
-              pointerEvents="none"
-              style={StyleSheet.absoluteFill}
-            />
-            <View
-              style={[
-                styles.landscapeCoverContent,
-                {
-                  paddingBottom: bottomInset + LANDSCAPE_PADDING,
-                  paddingLeft: leftInset + LANDSCAPE_PADDING,
-                  paddingRight: LANDSCAPE_PADDING,
-                },
-              ]}
-            >
-              {book.title.trim() ? (
-                <Pressable
-                  accessibilityLabel={titleSearchAccessibilityLabel}
-                  accessibilityRole="button"
-                  onLongPress={ignoreLongPress}
-                  onPress={() => handleQuickSearch('title')}
-                  style={({ pressed }) => (pressed ? styles.quickSearchPressed : null)}
-                >
-                  <Text numberOfLines={3} selectable style={styles.landscapeTitle}>
-                    {book.title.trim()}
-                  </Text>
-                </Pressable>
-              ) : null}
-              {author ? (
-                <Pressable
-                  accessibilityLabel={t('detail.searchAuthor', { author })}
-                  accessibilityRole="button"
-                  onLongPress={ignoreLongPress}
-                  onPress={() => handleQuickSearch('author')}
-                  style={({ pressed }) => (pressed ? styles.quickSearchPressed : null)}
-                >
-                  <Text numberOfLines={2} selectable style={styles.landscapeAuthor}>
-                    {author}
-                  </Text>
-                </Pressable>
-              ) : null}
-              {isLoading ? null : (
-                <>
-                  <BookMetaChips book={book} onCover palette={palette} />
-                  <BookPrimaryActions
-                    book={book}
-                    bookType={bookType}
-                    cleanResumeTitle={cleanResumeTitle}
-                    isInShelf={isInShelf}
-                    isShelfLoading={isShelfLoading}
-                    onCover
-                    onToggleShelf={onToggleShelf}
-                    palette={palette}
-                    resumeChapter={resumeChapter}
-                    shelfError={shelfError}
-                    startSortNum={startSortNum}
-                  />
-                </>
-              )}
-            </View>
           </View>
 
           <View style={[styles.landscapeBody, { paddingRight: rightInset }]}>
@@ -371,6 +352,63 @@ function BookDetailContent({
               showsVerticalScrollIndicator={false}
               style={styles.scrollBody}
             >
+              <View style={[styles.landscapeHeader, { paddingHorizontal: LANDSCAPE_PADDING }]}>
+                {book.title.trim() ? (
+                  <Pressable
+                    accessibilityLabel={titleSearchAccessibilityLabel}
+                    accessibilityRole="button"
+                    disabled={isLoading}
+                    onLongPress={ignoreLongPress}
+                    onPress={() => handleQuickSearch('title')}
+                    style={({ pressed }) => [styles.quickSearchTarget, pressed && styles.quickSearchPressed]}
+                  >
+                    <Text
+                      numberOfLines={3}
+                      selectable
+                      style={[styles.landscapeTitle, { color: palette.onSurface }]}
+                    >
+                      {book.title.trim()}
+                    </Text>
+                  </Pressable>
+                ) : isLoading ? (
+                  <View style={styles.landscapeLoadingTitleSlot}>
+                    <Skeleton
+                      style={[
+                        styles.loadingBlock,
+                        styles.loadingTitle,
+                        { backgroundColor: palette.surfaceContainerHighest },
+                      ]}
+                    />
+                  </View>
+                ) : null}
+                {isLoading ? (
+                  <View style={styles.loadingAuthorSlot}>
+                    <Skeleton
+                      style={[
+                        styles.loadingBlock,
+                        styles.loadingAuthor,
+                        { backgroundColor: palette.surfaceContainerHighest },
+                      ]}
+                    />
+                  </View>
+                ) : author ? (
+                  <Pressable
+                    accessibilityLabel={t('detail.searchAuthor', { author })}
+                    accessibilityRole="button"
+                    onLongPress={ignoreLongPress}
+                    onPress={() => handleQuickSearch('author')}
+                    style={({ pressed }) => [styles.quickSearchTarget, pressed && styles.quickSearchPressed]}
+                  >
+                    <Text
+                      numberOfLines={2}
+                      selectable
+                      style={[styles.author, { color: palette.onSurfaceVariant }]}
+                    >
+                      {author}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
               {isLoading ? (
                 <BookDetailBodyLoading
                   horizontalPadding={LANDSCAPE_PADDING}
@@ -378,7 +416,21 @@ function BookDetailContent({
                 />
               ) : (
                 <>
-                  <View style={{ paddingHorizontal: LANDSCAPE_PADDING }}>
+                  <View style={[styles.body, { paddingHorizontal: LANDSCAPE_PADDING }]}>
+                    <BookMetaChips book={book} onBackdrop palette={palette} />
+                    <BookPrimaryActions
+                      book={book}
+                      bookType={bookType}
+                      cleanResumeTitle={cleanResumeTitle}
+                      isInShelf={isInShelf}
+                      isShelfLoading={isShelfLoading}
+                      onBackdrop
+                      onToggleShelf={onToggleShelf}
+                      palette={palette}
+                      resumeChapter={resumeChapter}
+                      shelfError={shelfError}
+                      startSortNum={startSortNum}
+                    />
                     <BookIntroductionPreview
                       book={book}
                       contentWidth={bodyContentWidth}
@@ -387,6 +439,7 @@ function BookDetailContent({
                     <BookUpdateInfo
                       book={book}
                       latestChapter={latestChapter}
+                      onBackdrop
                       palette={palette}
                     />
                     <SectionTitle palette={palette}>{t('detail.chapters')}</SectionTitle>
@@ -491,13 +544,89 @@ function BookDetailContent({
   );
 }
 
+/**
+ * React Native counterpart of SwiftUI's `backgroundExtensionEffect()`.
+ *
+ * The cover is laid out again as alternating mirrored tiles across the whole
+ * screen, so whatever sits next to its right edge is a reflection of that
+ * edge rather than an unrelated colour. One blur over the strip then removes
+ * the detail. Tile 0 lies under the cover itself, which also fills the gaps
+ * behind the cover's rounded inner corners.
+ */
+function BookCoverBackdrop({
+  coverPlaceholder,
+  coverUrl,
+  height,
+  palette,
+  tileWidth,
+  width,
+}: {
+  coverPlaceholder: string | null;
+  coverUrl: string | null;
+  height: number;
+  palette: BookDetailPalette;
+  tileWidth: number;
+  width: number;
+}) {
+  const placeholder = createBookCoverBlurHashPlaceholder(coverPlaceholder);
+  if (!coverUrl && !placeholder) return null;
+  const source = coverUrl
+    ? sizedImageUrl(normalizeCoverUrl(coverUrl), {
+        devicePixelRatio: 1,
+        logicalHeight: BOOK_COVER_BACKDROP_HEIGHT,
+      })
+    : null;
+  const tileCount = Math.max(1, Math.ceil(width / Math.max(1, tileWidth)));
+  return (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdrop]}>
+      {Array.from({ length: tileCount }, (_, index) => (
+        <View
+          key={index}
+          style={[
+            styles.backdropTile,
+            {
+              height,
+              left: index * tileWidth,
+              transform: index % 2 === 1 ? [{ scaleX: -1 }] : [],
+              width: tileWidth,
+            },
+          ]}
+        >
+          {source ? (
+            <Image
+              accessibilityElementsHidden
+              cachePolicy="memory-disk"
+              contentFit="cover"
+              placeholder={placeholder}
+              placeholderContentFit="cover"
+              source={{ cacheKey: coverImageCacheKey(source), uri: source }}
+              style={StyleSheet.absoluteFill}
+            />
+          ) : placeholder ? (
+            <BookCoverBlurHash placeholder={placeholder} />
+          ) : null}
+        </View>
+      ))}
+      <BlurView intensity={BACKDROP_BLUR_INTENSITY} style={StyleSheet.absoluteFill} tint="default" />
+      {/* The scrim follows the palette so the text column keeps the detail
+          page's own contrast in both light and dark mode. */}
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: hexWithAlpha(palette.surface, BACKDROP_SCRIM_ALPHA) },
+        ]}
+      />
+    </View>
+  );
+}
+
 function BookMetaChips({
   book,
-  onCover = false,
+  onBackdrop = false,
   palette,
 }: {
   book: BookDetail;
-  onCover?: boolean;
+  onBackdrop?: boolean;
   palette: BookDetailPalette;
 }) {
   const { t } = useTranslation('book');
@@ -505,20 +634,20 @@ function BookMetaChips({
   return (
     <View style={styles.chips}>
       <MetaChip
+        onBackdrop={onBackdrop}
         icon={IconHeart}
-        onCover={onCover}
         palette={palette}
         value={formatCompactNumber(book.favoriteCount, locale)}
       />
       <MetaChip
+        onBackdrop={onBackdrop}
         icon={IconEye}
-        onCover={onCover}
         palette={palette}
         value={formatCompactNumber(book.viewCount, locale)}
       />
       <MetaChip
+        onBackdrop={onBackdrop}
         icon={IconBooks}
-        onCover={onCover}
         palette={palette}
         value={t('detail.chapterCount', { count: book.chapters.length })}
       />
@@ -532,7 +661,7 @@ function BookPrimaryActions({
   cleanResumeTitle,
   isInShelf,
   isShelfLoading,
-  onCover = false,
+  onBackdrop = false,
   onToggleShelf,
   palette,
   resumeChapter,
@@ -544,7 +673,7 @@ function BookPrimaryActions({
   cleanResumeTitle: string | null;
   isInShelf: boolean;
   isShelfLoading: boolean;
-  onCover?: boolean;
+  onBackdrop?: boolean;
   onToggleShelf: () => Promise<void>;
   palette: BookDetailPalette;
   resumeChapter: BookDetail['chapters'][number] | undefined;
@@ -552,25 +681,37 @@ function BookPrimaryActions({
   startSortNum: number;
 }) {
   const { t } = useTranslation('book');
-  const shelfContainer = isInShelf
-    ? palette.primaryContainer
-    : onCover
-      ? 'rgba(255, 255, 255, 0.22)'
+  // Over the blurred cover both buttons become tinted Liquid Glass: the tint
+  // keeps the shelf/read tonal pairing, and the glass edge lighting separates
+  // them from a backdrop whose colour is close to primaryContainer.
+  const useGlass = onBackdrop && hasLiquidGlass;
+  // primaryContainer is nearly the backdrop's own tint, so on the backdrop
+  // the shelved tint is pulled toward primary: same hue, one step deeper in
+  // light mode and one step lighter in dark mode.
+  const shelfTint = isInShelf
+    ? onBackdrop
+      ? mixHex(palette.primaryContainer, palette.primary, BACKDROP_SHELF_PRIMARY_MIX)
+      : palette.primaryContainer
+    : onBackdrop
+      ? hexWithAlpha(palette.surface, BACKDROP_SOLID_ALPHA)
       : palette.surfaceContainerHighest;
   const shelfIconColor = isInShelf
     ? palette.onPrimaryContainer
-    : onCover
-      ? '#FFFFFF'
-      : palette.onSurfaceVariant;
+    : palette.onSurfaceVariant;
   return (
     <>
       <View style={styles.actions}>
         {/* Paper's Surface splits border styles across two layers and drops
             borderCurve from the outer one, so the clip view owns the curve. */}
-        <View style={styles.shelfButtonClip}>
+        <BackdropGlass
+          glass={useGlass}
+          interactive
+          style={styles.shelfButtonClip}
+          tintColor={shelfTint}
+        >
           <IconButton
             accessibilityLabel={isInShelf ? t('detail.removeFromShelf') : t('detail.addToShelf')}
-            containerColor={shelfContainer}
+            containerColor={useGlass ? 'transparent' : shelfTint}
             disabled={isShelfLoading}
             icon={() =>
               isInShelf ? (
@@ -584,14 +725,19 @@ function BookPrimaryActions({
             size={25}
             style={styles.shelfButton}
           />
-        </View>
+        </BackdropGlass>
 
-        <View style={styles.readButtonClip}>
+        <BackdropGlass
+          glass={useGlass}
+          interactive
+          style={styles.readButtonClip}
+          tintColor={palette.primary}
+        >
           <Button
             accessibilityLabel={resumeChapter
               ? t('detail.continueReading', { title: resumeChapter.title })
               : t('detail.startReading')}
-            buttonColor={palette.primary}
+            buttonColor={useGlass ? 'transparent' : palette.primary}
             contentStyle={styles.readButtonContent}
             disabled={book.chapters.length === 0}
             icon={({ color }) => <IconPlayerPlayFilled color={color} size={22} />}
@@ -605,15 +751,54 @@ function BookPrimaryActions({
               ? t('detail.continueReadingButton', { title: shortenChapterTitle(cleanResumeTitle) })
               : t('detail.startReading')}
           </Button>
-        </View>
+        </BackdropGlass>
       </View>
 
       {shelfError ? (
-        <Text style={[styles.actionError, { color: onCover ? '#FFFFFF' : palette.error }]}>
+        <Text style={[styles.actionError, { color: palette.error }]}>
           {shelfError.kind === 'raw' ? shelfError.text : t(shelfError.key)}
         </Text>
       ) : null}
     </>
+  );
+}
+
+/**
+ * Container for the controls that sit on the landscape backdrop. With `glass`
+ * it is a Liquid Glass shape and the content inside draws no fill of its own;
+ * otherwise it is a plain view filled with `fallbackColor`.
+ */
+function BackdropGlass({
+  children,
+  fallbackColor,
+  glass,
+  interactive = false,
+  style,
+  tintColor,
+}: {
+  children: ReactNode;
+  fallbackColor?: string;
+  glass: boolean;
+  interactive?: boolean;
+  style: StyleProp<ViewStyle>;
+  tintColor?: string;
+}) {
+  if (!glass) {
+    return (
+      <View style={[style, fallbackColor ? { backgroundColor: fallbackColor } : null]}>
+        {children}
+      </View>
+    );
+  }
+  return (
+    <GlassView
+      glassEffectStyle="regular"
+      isInteractive={interactive}
+      style={style}
+      {...(tintColor === undefined ? {} : { tintColor })}
+    >
+      {children}
+    </GlassView>
   );
 }
 
@@ -665,20 +850,25 @@ function BookIntroductionPreview({
 function BookUpdateInfo({
   book,
   latestChapter,
+  onBackdrop = false,
   palette,
 }: {
   book: BookDetail;
   latestChapter: string | null | undefined;
+  onBackdrop?: boolean;
   palette: BookDetailPalette;
 }) {
   const { t } = useTranslation('book');
   const locale = useAppLocale();
   return (
-    <View
+    <BackdropGlass
+      fallbackColor={onBackdrop
+        ? hexWithAlpha(palette.surface, BACKDROP_FROSTED_ALPHA)
+        : hexWithAlpha(palette.surfaceContainerHighest, 0.5)}
+      glass={onBackdrop && hasLiquidGlass}
       style={[
         styles.updateInfo,
         !book.introduction.trim() && styles.updateInfoWithoutIntroduction,
-        { backgroundColor: hexWithAlpha(palette.surfaceContainerHighest, 0.5) },
       ]}
     >
       <IconProgressBolt color={palette.onSurfaceVariant} size={18} strokeWidth={2} />
@@ -692,7 +882,7 @@ function BookUpdateInfo({
               time: formatRelativeTime(book.lastUpdatedAt, locale) || t('detail.unknownTime'),
             })}
       </Text>
-    </View>
+    </BackdropGlass>
   );
 }
 
@@ -1039,41 +1229,35 @@ function BookHeroContent({
 
 function MetaChip({
   icon: Icon,
-  onCover = false,
+  onBackdrop = false,
   palette,
   value,
 }: {
   icon: TablerIcon;
-  onCover?: boolean;
+  onBackdrop?: boolean;
   palette: BookDetailPalette;
   value: string;
 }) {
   return (
-    <View
-      style={[
-        styles.metaChip,
-        {
-          backgroundColor: onCover
-            ? 'rgba(255, 255, 255, 0.22)'
-            : hexWithAlpha(palette.surfaceContainerHighest, 0.71),
-        },
-      ]}
+    <BackdropGlass
+      fallbackColor={onBackdrop
+        ? hexWithAlpha(palette.surface, BACKDROP_FROSTED_ALPHA)
+        : hexWithAlpha(palette.surfaceContainerHighest, 0.71)}
+      glass={onBackdrop && hasLiquidGlass}
+      style={styles.metaChip}
     >
-      <Icon color={onCover ? '#FFFFFF' : palette.onSurfaceVariant} size={14} strokeWidth={2} />
+      <Icon color={palette.onSurfaceVariant} size={14} strokeWidth={2} />
       <Text
-        style={[
-          styles.metaChipText,
-          { color: onCover ? '#FFFFFF' : palette.onSurfaceVariant },
-        ]}
+        style={[styles.metaChipText, { color: palette.onSurfaceVariant }]}
       >
         {value}
       </Text>
-    </View>
+    </BackdropGlass>
   );
 }
 
 function SectionTitle({ children, palette }: { children: ReactNode; palette: BookDetailPalette }) {
-  return <Text style={[styles.sectionTitle, { color: palette.onSurfaceVariant }]}>{children}</Text>;
+  return <Text style={[styles.sectionTitle, { color: palette.onSurface }]}>{children}</Text>;
 }
 
 function BookDetailBodyLoading({
@@ -1172,6 +1356,19 @@ function heroTransitionStyle(
   };
 }
 
+/** Mixes `amount` of `to` into `from`; returns `from` unless both are 6-digit hex. */
+function mixHex(from: string, to: string, amount: number): string {
+  const a = /^#([0-9a-f]{6})$/i.exec(from)?.[1];
+  const b = /^#([0-9a-f]{6})$/i.exec(to)?.[1];
+  if (!a || !b) return from;
+  const channel = (offset: number) => {
+    const start = Number.parseInt(a.slice(offset, offset + 2), 16);
+    const end = Number.parseInt(b.slice(offset, offset + 2), 16);
+    return Math.round(start + (end - start) * amount).toString(16).padStart(2, '0');
+  };
+  return `#${channel(0)}${channel(2)}${channel(4)}`;
+}
+
 function hexWithAlpha(hex: string, alpha: number): string {
   const normalized = hex.replace('#', '');
   if (normalized.length !== 6) return hex;
@@ -1185,6 +1382,8 @@ const styles = StyleSheet.create({
   actionError: { fontSize: 13, lineHeight: 18, paddingTop: 8 },
   actions: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   author: { fontSize: 14, letterSpacing: 0.25, lineHeight: 20 },
+  backdrop: { overflow: 'hidden' },
+  backdropTile: { overflow: 'hidden', position: 'absolute', top: 0 },
   body: { paddingTop: 16 },
   bookTitle: { fontSize: 22, fontWeight: '700', letterSpacing: 0, lineHeight: 28 },
   chapterList: {},
@@ -1214,12 +1413,12 @@ const styles = StyleSheet.create({
   introductionClipWithRuby: { maxHeight: 1000 },
   introductionPreview: { borderRadius: 8, paddingVertical: 4 },
   introductionSection: { gap: 8, paddingBottom: 24, paddingTop: 24 },
-  landscapeAuthor: { color: 'rgba(255, 255, 255, 0.82)', fontSize: 14, letterSpacing: 0.25, lineHeight: 20 },
   landscapeBody: { flex: 1 },
-  landscapeCover: { overflow: 'hidden' },
-  landscapeCoverContent: { bottom: 0, gap: 10, left: 0, position: 'absolute', right: 0 },
+  landscapeCover: { borderCurve: 'continuous', overflow: 'hidden' },
+  landscapeHeader: { gap: 6, paddingTop: 24 },
+  landscapeLoadingTitleSlot: { height: 34, justifyContent: 'center' },
   landscapeRow: { flex: 1, flexDirection: 'row' },
-  landscapeTitle: { color: '#FFFFFF', fontSize: 24, fontWeight: '700', letterSpacing: 0, lineHeight: 30 },
+  landscapeTitle: { fontSize: 26, fontWeight: '700', letterSpacing: 0, lineHeight: 34 },
   quickSearchPressed: { opacity: 0.72 },
   quickSearchTarget: { borderRadius: 4 },
   loadingActions: { flexDirection: 'row', gap: 12 },
