@@ -57,21 +57,24 @@ export class ExpoCredentialStore implements CredentialStore {
 }
 
 class ExpoKeyValueStore implements KeyValueStore {
-  readonly #database = SQLite.openDatabaseAsync('novella.db');
+  // Open synchronously: `openDatabaseAsync` routes
+  // `ensureDatabasePathExistsAsync` through a concurrent task, and on iOS 27 /
+  // expo-sqlite 58 that task crashes inside the file system module's
+  // `ensureDirExists` (invalid dispatch target) during startup. The sync open
+  // keeps the same path check on the JS thread and starts the database in
+  // order with the rest of the module setup.
+  readonly #database = SQLite.openDatabaseSync('novella.db');
   readonly #initialized: Promise<void>;
 
   constructor() {
-    this.#initialized = this.#database.then((database) =>
-      database.execAsync(
-        'CREATE TABLE IF NOT EXISTS key_value (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)',
-      ),
+    this.#initialized = this.#database.execAsync(
+      'CREATE TABLE IF NOT EXISTS key_value (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)',
     );
   }
 
   async get(key: string): Promise<string | null> {
     await this.#initialized;
-    const database = await this.#database;
-    const row = await database.getFirstAsync<{ value: string }>(
+    const row = await this.#database.getFirstAsync<{ value: string }>(
       'SELECT value FROM key_value WHERE key = ?',
       key,
     );
@@ -80,8 +83,7 @@ class ExpoKeyValueStore implements KeyValueStore {
 
   async set(key: string, value: string): Promise<void> {
     await this.#initialized;
-    const database = await this.#database;
-    await database.runAsync(
+    await this.#database.runAsync(
       'INSERT OR REPLACE INTO key_value (key, value) VALUES (?, ?)',
       key,
       value,
@@ -90,8 +92,7 @@ class ExpoKeyValueStore implements KeyValueStore {
 
   async delete(key: string): Promise<void> {
     await this.#initialized;
-    const database = await this.#database;
-    await database.runAsync('DELETE FROM key_value WHERE key = ?', key);
+    await this.#database.runAsync('DELETE FROM key_value WHERE key = ?', key);
   }
 }
 
