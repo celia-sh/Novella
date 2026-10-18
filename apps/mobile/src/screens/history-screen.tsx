@@ -27,7 +27,7 @@ import { HistoryNavigation } from '@/components/history-navigation';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { ReflowFade } from '@/components/reflow-fade';
-import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
+import { BOOK_GRID_COLUMN_GAP, BOOK_GRID_ROW_GAP, useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { PAGE_TOP_SPACING } from '@/hooks/use-wide-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
@@ -288,7 +288,7 @@ function TabErrorState({ error, onRetry }: { error: LibraryMessage; onRetry(): v
 
 const useHistoryScreenStyles = createThemedStyles((colors) => ({
   content: {
-    gap: 12,
+    gap: BOOK_GRID_ROW_GAP,
     paddingBottom: 40,
     paddingTop: PAGE_TOP_SPACING,
   },
@@ -310,7 +310,7 @@ const useHistoryScreenStyles = createThemedStyles((colors) => ({
   },
   list: { flex: 1 },
   root: { flex: 1 },
-  row: { gap: 12 },
+  row: { gap: BOOK_GRID_COLUMN_GAP },
   stateBlock: {
     alignItems: 'center',
     justifyContent: 'center',

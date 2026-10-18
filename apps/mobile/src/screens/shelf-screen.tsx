@@ -44,7 +44,12 @@ import type { ShelfEditInteraction } from '@/components/shelf-navigation.types';
 import { ReorderableShelfGrid } from '@/components/reorderable-shelf-grid';
 import { ReflowFade } from '@/components/reflow-fade';
 import { SectionCard } from '@/components/section-card';
-import { useBookGridLayout, BOOK_GRID_COLUMN_GAP } from '@/hooks/use-book-grid-layout';
+import {
+  useBookGridLayout,
+  BOOK_GRID_COLUMN_GAP,
+  BOOK_GRID_ROW_GAP,
+  BOOK_GRID_TITLE_HEIGHT,
+} from '@/hooks/use-book-grid-layout';
 import { PAGE_TOP_SPACING } from '@/hooks/use-wide-layout';
 import {
   useCoverScrollViewport,
@@ -759,9 +764,11 @@ function UnavailableBookGridItem({
           </View>
         ) : null}
       </View>
-      <Text numberOfLines={2} style={styles.unavailableTitle}>
-        {t('shelf.unavailableBook')}
-      </Text>
+      <View style={styles.unavailableTitleContainer}>
+        <Text numberOfLines={2} style={styles.unavailableTitle}>
+          {t('shelf.unavailableBook')}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -810,8 +817,8 @@ const useShelfScreenStyles = createThemedStyles((colors) => ({
   errorBlock: { alignItems: 'center', gap: 12, paddingHorizontal: 28, paddingVertical: 56 },
   errorText: { color: colors.secondaryLabel, fontSize: 14, lineHeight: 20, textAlign: 'center' },
   errorTitle: { color: colors.label, fontSize: 17, fontWeight: '700' },
-  grid: { gap: 12 },
-  gridRow: { alignItems: 'flex-start', flexDirection: 'row', gap: 10, justifyContent: 'space-between' },
+  grid: { gap: BOOK_GRID_ROW_GAP },
+  gridRow: { alignItems: 'flex-start', flexDirection: 'row', gap: BOOK_GRID_COLUMN_GAP },
   inlineError: { alignItems: 'center', backgroundColor: colors.card, borderColor: colors.error, borderCurve: 'continuous', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 10, padding: 12 },
   inlineErrorLabel: { color: colors.label, flex: 1, fontSize: 14, lineHeight: 19 },
   inlineRetryLabel: { color: colors.accent, fontSize: 14, fontWeight: '700' },
@@ -834,5 +841,6 @@ const useShelfScreenStyles = createThemedStyles((colors) => ({
   unavailableCover: { alignItems: 'center', backgroundColor: colors.card, borderColor: colors.separator, borderCurve: 'continuous', borderRadius: 12, borderWidth: 0.5, justifyContent: 'center', overflow: 'hidden' },
   unavailableItem: { alignItems: 'center' },
   unavailableOverlay: { alignItems: 'center', bottom: 0, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 },
-  unavailableTitle: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 16, paddingHorizontal: 2, paddingTop: 8, textAlign: 'center' },
+  unavailableTitle: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 16, textAlign: 'center' },
+  unavailableTitleContainer: { height: BOOK_GRID_TITLE_HEIGHT, justifyContent: 'center', paddingHorizontal: 2, width: '100%' },
 }));

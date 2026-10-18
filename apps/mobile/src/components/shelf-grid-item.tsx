@@ -19,6 +19,7 @@ import type { BookListItem } from '@novella/api-client';
 
 import { BookCoverImage } from '@/components/book-cover-image';
 import { BOOK_COVER_ASPECT_RATIO } from '@/components/book-cover-grid-item';
+import { BOOK_GRID_TITLE_HEIGHT } from '@/services/book-grid-layout';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 interface ShelfFolderGridItemProps {
@@ -218,7 +219,7 @@ const useShelfFolderGridItemStyles = createThemedStyles((colors) => ({
     textAlign: 'center',
   },
   titleContainer: {
-    height: 40,
+    height: BOOK_GRID_TITLE_HEIGHT,
     justifyContent: 'center',
     paddingHorizontal: 2,
     width: '100%',

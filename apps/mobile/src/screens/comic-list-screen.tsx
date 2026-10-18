@@ -23,7 +23,7 @@ import {
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import { ReflowFade } from '@/components/reflow-fade';
-import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
+import { BOOK_GRID_COLUMN_GAP, BOOK_GRID_ROW_GAP, useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
 import { useComicListPage } from '@/hooks/use-comic-list';
@@ -194,7 +194,7 @@ function ErrorState({ error, onRetry }: { error: LibraryMessage; onRetry(): void
 
 const useComicListScreenStyles = createThemedStyles((colors) => ({
   content: {
-    gap: 12,
+    gap: BOOK_GRID_ROW_GAP,
     paddingBottom: 40,
   },
   emptyDescription: {
@@ -254,7 +254,6 @@ const useComicListScreenStyles = createThemedStyles((colors) => ({
   row: {
     alignItems: 'flex-start',
     flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'space-between',
+    gap: BOOK_GRID_COLUMN_GAP,
   },
 }));

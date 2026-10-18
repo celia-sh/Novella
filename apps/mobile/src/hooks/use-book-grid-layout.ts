@@ -1,3 +1,5 @@
+import { PixelRatio } from 'react-native';
+
 import { useSettledLayout } from '@/hooks/use-settled-layout';
 import { pageMarginForWidth } from '@/hooks/use-wide-layout';
 import {
@@ -10,6 +12,7 @@ import {
 export {
   BOOK_GRID_COLUMN_GAP,
   BOOK_GRID_ROW_GAP,
+  BOOK_GRID_TITLE_HEIGHT,
   bookGridColumns,
   bookGridListKey,
   homeBookGridPreviewCount,
@@ -31,7 +34,7 @@ export function useBookGridLayout(): BookGridLayout & { pageMargin: number } {
     width - insets.left - insets.right - horizontalPadding * 2,
   );
   const columns = bookGridColumns(contentWidth);
-  const tileWidth = bookGridTileWidth(contentWidth, columns);
+  const tileWidth = bookGridTileWidth(contentWidth, columns, PixelRatio.get());
   return {
     columns,
     contentWidth,

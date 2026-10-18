@@ -31,6 +31,7 @@ import {
   homeBookGridPreviewCount,
   useBookGridLayout,
   BOOK_GRID_COLUMN_GAP,
+  BOOK_GRID_ROW_GAP,
 } from '@/hooks/use-book-grid-layout';
 import {
   useCoverScrollViewport,
@@ -582,13 +583,12 @@ function LocalizedMessage({
 
 const useHomeScreenStyles = createThemedStyles((colors) => ({
   bookGrid: {
-    gap: 12,
+    gap: BOOK_GRID_ROW_GAP,
   },
   bookRow: {
     alignItems: 'flex-start',
     flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'space-between',
+    gap: BOOK_GRID_COLUMN_GAP,
   },
   cardDescription: {
     color: colors.secondaryLabel,

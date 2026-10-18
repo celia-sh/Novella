@@ -6,6 +6,8 @@ import type { ShelfItemKey } from '@novella/client-core';
 
 import { shelfItemKey } from '@novella/client-core';
 
+import { BOOK_GRID_COLUMN_GAP, BOOK_GRID_ROW_GAP } from '@/services/book-grid-layout';
+
 export interface ReorderableShelfGridItemState {
   active: boolean;
 }
@@ -43,7 +45,7 @@ export function ReorderableShelfGrid({
         autoScrollActivationOffset={72}
         autoScrollEnabled
         autoScrollMaxVelocity={850}
-        columnGap={10}
+        columnGap={BOOK_GRID_COLUMN_GAP}
         columns={columns}
         data={items}
         dragActivationDelay={180}
@@ -59,7 +61,7 @@ export function ReorderableShelfGrid({
         overDrag="vertical"
         renderItem={renderSortableItem}
         reorderTriggerOrigin="touch"
-        rowGap={18}
+        rowGap={BOOK_GRID_ROW_GAP}
         sortEnabled={dragEnabled}
         strategy="insert"
       />

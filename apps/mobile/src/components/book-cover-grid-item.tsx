@@ -22,6 +22,7 @@ import {
   resolveBookCategoryBadge,
   resolveBookLevelBadge,
 } from '@/services/book-badge-definitions';
+import { BOOK_GRID_TITLE_HEIGHT } from '@/services/book-grid-layout';
 import { createThemedStyles } from '@/theme/app-theme';
 
 export const BOOK_COVER_ASPECT_RATIO = 2 / 3;
@@ -210,7 +211,7 @@ const useBookCoverGridItemStyles = createThemedStyles((colors) => ({
     textAlign: 'center',
   },
   titleContainer: {
-    height: 40,
+    height: BOOK_GRID_TITLE_HEIGHT,
     justifyContent: 'center',
     paddingHorizontal: 2,
   },

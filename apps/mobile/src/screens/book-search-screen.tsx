@@ -27,7 +27,7 @@ import {
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
 import { ReflowFade } from '@/components/reflow-fade';
-import { useBookGridLayout } from '@/hooks/use-book-grid-layout';
+import { BOOK_GRID_COLUMN_GAP, BOOK_GRID_ROW_GAP, useBookGridLayout } from '@/hooks/use-book-grid-layout';
 import { useFlatListCoverActivation } from '@/hooks/use-cover-activation';
 import type { LibraryMessage } from '@/localization/locales/library';
 import {
@@ -284,7 +284,7 @@ function SearchEmpty({
 }
 
 const useBookSearchScreenStyles = createThemedStyles((colors) => ({
-  content: { gap: 14, paddingBottom: 100 },
+  content: { gap: BOOK_GRID_ROW_GAP, paddingBottom: 100 },
   root: { flex: 1 },
   empty: { alignItems: 'center', gap: 10, paddingHorizontal: 28, paddingVertical: 56 },
   emptyText: { color: colors.secondaryLabel, fontSize: 14, lineHeight: 20, textAlign: 'center' },
@@ -299,6 +299,6 @@ const useBookSearchScreenStyles = createThemedStyles((colors) => ({
   historyWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   retryButton: { backgroundColor: colors.accent, borderCurve: 'continuous', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
   retryLabel: { color: colors.onPrimaryContainer, fontWeight: '700' },
-  row: { gap: 10 },
+  row: { gap: BOOK_GRID_COLUMN_GAP },
   sectionTitle: { color: colors.label, fontSize: 16, fontWeight: '700' },
 }));
