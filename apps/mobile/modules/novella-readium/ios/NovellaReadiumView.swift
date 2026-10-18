@@ -23,6 +23,16 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   private var preferences: [String: Any] = [:]
   private var contentInsets: [String: Double] = [:]
   private var navigator: EPUBNavigatorViewController?
+  private var openedPublication: Publication?
+  /**
+   * Readium's EPUB navigator invalidates pagination for font and margin
+   * changes, but not for a column-count change. A fold or rotation can flip a
+   * paged reader between one and two columns while the navigator already
+   * exists, so the new column count would be written to CSS without ever
+   * repaginating. Remember the layout the navigator was built with and rebuild
+   * it at the same reading position when that layout changes.
+   */
+  private var appliedLayoutKey: ReaderLayoutKey?
   private weak var registeredContentScrollView: UIScrollView?
   private weak var registeredContentScrollViewOwner: UIViewController?
   private var tapObserver: InputObservableToken?
@@ -73,6 +83,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
 
   func setContentInsets(_ value: [String: Double]) {
     contentInsets = value
+    updateNavigatorFrame()
     navigator?.view.setNeedsLayout()
     scheduleProgressMetricsUpdate()
   }
@@ -113,12 +124,30 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
 
   override func layoutSubviews() {
     super.layoutSubviews()
-    navigator?.view.frame = bounds
+    updateNavigatorFrame()
     registerNavigationContentScrollView()
     if bounds.size != lastLayoutSize {
       lastLayoutSize = bounds.size
       scheduleProgressMetricsUpdate()
     }
+  }
+
+  /**
+   * Readium only applies the vertical part of navigatorContentInset when it
+   * paginates. Inset the web view itself horizontally so paged columns stay
+   * clear of edge toolbars, while the reader background behind it still reaches
+   * the screen edges.
+   */
+  private func updateNavigatorFrame() {
+    guard let navigator else { return }
+    let left = max(0, contentInsets["left"] ?? 0)
+    let right = max(0, contentInsets["right"] ?? 0)
+    navigator.view.frame = bounds.inset(by: UIEdgeInsets(
+      top: 0,
+      left: left,
+      bottom: 0,
+      right: right
+    ))
   }
 
   override func didMoveToWindow() {
@@ -167,6 +196,8 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   }
 
   @MainActor private func install(publication: Publication) {
+    openedPublication = publication
+    appliedLayoutKey = makeLayoutKey()
     do {
       let location = initialLocator.flatMap { value in
         JSONValue(value).flatMap { try? Locator(json: $0, warnings: nil) }
@@ -188,30 +219,12 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       ]
       if let href = location?.href.description { openedStatus["href"] = href }
       onStatus(openedStatus)
-      let controller = try EPUBNavigatorViewController(
+      let controller = try makeNavigator(
         publication: publication,
         initialLocation: location,
-        readingOrder: navigatorReadingOrder,
-        config: EPUBNavigatorViewController.Configuration(
-          preferences: makePreferences(),
-          disablePageTurnsWhileScrolling: true,
-          preloadPreviousPositionCount: 0,
-          preloadNextPositionCount: 0
-        )
+        readingOrder: navigatorReadingOrder
       )
-      controller.delegate = self
-      detachNavigator()
-      navigator = controller
-      guard let parent = parentViewController else { throw PublicationViewError.missingParentController }
-      parent.addChild(controller)
-      addSubview(controller.view)
-      controller.didMove(toParent: parent)
-      controller.view.frame = bounds
-      installInputObservers()
-      registerNavigationContentScrollView()
-      DispatchQueue.main.async { [weak self] in
-        self?.registerNavigationContentScrollView()
-      }
+      try attachNavigator(controller)
       var installedStatus: [String: Any] = ["stage": "navigatorInstalled"]
       if let href = location?.href.description { installedStatus["href"] = href }
       onStatus(installedStatus)
@@ -219,6 +232,41 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       scheduleProgressMetricsUpdate()
     } catch {
       onError(["code": "navigator_failed", "message": String(describing: error), "recoverable": true])
+    }
+  }
+
+  @MainActor private func makeNavigator(
+    publication: Publication,
+    initialLocation: Locator?,
+    readingOrder: [ReadiumShared.Link]
+  ) throws -> EPUBNavigatorViewController {
+    let controller = try EPUBNavigatorViewController(
+      publication: publication,
+      initialLocation: initialLocation,
+      readingOrder: readingOrder,
+      config: EPUBNavigatorViewController.Configuration(
+        preferences: makePreferences(),
+        disablePageTurnsWhileScrolling: true,
+        preloadPreviousPositionCount: 0,
+        preloadNextPositionCount: 0
+      )
+    )
+    controller.delegate = self
+    return controller
+  }
+
+  @MainActor private func attachNavigator(_ controller: EPUBNavigatorViewController) throws {
+    detachNavigator()
+    navigator = controller
+    guard let parent = parentViewController else { throw PublicationViewError.missingParentController }
+    parent.addChild(controller)
+    addSubview(controller.view)
+    controller.didMove(toParent: parent)
+    updateNavigatorFrame()
+    installInputObservers()
+    registerNavigationContentScrollView()
+    DispatchQueue.main.async { [weak self] in
+      self?.registerNavigationContentScrollView()
     }
   }
 
@@ -239,10 +287,73 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     )
   }
 
+  private func makeLayoutKey() -> ReaderLayoutKey {
+    ReaderLayoutKey(
+      doublePage: (preferences["doublePage"] as? Bool) == true,
+      isPaged: (preferences["mode"] as? String) == "paged"
+    )
+  }
+
   private func applyPreferences() {
     guard let navigator else { return }
+    let layoutKey = makeLayoutKey()
+    if let appliedLayoutKey, appliedLayoutKey != layoutKey {
+      let needsColumnRebuild = appliedLayoutKey.isPaged
+        && layoutKey.isPaged
+        && appliedLayoutKey.doublePage != layoutKey.doublePage
+      self.appliedLayoutKey = layoutKey
+      if needsColumnRebuild {
+        // Preference setters run inside a React prop update. Rebuilding a child
+        // view controller there would mutate the view hierarchy mid-update, so
+        // defer it by one main-queue turn and read the position then.
+        DispatchQueue.main.async { [weak self] in
+          guard let self, let navigator = self.navigator else { return }
+          self.reinstallNavigator(at: navigator.currentLocation)
+        }
+        return
+      }
+      // A paged/scroll switch is already part of Readium's pagination
+      // invalidation, so submitPreferences repaginates with the new column
+      // count on its own. Reset readiness so the reload applies the column
+      // script and reports the new page layout once.
+      isReady = false
+    }
+    appliedLayoutKey = layoutKey
     navigator.submitPreferences(makePreferences())
     enforceScrollModeLayout(navigator.presentation)
+  }
+
+  /**
+   * Rebuild the navigator after a column-count change so Readium repaginates
+   * from scratch with the new layout. The reading position carries over
+   * through the current locator.
+   */
+  private func reinstallNavigator(at location: Locator?) {
+    guard let publication = openedPublication else { return }
+    do {
+      let readingOrder: [ReadiumShared.Link]
+      if
+        let href = location?.href,
+        let index = publication.readingOrder.firstIndexWithHREF(href)
+      {
+        readingOrder = [publication.readingOrder[index]]
+      } else if let first = publication.readingOrder.first {
+        readingOrder = [first]
+      } else {
+        throw PublicationViewError.missingReadingOrder
+      }
+      let controller = try makeNavigator(
+        publication: publication,
+        initialLocation: location,
+        readingOrder: readingOrder
+      )
+      isReady = false
+      try attachNavigator(controller)
+      applyPreferences()
+      scheduleProgressMetricsUpdate()
+    } catch {
+      onError(["code": "navigator_failed", "message": String(describing: error), "recoverable": true])
+    }
   }
 
   private func enforceScrollModeLayout(_ presentation: VisualNavigatorPresentation) {
@@ -541,15 +652,18 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   }
 
   func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
-    if let epubNavigator = self.navigator {
-      enforceScrollModeLayout(epubNavigator.presentation)
-      registerNavigationContentScrollView()
-      scheduleProgressMetricsUpdate()
-    }
+    guard
+      let epubNavigator = self.navigator,
+      (navigator as? EPUBNavigatorViewController) === epubNavigator
+    else { return }
+    enforceScrollModeLayout(epubNavigator.presentation)
+    registerNavigationContentScrollView()
+    scheduleProgressMetricsUpdate()
     if !isReady {
       isReady = true
       onStatus(["stage": "resourceLoaded", "href": locator.href.description])
       onReady([:])
+      applyDoublePageColumnsIfNeeded()
     }
     onLocatorChange(bridgeLocator(locator))
   }
@@ -578,9 +692,52 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     return false
   }
 
+  private func applyDoublePageColumnsIfNeeded() {
+    guard
+      (preferences["mode"] as? String) == "paged",
+      (preferences["doublePage"] as? Bool) == true,
+      let navigator
+    else { return }
+    Task { [weak self, weak navigator] in
+      _ = await navigator?.evaluateJavaScript(Self.doublePageColumnScript)
+      DispatchQueue.main.async { self?.scheduleProgressMetricsUpdate() }
+    }
+  }
+
   func navigator(_ navigator: EPUBNavigatorViewController, setupUserScripts userContentController: WKUserContentController) {
     userContentController.add(self, name: "novellaReader")
+    // Readium CSS only honours --USER__colCount inside a media query whose
+    // smallest branch starts at 60em (960 CSS px). The Duo inner display is
+    // 951 points wide, so it falls in the gap between the phone-landscape
+    // branch (up to 47em) and the 60em branch: the user's two-column
+    // preference is never applied. Set the reading-system variable directly
+    // on the root so a two-column spread also works at this width.
+    let isPaged = (preferences["mode"] as? String) == "paged"
+    let doublePage = (preferences["doublePage"] as? Bool) == true
+    if isPaged && doublePage {
+      userContentController.addUserScript(WKUserScript(
+        source: Self.doublePageColumnScript,
+        injectionTime: .atDocumentStart,
+        forMainFrameOnly: false
+      ))
+    }
   }
+
+
+  private static let doublePageColumnScript = """
+  (function () {
+    function apply() {
+      var root = document.documentElement;
+      if (!root) return false;
+      root.style.setProperty('--RS__colCount', '2', 'important');
+      root.style.setProperty('--RS__colWidth', 'auto', 'important');
+      return true;
+    }
+    if (!apply()) {
+      document.addEventListener('DOMContentLoaded', apply, { once: true });
+    }
+  })();
+  """
 
   func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
     guard
@@ -590,8 +747,8 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       let uri = payload["uri"] as? String,
       let gesture = payload["gesture"] as? String
     else { return }
-    let expectsLongPress = (preferences["imagePreviewOpenOnLongPress"] as? Bool) == true
-    guard gesture == (expectsLongPress ? "longPress" : "tap") else { return }
+    let imagePreviewEnabled = (preferences["imagePreviewEnabled"] as? Bool) == true
+    guard imagePreviewEnabled, gesture == "longPress" else { return }
     suppressNextTap = true
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
       self?.suppressNextTap = false
@@ -616,11 +773,15 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   }
 
   func navigatorContentInset(_ navigator: VisualNavigator) -> UIEdgeInsets? {
+    // Horizontal safe-area room is applied by insetting the web view frame
+    // (see updateNavigatorFrame). Readium only honours left/right content
+    // insets in scroll mode, so passing them here would double the inset in
+    // scroll mode and still be ignored in paged mode.
     UIEdgeInsets(
       top: contentInsets["top"] ?? 0,
-      left: contentInsets["left"] ?? 0,
+      left: 0,
       bottom: contentInsets["bottom"] ?? 0,
-      right: contentInsets["right"] ?? 0
+      right: 0
     )
   }
 
@@ -680,6 +841,11 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     }
     return nil
   }
+}
+
+private struct ReaderLayoutKey: Equatable {
+  let doublePage: Bool
+  let isPaged: Bool
 }
 
 private enum PublicationViewError: Error {

@@ -55,7 +55,8 @@ test('chapter XHTML receives deterministic fragments and a relative font stylesh
   assert.match(html, /<p id="nv-block-1">Second block<\/p>/);
   assert.match(html, /href="\.\.\/styles\/reader\.css"/);
   assert.doesNotMatch(html, /nv-reader-image-interaction/);
-  assert.match(html, /e\.stopImmediatePropagation\(\);send\(i,'tap'\)/);
+  assert.doesNotMatch(html, /stopImmediatePropagation/);
+  assert.match(html, /send\(i,'longPress'\)/);
   assert.match(html, /window\.webkit\.messageHandlers\.novellaReader\.postMessage\(p\)/);
   assert.match(html, /classList\.contains\('no-preview'\).*classList\.contains\('footnote'\)/);
   assert.doesNotMatch(html, /preventDefault\(\)/);
@@ -315,7 +316,7 @@ test('reader colors cross the native bridge as opaque RGB hex', () => {
     backgroundColor: '#FFFBFEFF',
     firstLineIndent: false,
     fontSize: 16,
-    imagePreviewOpenOnLongPress: false,
+    imagePreviewEnabled: true,
     lineHeight: 1.6,
     mode: 'paged',
     sidePadding: 30,
@@ -332,7 +333,7 @@ test('reader preferences map first-line indentation to Readium rem units', () =>
   const base = {
     backgroundColor: '#ffffff',
     fontSize: 18,
-    imagePreviewOpenOnLongPress: false,
+    imagePreviewEnabled: true,
     lineHeight: 1.6,
     mode: 'paged',
     sidePadding: 30,
@@ -353,8 +354,8 @@ test('reader preferences map first-line indentation to Readium rem units', () =>
 });
 
 test('publication cache identity includes the conversion mode', () => {
-  assert.equal(readiumPublicationCacheKey(9, undefined), '9-none');
-  assert.equal(readiumPublicationCacheKey(9, 't2s'), '9-t2s');
+  assert.equal(readiumPublicationCacheKey(9, undefined), '9-none-v2');
+  assert.equal(readiumPublicationCacheKey(9, 't2s'), '9-t2s-v2');
   assert.equal(readiumBlockFragment(3), 'nv-block-3');
   assert.equal(readiumChapterHref(205), 'EPUB/chapters/205.xhtml');
 });

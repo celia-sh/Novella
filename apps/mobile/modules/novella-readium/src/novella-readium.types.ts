@@ -20,7 +20,7 @@ export interface ReadiumReaderPreferences {
   backgroundColor: string;
   doublePage: boolean;
   fontSize: number;
-  imagePreviewOpenOnLongPress: boolean;
+  imagePreviewEnabled: boolean;
   lineHeight: number;
   mode: 'paged' | 'scroll';
   pageAnimation: boolean;
