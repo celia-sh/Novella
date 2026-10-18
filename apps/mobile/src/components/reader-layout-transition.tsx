@@ -1,46 +1,49 @@
-import { BlurView } from 'expo-blur';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { useWindowDimensions } from 'react-native';
 
 import {
   addReaderLayoutDidChangeListener,
   addReaderLayoutWillChangeListener,
+  hideReaderLayoutTransitionCover,
+  setReaderLayoutTransitionAppearance,
+  showReaderLayoutTransitionCover,
 } from '@/services/reader-side-chrome';
-import { useAppColorScheme, useAppTheme } from '@/theme/app-theme';
+import { useAppColorScheme } from '@/theme/app-theme';
 
 // The native side reports the transition's start and end. Keep the cover for
 // a short settle window after the layout is applied so the remounted list can
 // re-anchor before it becomes visible.
 const SETTLE_MS = 200;
-const FADE_OUT_MS = 220;
 // If a transition finishes without reporting new dimensions, do not wait long.
 const END_FALLBACK_MS = 600;
-// A size transition that never reports new dimensions (or a stray native
-// event) must not leave the reader blurred.
-const FALLBACK_MS = 1500;
+// A size change during an active transition must not end the cover: UIKit is
+// still animating. Release it after this grace period if Did never arrives
+// (interactive resizing does not always run a transition coordinator).
+const NO_DID_FALLBACK_MS = 1000;
+// A stray native event must not leave the reader covered forever.
+const FALLBACK_MS = 2500;
 
 /**
- * Full-surface frosted overlay for reader layout changes.
+ * Drives the cover shown while the reader re-lays out.
  *
  * A fold, rotation, or resizable iPad window re-lays out the comic pages and
  * re-anchors the list to the current page, which paints intermediate offsets
  * before settling. The native module reports the size transition before UIKit
- * starts it, so the blur is already covering the reader when the jump happens;
- * React Native's dimensions update only afterwards.
+ * starts it, so the cover is already in place when the jump happens; React
+ * Native's dimensions update only afterwards.
+ *
+ * The cover is rendered by `NovellaLayoutTransitionOverlay` inside the root
+ * view controller's view rather than by this component: React lays its views
+ * out from the previous dimensions while UIKit is already re-laying out the
+ * screen, which leaves an uncovered band during a rotation. This component
+ * only runs the timing.
  */
 export function ReaderLayoutTransition() {
   const { height, width } = useWindowDimensions();
   const colorScheme = useAppColorScheme();
-  const { colors } = useAppTheme();
-  const opacity = useRef(new Animated.Value(0)).current;
-  const [visible, setVisible] = useState(false);
   const coverRef = useRef(false);
   const paintedRef = useRef(false);
+  const transitionActiveRef = useRef(false);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previousSize = useRef({ height, width });
@@ -60,32 +63,23 @@ export function ReaderLayoutTransition() {
     if (settleTimer.current !== null) clearTimeout(settleTimer.current);
     settleTimer.current = setTimeout(() => {
       settleTimer.current = null;
-      Animated.timing(opacity, {
-        duration: FADE_OUT_MS,
-        toValue: 0,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (!finished) return;
-        coverRef.current = false;
-        paintedRef.current = false;
-        setVisible(false);
-      });
+      coverRef.current = false;
+      paintedRef.current = false;
+      transitionActiveRef.current = false;
+      hideReaderLayoutTransitionCover();
     }, delay);
-  }, [opacity]);
+  }, []);
 
   // Raise the cover immediately: during a fold or resize the transition has
   // already begun, so there is no time for a fade-in.
   const raiseCover = useCallback(() => {
-    if (!coverRef.current) {
-      coverRef.current = true;
-      paintedRef.current = false;
-      setVisible(true);
-    }
-    opacity.stopAnimation();
-    opacity.setValue(1);
-  }, [opacity]);
+    coverRef.current = true;
+    showReaderLayoutTransitionCover(colorScheme === 'dark');
+  }, [colorScheme]);
 
   const handleLayoutWillChange = useCallback(() => {
+    transitionActiveRef.current = true;
+    paintedRef.current = false;
     raiseCover();
     clearTimers();
     fallbackTimer.current = setTimeout(() => {
@@ -96,6 +90,7 @@ export function ReaderLayoutTransition() {
 
   const handleLayoutDidChange = useCallback(() => {
     if (!coverRef.current) return;
+    transitionActiveRef.current = false;
     clearTimers();
     if (paintedRef.current) {
       // The new layout reached JS during the transition; let it re-anchor.
@@ -114,6 +109,16 @@ export function ReaderLayoutTransition() {
     raiseCover();
     paintedRef.current = true;
     clearTimers();
+    if (transitionActiveRef.current) {
+      // The interface is still animating. Hiding here is what let a rotation
+      // expose the comic halfway through; wait for Did, with a grace period in
+      // case no transition coordinator completion arrives.
+      fallbackTimer.current = setTimeout(() => {
+        fallbackTimer.current = null;
+        scheduleFadeOut(0);
+      }, NO_DID_FALLBACK_MS);
+      return;
+    }
     scheduleFadeOut(SETTLE_MS);
   }, [clearTimers, raiseCover, scheduleFadeOut]);
 
@@ -125,6 +130,10 @@ export function ReaderLayoutTransition() {
   }, [handleSizeChange, height, width]);
 
   useEffect(() => {
+    setReaderLayoutTransitionAppearance(colorScheme === 'dark');
+  }, [colorScheme]);
+
+  useEffect(() => {
     const willChangeSubscription =
       addReaderLayoutWillChangeListener(handleLayoutWillChange);
     const didChangeSubscription =
@@ -133,39 +142,16 @@ export function ReaderLayoutTransition() {
       willChangeSubscription?.remove();
       didChangeSubscription?.remove();
       clearTimers();
-      opacity.stopAnimation();
+      coverRef.current = false;
+      paintedRef.current = false;
+      transitionActiveRef.current = false;
+      hideReaderLayoutTransitionCover();
     };
   }, [
     clearTimers,
     handleLayoutDidChange,
     handleLayoutWillChange,
-    opacity,
   ]);
 
-  if (!visible) return null;
-
-  return (
-    <Animated.View
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      pointerEvents="none"
-      style={[styles.root, { opacity }]}
-    >
-      <BlurView
-        intensity={85}
-        style={StyleSheet.absoluteFill}
-        tint={colorScheme === 'dark' ? 'dark' : 'light'}
-      />
-      <View
-        style={[
-          StyleSheet.absoluteFill,
-          { backgroundColor: colors.background, opacity: 0.26 },
-        ]}
-      />
-    </Animated.View>
-  );
+  return null;
 }
-
-const styles = StyleSheet.create({
-  root: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
-});

@@ -12,8 +12,11 @@ export type ReaderVerticalBarEdge = 'leading' | 'trailing' | 'unspecified';
 
 interface NovellaUiModule {
   getVerticalBarEdge(): Promise<ReaderVerticalBarEdge>;
+  hideReaderLayoutTransition?(): Promise<void>;
   refreshReaderSideBar?(): Promise<void>;
   setReaderBottomToolbarHidden?(hidden: boolean): Promise<void>;
+  setReaderLayoutTransitionAppearance?(dark: boolean): Promise<void>;
+  showReaderLayoutTransition?(dark: boolean): Promise<void>;
   addListener?(
     eventName: 'onLayoutWillChange' | 'onLayoutDidChange',
     listener: () => void,
@@ -68,4 +71,34 @@ export function addReaderLayoutDidChangeListener(
   listener: () => void,
 ): EventSubscription | null {
   return NativeNovellaUi.addListener?.('onLayoutDidChange', listener) ?? null;
+}
+
+/**
+ * Raises the transition blur over the whole window.
+ *
+ * `dark` selects the same `.dark`/`.light` blur the reader used to render
+ * with expo-blur; the native side drives it to 85% with a paused property
+ * animator instead of using a system material.
+ *
+ * The cover is a native window subview, not a React view: during a rotation
+ * React still reports the previous dimensions while UIKit is already resizing
+ * and transforming the root view, so an absolutely positioned JS cover leaves
+ * a background band along the edges. A direct window subview keeps the
+ * window's bounds for the entire transition.
+ */
+/**
+ * The native side raises the cover itself when it sees the transition start,
+ * before the JS event can cross the bridge, so it needs the current blur style
+ * ahead of time.
+ */
+export function setReaderLayoutTransitionAppearance(dark: boolean): void {
+  NativeNovellaUi.setReaderLayoutTransitionAppearance?.(dark).catch(() => {});
+}
+
+export function showReaderLayoutTransitionCover(dark: boolean): void {
+  NativeNovellaUi.showReaderLayoutTransition?.(dark).catch(() => {});
+}
+
+export function hideReaderLayoutTransitionCover(): void {
+  NativeNovellaUi.hideReaderLayoutTransition?.().catch(() => {});
 }

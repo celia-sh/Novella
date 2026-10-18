@@ -28,6 +28,28 @@ public final class NovellaUiModule: Module {
       layoutWillChangeObserver.stop()
     }
 
+    /// Full-window transition cover. A React view is laid out from the old
+    /// Dimensions while UIKit is already transforming the root view, so its
+    /// edges expose the background during a rotation. This overlay lives on
+    /// the window above the root controller and keeps the window's bounds.
+    AsyncFunction("setReaderLayoutTransitionAppearance") { (dark: Bool) async in
+      await MainActor.run {
+        NovellaLayoutTransitionOverlay.shared.setAppearance(dark: dark)
+      }
+    }
+
+    AsyncFunction("showReaderLayoutTransition") { (dark: Bool) async in
+      await MainActor.run {
+        NovellaLayoutTransitionOverlay.shared.show(dark: dark)
+      }
+    }
+
+    AsyncFunction("hideReaderLayoutTransition") { () async in
+      await MainActor.run {
+        NovellaLayoutTransitionOverlay.shared.hide()
+      }
+    }
+
     AsyncFunction("rasterizeReaderImage") { (uri: String, maxPixelSize: Int) async throws -> String in
       try await ReaderImageRasterizer.rasterize(uri: uri, maxPixelSize: maxPixelSize)
     }
@@ -218,7 +240,9 @@ private final class NovellaLayoutWillChangeObserver {
   private var willChangeToken: NSObjectProtocol?
   private var didChangeToken: NSObjectProtocol?
   private var keyWindowToken: NSObjectProtocol?
+  private var orientationToken: NSObjectProtocol?
   private var frameObservation: NSKeyValueObservation?
+  private var boundsObservation: NSKeyValueObservation?
   private weak var observedWindow: UIWindow?
   private var lastStart: CFTimeInterval = 0
   private var onWillChange: (() -> Void)?
@@ -231,7 +255,10 @@ private final class NovellaLayoutWillChangeObserver {
     willChangeToken = NotificationCenter.default.addObserver(
       forName: Notification.Name("NovellaLayoutWillChangeNotification"),
       object: nil,
-      queue: .main
+      // `nil` delivers synchronously on the posting thread, which is the main
+      // thread and is still inside `viewWillTransitionToSize:`. The cover must
+      // be in the window before UIKit starts the rotation animation.
+      queue: nil
     ) { [weak self] _ in
       self?.emitStart()
     }
@@ -252,8 +279,19 @@ private final class NovellaLayoutWillChangeObserver {
         self?.observe(window)
       }
     }
+    // A physical rotation always posts this, even in window contexts where
+    // the view-controller size transition is not the first signal. It is a
+    // backup for the swizzled Will notification.
+    UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+    orientationToken = NotificationCenter.default.addObserver(
+      forName: UIDevice.orientationDidChangeNotification,
+      object: nil,
+      queue: nil
+    ) { [weak self] _ in
+      self?.emitStart()
+    }
     Task { @MainActor [weak self] in
-      self?.observe(Self.keyWindow())
+      self?.observe(novellaKeyWindow())
     }
   }
 
@@ -272,8 +310,15 @@ private final class NovellaLayoutWillChangeObserver {
       NotificationCenter.default.removeObserver(keyWindowToken)
     }
     keyWindowToken = nil
+    if let orientationToken {
+      NotificationCenter.default.removeObserver(orientationToken)
+    }
+    orientationToken = nil
+    UIDevice.current.endGeneratingDeviceOrientationNotifications()
     frameObservation?.invalidate()
     frameObservation = nil
+    boundsObservation?.invalidate()
+    boundsObservation = nil
     observedWindow = nil
   }
 
@@ -281,8 +326,14 @@ private final class NovellaLayoutWillChangeObserver {
   private func observe(_ window: UIWindow?) {
     guard let window, window !== observedWindow else { return }
     frameObservation?.invalidate()
+    boundsObservation?.invalidate()
     observedWindow = window
     frameObservation = window.observe(\.frame, options: [.new]) { [weak self] _, _ in
+      self?.emitStart()
+    }
+    // Rotation can change the bounds without a frame change on some window
+    // contexts (the origin stays at zero while only the size swaps).
+    boundsObservation = window.observe(\.bounds, options: [.new]) { [weak self] _, _ in
       self?.emitStart()
     }
   }
@@ -293,13 +344,109 @@ private final class NovellaLayoutWillChangeObserver {
     // window KVO at once; the JS overlay only needs one signal per frame.
     guard now - lastStart >= 0.05 else { return }
     lastStart = now
+    // Raise the cover here as well as from JS. The event crosses the bridge,
+    // and a rotation can start before the JS handler runs.
+    if #available(iOS 17.0, *), Thread.isMainThread {
+      MainActor.assumeIsolated {
+        NovellaLayoutTransitionOverlay.shared.showCurrentAppearance()
+      }
+    } else {
+      Task { @MainActor in
+        NovellaLayoutTransitionOverlay.shared.showCurrentAppearance()
+      }
+    }
     onWillChange?()
   }
+}
 
-  private static func keyWindow() -> UIWindow? {
-    UIApplication.shared.connectedScenes
-      .compactMap { $0 as? UIWindowScene }
-      .flatMap(\.windows)
-      .first(where: \.isKeyWindow)
+@MainActor
+private func novellaKeyWindow() -> UIWindow? {
+  UIApplication.shared.connectedScenes
+    .compactMap { $0 as? UIWindowScene }
+    .flatMap(\.windows)
+    .first(where: \.isKeyWindow)
+}
+
+/// The cover used while the reader re-lays out.
+///
+/// It is a direct subview of the key window, above the whole controller
+/// hierarchy. React views keep the previous `Dimensions` while UIKit already
+/// re-lays out the screen, so a JS cover exposes the content during a
+/// rotation; the window-level view follows `window.bounds` through its
+/// autoresizing mask instead.
+@MainActor
+final class NovellaLayoutTransitionOverlay {
+  static let shared = NovellaLayoutTransitionOverlay()
+
+  private static let fadeDuration: TimeInterval = 0.22
+
+  private let container = UIView()
+  private let blurView = UIVisualEffectView(effect: nil)
+  private let scrimView = UIView()
+  private var blurStyle: UIBlurEffect.Style?
+  private var appearanceIsDark = false
+
+  private init() {
+    container.isUserInteractionEnabled = false
+    container.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    container.alpha = 0
+
+    blurView.isUserInteractionEnabled = false
+    blurView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    scrimView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    scrimView.backgroundColor = UIColor.systemGroupedBackground.withAlphaComponent(0.26)
+
+    container.addSubview(blurView)
+    container.addSubview(scrimView)
+  }
+
+  func setAppearance(dark: Bool) {
+    appearanceIsDark = dark
+  }
+
+  /// Raised from the native transition observer, before the JS event can
+  /// cross the bridge.
+  func showCurrentAppearance() {
+    show(dark: appearanceIsDark)
+  }
+
+  func show(dark: Bool) {
+    appearanceIsDark = dark
+    guard let window = novellaKeyWindow() else { return }
+    let wasCovering = container.superview != nil && container.alpha > 0
+    if container.superview !== window {
+      container.removeFromSuperview()
+      window.addSubview(container)
+    }
+    window.bringSubviewToFront(container)
+    container.frame = window.bounds
+    let style: UIBlurEffect.Style = dark ? .dark : .light
+    if !wasCovering || blurStyle != style {
+      blurStyle = style
+      // A direct effect always renders. expo-blur's intensity trick (a
+      // property animator held at a fraction) is invisible when it is created
+      // from an async call instead of a render pass, which left the reader
+      // with only the faint scrim.
+      blurView.effect = UIBlurEffect(style: style)
+    }
+    // A fade-out still in flight belongs to the previous change.
+    container.layer.removeAllAnimations()
+    container.alpha = 1
+  }
+
+  func hide() {
+    guard container.superview != nil else { return }
+    UIView.animate(
+      withDuration: Self.fadeDuration,
+      delay: 0,
+      options: [.beginFromCurrentState, .curveEaseOut]
+    ) { [container] in
+      container.alpha = 0
+    } completion: { [container] _ in
+      // Another change raised the cover while this fade was running.
+      guard container.alpha == 0, container.superview != nil else { return }
+      container.removeFromSuperview()
+      container.alpha = 1
+    }
   }
 }
