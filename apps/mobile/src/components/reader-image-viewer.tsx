@@ -54,8 +54,12 @@ function useCachedReaderImageSource(source: string): string {
 }
 
 export interface ReaderImageViewerProps {
+  /** Gesture that opens the viewer. `longPress` leaves taps to the page. */
+  activation?: 'tap' | 'longPress';
   alt: string;
   children: ReactNode;
+  /** Render the image without a viewer. */
+  disabled?: boolean;
   height?: number;
   onOpenChange?: (open: boolean) => void;
   open?: boolean;
@@ -65,8 +69,10 @@ export interface ReaderImageViewerProps {
 }
 
 export function ReaderImageViewer({
+  activation = 'tap',
   alt,
   children,
+  disabled = false,
   height,
   onOpenChange,
   open,
@@ -75,6 +81,7 @@ export function ReaderImageViewer({
   width,
 }: ReaderImageViewerProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const { t } = useTranslation('reader');
   const cachedSource = useCachedReaderImageSource(source);
   const imageSource = useMemo(() => ({ uri: cachedSource }), [cachedSource]);
   const imageSize = width !== undefined && height !== undefined
@@ -86,6 +93,10 @@ export function ReaderImageViewer({
     if (open === undefined) setUncontrolledOpen(nextOpen);
     onOpenChange?.(nextOpen);
   }, [onOpenChange, open]);
+  const longPressActivation = activation === 'longPress';
+  const longPressHandledRef = useRef(false);
+
+  if (disabled) return <>{children}</>;
 
   return (
     <>
@@ -101,12 +112,38 @@ export function ReaderImageViewer({
         showClose={false}
       >
         <ImageViewer.Trigger
+          accessible={!longPressActivation}
           alt={alt}
+          disabled={longPressActivation}
           {...(imageSize ? { height: imageSize.height, width: imageSize.width } : {})}
           radius={radius}
           source={imageSource}
         >
-          {children}
+          {longPressActivation ? (
+            <Pressable
+              accessibilityHint={t('accessibility.longPressPreview')}
+              accessibilityLabel={alt}
+              accessibilityRole="imagebutton"
+              delayLongPress={500}
+              onAccessibilityTap={() => handleOpenChange(true)}
+              onLongPress={() => {
+                longPressHandledRef.current = true;
+                handleOpenChange(true);
+              }}
+              onTouchCancel={() => {
+                longPressHandledRef.current = false;
+              }}
+              onTouchEnd={(event) => {
+                if (!longPressHandledRef.current) return;
+                longPressHandledRef.current = false;
+                // Keep the reader's page-turn tap handlers from also firing
+                // after a long press opened the preview.
+                event.stopPropagation();
+              }}
+            >
+              {children}
+            </Pressable>
+          ) : children}
         </ImageViewer.Trigger>
       </ImageViewer>
       {isOpen ? (

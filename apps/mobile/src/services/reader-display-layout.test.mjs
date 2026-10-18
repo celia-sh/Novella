@@ -12,12 +12,20 @@ import {
   resolveComicViewportRestoreTarget,
   shouldSplitLongComicPages,
   shouldUseReaderDoublePage,
+  shouldUseReaderSideChrome,
 } from './reader-display-layout.ts';
 
 test('double-page layout is reserved for large landscape viewports', () => {
   assert.equal(shouldUseReaderDoublePage(1366, 1024), true);
   assert.equal(shouldUseReaderDoublePage(844, 390), false);
   assert.equal(shouldUseReaderDoublePage(1024, 1366), false);
+});
+
+test('side chrome fallback matches the Duo inner display only', () => {
+  assert.equal(shouldUseReaderSideChrome(951, 669, false), true);
+  assert.equal(shouldUseReaderSideChrome(1366, 1024, true), false);
+  assert.equal(shouldUseReaderSideChrome(844, 390, false), false);
+  assert.equal(shouldUseReaderSideChrome(678, 466, false), false);
 });
 
 test('comic double-page sizing fills height without adding a center gap', () => {
@@ -227,4 +235,115 @@ test('comic display slots group adjacent pages without changing page indexes', (
   assert.equal(resolveComicDisplayIndex(0, 3, 2), 0);
   assert.equal(resolveComicDisplayIndex(1, 3, 2), 0);
   assert.equal(resolveComicDisplayIndex(2, 3, 2), 1);
+});
+
+test('width-fit paged comics split tall pages into viewport segments', () => {
+  const longPage = {
+    index: 0,
+    image: { width: 1000, height: 3000, placeholder: '', url: 'long' },
+  };
+  const slots = createComicPageDisplaySlots([longPage], 1, {
+    fitMode: 'width',
+    viewportHeight: 800,
+    viewportWidth: 1000,
+  });
+  assert.equal(slots.length, 4);
+  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentIndex), [0, 1, 2, 3]);
+  assert.equal(slots[0]?.items[0]?.segmentWidth, 1000);
+  assert.equal(slots[0]?.items[0]?.segmentHeight, 800);
+  assert.equal(slots[0]?.items[0]?.renderedImageWidth, 1000);
+  assert.equal(slots[0]?.items[0]?.renderedImageHeight, 3000);
+  assert.equal(slots[3]?.items[0]?.segmentOffset, 2400);
+});
+
+test('height-fit paged comics split wide pages into viewport segments', () => {
+  const widePage = {
+    index: 0,
+    image: { width: 4000, height: 1000, placeholder: '', url: 'wide' },
+  };
+  const slots = createComicPageDisplaySlots([widePage], 1, {
+    fitMode: 'height',
+    viewportHeight: 800,
+    viewportWidth: 1000,
+  });
+  assert.equal(slots.length, 4);
+  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentIndex), [0, 1, 2, 3]);
+  assert.equal(slots[0]?.items[0]?.segmentWidth, 1000);
+  assert.equal(slots[0]?.items[0]?.segmentHeight, 800);
+  assert.equal(slots[0]?.items[0]?.renderedImageWidth, 3200);
+  assert.equal(slots[0]?.items[0]?.renderedImageHeight, 800);
+  assert.equal(slots[3]?.items[0]?.segmentOffset, 3000);
+});
+
+test('width-fit comics pair wide pages that screen fit would isolate', () => {
+  const slots = createComicPageDisplaySlots([
+    { index: 0, image: { width: 2000, height: 1000, placeholder: '', url: 'a' } },
+    { index: 1, image: { width: 2000, height: 1000, placeholder: '', url: 'b' } },
+  ], 2, {
+    fitMode: 'width',
+    viewportHeight: 800,
+    viewportWidth: 1000,
+  });
+  assert.deepEqual(slots.map((slot) => slot.pages.map((page) => page.index)), [[0, 1]]);
+  assert.equal(slots[0]?.items[0]?.segmentCount, 1);
+});
+
+test('height-fit spreads fill the viewport height', () => {
+  const sizes = fitComicPageSpread([
+    { index: 0, image: { width: 1000, height: 1500, placeholder: '', url: 'a' } },
+    { index: 1, image: { width: 1000, height: 1500, placeholder: '', url: 'b' } },
+  ], 1200, 800, 'height');
+  assert.deepEqual(sizes, [
+    { width: 533.3333333333334, height: 800 },
+    { width: 533.3333333333334, height: 800 },
+  ]);
+});
+
+test('width-fit spreads divide the viewport width between pages', () => {
+  const sizes = fitComicPageSpread([
+    { index: 0, image: { width: 1000, height: 1500, placeholder: '', url: 'a' } },
+    { index: 1, image: { width: 1000, height: 1500, placeholder: '', url: 'b' } },
+  ], 1000, 800, 'width');
+  assert.deepEqual(sizes, [
+    { width: 500, height: 750 },
+    { width: 500, height: 750 },
+  ]);
+});
+
+test('height-fit wide pages are segmented instead of paired', () => {
+  const slots = createComicPageDisplaySlots([
+    { index: 0, image: { width: 2000, height: 1000, placeholder: '', url: 'a' } },
+    { index: 1, image: { width: 2000, height: 1000, placeholder: '', url: 'b' } },
+  ], 2, {
+    fitMode: 'height',
+    viewportHeight: 800,
+    viewportWidth: 1000,
+  });
+  assert.deepEqual(slots.map((slot) => slot.pages.map((page) => page.index)), [
+    [0],
+    [0],
+    [1],
+    [1],
+  ]);
+  assert.deepEqual(slots.map((slot) => slot.items[0]?.segmentIndex), [0, 1, 0, 1]);
+});
+
+test('a segmented opening page stays isolated in double-page offset mode', () => {
+  const slots = createComicPageDisplaySlots([
+    { index: 0, image: { width: 1000, height: 3000, placeholder: '', url: 'cover' } },
+    { index: 1, image: null },
+    { index: 2, image: null },
+  ], 2, {
+    doublePageOffset: true,
+    fitMode: 'width',
+    viewportHeight: 800,
+    viewportWidth: 1000,
+  });
+  assert.deepEqual(slots.map((slot) => slot.pages.map((page) => page.index)), [
+    [0],
+    [0],
+    [0],
+    [0],
+    [1, 2],
+  ]);
 });

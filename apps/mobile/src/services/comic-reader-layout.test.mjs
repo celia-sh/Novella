@@ -87,3 +87,18 @@ test('continuous comic width changes only on wide viewports', () => {
   assert.ok(Math.abs(getContinuousComicContentWidth(1024, 700) - 490) < 0.001);
   assert.ok(Math.abs(getContinuousComicContentWidth(768, 1024) - 716.8) < 0.001);
 });
+
+test('comic page fitting follows the selected fill mode', () => {
+  assert.deepEqual(fitComicPage(1000, 2000, 400, 600, 'screen'), {
+    width: 300,
+    height: 600,
+  });
+  assert.deepEqual(fitComicPage(1000, 2000, 400, 600, 'width'), {
+    width: 400,
+    height: 800,
+  });
+  assert.deepEqual(fitComicPage(2000, 1000, 400, 600, 'height'), {
+    width: 1200,
+    height: 600,
+  });
+});

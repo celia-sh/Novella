@@ -1,6 +1,7 @@
 import type { ComicPageSlot } from '@novella/reader-engine';
 
 export type ComicPageSegmentAxis = 'horizontal' | 'vertical';
+export type ComicPageFitMode = 'screen' | 'width' | 'height';
 
 export interface ComicPageDisplayItem {
   page: ComicPageSlot;
@@ -32,6 +33,7 @@ export interface ComicPageDisplaySlot {
 
 export interface ComicPageDisplayOptions {
   doublePageOffset?: boolean;
+  fitMode?: ComicPageFitMode;
   splitLongPages?: boolean;
   viewportHeight?: number;
   viewportWidth?: number;
@@ -53,32 +55,72 @@ export function shouldUseReaderDoublePage(width: number, height: number): boolea
   return safeWidth > safeHeight && Math.min(safeWidth, safeHeight) >= 600;
 }
 
+/**
+ * Geometry fallback for the vertical-bar layout, used only when the running
+ * native build cannot report `UITraitCollection.verticalBarEdge`. It matches
+ * the iPhone Duo inner display and excludes iPads, whose large landscape
+ * windows never move the navigation bar to the edge.
+ */
+export function shouldUseReaderSideChrome(
+  width: number,
+  height: number,
+  isPad: boolean,
+): boolean {
+  const safeWidth = positiveDimension(width, 1);
+  const safeHeight = positiveDimension(height, 1);
+  return !isPad && safeWidth > safeHeight && Math.min(safeWidth, safeHeight) >= 600;
+}
+
 export function createComicPageDisplaySlots(
   slots: readonly ComicPageSlot[],
   columns: number,
   options: ComicPageDisplayOptions = {},
 ): ComicPageDisplaySlot[] {
   const safeColumns = columns >= 2 ? 2 : 1;
+  const fitMode = options.fitMode ?? 'screen';
   const splitLongPages = safeColumns === 1
     && options.splitLongPages === true
     && hasPositiveDimension(options.viewportWidth)
     && hasPositiveDimension(options.viewportHeight);
   const doublePageOffset = safeColumns >= 2 && options.doublePageOffset === true;
+  const viewportWidth = options.viewportWidth;
+  const viewportHeight = options.viewportHeight;
+  const pairWidth = safeColumns >= 2
+    && typeof viewportWidth === 'number'
+    && viewportWidth > 0
+    ? viewportWidth / safeColumns
+    : viewportWidth;
+  const makeItems = (page: ComicPageSlot, availableWidth: number | undefined) => (
+    createComicPageDisplayItems(
+      page,
+      splitLongPages,
+      viewportWidth,
+      viewportHeight,
+      fitMode,
+      availableWidth,
+    )
+  );
   const displays: ComicPageDisplaySlot[] = [];
   let slotIndex = 0;
   if (doublePageOffset && slots.length > 0) {
     const first = slots[0];
     if (first) {
-      displays.push({
-        index: 0,
-        items: createComicPageDisplayItems(
-          first,
-          splitLongPages,
-          options.viewportWidth,
-          options.viewportHeight,
-        ),
-        pages: [first],
-      });
+      const firstItems = makeItems(first, viewportWidth);
+      if (firstItems.length > 1) {
+        firstItems.forEach((item) => {
+          displays.push({
+            index: displays.length,
+            items: [item],
+            pages: [first],
+          });
+        });
+      } else {
+        displays.push({
+          index: 0,
+          items: firstItems,
+          pages: [first],
+        });
+      }
       slotIndex = 1;
     }
   }
@@ -86,12 +128,7 @@ export function createComicPageDisplaySlots(
     const first = slots[slotIndex];
     if (!first) break;
 
-    const firstItems = createComicPageDisplayItems(
-      first,
-      splitLongPages,
-      options.viewportWidth,
-      options.viewportHeight,
-    );
+    const firstItems = makeItems(first, viewportWidth);
     // Every virtual segment is a separate paged item, while all segments keep
     // the same source ComicPageSlot and therefore the same logical progress.
     if (firstItems.length > 1) {
@@ -110,30 +147,38 @@ export function createComicPageDisplaySlots(
     // The item factory always returns one item for a non-segmented page.
     if (!firstItem) break;
     const second = slots[slotIndex + 1];
-    const secondItems = second
-      ? createComicPageDisplayItems(
-        second,
-        splitLongPages,
-        options.viewportWidth,
-        options.viewportHeight,
-      )
-      : [];
-    const secondItem = secondItems[0];
-    const canPair = safeColumns >= 2
-      && isComicPagePairable(first)
-      && second !== undefined
-      && secondItem !== undefined
-      && isComicPagePairable(second);
-    const pages: ComicPageSlot[] = canPair ? [first, second] : [first];
-    const items: ComicPageDisplayItem[] = canPair
-      ? [firstItem, secondItem]
-      : [firstItem];
+    let pairItems: [ComicPageDisplayItem, ComicPageDisplayItem] | null = null;
+    if (safeColumns >= 2 && second) {
+      if (fitMode === 'screen') {
+        if (isComicPagePairable(first) && isComicPagePairable(second)) {
+          const secondItems = makeItems(second, viewportWidth);
+          const secondItem = secondItems[0];
+          if (secondItems.length === 1 && secondItem) {
+            pairItems = [firstItem, secondItem];
+          }
+        }
+      } else {
+        // A spread gives each page half the viewport. Only pair when both pages
+        // still fit at that narrower width; otherwise keep them single so the
+        // fill mode can segment them without clipping.
+        const pairFirst = makeItems(first, pairWidth);
+        const pairSecond = makeItems(second, pairWidth);
+        if (
+          pairFirst.length === 1
+          && pairSecond.length === 1
+          && pairFirst[0]
+          && pairSecond[0]
+        ) {
+          pairItems = [pairFirst[0], pairSecond[0]];
+        }
+      }
+    }
     displays.push({
       index: displays.length,
-      items,
-      pages,
+      items: pairItems ?? [firstItem],
+      pages: pairItems && second ? [first, second] : [first],
     });
-    slotIndex += canPair ? 2 : 1;
+    slotIndex += pairItems ? 2 : 1;
   }
   return displays;
 }
@@ -188,9 +233,21 @@ export function fitComicPageSpread(
   pages: readonly ComicPageSlot[],
   maximumWidth: number,
   maximumHeight: number,
+  fitMode: ComicPageFitMode = 'screen',
 ): ComicPageDisplaySize[] {
   const widthLimit = positiveDimension(maximumWidth, 1);
   const heightLimit = positiveDimension(maximumHeight, 1);
+  if (fitMode === 'width') {
+    const width = widthLimit / Math.max(1, pages.length);
+    return pages.map((page) => {
+      const sourceWidth = positiveDimension(page.image?.width ?? 2, 2);
+      const sourceHeight = positiveDimension(page.image?.height ?? 3, 3);
+      return {
+        height: width * sourceHeight / sourceWidth,
+        width,
+      };
+    });
+  }
   const naturalSizes = pages.map((page) => {
     const sourceWidth = positiveDimension(page.image?.width ?? 2, 2);
     const sourceHeight = positiveDimension(page.image?.height ?? 3, 3);
@@ -199,6 +256,17 @@ export function fitComicPageSpread(
       width: heightLimit * sourceWidth / sourceHeight,
     };
   });
+  if (fitMode === 'height') {
+    const totalWidth = naturalSizes.reduce((sum, size) => sum + size.width, 0);
+    if (totalWidth <= widthLimit) return naturalSizes;
+    // Unknown dimensions cannot be segmented safely; fall back to contain so a
+    // spread never overflows the reader.
+    const scale = widthLimit / totalWidth;
+    return naturalSizes.map((size) => ({
+      height: size.height * scale,
+      width: size.width * scale,
+    }));
+  }
   const totalWidth = naturalSizes.reduce((sum, size) => sum + size.width, 0);
   const scale = totalWidth > widthLimit ? widthLimit / totalWidth : 1;
   return naturalSizes.map((size) => ({
@@ -295,6 +363,8 @@ function createComicPageDisplayItems(
   splitLongPages: boolean,
   viewportWidth: number | undefined,
   viewportHeight: number | undefined,
+  fitMode: ComicPageFitMode = 'screen',
+  availableWidth?: number,
 ): ComicPageDisplayItem[] {
   const normalItem: ComicPageDisplayItem = {
     page,
@@ -307,7 +377,7 @@ function createComicPageDisplayItems(
     segmentOffset: 0,
     segmentWidth: 0,
   };
-  if (!splitLongPages || !viewportWidth || !viewportHeight) return [normalItem];
+  if (!viewportWidth || !viewportHeight) return [normalItem];
 
   const image = page.image;
   if (
@@ -315,6 +385,44 @@ function createComicPageDisplayItems(
     || !hasPositiveDimension(image.width)
     || !hasPositiveDimension(image.height)
   ) return [normalItem];
+
+  if (fitMode === 'width') {
+    const width = positiveDimension(availableWidth ?? viewportWidth, viewportWidth);
+    const renderedHeight = image.height * (width / image.width);
+    const segmentCount = Math.ceil((renderedHeight - 0.5) / viewportHeight);
+    if (segmentCount <= 1) return [normalItem];
+    return Array.from({ length: segmentCount }, (_, segmentIndex) => ({
+      page,
+      renderedImageHeight: renderedHeight,
+      renderedImageWidth: width,
+      segmentAxis: 'vertical' as const,
+      segmentCount,
+      segmentHeight: viewportHeight,
+      segmentIndex,
+      segmentOffset: segmentIndex * viewportHeight,
+      segmentWidth: width,
+    }));
+  }
+
+  if (fitMode === 'height') {
+    const width = positiveDimension(availableWidth ?? viewportWidth, viewportWidth);
+    const renderedWidth = image.width * (viewportHeight / image.height);
+    const segmentCount = Math.ceil((renderedWidth - 0.5) / width);
+    if (segmentCount <= 1) return [normalItem];
+    return Array.from({ length: segmentCount }, (_, segmentIndex) => ({
+      page,
+      renderedImageHeight: viewportHeight,
+      renderedImageWidth: renderedWidth,
+      segmentAxis: 'horizontal' as const,
+      segmentCount,
+      segmentHeight: viewportHeight,
+      segmentIndex,
+      segmentOffset: segmentIndex * width,
+      segmentWidth: width,
+    }));
+  }
+
+  if (!splitLongPages) return [normalItem];
 
   if (image.width > image.height) {
     const halfSize = fitImageToViewport(

@@ -1,5 +1,7 @@
 import type { ReaderMode } from '@novella/reader-engine';
 
+import type { ComicPageFitMode } from './reader-display-layout.ts';
+
 export type ComicReadingDirection = -1 | 1;
 export type ComicTapDirection = -1 | 1;
 
@@ -97,12 +99,17 @@ export function fitComicPage(
   sourceHeight: number,
   maximumWidth: number,
   maximumHeight: number,
+  fitMode: ComicPageFitMode = 'screen',
 ): ComicImageSize {
   const width = positiveDimension(sourceWidth, 2);
   const height = positiveDimension(sourceHeight, 3);
   const widthLimit = positiveDimension(maximumWidth, 1);
   const heightLimit = positiveDimension(maximumHeight, 1);
-  const scale = Math.min(widthLimit / width, heightLimit / height);
+  const scale = fitMode === 'width'
+    ? widthLimit / width
+    : fitMode === 'height'
+      ? heightLimit / height
+      : Math.min(widthLimit / width, heightLimit / height);
   return {
     height: height * scale,
     width: width * scale,
