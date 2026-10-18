@@ -32,6 +32,7 @@ import {
   CommunityThreadCard,
   CommunityThreadSkeleton,
 } from '@/components/community/community-ui';
+import { FadingScrollRow } from '@/components/fading-scroll-row';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import {
   useCommunityHome,
@@ -324,14 +325,12 @@ function ChipRow({ children, inset = true }: { children: ReactNode; inset?: bool
   const styles = useCommunityHomeStyles();
   const pageMargin = usePageMargin();
   return (
-    <ScrollView
+    <FadingScrollRow
       contentContainerStyle={[styles.chipRow, inset && { paddingHorizontal: pageMargin }]}
-      horizontal
-      showsHorizontalScrollIndicator={false}
       style={styles.chipScroll}
     >
       {children}
-    </ScrollView>
+    </FadingScrollRow>
   );
 }
 
