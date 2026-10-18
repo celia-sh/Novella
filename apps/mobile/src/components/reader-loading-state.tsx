@@ -5,6 +5,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type ReaderLoadingPhase =
   | 'font'
@@ -87,15 +88,17 @@ export const ReaderReflowOverlayHost = forwardRef<
 
 export function ReaderLoadingState({ phase, accentColor, textColor }: ReaderLoadingStateProps) {
   const { t } = useTranslation('reader');
+  const insets = useSafeAreaInsets();
 
   const getMessage = () => {
     switch (phase) {
       case 'font':
         return t('loading.font');
       case 'content':
-        return t('loading.content');
       case 'publication':
-        return t('loading.publication');
+        // Opening or switching a novel reads as one operation; the comic
+        // reader uses the same single loading label.
+        return t('loading.novel');
       case 'layout':
         return t('loading.layout');
       case 'reflow':
@@ -104,7 +107,15 @@ export function ReaderLoadingState({ phase, accentColor, textColor }: ReaderLoad
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        // Center in the content area, not the window: on iPhone Duo the
+        // vertical bar owns one edge, and a window-centered spinner sits off
+        // the text column it is standing in for.
+        { paddingLeft: insets.left, paddingRight: insets.right },
+      ]}
+    >
       <ActivityIndicator color={accentColor} />
       <Text style={[styles.message, { color: textColor }]}>
         {getMessage()}

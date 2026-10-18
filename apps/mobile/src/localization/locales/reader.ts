@@ -23,10 +23,9 @@ export const zhCNReader = {
     pageCount: '{{count}} 页',
   },
   loading: {
-    content: '正在加载内容',
     font: '正在加载字体',
     layout: '正在排版',
-    publication: '正在准备章节',
+    novel: '正在加载小说',
     reflow: '正在应用设置',
   },
   errors: {
@@ -98,10 +97,9 @@ export const zhTWReader: TranslationShape<typeof zhCNReader> = {
     pageCount: '{{count}} 頁',
   },
   loading: {
-    content: '正在載入內容',
     font: '正在載入字型',
     layout: '正在排版',
-    publication: '正在準備章節',
+    novel: '正在載入小說',
     reflow: '正在套用設定',
   },
   errors: {

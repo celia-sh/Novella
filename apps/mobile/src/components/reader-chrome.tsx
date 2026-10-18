@@ -1,4 +1,5 @@
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconRefresh } from '@tabler/icons-react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -7,8 +8,16 @@ import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 export function ReaderPreparationState({ label, progress }: { label: string; progress?: string }) {
   const styles = useReaderChromeStyles();
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   return (
-    <View style={styles.centered}>
+    <View
+      style={[
+        styles.centered,
+        // Keep the spinner over the content column instead of the window; the
+        // Duo vertical bar occupies one edge.
+        { paddingLeft: 24 + insets.left, paddingRight: 24 + insets.right },
+      ]}
+    >
       <ActivityIndicator color={colors.accent as string} />
       <Text selectable style={styles.preparationLabel}>{label}</Text>
       {progress ? <Text selectable style={styles.preparationProgress}>{progress}</Text> : null}
