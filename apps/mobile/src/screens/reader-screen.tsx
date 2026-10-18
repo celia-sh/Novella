@@ -29,6 +29,11 @@ import {
   createReaderSideChromeInsets,
 } from '@/services/reader-chrome-layout';
 import { shouldUseReaderDoublePage } from '@/services/reader-display-layout';
+import {
+  SIDE_FADE_LOCATIONS,
+  SIDE_FADE_WIDTH,
+  sideFadeColors,
+} from '@/services/reader-side-fade';
 import { useReaderChapter, type ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
 import { useReaderFont } from '@/hooks/use-reader-font';
@@ -531,30 +536,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   );
 }
 
-// A smoothstep ramp: both ends level off, so the strip has no visible start
-// or end line. A linear or ease-in ramp still reads as a band, and readable
-// half-faded glyphs remain at the bar edge.
-const SIDE_FADE_STEP_COUNT = 10;
-const SIDE_FADE_LOCATIONS = Array.from(
-  { length: SIDE_FADE_STEP_COUNT + 1 },
-  (_, index) => index / SIDE_FADE_STEP_COUNT,
-) as [number, number, ...number[]];
-const SIDE_FADE_ALPHA_STOPS = SIDE_FADE_LOCATIONS.map(
-  (t) => t * t * (3 - 2 * t),
-);
-
-function sideFadeColors(background: string): [string, string, ...string[]] {
-  const base = background.slice(0, 7);
-  const colors = SIDE_FADE_ALPHA_STOPS.map((alpha) => {
-    const byte = Math.round(alpha * 255)
-      .toString(16)
-      .padStart(2, '0')
-      .toUpperCase();
-    return `${base}${byte}`;
-  });
-  return colors as [string, string, ...string[]];
-}
-
 const styles = StyleSheet.create({
   reader: { flex: 1 },
   root: { flex: 1 },
@@ -562,6 +543,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     position: 'absolute',
     top: 0,
-    width: 64,
+    width: SIDE_FADE_WIDTH,
   },
 });

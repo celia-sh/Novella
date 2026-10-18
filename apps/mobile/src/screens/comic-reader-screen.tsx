@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useNavigation, useRoute } from 'expo-router';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +22,8 @@ import {
   type ComicContent,
 } from '@novella/api-client';
 import { createComicPageSlots, mergeComicPageBatch, resolveReaderInitialIndex, resolveReaderRestorePosition, type ComicPageSlot, type ReaderMode, type ReaderOpenPosition } from '@novella/reader-engine';
+
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { createComicBlurHashPlaceholder } from '@/services/blurhash';
 import {
@@ -49,6 +52,11 @@ import { ReaderLayoutTransition } from '@/components/reader-layout-transition';
 import { ReaderErrorState, ReaderPreparationState } from '@/components/reader-chrome';
 import { ReaderNavigation } from '@/components/reader-navigation';
 import { subscribeReaderChapterSelection } from '@/services/reader-chapter-selection';
+import {
+  SIDE_FADE_LOCATIONS,
+  SIDE_FADE_WIDTH,
+  sideFadeColors,
+} from '@/services/reader-side-fade';
 import {
   getCachedReaderPosition,
   shouldUseCachedReaderPosition,
@@ -138,7 +146,11 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
   const { colors } = useAppTheme();
   const colorScheme = useAppColorScheme();
   const { height: windowHeight, width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const sideChrome = useReaderSideChrome();
+  // The reader root uses `colors.background` (a PlatformColor), which resolves
+  // to these values for the current scheme; the fade needs a literal colour.
+  const sideFadeBackground = colorScheme === 'dark' ? '#000000' : '#F2F2F7';
   // Comic pages occupy the complete reader viewport. Navigation bars are
   // overlays, matching Aidoku's contentInsetAdjustmentBehavior = .never.
   const comicViewportHeight = Math.max(1, windowHeight);
@@ -1035,6 +1047,22 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
       )}
         </>
       )}
+      {sideChrome && !chromeHidden ? (
+        // Comic pages run to the screen edge under the vertical bar. Fade the
+        // last strip into the app background so the glass controls stay
+        // readable over busy artwork.
+        <LinearGradient
+          colors={sideFadeColors(sideFadeBackground)}
+          end={{ x: 1, y: 0.5 }}
+          locations={SIDE_FADE_LOCATIONS}
+          pointerEvents="none"
+          start={{ x: 0, y: 0.5 }}
+          style={[
+            styles.sideFade,
+            { width: SIDE_FADE_WIDTH + insets.right },
+          ]}
+        />
+      ) : null}
       <ReaderLayoutTransition />
       </View>
       <ReaderNavigation
@@ -1342,6 +1370,12 @@ const styles = StyleSheet.create({
   retryLabel: { fontSize: 15, fontWeight: '600' },
   retryPage: { alignItems: 'center', borderRadius: 4, justifyContent: 'center' },
   root: { flex: 1 },
+  sideFade: {
+    bottom: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
   spread: { alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
   spreadTopAligned: { alignItems: 'flex-start' },
 });
