@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconArrowRight } from '@tabler/icons-react-native';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ import {
 import { AuthCoverTracks } from '@/components/auth-cover-tracks';
 import { AuthFooterLink, PasswordField } from '@/components/auth-fields';
 import { useAuthCoverMosaic } from '@/hooks/use-auth-cover-mosaic';
+import { useSettledLayout } from '@/hooks/use-settled-layout';
 import { authentication } from '@/services/client';
 import { useAuthPalette } from '@/theme/auth-theme';
 
@@ -25,7 +26,7 @@ export function AuthWelcomeScreen() {
   const covers = useAuthCoverMosaic();
   const { t } = useTranslation('auth');
   const insets = useSafeAreaInsets();
-  const { height, width } = useWindowDimensions();
+  const { height, width } = useSettledLayout();
   const palette = useAuthPalette();
   const isLargeScreen = width >= LARGE_WELCOME_BREAKPOINT;
   const trackWidth = isLargeScreen ? Math.round(width * 0.58) : width;

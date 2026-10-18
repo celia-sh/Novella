@@ -7,13 +7,11 @@ import {
   type ComponentType,
   type ReactNode,
 } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSettledLayout } from '@/hooks/use-settled-layout';
 import {
-  Pressable,
-  ScrollView,
+  Pressable,  ScrollView,
   StyleSheet,
   View,
-  useWindowDimensions,
   type ViewStyle,
 } from 'react-native';
 import Animated, {
@@ -226,12 +224,14 @@ function BookDetailContent({
   const { t } = useTranslation('book');
   const locale = useAppLocale();
   const {
-    bottom: bottomInset,
-    left: leftInset,
-    right: rightInset,
-    top: topInset,
-  } = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+    insets: {
+      bottom: bottomInset,
+      left: leftInset,
+      right: rightInset,
+      top: topInset,
+    },
+    width,
+  } = useSettledLayout();
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollViewOffset(scrollRef);
   const usableWidth = Math.max(1, width - leftInset - rightInset);

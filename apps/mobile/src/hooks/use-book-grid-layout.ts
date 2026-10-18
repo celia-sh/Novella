@@ -1,6 +1,4 @@
-import { useWindowDimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
+import { useSettledLayout } from '@/hooks/use-settled-layout';
 import {
   bookGridColumns,
   bookGridListKey,
@@ -18,12 +16,12 @@ export {
   type BookGridLayout,
 } from '@/services/book-grid-layout';
 
-/** Grid metrics derived from the current window; recomputed on resize
- * (rotation, iPad split view, stage manager). `horizontalPadding` is the
- * per-side page padding of the consuming screen (e.g. 20 or 16). */
+/** Grid metrics derived from the settled window; recomputed once a rotation,
+ * fold, or resizable iPad window stops moving instead of on every intermediate
+ * size. `horizontalPadding` is the per-side page padding of the consuming
+ * screen (e.g. 20 or 16). */
 export function useBookGridLayout(horizontalPadding: number): BookGridLayout {
-  const { height, width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const { height, insets, width } = useSettledLayout();
   // Grids sit inside HorizontalSafeArea, so the side rail's inset is not part
   // of the usable content width on iPhone Duo or in a split-view window.
   const contentWidth = Math.max(
