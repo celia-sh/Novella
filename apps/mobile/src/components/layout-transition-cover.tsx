@@ -20,25 +20,28 @@ const END_FALLBACK_MS = 600;
 // still animating. Release it after this grace period if Did never arrives
 // (interactive resizing does not always run a transition coordinator).
 const NO_DID_FALLBACK_MS = 1000;
-// A stray native event must not leave the reader covered forever.
-const FALLBACK_MS = 2500;
+// A stray native event must not leave the app covered forever. Real
+// transitions report dimensions or an end well inside this window.
+const FALLBACK_MS = 1200;
 
 /**
- * Drives the cover shown while the reader re-lays out.
+ * Covers the window while the app re-lays out after a rotation, a Duo fold, or
+ * an iPadOS window resize.
  *
- * A fold, rotation, or resizable iPad window re-lays out the comic pages and
- * re-anchors the list to the current page, which paints intermediate offsets
- * before settling. The native module reports the size transition before UIKit
- * starts it, so the cover is already in place when the jump happens; React
- * Native's dimensions update only afterwards.
+ * Every screen rebuilds its layout from the new dimensions, and the React
+ * commit lands a beat after UIKit has already resized the window; grids that
+ * change their column count also remount their list. The cover hides that beat
+ * instead of showing the old layout jump. The native module reports the size
+ * transition before UIKit starts it, so the cover is already in place when the
+ * re-layout happens; React Native's dimensions update only afterwards.
  *
- * The cover is rendered by `NovellaLayoutTransitionOverlay` inside the root
- * view controller's view rather than by this component: React lays its views
- * out from the previous dimensions while UIKit is already re-laying out the
- * screen, which leaves an uncovered band during a rotation. This component
- * only runs the timing.
+ * The cover is rendered by `NovellaLayoutTransitionOverlay` inside the key
+ * window rather than by this component: React lays its views out from the
+ * previous dimensions while UIKit is already re-laying out the screen, which
+ * leaves an uncovered band during a rotation. This component only runs the
+ * timing.
  */
-export function ReaderLayoutTransition() {
+export function LayoutTransitionCover() {
   const { height, width } = useWindowDimensions();
   const colorScheme = useAppColorScheme();
   const coverRef = useRef(false);
@@ -111,8 +114,8 @@ export function ReaderLayoutTransition() {
     clearTimers();
     if (transitionActiveRef.current) {
       // The interface is still animating. Hiding here is what let a rotation
-      // expose the comic halfway through; wait for Did, with a grace period in
-      // case no transition coordinator completion arrives.
+      // expose the content halfway through; wait for Did, with a grace period
+      // in case no transition coordinator completion arrives.
       fallbackTimer.current = setTimeout(() => {
         fallbackTimer.current = null;
         scheduleFadeOut(0);

@@ -12,8 +12,10 @@ import { useTranslation } from 'react-i18next';
 import { BookDetailThemeProvider } from '@/components/book-detail-theme-provider';
 import { ClientRealtimeEvents } from '@/components/client-realtime-events';
 import { ClientSessionFeedback } from '@/components/client-session-feedback';
+import { LayoutTransitionCover } from '@/components/layout-transition-cover';
 import { AppLocalizationProvider } from '@/localization/localization-provider';
 import { useAuthentication } from '@/hooks/use-authentication';
+import { SettledLayoutProvider } from '@/hooks/use-settled-layout';
 import { runAutomaticAppUpdateCheck } from '@/services/app-update-alerts';
 import { shouldShowAuthenticatedRoutes } from '@/services/auth-route-guard';
 import { hasStoredSession, startClient } from '@/services/client';
@@ -106,6 +108,7 @@ function RootLayoutContent() {
 
   return (
     <ThemeProvider value={navigationTheme}>
+      <SettledLayoutProvider>
         <BookDetailThemeProvider>
           <Stack screenOptions={systemScreenStackPreset}>
             <Stack.Protected guard={hasAuthenticatedSession}>
@@ -303,8 +306,10 @@ function RootLayoutContent() {
           </Stack>
           <ClientSessionFeedback sessionDecided={sessionDecided} />
           <ClientRealtimeEvents />
+          <LayoutTransitionCover />
         </BookDetailThemeProvider>
-      </ThemeProvider>
+      </SettledLayoutProvider>
+    </ThemeProvider>
   );
 }
 

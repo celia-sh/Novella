@@ -48,9 +48,8 @@ import {
 import { bookDetails, reader } from '@/services/client';
 import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation';
 import { ReaderImageViewer } from '@/components/reader-image-viewer';
-import { ReaderLayoutTransition } from '@/components/reader-layout-transition';
-import { ReaderErrorState, ReaderPreparationState } from '@/components/reader-chrome';
 import { ReaderNavigation } from '@/components/reader-navigation';
+import { ReaderErrorState, ReaderPreparationState } from '@/components/reader-chrome';
 import { subscribeReaderChapterSelection } from '@/services/reader-chapter-selection';
 import {
   SIDE_FADE_LOCATIONS,
@@ -1063,7 +1062,6 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           ]}
         />
       ) : null}
-      <ReaderLayoutTransition />
       </View>
       <ReaderNavigation
         chromeHidden={chromeHidden}
