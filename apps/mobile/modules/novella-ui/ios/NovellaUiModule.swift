@@ -10,7 +10,7 @@ public final class NovellaUiModule: Module {
 
     /// Fires around a size transition. React Native's `Dimensions` updates
     /// only after the window frame or orientation notification has settled,
-    /// which is too late to cover the reader's layout jump.
+    /// which is too late to cover the layout jump.
     Events("onLayoutWillChange", "onLayoutDidChange")
 
     OnStartObserving("onLayoutWillChange") {
@@ -240,11 +240,9 @@ private final class NovellaLayoutWillChangeObserver {
   private var willChangeToken: NSObjectProtocol?
   private var didChangeToken: NSObjectProtocol?
   private var keyWindowToken: NSObjectProtocol?
-  private var orientationToken: NSObjectProtocol?
   private var frameObservation: NSKeyValueObservation?
   private var boundsObservation: NSKeyValueObservation?
   private weak var observedWindow: UIWindow?
-  private var orientationEventsActive = false
   private var lastStart: CFTimeInterval = 0
   private var onWillChange: (() -> Void)?
   private var onDidChange: (() -> Void)?
@@ -280,17 +278,11 @@ private final class NovellaLayoutWillChangeObserver {
         self?.observe(window)
       }
     }
-    // A physical rotation always posts this, even in window contexts where
-    // the view-controller size transition is not the first signal. It is a
-    // backup for the swizzled Will notification.
-    setOrientationEventsActive(true)
-    orientationToken = NotificationCenter.default.addObserver(
-      forName: UIDevice.orientationDidChangeNotification,
-      object: nil,
-      queue: nil
-    ) { [weak self] _ in
-      self?.emitStart()
-    }
+    // A physical rotation is not a start signal: the Duo outer display keeps
+    // the interface in one orientation, so the device still reports a rotation
+    // while the window never resizes and nothing needs covering. The Will
+    // swizzle and the key-window bounds KVO below only fire on a real size
+    // transition.
     Task { @MainActor [weak self] in
       self?.observe(novellaKeyWindow())
     }
@@ -311,37 +303,11 @@ private final class NovellaLayoutWillChangeObserver {
       NotificationCenter.default.removeObserver(keyWindowToken)
     }
     keyWindowToken = nil
-    if let orientationToken {
-      NotificationCenter.default.removeObserver(orientationToken)
-    }
-    orientationToken = nil
-    setOrientationEventsActive(false)
     frameObservation?.invalidate()
     frameObservation = nil
     boundsObservation?.invalidate()
     boundsObservation = nil
     observedWindow = nil
-  }
-
-  /// `UIDevice` forwards orientation event registration to FrontBoard, whose
-  /// run-loop queue asserts it is on the main thread and traps otherwise.
-  /// Expo runs `OnStartObserving` / `OnStopObserving` on its async-function
-  /// queue, so hop to main and track the state there to keep the calls
-  /// balanced even when a start and a stop arrive back to back.
-  private func setOrientationEventsActive(_ active: Bool) {
-    guard Thread.isMainThread else {
-      Task { @MainActor [weak self] in
-        self?.setOrientationEventsActive(active)
-      }
-      return
-    }
-    guard orientationEventsActive != active else { return }
-    orientationEventsActive = active
-    if active {
-      UIDevice.current.beginGeneratingDeviceOrientationNotifications()
-    } else {
-      UIDevice.current.endGeneratingDeviceOrientationNotifications()
-    }
   }
 
   @MainActor
@@ -389,7 +355,7 @@ private func novellaKeyWindow() -> UIWindow? {
     .first(where: \.isKeyWindow)
 }
 
-/// The cover used while the reader re-lays out.
+/// The cover used while the app re-lays out after a size transition.
 ///
 /// It is a direct subview of the key window, above the whole controller
 /// hierarchy. React views keep the previous `Dimensions` while UIKit already

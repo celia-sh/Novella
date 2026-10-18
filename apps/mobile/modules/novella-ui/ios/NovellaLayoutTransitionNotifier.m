@@ -3,13 +3,13 @@
 
 /// Posted on the main thread right before a view-controller size transition
 /// starts: rotation, a fold/unfold display change, or an iPad window resize.
-/// The Expo module forwards it to JS so the reader can cover the surface before
+/// The Expo module forwards it to JS so the app can cover the surface before
 /// the new layout is applied.
 NSNotificationName const NovellaLayoutWillChangeNotification =
     @"NovellaLayoutWillChangeNotification";
 
-/// Posted when UIKit finishes (or cancels) the size transition, so the reader
-/// can fade the cover out on the real end instead of guessing a duration.
+/// Posted when UIKit finishes (or cancels) the size transition, so the cover
+/// can fade out on the real end instead of guessing a duration.
 NSNotificationName const NovellaLayoutDidChangeNotification =
     @"NovellaLayoutDidChangeNotification";
 
