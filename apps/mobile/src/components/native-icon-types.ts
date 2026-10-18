@@ -31,6 +31,7 @@ export type NativeIconName =
   | 'announcement'
   | 'appUpdate'
   | 'content'
+  | 'comicCoverOffset'
   | 'comicPageLayout'
   | 'continueReading'
   | 'coverColor'

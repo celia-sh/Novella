@@ -173,7 +173,7 @@ export function ReaderSettingsContent() {
         />
         <NativeToggleRow
           description={t('reader.behavior.comicDoublePageOffsetDescription')}
-          icon="comicPageLayout"
+          icon="comicCoverOffset"
           onValueChange={(value) => void updateAppSettings({ comicDoublePageOffset: value })}
           title={t('reader.behavior.comicDoublePageOffsetTitle')}
           value={settings.comicDoublePageOffset}
