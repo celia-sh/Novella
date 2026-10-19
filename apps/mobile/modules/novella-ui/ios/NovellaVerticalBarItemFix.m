@@ -140,11 +140,86 @@ static BOOL NovellaApplyVerticalBarAxisToItems(NSArray<UIBarButtonItem *> *items
 
 @end
 
+/// The tab bar controller decides whether to host its tab bar in the vertical
+/// bar when its `verticalBarEdge` trait is resolved, and that trait depends on
+/// whether the controller's view sits along the display edge.
+///
+/// react-native-screens inserts `RNSTabBarController`'s view before Auto Layout
+/// sizes it, so it arrives with UIKit's default frame: the main screen, which on
+/// the iPhone Duo is the outer display. On the inner display that view does not
+/// reach the trailing edge, the edge resolves to unspecified, and UIKit skips
+/// the tab bar's floating container. A cold start or a JS reload on the inner
+/// display therefore shows no tab bar. An unfold has the same window while
+/// React resizes the host, and can leave the regular-width floating tab bar in
+/// the top-left corner. UIKit does not revisit the decision when the edge
+/// becomes available again; hiding and showing the bar does.
+static BOOL NovellaIsScreenTabBarController(UIViewController *controller)
+{
+  return [NSStringFromClass(controller.class) hasPrefix:@"RNSTabBarController"];
+}
+
+static void NovellaReinstallTabBarInVerticalBar(UITabBarController *controller)
+API_AVAILABLE(ios(27.1))
+{
+  if (controller.viewIfLoaded.window == nil || controller.isTabBarHidden ||
+      controller.traitCollection.verticalBarEdge == UIVerticalBarEdgeUnspecified) {
+    return;
+  }
+  [UIView performWithoutAnimation:^{
+    [controller setTabBarHidden:YES animated:NO];
+    [controller setTabBarHidden:NO animated:NO];
+  }];
+}
+
+@interface UITabBarController (NovellaVerticalBarTabs)
+@end
+
+@implementation UITabBarController (NovellaVerticalBarTabs)
+
+- (void)novella_viewDidLoad
+{
+  [self novella_viewDidLoad];
+  if (@available(iOS 27.1, *)) {
+    if (!NovellaIsScreenTabBarController(self)) {
+      return;
+    }
+    [self registerForTraitChanges:UITraitCollection.systemTraitsAffectingVerticalBarEdge
+                      withHandler:^(UITabBarController *controller, UITraitCollection *previousTraitCollection) {
+                        if (previousTraitCollection.verticalBarEdge != UIVerticalBarEdgeUnspecified ||
+                            controller.traitCollection.verticalBarEdge == UIVerticalBarEdgeUnspecified) {
+                          return;
+                        }
+                        // Let UIKit finish the trait update that dropped the
+                        // floating container before asking it to rebuild.
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                          NovellaReinstallTabBarInVerticalBar(controller);
+                        });
+                      }];
+  }
+}
+
+@end
+
 static void NovellaSwizzleInstanceMethod(Class cls, SEL originalSelector, SEL replacementSelector)
 {
   Method original = class_getInstanceMethod(cls, originalSelector);
   Method replacement = class_getInstanceMethod(cls, replacementSelector);
-  if (original != NULL && replacement != NULL) {
+  if (original == NULL || replacement == NULL) {
+    return;
+  }
+  // An inherited method is added to `cls` first, so the superclass keeps its
+  // implementation.
+  if (class_addMethod(
+          cls,
+          originalSelector,
+          method_getImplementation(replacement),
+          method_getTypeEncoding(replacement))) {
+    class_replaceMethod(
+        cls,
+        replacementSelector,
+        method_getImplementation(original),
+        method_getTypeEncoding(original));
+  } else {
     method_exchangeImplementations(original, replacement);
   }
 }
@@ -179,6 +254,11 @@ static void NovellaSwizzleInstanceMethod(Class cls, SEL originalSelector, SEL re
         [UINavigationItem class],
         @selector(setRightBarButtonItems:animated:),
         @selector(novella_setRightBarButtonItems:animated:));
+
+    NovellaSwizzleInstanceMethod(
+        [UITabBarController class],
+        @selector(viewDidLoad),
+        @selector(novella_viewDidLoad));
   });
 }
 
