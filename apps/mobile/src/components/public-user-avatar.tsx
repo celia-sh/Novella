@@ -5,6 +5,7 @@ import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { ProfileAvatar, type ProfileAvatarProps } from '@/components/profile-avatar';
+import { useScrollGuardedPress } from '@/hooks/use-scroll-press-guard';
 
 export interface PublicUserAvatarProps extends Pick<ProfileAvatarProps, 'avatarUrl' | 'fallbackBackground' | 'fallbackColor' | 'size' | 'userName'> {
   style?: StyleProp<ViewStyle>;
@@ -23,6 +24,13 @@ export const PublicUserAvatar = memo(function PublicUserAvatar({
 }: PublicUserAvatarProps) {
   const { t } = useTranslation('user');
   const valid = Number.isSafeInteger(userId) && userId > 0;
+  const press = useScrollGuardedPress((event: GestureResponderEvent) => {
+    event.stopPropagation();
+    router.push({
+      pathname: '/user/[id]',
+      params: { id: String(userId) },
+    });
+  });
   const avatar = (
     <ProfileAvatar
       avatarUrl={avatarUrl}
@@ -45,19 +53,12 @@ export const PublicUserAvatar = memo(function PublicUserAvatar({
   }
 
   const name = userName.trim() || t('profile.title');
-  const openProfile = (event: GestureResponderEvent) => {
-    event.stopPropagation();
-    router.push({
-      pathname: '/user/[id]',
-      params: { id: String(userId) },
-    });
-  };
 
   return (
     <Pressable
       accessibilityLabel={t('accessibility.openProfile', { name })}
       accessibilityRole="button"
-      onPress={openProfile}
+      {...press}
       style={({ pressed }) => [style, pressed && { opacity: 0.68 }]}
     >
       {avatar}

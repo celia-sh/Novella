@@ -5,7 +5,7 @@ import {
 } from '@tabler/icons-react-native';
 import { router, Stack } from 'expo-router';
 import { Skeleton } from 'panelui-native/components/skeleton';
-import { useCallback, type ReactNode } from 'react';
+import { useCallback, useRef, type ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import {
@@ -34,6 +34,7 @@ import {
 } from '@/components/community/community-ui';
 import { FadingScrollRow } from '@/components/fading-scroll-row';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
+import { ScrollPressGuard, useScrollGuardedPress } from '@/hooks/use-scroll-press-guard';
 import {
   useCommunityHome,
   type CommunityHomeQuery,
@@ -81,8 +82,10 @@ export function CommunityHomeScreen() {
     });
   }, []);
 
+  const scrollOffset = useRef(0);
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    scrollOffset.current = contentOffset.y;
     const distanceFromEnd = contentSize.height - layoutMeasurement.height - contentOffset.y;
     if (distanceFromEnd < LOAD_MORE_DISTANCE) void loadMore();
   }, [loadMore]);
@@ -110,6 +113,7 @@ export function CommunityHomeScreen() {
     return (
       <>
         <Stack.Screen options={rootTitle} />
+        <ScrollPressGuard offset={scrollOffset}>
         <HorizontalSafeArea style={styles.root}>
           <ScrollView
             alwaysBounceVertical
@@ -164,6 +168,7 @@ export function CommunityHomeScreen() {
             </View>
           </ScrollView>
         </HorizontalSafeArea>
+        </ScrollPressGuard>
         {navigation}
       </>
     );
@@ -180,6 +185,7 @@ export function CommunityHomeScreen() {
       {/* No title: with the bar on the side (iPhone Duo, landscape) an empty
           title lets the top bar collapse and the panes start at the top. */}
       <Stack.Screen options={rootTitle} />
+      <ScrollPressGuard offset={scrollOffset}>
       <HorizontalSafeArea style={[styles.root, styles.splitRow]}>
         <ScrollView
           contentContainerStyle={[styles.sidebarContent, margin]}
@@ -244,6 +250,7 @@ export function CommunityHomeScreen() {
           />
         </ScrollView>
       </HorizontalSafeArea>
+      </ScrollPressGuard>
       {navigation}
     </>
   );
@@ -306,13 +313,14 @@ function AnnouncementRow({
   const styles = useCommunityHomeStyles();
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
+  const press = useScrollGuardedPress(() => router.push('/announcements'));
   if (!home.announcement) return null;
 
   return (
     <Pressable
       accessibilityHint={t('announcements.accessibility.openCenter')}
       accessibilityRole="button"
-      onPress={() => router.push('/announcements')}
+      {...press}
       style={({ pressed }) => [styles.announcementRow, pressed && styles.rowPressed]}
     >
       <IconSpeakerphone color={colors.secondaryLabel as string} size={18} strokeWidth={2} />
@@ -350,6 +358,7 @@ function BoardChip({
   selected: boolean;
 }) {
   const styles = useCommunityHomeStyles();
+  const press = useScrollGuardedPress(onPress);
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
   const locale = useAppLocale();
@@ -364,7 +373,7 @@ function BoardChip({
       })}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      onPress={onPress}
+      {...press}
       style={({ pressed }) => [
         styles.chip,
         selected && styles.chipSelected,
@@ -444,12 +453,13 @@ function SubCategoryChip({
   selected: boolean;
 }) {
   const styles = useCommunityHomeStyles();
+  const press = useScrollGuardedPress(onPress);
   return (
     <Pressable
       accessibilityLabel={label}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      onPress={onPress}
+      {...press}
       style={({ pressed }) => [
         styles.subChip,
         selected && styles.subChipSelected,
@@ -476,6 +486,7 @@ function BoardListRow({
   selected: boolean;
 }) {
   const styles = useCommunityHomeStyles();
+  const press = useScrollGuardedPress(onPress);
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
   const locale = useAppLocale();
@@ -490,7 +501,7 @@ function BoardListRow({
       })}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      onPress={onPress}
+      {...press}
       style={({ pressed }) => [
         styles.boardRow,
         first && styles.groupFirst,

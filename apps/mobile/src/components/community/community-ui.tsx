@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import type { CommunityFeedItem } from "@novella/api-client";
 
 import { PublicUserAvatar } from "@/components/public-user-avatar";
+import { useScrollGuardedPress } from "@/hooks/use-scroll-press-guard";
 import { useAppLocale } from "@/localization/localization-provider";
 import {
   formatCommunityCount,
@@ -49,6 +50,7 @@ export function CommunityThreadCard({
   ].filter(Boolean).join("，");
   const boardLabel = [item.boardName, item.subCategoryLabel].filter(Boolean).join(" · ");
   const iconColor = colors.secondaryLabel as string;
+  const press = useScrollGuardedPress(onPress);
   return (
     <Pressable
       accessibilityLabel={t("accessibility.thread", {
@@ -60,7 +62,7 @@ export function CommunityThreadCard({
         views: item.views,
       })}
       accessibilityRole="button"
-      onPress={onPress}
+      {...press}
       style={({ pressed }) => [styles.card, style, pressed && styles.cardPressed]}
     >
       <View style={styles.cardHeader}>
