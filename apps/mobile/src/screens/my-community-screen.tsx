@@ -16,6 +16,7 @@ import type {
 } from "@novella/api-client";
 
 import {
+  COMMUNITY_CARD_RADIUS,
   CommunityEmptyState,
   CommunityErrorState,
   CommunityThreadCard,
@@ -218,7 +219,7 @@ const useMyCommunityStyles = createThemedStyles((colors) => ({
   replyCard: {
     backgroundColor: colors.card,
     borderCurve: "continuous",
-    borderRadius: 16,
+    borderRadius: COMMUNITY_CARD_RADIUS,
     gap: 8,
     padding: 16,
   },

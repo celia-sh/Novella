@@ -267,7 +267,9 @@ function TinyStat({
   );
 }
 
-export const COMMUNITY_CARD_RADIUS = 16;
+/** Corner radius of community cards and grouped sections, matching the
+ * inset-grouped lists of iOS 26 so they sit alongside native screens. */
+export const COMMUNITY_CARD_RADIUS = 26;
 
 const useCommunityUiStyles = createThemedStyles((colors) => ({
   // Bones on a card use the raised fill; bones on the page use the card fill.

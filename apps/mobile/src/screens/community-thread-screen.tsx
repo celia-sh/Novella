@@ -35,6 +35,7 @@ import {
 } from '@/components/comment-thread';
 import { CommentThreadSkeleton } from '@/components/comment-thread-item';
 import {
+  COMMUNITY_CARD_RADIUS,
   CommunityEmptyState,
   CommunityErrorState,
   CommunityPostSkeleton,
@@ -758,8 +759,8 @@ const useCommunityThreadStyles = createThemedStyles((colors) => ({
   // ScrollView defaults to flexGrow/flexShrink 1; pin the post pane to its width.
   fixedPane: { flexGrow: 0, flexShrink: 0 },
   footer: { gap: 16, paddingTop: 16 },
-  groupFirst: { borderTopLeftRadius: 14, borderTopRightRadius: 14 },
-  groupLast: { borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
+  groupFirst: { borderTopLeftRadius: COMMUNITY_CARD_RADIUS, borderTopRightRadius: COMMUNITY_CARD_RADIUS },
+  groupLast: { borderBottomLeftRadius: COMMUNITY_CARD_RADIUS, borderBottomRightRadius: COMMUNITY_CARD_RADIUS },
   header: { gap: 24, paddingBottom: 4 },
   list: { flex: 1 },
   loading: { gap: 28, paddingTop: 8 },
@@ -769,11 +770,13 @@ const useCommunityThreadStyles = createThemedStyles((colors) => ({
     alignItems: 'center',
     backgroundColor: colors.card,
     borderCurve: 'continuous',
-    borderRadius: 14,
+    borderRadius: COMMUNITY_CARD_RADIUS,
     flexDirection: 'row',
     gap: 10,
     marginTop: 8,
-    padding: 14,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   noticeText: { color: colors.secondaryLabel, flex: 1, fontSize: 14, lineHeight: 20 },
   post: { gap: 10 },

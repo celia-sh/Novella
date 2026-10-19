@@ -4,6 +4,7 @@ import { Fragment } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { COMMUNITY_CARD_RADIUS } from '@/components/community/community-ui';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { PublicUserAvatar } from '@/components/public-user-avatar';
 import { useProfile } from '@/hooks/use-profile';
@@ -148,7 +149,7 @@ const usePublicUserProfileStyles = createThemedStyles((colors) => ({
   action: {
     alignItems: 'center',
     borderCurve: 'continuous',
-    borderRadius: 14,
+    borderRadius: 24,
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'center',
@@ -188,7 +189,7 @@ const usePublicUserProfileStyles = createThemedStyles((colors) => ({
   stats: {
     backgroundColor: colors.card,
     borderCurve: 'continuous',
-    borderRadius: 16,
+    borderRadius: COMMUNITY_CARD_RADIUS,
     flexDirection: 'row',
     marginTop: 20,
     paddingVertical: 14,

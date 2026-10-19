@@ -11,6 +11,7 @@ import type {
   CommunityHotRankItem,
 } from '@novella/api-client';
 
+import { COMMUNITY_CARD_RADIUS } from '@/components/community/community-ui';
 import { PublicUserAvatar } from '@/components/public-user-avatar';
 import { useAppLocale } from '@/localization/localization-provider';
 import {
@@ -120,7 +121,7 @@ export function CommunityRankBadge({ rank }: { rank: number }) {
 
 const useCommunityInsightsStyles = createThemedStyles((colors) => ({
   copy: { flex: 1, gap: 2 },
-  group: { backgroundColor: colors.card, borderCurve: 'continuous', borderRadius: 14, overflow: 'hidden' },
+  group: { backgroundColor: colors.card, borderCurve: 'continuous', borderRadius: COMMUNITY_CARD_RADIUS, overflow: 'hidden' },
   header: { alignItems: 'center', flexDirection: 'row', gap: 6, marginBottom: 8, paddingHorizontal: 4 },
   rankBadge: { alignItems: 'center', borderRadius: 18, height: 36, justifyContent: 'center', width: 36 },
   rankText: { fontSize: 15, fontVariant: ['tabular-nums'], fontWeight: '700' },

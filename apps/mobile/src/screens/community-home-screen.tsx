@@ -27,6 +27,7 @@ import type {
 
 import { CommunityHomeNavigation } from '@/components/community/community-navigation';
 import {
+  COMMUNITY_CARD_RADIUS,
   CommunityEmptyState,
   CommunityErrorState,
   CommunityThreadCard,
@@ -734,7 +735,7 @@ const useCommunityHomeStyles = createThemedStyles((colors) => ({
     alignItems: 'center',
     backgroundColor: colors.card,
     borderCurve: 'continuous',
-    borderRadius: 14,
+    borderRadius: COMMUNITY_CARD_RADIUS,
     flexDirection: 'row',
     gap: 12,
     paddingHorizontal: 14,
@@ -784,8 +785,8 @@ const useCommunityHomeStyles = createThemedStyles((colors) => ({
   feedGridRow: { alignItems: 'stretch', flexDirection: 'row', gap: FEED_GAP },
   flex: { flex: 1 },
   footer: { gap: 16, paddingTop: FEED_GAP },
-  groupFirst: { borderTopLeftRadius: 14, borderTopRightRadius: 14 },
-  groupLast: { borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
+  groupFirst: { borderTopLeftRadius: COMMUNITY_CARD_RADIUS, borderTopRightRadius: COMMUNITY_CARD_RADIUS },
+  groupLast: { borderBottomLeftRadius: COMMUNITY_CARD_RADIUS, borderBottomRightRadius: COMMUNITY_CARD_RADIUS },
   phoneContent: { paddingBottom: 40 },
   phoneHeader: { gap: 12, paddingBottom: 14, paddingTop: PAGE_TOP_SPACING },
   root: { backgroundColor: colors.background, flex: 1 },

@@ -20,7 +20,7 @@ import {
   CommunityRichEditor,
   type CommunityRichEditorHandle,
 } from '@/components/community/community-rich-editor';
-import { CommunityErrorState } from '@/components/community/community-ui';
+import { COMMUNITY_CARD_RADIUS, CommunityErrorState } from '@/components/community/community-ui';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { showAlert } from '@/components/native-alert-dialog';
 import { NativePickerControl } from '@/components/native-picker-control';
@@ -480,7 +480,7 @@ const useCommunityComposeStyles = createThemedStyles((colors) => ({
   // ScrollView defaults to flexGrow/flexShrink 1; pin the side panel to its width.
   fixedPane: { flexGrow: 0, flexShrink: 0 },
   divider: { backgroundColor: colors.separator, height: StyleSheet.hairlineWidth },
-  group: { backgroundColor: colors.card, borderCurve: 'continuous', borderRadius: 14, overflow: 'hidden' },
+  group: { backgroundColor: colors.card, borderCurve: 'continuous', borderRadius: COMMUNITY_CARD_RADIUS, overflow: 'hidden' },
   groupFooter: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 18, paddingHorizontal: 16 },
   metaRow: { flexDirection: 'row', gap: 12, justifyContent: 'space-between', marginTop: 4 },
   panelContent: { gap: 24, paddingBottom: 32, paddingTop: 8 },

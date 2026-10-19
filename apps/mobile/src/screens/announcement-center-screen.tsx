@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 
+import { COMMUNITY_CARD_RADIUS } from '@/components/community/community-ui';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import {
   useAnnouncements,
@@ -34,7 +35,6 @@ import { AnnouncementDetailPane } from '@/screens/announcement-detail-screen';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 const SKELETON_ROWS = [0, 1, 2, 3, 4];
-const GROUP_RADIUS = 16;
 
 export function AnnouncementCenterScreen() {
   const styles = useAnnouncementCenterStyles();
@@ -353,9 +353,9 @@ const useAnnouncementCenterStyles = createThemedStyles((colors) => ({
   row: { backgroundColor: colors.card, borderCurve: 'continuous', paddingLeft: PAGE_PADDING },
   rowBody: { gap: 3, paddingRight: PAGE_PADDING, paddingVertical: 13 },
   rowDate: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 18 },
-  rowFirst: { borderTopLeftRadius: GROUP_RADIUS, borderTopRightRadius: GROUP_RADIUS },
+  rowFirst: { borderTopLeftRadius: COMMUNITY_CARD_RADIUS, borderTopRightRadius: COMMUNITY_CARD_RADIUS },
   rowHighlighted: { backgroundColor: colors.surfaceContainerHighest },
-  rowLast: { borderBottomLeftRadius: GROUP_RADIUS, borderBottomRightRadius: GROUP_RADIUS },
+  rowLast: { borderBottomLeftRadius: COMMUNITY_CARD_RADIUS, borderBottomRightRadius: COMMUNITY_CARD_RADIUS },
   rowSeparator: { borderBottomColor: colors.separator, borderBottomWidth: StyleSheet.hairlineWidth },
   rowSummary: { color: colors.secondaryLabel, fontSize: 15, lineHeight: 21 },
   rowTitle: { color: colors.label, fontSize: 17, fontWeight: '600', lineHeight: 23 },
@@ -386,7 +386,7 @@ const useAnnouncementCenterStyles = createThemedStyles((colors) => ({
     marginVertical: 12,
     backgroundColor: colors.card,
     borderCurve: 'continuous',
-    borderRadius: GROUP_RADIUS,
+    borderRadius: COMMUNITY_CARD_RADIUS,
     flexDirection: 'row',
     gap: 8,
     paddingHorizontal: PAGE_PADDING,

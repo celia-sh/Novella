@@ -29,6 +29,7 @@ import type {
 import { CommunityNotificationsNavigation } from '@/components/community/community-navigation';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import {
+  COMMUNITY_CARD_RADIUS,
   CommunityEmptyState,
   CommunityErrorState,
 } from '@/components/community/community-ui';
@@ -317,7 +318,7 @@ const useCommunityNotificationsStyles = createThemedStyles((colors) => ({
   actor: { color: colors.label, flexShrink: 1, fontSize: 14, fontWeight: '700' },
   actorRow: { alignItems: 'center', flexDirection: 'row', gap: 7 },
   body: { color: colors.secondaryLabel, fontSize: 14, lineHeight: 20 },
-  card: { borderCurve: 'continuous', borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  card: { borderCurve: 'continuous', borderRadius: COMMUNITY_CARD_RADIUS, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   cardBody: { gap: 10, padding: 15 },
   readCard: { backgroundColor: colors.card },
   content: { padding: 16, paddingBottom: 40 },
