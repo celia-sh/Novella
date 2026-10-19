@@ -4,7 +4,7 @@ import { router, Stack, useFocusEffect, useIsFocused } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { Button } from 'panelui-native/components/button';
 import { EmptyState } from 'panelui-native/components/empty-state';
-import { Skeleton } from 'panelui-native/components/skeleton';
+import { Skeleton } from '@/components/skeleton';
 import { AlertTriangleIcon, MessageCircleIcon, RotateCwIcon } from 'panelui-native/icons';
 import { Text } from 'panelui-native/primitives/text';
 import {

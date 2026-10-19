@@ -3,7 +3,7 @@ import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Button } from 'panelui-native/components/button';
-import { Skeleton } from 'panelui-native/components/skeleton';
+import { Skeleton } from '@/components/skeleton';
 import { useTranslation } from 'react-i18next';
 import {
   useCallback,

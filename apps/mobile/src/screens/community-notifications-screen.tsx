@@ -8,7 +8,7 @@ import {
 } from '@tabler/icons-react-native';
 import { router, Stack } from 'expo-router';
 import { Button } from 'panelui-native/components/button';
-import { Skeleton } from 'panelui-native/components/skeleton';
+import { Skeleton } from '@/components/skeleton';
 import { Spinner } from 'panelui-native/components/spinner';
 import { memo, useCallback } from 'react';
 import {

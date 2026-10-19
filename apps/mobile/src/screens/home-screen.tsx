@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { IconChevronRight } from '@tabler/icons-react-native';
-import { Skeleton } from 'panelui-native/components/skeleton';
+import { Skeleton } from '@/components/skeleton';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {

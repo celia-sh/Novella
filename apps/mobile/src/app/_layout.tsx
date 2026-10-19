@@ -13,6 +13,7 @@ import { BookDetailThemeProvider } from '@/components/book-detail-theme-provider
 import { ClientRealtimeEvents } from '@/components/client-realtime-events';
 import { ClientSessionFeedback } from '@/components/client-session-feedback';
 import { LayoutTransitionCover } from '@/components/layout-transition-cover';
+import { SkeletonPulseProvider } from '@/components/skeleton';
 import { AppLocalizationProvider } from '@/localization/localization-provider';
 import { useAuthentication } from '@/hooks/use-authentication';
 import { SettledLayoutProvider } from '@/hooks/use-settled-layout';
@@ -38,7 +39,9 @@ export default function RootLayout() {
               root-level react-native-keyboard-controller provider. */}
           <KeyboardProvider>
             <ToastProvider maxQueue={3}>
-              <RootLayoutContent />
+              <SkeletonPulseProvider>
+                <RootLayoutContent />
+              </SkeletonPulseProvider>
             </ToastProvider>
           </KeyboardProvider>
         </PanelUIProvider>

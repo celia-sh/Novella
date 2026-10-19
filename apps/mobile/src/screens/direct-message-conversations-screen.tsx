@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Skeleton } from 'panelui-native/components/skeleton';
+import { Skeleton } from '@/components/skeleton';
 import Animated, {
   FadeIn,
   FadeOut,

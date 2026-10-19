@@ -1,4 +1,4 @@
-import { Skeleton } from 'panelui-native/components/skeleton';
+import { Skeleton } from '@/components/skeleton';
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 

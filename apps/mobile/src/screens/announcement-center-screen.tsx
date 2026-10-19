@@ -4,7 +4,7 @@ import {
   IconSpeakerphone,
 } from '@tabler/icons-react-native';
 import { router } from 'expo-router';
-import { Skeleton } from 'panelui-native/components/skeleton';
+import { Skeleton } from '@/components/skeleton';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {

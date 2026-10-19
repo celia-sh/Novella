@@ -9,7 +9,7 @@ import {
   IconRefresh,
   IconStar,
 } from "@tabler/icons-react-native";
-import { Skeleton } from 'panelui-native/components/skeleton';
+import { Skeleton } from '@/components/skeleton';
 import type { ReactNode } from "react";
 import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { useTranslation } from "react-i18next";
