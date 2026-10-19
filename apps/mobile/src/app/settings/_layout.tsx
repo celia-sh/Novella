@@ -1,13 +1,11 @@
 import Stack from 'expo-router/stack';
 import { useTranslation } from 'react-i18next';
 
-import { useRootPageTitle } from '@/hooks/use-wide-layout';
 import { useSystemScreenStackPreset } from '@/theme/stack-preset';
 
 export default function SettingsStackLayout() {
   const { t } = useTranslation('settings');
   const systemScreenStackPreset = useSystemScreenStackPreset();
-  const rootTitle = useRootPageTitle(t('panel.title'));
   const badgeSheetOptions = {
     sheetAllowedDetents: [0.75, 1],
     sheetGrabberVisible: true,
@@ -16,10 +14,7 @@ export default function SettingsStackLayout() {
 
   return (
     <Stack screenOptions={systemScreenStackPreset}>
-      <Stack.Screen
-        name="index"
-        options={rootTitle}
-      />
+      <Stack.Screen name="index" options={{ title: t('panel.title') }} />
       <Stack.Screen name="profile" options={{ title: t('profile.title') }} />
       <Stack.Screen name="avatar" options={{ title: t('avatar.title') }} />
       <Stack.Screen name="shop" options={{ title: t('shop.title') }} />

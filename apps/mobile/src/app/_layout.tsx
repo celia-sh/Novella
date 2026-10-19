@@ -117,11 +117,7 @@ function RootLayoutContent() {
               <Stack.Screen name="book/[id]" options={{ title: '' }} />
               <Stack.Screen
                 name="quick-search"
-                options={{
-                  headerLargeTitle: true,
-                  headerShown: true,
-                  title: t('routes.search'),
-                }}
+                options={{ headerShown: true, title: t('routes.search') }}
               />
               <Stack.Screen
                 name="book/[id]/comments"
@@ -234,16 +230,11 @@ function RootLayoutContent() {
                   title: '',
                 }}
               />
-              {/* Direct messages are ordinary pushed pages, not sheets: the list
-                  keeps the native large-title header and the chat pushes on top
-                  of it with its own toolbar. */}
+              {/* Direct messages are ordinary pushed pages, not sheets: the chat
+                  pushes on top of the list with its own toolbar. */}
               <Stack.Screen
                 name="messages/index"
-                options={{
-                  headerLargeTitle: true,
-                  headerShown: true,
-                  title: t('routes.messages'),
-                }}
+                options={{ headerShown: true, title: t('routes.messages') }}
               />
               <Stack.Screen
                 name="messages/[peerId]"

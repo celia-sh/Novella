@@ -3,7 +3,7 @@ import {
   IconRefresh,
   IconSpeakerphone,
 } from '@tabler/icons-react-native';
-import { router, Stack } from 'expo-router';
+import { router } from 'expo-router';
 import { Skeleton } from 'panelui-native/components/skeleton';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -26,7 +26,6 @@ import {
   PAGE_PADDING,
   PAGE_TOP_SPACING,
   usePageMargin,
-  useRootPageTitle,
   useWideLayout,
 } from '@/hooks/use-wide-layout';
 import { formatDate } from '@/localization/formatters';
@@ -38,9 +37,7 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
 
 export function AnnouncementCenterScreen() {
   const styles = useAnnouncementCenterStyles();
-  const { t } = useTranslation('community');
   const { isWide, usableWidth } = useWideLayout();
-  const rootTitle = useRootPageTitle(t('announcements.title'));
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const announcements = useAnnouncements();
   const { items } = announcements;
@@ -48,7 +45,6 @@ export function AnnouncementCenterScreen() {
   if (!isWide) {
     return (
       <HorizontalSafeArea style={styles.root}>
-        <Stack.Screen options={rootTitle} />
         <AnnouncementList {...announcements} />
       </HorizontalSafeArea>
     );
@@ -62,8 +58,6 @@ export function AnnouncementCenterScreen() {
 
   return (
     <HorizontalSafeArea style={[styles.root, styles.splitRow]}>
-      {/* No title: the list pane already reads as the announcement list. */}
-      <Stack.Screen options={rootTitle} />
       <View style={{ width: listWidth }}>
         <AnnouncementList
           {...announcements}

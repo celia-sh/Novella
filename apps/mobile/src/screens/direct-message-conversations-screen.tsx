@@ -1,4 +1,4 @@
-import { router, Stack, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,7 +16,7 @@ import type { DirectConversationItem } from '@novella/api-client';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { PublicUserAvatar } from '@/components/public-user-avatar';
 import { useDirectMessages } from '@/hooks/use-direct-messages';
-import { usePageMargin, useRootPageTitle } from '@/hooks/use-wide-layout';
+import { usePageMargin } from '@/hooks/use-wide-layout';
 import { formatRelativeTime } from '@/localization/formatters';
 import { useAppLocale } from '@/localization/localization-provider';
 import { directMessages } from '@/services/client';
@@ -38,7 +38,6 @@ export function DirectMessageConversationsScreen() {
   const { t } = useTranslation('messages');
   const snapshot = useDirectMessages();
   const pageMargin = usePageMargin();
-  const rootTitle = useRootPageTitle(t('navigation.title'));
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -89,7 +88,6 @@ export function DirectMessageConversationsScreen() {
 
   return (
     <HorizontalSafeArea style={styles.root}>
-    <Stack.Screen options={rootTitle} />
     <FlatList
       contentContainerStyle={empty ? styles.emptyContent : styles.content}
       contentInsetAdjustmentBehavior="automatic"
