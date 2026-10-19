@@ -42,7 +42,6 @@ import {
   type NativeDirectMessageComposerHandle,
 } from '../../modules/novella-ui';
 import { showAlert } from '@/components/native-alert-dialog';
-import { ProfileAvatar } from '@/components/profile-avatar';
 import { useDirectMessages } from '@/hooks/use-direct-messages';
 import { useDirectMessageScroll } from '@/hooks/use-direct-message-scroll';
 import { useProfile } from '@/hooks/use-profile';
@@ -115,7 +114,7 @@ interface TranscriptRow {
 interface DirectMessageChatScreenProps {
   /** The detail pane of the wide split view. The list beside it already names
    * the conversation, so the chat sets no page title and leaves the header to
-   * the split; the profile moves to a toolbar button. */
+   * the split. Both layouts keep the profile action in the toolbar. */
   embedded?: boolean;
   peerId: number;
 }
@@ -217,19 +216,12 @@ function DirectMessageChat({ embedded = false, peerId }: DirectMessageChatScreen
   // change the header height the transcript is padded by. So the header only
   // depends on values that really change it, never on the snapshot's object
   // identity or on the scroll position.
-  const peerAvatarUrl = chat.peer && !chat.peer.isDeleted ? chat.peer.avatarUrl : '';
   const peerProfileId = chat.peer && !chat.peer.isDeleted ? chat.peer.id : null;
   const hasPeer = chat.peer !== null;
   const headerOptions = useMemo(() => ({
-    headerTitle: () => (
-      <ChatTitle
-        avatarUrl={hasPeer ? peerAvatarUrl : null}
-        name={peerName}
-        profileId={peerProfileId}
-      />
-    ),
+    headerTitle: peerName,
     title: peerName,
-  }), [hasPeer, peerAvatarUrl, peerName, peerProfileId]);
+  }), [peerName]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', setAppState);
@@ -440,13 +432,14 @@ function DirectMessageChat({ embedded = false, peerId }: DirectMessageChatScreen
         icon="arrow.down"
         onPress={scrollToBottom}
       />
-      {embedded && peerProfileId !== null ? (
-        <Stack.Toolbar.Button
-          accessibilityLabel={tUser('accessibility.openProfile', { name: peerName })}
-          icon="person.crop.circle"
-          onPress={() => openPeerProfile(peerProfileId)}
-        />
-      ) : null}
+      <Stack.Toolbar.Button
+        accessibilityLabel={tUser('accessibility.openProfile', { name: peerName })}
+        hidden={peerProfileId === null}
+        icon="person.crop.circle"
+        onPress={() => {
+          if (peerProfileId !== null) openPeerProfile(peerProfileId);
+        }}
+      />
       <Stack.Toolbar.Button
         accessibilityLabel={isBlockedByMe ? t('actions.unblock') : t('actions.block')}
         disabled={blockBusy}
@@ -456,7 +449,6 @@ function DirectMessageChat({ embedded = false, peerId }: DirectMessageChatScreen
     </Stack.Toolbar>
   ) : null, [
     blockBusy,
-    embedded,
     hasPeer,
     isBlockedByMe,
     onToggleBlock,
@@ -594,41 +586,6 @@ function DirectMessageChat({ embedded = false, peerId }: DirectMessageChatScreen
         />
       ) : null}
     </View>
-  );
-}
-
-function ChatTitle({
-  avatarUrl,
-  name,
-  profileId,
-}: {
-  /** `null` until the peer is known, which shows the name alone. */
-  avatarUrl: string | null;
-  name: string;
-  /** `null` for a deleted user, who has no profile to open. */
-  profileId: number | null;
-}) {
-  const { t } = useTranslation('user');
-  const styles = useChatStyles();
-  const content = (
-    <View style={styles.title}>
-      {avatarUrl === null ? null : (
-        <ProfileAvatar avatarUrl={avatarUrl} size={28} userName={name} />
-      )}
-      <Text numberOfLines={1} style={styles.titleText}>{name}</Text>
-    </View>
-  );
-  if (profileId === null) return content;
-  return (
-    <Pressable
-      accessibilityLabel={t('accessibility.openProfile', { name })}
-      accessibilityRole="button"
-      hitSlop={8}
-      onPress={() => openPeerProfile(profileId)}
-      style={({ pressed }) => pressed && styles.titlePressed}
-    >
-      {content}
-    </Pressable>
   );
 }
 
@@ -851,9 +808,6 @@ const useChatStyles = createThemedStyles((colors) =>
     timestamp: { alignItems: 'center', marginBottom: 4, marginTop: 16 },
     timestampFirst: { alignItems: 'center', marginBottom: 4 },
     timestampText: { color: colors.secondaryLabel, fontSize: 12, fontWeight: '500', lineHeight: 16 },
-    title: { alignItems: 'center', flexDirection: 'row', gap: 8, maxWidth: 240 },
-    titlePressed: { opacity: 0.6 },
-    titleText: { color: colors.label, flexShrink: 1, fontSize: 17, fontWeight: '600' },
     transcript: { padding: 16, paddingTop: 8 },
   }),
 );
