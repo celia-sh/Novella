@@ -83,6 +83,47 @@ export function getDirectMessageScrollProps(
   };
 }
 
+/** A pause this long between two messages starts a new timestamped block. */
+export const DIRECT_MESSAGE_TIMESTAMP_GAP_MS = 30 * 60_000;
+
+export interface DirectMessageRowLayout {
+  /** First bubble of a run from one sender; runs are spaced further apart. */
+  startsRun: boolean;
+  /** Last bubble of a run, which carries the tail. */
+  tail: boolean;
+  /** A centered timestamp precedes the bubble and breaks the run. */
+  timestamp: boolean;
+}
+
+/**
+ * Groups a transcript the way Messages does: consecutive bubbles from one
+ * sender form a run with only the last one tailed, and a new day or a long
+ * pause gets a timestamp that ends the run before it.
+ */
+export function layoutDirectMessageRows(
+  rows: readonly { createdAt: string; isMine: boolean }[],
+): DirectMessageRowLayout[] {
+  const timestamps = rows.map((row, index) => {
+    const previous = rows[index - 1];
+    if (!previous) return true;
+    const before = new Date(previous.createdAt);
+    const current = new Date(row.createdAt);
+    if (Number.isNaN(before.getTime()) || Number.isNaN(current.getTime())) return false;
+    return current.getTime() - before.getTime() >= DIRECT_MESSAGE_TIMESTAMP_GAP_MS
+      || current.toDateString() !== before.toDateString();
+  });
+  return rows.map((row, index) => {
+    const previous = rows[index - 1];
+    const next = rows[index + 1];
+    const timestamp = timestamps[index] ?? false;
+    return {
+      startsRun: timestamp || previous?.isMine !== row.isMine,
+      tail: !next || next.isMine !== row.isMine || (timestamps[index + 1] ?? false),
+      timestamp,
+    };
+  });
+}
+
 export function findDirectMessageReceiptId(
   messages: readonly DirectMessageItem[],
   pendingCount: number,

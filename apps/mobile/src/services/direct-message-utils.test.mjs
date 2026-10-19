@@ -7,6 +7,7 @@ import {
   getDirectMessageBottomInset,
   getDirectMessageScrollEndOffset,
   getDirectMessageScrollProps,
+  layoutDirectMessageRows,
   resolveDirectMessagePeerName,
   updateDirectMessageKeyboardHeights,
 } from './direct-message-utils.ts';
@@ -251,4 +252,32 @@ test('returns no receipt when I have never sent a message', () => {
     { clientMessageId: 'b', content: 'theirs', createdAt: '2026-01-01T00:00:01.000Z', id: 4, senderId: 9 },
   ];
   assert.equal(findDirectMessageReceiptId(messages, 0, 5), 0);
+});
+
+test('groups a transcript into runs with one tail and timestamps after long pauses', () => {
+  const at = (minutes) => new Date(2026, 9, 19, 10, minutes).toISOString();
+  const layout = layoutDirectMessageRows([
+    { createdAt: at(0), isMine: false },
+    { createdAt: at(1), isMine: false },
+    { createdAt: at(2), isMine: true },
+    { createdAt: at(3), isMine: true },
+    { createdAt: at(45), isMine: true },
+  ]);
+  assert.deepEqual(layout, [
+    { startsRun: true, tail: false, timestamp: true },
+    { startsRun: false, tail: true, timestamp: false },
+    { startsRun: true, tail: false, timestamp: false },
+    // The pause before the next message closes this run, so it gets the tail.
+    { startsRun: false, tail: true, timestamp: false },
+    { startsRun: true, tail: true, timestamp: true },
+  ]);
+});
+
+test('starts a timestamped block on a new day even after a short pause', () => {
+  const layout = layoutDirectMessageRows([
+    { createdAt: new Date(2026, 9, 18, 23, 58).toISOString(), isMine: true },
+    { createdAt: new Date(2026, 9, 19, 0, 2).toISOString(), isMine: true },
+  ]);
+  assert.equal(layout[1]?.timestamp, true);
+  assert.equal(layout[0]?.tail, true);
 });

@@ -24,7 +24,7 @@ export const zhCNMessages = {
     loadingOlder: '正在加载…',
     cannotSend: '暂时无法发送私信',
     deletedUser: '该用户已注销，无法继续发送。',
-    newMessages: '有新消息',
+    scrollToLatest: '回到最新消息',
   },
   composer: {
     placeholder: '输入私信',
@@ -40,7 +40,6 @@ export const zhCNMessages = {
   },
   actions: {
     message: '私信',
-    more: '更多操作',
     block: '拉黑',
     unblock: '取消拉黑',
   },
@@ -84,7 +83,7 @@ export const zhTWMessages: TranslationShape<typeof zhCNMessages> = {
     loadingOlder: '正在載入…',
     cannotSend: '暫時無法傳送私訊',
     deletedUser: '此使用者已註銷，無法繼續傳送。',
-    newMessages: '有新訊息',
+    scrollToLatest: '回到最新訊息',
   },
   composer: {
     placeholder: '輸入私訊',
@@ -100,7 +99,6 @@ export const zhTWMessages: TranslationShape<typeof zhCNMessages> = {
   },
   actions: {
     message: '私訊',
-    more: '更多操作',
     block: '封鎖',
     unblock: '取消封鎖',
   },

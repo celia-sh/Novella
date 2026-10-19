@@ -61,6 +61,42 @@ export function formatDate(
   return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat(locale, options).format(date);
 }
 
+/**
+ * Transcript timestamp in the style of Messages: the time alone carries
+ * "今天"/"昨天", the rest of the week names the weekday, and older dates add
+ * the month and day (and the year once it is not the current one).
+ */
+export function formatMessageTimestamp(
+  value: string | number | Date,
+  locale: AppLocale,
+  now = Date.now(),
+): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const time = new Intl.DateTimeFormat(locale, {
+    hour: '2-digit',
+    hourCycle: 'h23',
+    minute: '2-digit',
+  }).format(date);
+  const today = new Date(now);
+  const days = Math.round((startOfDay(today) - startOfDay(date)) / DAY);
+  if (days === 0) return `今天 ${time}`;
+  if (days === 1) return `昨天 ${time}`;
+  if (days > 1 && days < 7) {
+    return `${new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(date)} ${time}`;
+  }
+  const day = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'long',
+    ...(date.getFullYear() === today.getFullYear() ? {} : { year: 'numeric' }),
+  }).format(date);
+  return `${day} ${time}`;
+}
+
+function startOfDay(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
 export function formatCompactNumber(value: number, locale: AppLocale): string {
   return new Intl.NumberFormat(locale, {
     maximumFractionDigits: 1,

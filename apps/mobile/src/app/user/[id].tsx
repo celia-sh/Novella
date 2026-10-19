@@ -14,9 +14,9 @@ import { useAppLocale } from '@/localization/localization-provider';
 import { createThemedStyles, resolveAccentHex, useAppTheme } from '@/theme/app-theme';
 
 export default function PublicUserProfileScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { from, id } = useLocalSearchParams<{ from?: string; id?: string }>();
   const userId = Number(id);
-  return <PublicUserProfileContent userId={userId} />;
+  return <PublicUserProfileContent fromChat={from === 'chat'} userId={userId} />;
 }
 
 /**
@@ -26,7 +26,7 @@ export default function PublicUserProfileScreen() {
  * row, then the action. Your own profile offers editing instead of a private
  * message to yourself.
  */
-function PublicUserProfileContent({ userId }: { userId: number }) {
+function PublicUserProfileContent({ fromChat, userId }: { fromChat: boolean; userId: number }) {
   const styles = usePublicUserProfileStyles();
   const { colors } = useAppTheme();
   const locale = useAppLocale();
@@ -120,7 +120,13 @@ function PublicUserProfileContent({ userId }: { userId: number }) {
             <Pressable
               accessibilityLabel={t('profile.sendMessage')}
               accessibilityRole="button"
-              onPress={() => router.push(`/messages/${summary.id}`)}
+              // Opened from this person's chat: the chat is right underneath,
+              // so just close the sheet. Otherwise the chat replaces the sheet;
+              // pushing from the sheet would open the chat inside it.
+              onPress={() => {
+                if (fromChat) router.back();
+                else router.dismissTo({ pathname: '/messages/[peerId]', params: { peerId: String(summary.id) } });
+              }}
               style={({ pressed }) => [styles.action, styles.primaryAction, pressed && styles.pressed]}
             >
               <IconMail color="#FFFFFF" size={19} strokeWidth={2} />
