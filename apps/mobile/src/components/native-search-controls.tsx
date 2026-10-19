@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { NativeSearchBar } from '../../modules/novella-ui';
 
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
+import { useRootPageTitle } from '@/hooks/use-wide-layout';
 import {
   BOOK_SEARCH_MODE_OPTIONS,
   type NativeSearchControlsProps,
@@ -21,13 +22,14 @@ export function NativeSearchControls({
 }: NativeSearchControlsProps) {
   const { t } = useTranslation('library');
   const { t: tCommon } = useTranslation('common');
+  const rootTitle = useRootPageTitle(t('search.title'));
   const formatOptions = [
     { label: t('search.formats.novel'), value: 'Novel' },
     { label: t('search.formats.comic'), value: 'Comic' },
   ] as const;
   return (
     <>
-      <Stack.Screen options={{ title: t('search.title') }} />
+      <Stack.Screen options={rootTitle} />
       <View style={styles.searchBar}>
         <NativeSearchBar
           clearAccessibilityLabel={tCommon('accessibility.clearSearch')}

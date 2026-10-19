@@ -39,7 +39,12 @@ import {
   type CommunityHomeQuery,
   type CommunityHomeState,
 } from '@/hooks/use-community-home';
-import { PAGE_TOP_SPACING, usePageMargin, useWideLayout } from '@/hooks/use-wide-layout';
+import {
+  PAGE_TOP_SPACING,
+  usePageMargin,
+  useRootPageTitle,
+  useWideLayout,
+} from '@/hooks/use-wide-layout';
 import { useAppLocale } from '@/localization/localization-provider';
 import { resolveCommunityBoardIcon } from '@/services/community-board-icons';
 import { formatCommunityCount } from '@/services/community-utils';
@@ -64,6 +69,7 @@ export function CommunityHomeScreen() {
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
   const { isWide, pageMargin, usableWidth } = useWideLayout();
+  const rootTitle = useRootPageTitle(t('navigation.community'));
   const margin = { paddingHorizontal: pageMargin };
   const { loadMore, refresh, retry, state, updateQuery } = useCommunityHome();
   const { home, query } = state;
@@ -103,7 +109,7 @@ export function CommunityHomeScreen() {
   if (!isWide) {
     return (
       <>
-        <Stack.Screen options={{ headerLargeTitle: true, title: t('navigation.community') }} />
+        <Stack.Screen options={rootTitle} />
         <HorizontalSafeArea style={styles.root}>
           <ScrollView
             alwaysBounceVertical
@@ -173,7 +179,7 @@ export function CommunityHomeScreen() {
     <>
       {/* No title: with the bar on the side (iPhone Duo, landscape) an empty
           title lets the top bar collapse and the panes start at the top. */}
-      <Stack.Screen options={{ headerLargeTitle: false, title: '' }} />
+      <Stack.Screen options={rootTitle} />
       <HorizontalSafeArea style={[styles.root, styles.splitRow]}>
         <ScrollView
           contentContainerStyle={[styles.sidebarContent, margin]}

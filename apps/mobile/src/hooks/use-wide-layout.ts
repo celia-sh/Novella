@@ -51,3 +51,13 @@ export function pageMarginForWidth(width: number): number {
 export function readingColumnWidth(paneWidth: number, padding = PAGE_PADDING): number {
   return Math.max(1, Math.min(READING_MAX_WIDTH, paneWidth - padding * 2));
 }
+
+/**
+ * Header options for a root page's title. On a wide layout the title — large
+ * or small — is dropped: the top bar then collapses and content starts at the
+ * top, where on a phone the large title stays. Toolbar items are unaffected.
+ */
+export function useRootPageTitle(title: string): { headerLargeTitle: boolean; title: string } {
+  const { isWide } = useWideLayout();
+  return isWide ? { headerLargeTitle: false, title: '' } : { headerLargeTitle: true, title };
+}
