@@ -66,20 +66,23 @@ export function getDirectMessageScrollEndOffset(metrics: DirectMessageScrollMetr
 export function getDirectMessageScrollProps(
   metrics: DirectMessageScrollMetrics,
   following: boolean,
+  retainedOffset: number,
 ): {
   contentInset: { top: number; left: number; bottom: number; right: number };
-  contentOffset?: { x: number; y: number };
+  contentOffset: { x: number; y: number };
 } {
   'worklet';
-  const contentInset = { top: 0, left: 0, bottom: metrics.bottomInset, right: 0 };
-  if (!following || metrics.contentHeight === 0 || metrics.viewportHeight === 0) {
-    return { contentInset };
-  }
-  // An absolute target cannot lose resize deltas when native scroll events lag.
-  // Apply it in the same animated-props update as the inset that defines it.
   return {
-    contentInset,
-    contentOffset: { x: 0, y: getDirectMessageScrollEndOffset(metrics) },
+    contentInset: { top: 0, left: 0, bottom: metrics.bottomInset, right: 0 },
+    // Register the offset from the first render so Reanimated can synchronize
+    // settled props. Freeze the last target during a drag, rather than feeding
+    // native scroll reports back into a prop that would interrupt the gesture.
+    contentOffset: {
+      x: 0,
+      y: following && metrics.contentHeight > 0 && metrics.viewportHeight > 0
+        ? getDirectMessageScrollEndOffset(metrics)
+        : retainedOffset,
+    },
   };
 }
 

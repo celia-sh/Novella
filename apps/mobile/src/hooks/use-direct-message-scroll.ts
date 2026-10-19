@@ -14,6 +14,7 @@ import {
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useDerivedValue,
+  useFrameCallback,
   useSharedValue,
   type SharedValue,
 } from 'react-native-reanimated';
@@ -49,9 +50,12 @@ export function useDirectMessageScroll({
   const contentHeight = useSharedValue(0);
   const viewportHeight = useSharedValue(0);
   const offsetY = useSharedValue(0);
+  const retainedOffset = useSharedValue(0);
   const following = useSharedValue(true);
   const followRequest = useSharedValue(0);
   const initialPositioned = useSharedValue(false);
+  const initialTarget = useSharedValue<number | null>(null);
+  const initialScrollIssued = useSharedValue(false);
   const publishedAtEnd = useSharedValue(true);
   const [atEnd, setAtEnd] = useState(true);
   const [measured, setMeasured] = useState(false);
@@ -106,21 +110,55 @@ export function useDirectMessageScroll({
     loaded && composerHeight.value > 0 && contentHeight.value > 0 && viewportHeight.value > 0,
   );
   const endOffset = useDerivedValue(() => getDirectMessageScrollEndOffset(metrics.value));
+  // Register both props from mount so settled updates remain top-level props.
+  // Inset and offset must commit together; a scroll command can run before the
+  // new inset reaches UIKit and leave the newest message under the composer.
   const animatedProps = useAnimatedProps<ScrollViewProps>(() =>
-    getDirectMessageScrollProps(metrics.value, ready.value && following.value),
+    getDirectMessageScrollProps(metrics.value, ready.value && following.value, retainedOffset.value),
   );
-  // Keep Fabric commits moving with presentation frames, as KeyboardChatScrollView
-  // does. A mounted animated style also flushes inset/offset updates when the
-  // jump-to-bottom button is absent. Composer growth uses the same frame driver.
+  // Keep Fabric inset/offset commits moving with keyboard presentation frames.
+  // Composer growth uses the same frame driver.
   const commitStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: -keyboardHeights.value.presentation - composerHeight.value }],
   }));
+
+  // A cached chat can mount already at its target, without an onScroll event.
+  // Wait a frame for the paired props to commit, position explicitly, then
+  // reveal on the next frame. Never make visibility depend on a scroll event.
+  const initialPositionFrame = useFrameCallback(() => {
+    'worklet';
+    if (initialPositioned.value) return;
+    if (!ready.value) {
+      initialTarget.value = null;
+      initialScrollIssued.value = false;
+      return;
+    }
+    const target = endOffset.value;
+    if (initialTarget.value !== target) {
+      initialTarget.value = target;
+      initialScrollIssued.value = false;
+      return;
+    }
+    if (following.value) scrollTo(scrollRef, 0, target, false);
+    if (!initialScrollIssued.value) {
+      initialScrollIssued.value = true;
+      return;
+    }
+    initialPositioned.value = true;
+    runOnJS(setMeasured)(true);
+  }, false);
+
+  useEffect(() => {
+    initialPositionFrame.setActive(!measured);
+    return () => initialPositionFrame.setActive(false);
+  }, [initialPositionFrame, measured]);
 
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
       offsetY.value = event.contentOffset.y;
     },
-    onBeginDrag: () => {
+    onBeginDrag: (event) => {
+      retainedOffset.value = event.contentOffset.y;
       following.value = false;
     },
     onEndDrag: (event) => {
@@ -130,6 +168,7 @@ export function useDirectMessageScroll({
       // decides once it has settled.
       const distance = endOffset.value - event.contentOffset.y;
       if (Math.abs(event.velocity?.y ?? 0) < 0.1 && distance >= 0) {
+        retainedOffset.value = event.contentOffset.y;
         following.value = distance <= RESUME_FOLLOWING_DISTANCE;
       }
     },
@@ -138,6 +177,7 @@ export function useDirectMessageScroll({
     },
     onMomentumEnd: (event) => {
       offsetY.value = event.contentOffset.y;
+      retainedOffset.value = event.contentOffset.y;
       following.value = Math.abs(endOffset.value - event.contentOffset.y) <= RESUME_FOLLOWING_DISTANCE;
     },
   });
@@ -153,16 +193,9 @@ export function useDirectMessageScroll({
     (current, previous) => {
       if (!current.ready) return;
       if (current.following && previous && current.request !== previous.request) {
-        // Fabric only applies contentOffset when the prop changes, and the
-        // last target may be reused, so an explicit request to go to the end
-        // issues a command. A drag that settles at the end resumes following
-        // where it already is: commanding it there cut the bounce short.
+        // An explicit jump may reuse the last prop target, so it also needs a
+        // command. Geometry changes use the paired inset/offset props above.
         scrollTo(scrollRef, 0, current.target, false);
-      }
-      if (!initialPositioned.value) {
-        if (Math.abs(current.target - current.offset) > 0.5) return;
-        initialPositioned.value = true;
-        runOnJS(setMeasured)(true);
       }
       // Programmatic layout changes do not cancel following or flash the
       // jump button. Only native drag/momentum handlers change that intent.

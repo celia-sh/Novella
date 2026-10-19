@@ -80,12 +80,12 @@ test('sets the iOS bottom target at keyboard start without waiting for move or e
   let heights = updateDirectMessageKeyboardHeights(
     { inset: 0, presentation: 0 }, 'start', { height: 320, duration: 250 }, true,
   );
-  const props = () => getDirectMessageScrollProps({
+  const target = () => getDirectMessageScrollProps({
     contentHeight: 1_100,
     viewportHeight: 800,
     bottomInset: getDirectMessageBottomInset(54, heights.inset, 34),
-  }, true);
-  assert.equal(props().contentOffset.y, 674);
+  }, true, 0).contentOffset.y;
+  assert.equal(target(), 674);
   assert.equal(heights.presentation, 0);
 
   for (const height of [20, 80, 160, 280, 320]) {
@@ -93,14 +93,14 @@ test('sets the iOS bottom target at keyboard start without waiting for move or e
       heights, 'move', { height, duration: 250 }, true,
     );
     // Presentation frames keep commits moving without rewinding the native target.
-    assert.equal(props().contentOffset.y, 674);
+    assert.equal(target(), 674);
     assert.equal(heights.presentation, height);
   }
-  const beforeEnd = props();
+  const beforeEnd = target();
   heights = updateDirectMessageKeyboardHeights(
     heights, 'end', { height: 320, duration: 250 }, true,
   );
-  assert.deepEqual(props(), beforeEnd);
+  assert.equal(target(), beforeEnd);
 });
 
 test('starts the iOS closing target immediately and does not reset it on movement frames', () => {
@@ -150,9 +150,9 @@ test('keeps reading history during iOS keyboard opening instead of forcing the b
     contentHeight: 1_100,
     viewportHeight: 800,
     bottomInset: getDirectMessageBottomInset(54, heights.inset, 34),
-  }, false);
+  }, false, 125);
   assert.equal(props.contentInset.bottom, 374);
-  assert.equal(Object.hasOwn(props, 'contentOffset'), false);
+  assert.equal(props.contentOffset.y, 125);
 });
 
 test('uses presentation frames on platforms that do not animate an iOS native target', () => {
@@ -175,7 +175,7 @@ test('keeps the last message above a growing composer even without intervening s
     const bottomInset = getDirectMessageBottomInset(composerHeight, 320, 34);
     const props = getDirectMessageScrollProps({
       contentHeight: 1_100, viewportHeight: 800, bottomInset,
-    }, true);
+    }, true, 0);
     assert.equal(props.contentInset.bottom, bottomInset);
     assert.equal(1_100 - props.contentOffset.y, 800 - bottomInset);
     offsets.push(props.contentOffset.y);
@@ -194,35 +194,41 @@ test('tracks an appended multiline message while the cleared composer shrinks', 
   ];
   for (const { contentHeight, composerHeight, expectedOffset } of frames) {
     const bottomInset = getDirectMessageBottomInset(composerHeight, 320, 34);
-    const props = getDirectMessageScrollProps({
+    const offset = getDirectMessageScrollEndOffset({
       contentHeight, viewportHeight: 800, bottomInset,
-    }, true);
-    assert.equal(props.contentOffset.y, expectedOffset);
-    assert.equal(contentHeight - props.contentOffset.y, 800 - props.contentInset.bottom);
+    });
+    assert.equal(offset, expectedOffset);
+    assert.equal(contentHeight - offset, 800 - bottomInset);
   }
 });
 
-test('updates the inset without forcing an offset while reading earlier messages', () => {
-  const props = getDirectMessageScrollProps({
-    contentHeight: 1_100, viewportHeight: 800, bottomInset: 479,
-  }, false);
-  assert.equal(props.contentInset.bottom, 479);
-  assert.equal(Object.hasOwn(props, 'contentOffset'), false);
+test('registers inset and offset together from the first render through measurement', () => {
+  const initial = getDirectMessageScrollProps({
+    contentHeight: 0, viewportHeight: 0, bottomInset: 0,
+  }, false, 0);
+  const measured = getDirectMessageScrollProps({
+    contentHeight: 1_100, viewportHeight: 800, bottomInset: 88,
+  }, true, 0);
+  assert.deepEqual(Object.keys(initial), Object.keys(measured));
+  assert.deepEqual(initial.contentOffset, { x: 0, y: 0 });
+  assert.equal(measured.contentInset.bottom, 88);
+  assert.equal(measured.contentOffset.y, 388);
 });
 
-test('waits for both content and viewport measurements before setting an offset', () => {
-  for (const metrics of [
-    { contentHeight: 0, viewportHeight: 800, bottomInset: 88 },
-    { contentHeight: 1_100, viewportHeight: 0, bottomInset: 88 },
-  ]) {
-    assert.equal(Object.hasOwn(getDirectMessageScrollProps(metrics, true), 'contentOffset'), false);
+test('retains the history position when the keyboard or composer inset changes', () => {
+  for (const bottomInset of [88, 374, 479, 88]) {
+    const props = getDirectMessageScrollProps({
+      contentHeight: 1_100, viewportHeight: 800, bottomInset,
+    }, false, 125);
+    assert.equal(props.contentInset.bottom, bottomInset);
+    assert.equal(props.contentOffset.y, 125);
   }
 });
 
 test('starts a short chat at the top and scrolls only when the growing input leaves too little room', () => {
   const metrics = { contentHeight: 420, viewportHeight: 800, bottomInset: 374 };
-  assert.equal(getDirectMessageScrollProps(metrics, true).contentOffset.y, 0);
-  assert.equal(getDirectMessageScrollProps({ ...metrics, bottomInset: 479 }, true).contentOffset.y, 99);
+  assert.equal(getDirectMessageScrollEndOffset(metrics), 0);
+  assert.equal(getDirectMessageScrollEndOffset({ ...metrics, bottomInset: 479 }), 99);
 });
 
 test('returns no receipt while an outgoing message is still pending', () => {
