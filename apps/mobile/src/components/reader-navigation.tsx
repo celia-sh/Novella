@@ -1,5 +1,5 @@
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -11,6 +11,7 @@ import {
   addReaderLayoutDidChangeListener,
   refreshReaderSideBar,
 } from '@/services/reader-side-chrome';
+import { useAppColorScheme } from '@/theme/app-theme';
 
 const hasLiquidGlass = isLiquidGlassAvailable();
 const READER_NAVIGATION_ITEM_HEIGHT = 44;
@@ -33,6 +34,7 @@ export function ReaderNavigation({
   sideProgress,
 }: ReaderNavigationProps) {
   const { t } = useTranslation('reader');
+  const { t: tCommon } = useTranslation('common');
   const { height, width } = useWindowDimensions();
 
   // A fold between displays keeps the same native bar button items but rebuilds
@@ -69,7 +71,11 @@ export function ReaderNavigation({
       <Stack.Screen
         options={{
           headerLargeTitle: false,
-          headerBackVisible: !chromeHidden,
+          // The system back item ignores `headerTintColor` in the vertical
+          // bar, so it stayed in the app scheme's label color over a reader
+          // background of the opposite brightness. The toolbar chevron below
+          // carries the reader color everywhere.
+          headerBackVisible: false,
           headerShadowVisible: false,
           scrollEdgeEffects: {
             bottom: 'hidden',
@@ -108,6 +114,15 @@ export function ReaderNavigation({
         chrome made the text pop every time the bar appeared. `headerShown`
         still owns visibility, and the native buttons keep their own `hidden`.
       */}
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button
+          accessibilityLabel={tCommon('accessibility.back')}
+          hidden={chromeHidden}
+          icon="chevron.left"
+          onPress={() => router.back()}
+          tintColor={foregroundColor}
+        />
+      </Stack.Toolbar>
       <Stack.Toolbar placement="right">
         {sideChrome && title ? (
           <Stack.Toolbar.View hidden={chromeHidden}>
@@ -178,9 +193,12 @@ function ReaderHeaderTitle({
       windowWidth - READER_NAVIGATION_TITLE_SIDE_RESERVATION,
     ),
   );
-  const colorScheme = forceLightAppearance || statusBarStyle === 'dark-content'
-    ? 'light'
-    : 'dark';
+  const appColorScheme = useAppColorScheme();
+  // Match the native glass of the back button and the toolbar group, which
+  // follow the app scheme rather than the reader background. Deriving the
+  // scheme from the status bar style gave the title a light pill next to dark
+  // buttons when a light reader background was used in dark mode.
+  const colorScheme = forceLightAppearance ? 'light' : appColorScheme;
   const fallbackBackgroundColor = statusBarStyle === 'light-content'
     ? 'rgba(255,255,255,0.16)'
     : 'rgba(0,0,0,0.08)';

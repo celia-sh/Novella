@@ -20,6 +20,7 @@ import {
   type AccessibilityActionEvent,
   type LayoutChangeEvent,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { resolveReaderProgressSliderState } from '@/services/reader-page-progress';
 import { useAppTheme } from '@/theme/app-theme';
@@ -51,6 +52,8 @@ const THUMB_WIDTH = 18;
 const TOUCH_AREA_HEIGHT = 24;
 /** Space between the draggable track and the toolbar's content edges. */
 const HORIZONTAL_INSET = 10;
+/** The bottom toolbar's own content margins around a full-width item. */
+const TOOLBAR_HORIZONTAL_MARGIN = 42;
 /** Settles the thumb onto a step after a tap, a nudge, or a reader update. */
 const SNAP_SPRING = { damping: 34, mass: 1, stiffness: 320 } as const;
 
@@ -84,6 +87,7 @@ export function ReaderProgressSlider({
   const { t } = useTranslation('reader');
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const rtl = direction === 'rtl';
 
   const isPercentage = displayMode === 'percentage';
@@ -221,8 +225,12 @@ export function ReaderProgressSlider({
 
   if (hidden || !visible) return null;
 
+  // UIToolbar lays its items out inside the horizontal safe area (a notched
+  // iPhone in landscape), so the window width alone overflows the capsule.
+  const toolbarWidth = width - insets.left - insets.right - TOOLBAR_HORIZONTAL_MARGIN;
+
   return (
-    <View style={[styles.root, { width: layoutWidth ?? Math.max(1, width - 42) }]}>
+    <View style={[styles.root, { width: layoutWidth ?? Math.max(1, toolbarWidth) }]}>
       <GestureDetector gesture={gesture}>
         <View
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}

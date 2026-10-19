@@ -1,4 +1,5 @@
 import { IconDownload, IconShare, IconX } from '@tabler/icons-react-native';
+import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image as ExpoImage } from 'expo-image';
 import { AnimatedPressable, Glass, Portal } from 'panelui-native';
 import { ImageViewer } from 'panelui-native/components/image-viewer';
@@ -33,6 +34,9 @@ import {
   shareReaderImage,
   type ReaderImageActionErrorCode,
 } from '@/services/reader-image-actions';
+import { useAppColorScheme } from '@/theme/app-theme';
+
+const hasLiquidGlass = isLiquidGlassAvailable();
 
 interface ReaderImageSize {
   height: number;
@@ -344,6 +348,11 @@ export function ReaderImageViewerActionBar({
 }: ReaderImageViewerActionsProps) {
   const { bottom } = useSafeAreaInsets();
   const { t } = useTranslation('reader');
+  const colorScheme = useAppColorScheme();
+  // Liquid glass takes the app scheme, so in light mode the buttons are light
+  // over the light backdrop and white glyphs wash out. The non-glass fallback
+  // stays a dark disc with white glyphs.
+  const iconColor = hasLiquidGlass && colorScheme === 'light' ? '#1C1C1E' : '#FFFFFF';
 
   return (
     <View
@@ -355,20 +364,20 @@ export function ReaderImageViewerActionBar({
         disabled={isSaving || isSharing}
         onPress={() => void onShare()}
       >
-        {isSharing ? <ActivityIndicator color="#FFFFFF" size="small" /> : <IconShare color="#FFFFFF" size={20} />}
+        {isSharing ? <ActivityIndicator color={iconColor} size="small" /> : <IconShare color={iconColor} size={20} />}
       </LiquidGlassActionButton>
       <LiquidGlassActionButton
         accessibilityLabel={t('accessibility.saveImage')}
         disabled={isSaving || isSharing}
         onPress={() => void onSave()}
       >
-        {isSaving ? <ActivityIndicator color="#FFFFFF" size="small" /> : <IconDownload color="#FFFFFF" size={20} />}
+        {isSaving ? <ActivityIndicator color={iconColor} size="small" /> : <IconDownload color={iconColor} size={20} />}
       </LiquidGlassActionButton>
       <LiquidGlassActionButton
         accessibilityLabel={t('accessibility.closeImagePreview')}
         onPress={onClose}
       >
-        <IconX color="#FFFFFF" size={20} />
+        <IconX color={iconColor} size={20} />
       </LiquidGlassActionButton>
     </View>
   );
