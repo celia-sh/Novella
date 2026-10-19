@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
@@ -18,18 +19,23 @@ export function NativeSearchControls({
   onModeChange,
   onQueryChange,
   onSubmit,
+  pushed = false,
   query,
 }: NativeSearchControlsProps) {
   const { t } = useTranslation('library');
   const { t: tCommon } = useTranslation('common');
   const rootTitle = useRootPageTitle(t('search.title'));
+  const searchTitle = t('search.title');
+  const pushedTitle = useMemo(() => ({ headerLargeTitle: false, title: searchTitle }), [searchTitle]);
   const formatOptions = [
     { label: t('search.formats.novel'), value: 'Novel' },
     { label: t('search.formats.comic'), value: 'Comic' },
   ] as const;
   return (
     <>
-      <Stack.Screen options={rootTitle} />
+      <Stack.Screen
+        options={pushed ? pushedTitle : rootTitle}
+      />
       <View style={styles.searchBar}>
         <NativeSearchBar
           clearAccessibilityLabel={tCommon('accessibility.clearSearch')}

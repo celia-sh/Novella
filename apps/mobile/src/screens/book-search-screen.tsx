@@ -44,12 +44,14 @@ export interface BookSearchScreenProps {
   initialFormat?: BookSearchFormat;
   initialMode?: BookSearchMode;
   initialQuery?: string;
+  pushed?: boolean;
 }
 
 export function BookSearchScreen({
   initialFormat = 'Novel',
   initialMode = 'fuzzy',
   initialQuery = '',
+  pushed = false,
 }: BookSearchScreenProps) {
   const { t } = useTranslation('library');
   const styles = useBookSearchScreenStyles();
@@ -125,6 +127,7 @@ export function BookSearchScreen({
                 Keyboard.dismiss();
                 void search.submit(value);
               }}
+              pushed={pushed}
               query={query}
             />
             {visibleStatus === 'idle' && search.history.length > 0 ? (

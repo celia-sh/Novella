@@ -22,5 +22,8 @@ export interface NativeSearchControlsProps {
   onModeChange(mode: BookSearchMode): void;
   onQueryChange(query: string): void;
   onSubmit(query: string): void;
+  /** Pushed on top of another page (quick search) rather than the Search tab
+   * root, so the header takes the small title. */
+  pushed?: boolean;
   query: string;
 }
