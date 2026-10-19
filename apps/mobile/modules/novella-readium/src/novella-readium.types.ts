@@ -75,15 +75,6 @@ export interface ReadiumBoundaryEvent {
   direction: 'next' | 'previous';
 }
 
-/**
- * `active` is true while the user's own scroll/page gesture is running. The
- * reader uses it to only dim the edge under the side bar while the text is
- * actually moving.
- */
-export interface ReadiumDragStateEvent {
-  active: boolean;
-}
-
 /** Rendered geometry of the current chapter, measured after layout. */
 export interface ReadiumProgressMetricsEvent {
   pageCount: number;
@@ -104,7 +95,6 @@ export interface NovellaReadiumViewProps {
   declaredHrefs: readonly string[];
   initialLocator?: ReadiumLocator;
   onBoundary?: (event: ReadiumBoundaryEvent) => void;
-  onDragState?: (event: ReadiumDragStateEvent) => void;
   onError?: (error: ReadiumReaderError) => void;
   onImage?: (image: ReadiumImageEvent) => void;
   onLink?: (link: ReadiumLinkEvent) => void;
@@ -116,5 +106,12 @@ export interface NovellaReadiumViewProps {
   preferences: ReadiumReaderPreferences;
   publicationId: string;
   publicationUri: string;
+  /**
+   * Width of the fade drawn on the web view's trailing edge, against the
+   * vertical bar in side-chrome mode; `0` or omitted draws none. The native
+   * view shows it only while a paged page is off its resting position, so the
+   * last column is fully readable at rest.
+   */
+  sideFadeWidth?: number;
   style?: StyleProp<ViewStyle>;
 }

@@ -14,7 +14,6 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   let onStatus = EventDispatcher()
   let onTap = EventDispatcher()
   let onBoundary = EventDispatcher()
-  let onDragState = EventDispatcher()
   let onProgressMetrics = EventDispatcher()
 
   private var publicationUri: String?
@@ -36,7 +35,10 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   private var appliedLayoutKey: ReaderLayoutKey?
   private weak var registeredContentScrollView: UIScrollView?
   private weak var registeredContentScrollViewOwner: UIViewController?
-  private weak var observedPanScrollView: UIScrollView?
+  private let sideFadeView = ReaderSideFadeView()
+  private var sideFadeWidth: CGFloat = 0
+  private var sideFadeOffsetObservation: NSKeyValueObservation?
+  private weak var sideFadeScrollView: UIScrollView?
   private var tapObserver: InputObservableToken?
   private var boundaryPanGesture: UIPanGestureRecognizer?
   private var openTask: Task<Void, Never>?
@@ -78,9 +80,17 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
 
   func setPreferences(_ value: [String: Any]) {
     preferences = value
+    sideFadeView.setColor(
+      (value["backgroundColor"] as? String).flatMap(Color.init(hex:))?.uiColor ?? .clear
+    )
     applyPreferences()
     installInputObservers()
     scheduleProgressMetricsUpdate()
+  }
+
+  func setSideFadeWidth(_ value: Double) {
+    sideFadeWidth = max(0, CGFloat(value))
+    layoutSideFade()
   }
 
   func setContentInsets(_ value: [String: Double]) {
@@ -150,6 +160,29 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       bottom: 0,
       right: right
     ))
+    layoutSideFade()
+  }
+
+  /// The strip sits on the web view's trailing edge, which is the vertical
+  /// bar's edge in side-chrome mode. It is added above the navigator so it
+  /// covers the last column of text.
+  private func layoutSideFade() {
+    guard sideFadeWidth > 0, let navigatorView = navigator?.view else {
+      sideFadeView.removeFromSuperview()
+      return
+    }
+    if sideFadeView.superview !== self {
+      addSubview(sideFadeView)
+    } else {
+      bringSubviewToFront(sideFadeView)
+    }
+    sideFadeView.frame = CGRect(
+      x: navigatorView.frame.maxX - sideFadeWidth,
+      y: navigatorView.frame.minY,
+      width: sideFadeWidth,
+      height: navigatorView.frame.height
+    )
+    updateSideFadeOpacity()
   }
 
   override func didMoveToWindow() {
@@ -411,7 +444,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     guard #available(iOS 15.0, *), let navigator else { return }
     guard let webView = descendantWebViews(of: navigator.view).first else { return }
     let scrollView = webView.scrollView
-    observeContentPan(scrollView)
+    observeSideFadeScroll(scrollView)
     let owner = parentViewController ?? navigator
     guard registeredContentScrollView !== scrollView || registeredContentScrollViewOwner !== owner else {
       return
@@ -425,32 +458,48 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     registeredContentScrollViewOwner = owner
   }
 
-  /// Reports the user's own scroll/page gesture. Readium owns the scroll
-  /// view, so observe its pan recognizer without stealing it; the reader uses
-  /// the start and end to dim the text edge under the side bar only while the
-  /// page is moving.
-  private func observeContentPan(_ scrollView: UIScrollView) {
-    guard observedPanScrollView !== scrollView else { return }
-    observedPanScrollView?.panGestureRecognizer.removeTarget(
-      self,
-      action: #selector(handleContentPan(_:))
-    )
-    scrollView.panGestureRecognizer.addTarget(
-      self,
-      action: #selector(handleContentPan(_:))
-    )
-    observedPanScrollView = scrollView
+  /// Drives the side fade from the page position instead of the gesture.
+  /// A paged scroll view rests on a multiple of its width, where every column
+  /// is whole and the last one must stay fully readable. Any offset between
+  /// two pages means text is crossing the bar's edge: a drag, the fling that
+  /// follows it, or an animated tap turn. Following `contentOffset` keeps the
+  /// fade in the same frame as the movement, which a gesture-state event
+  /// round-tripped through JS could not do for a fast swipe.
+  private func observeSideFadeScroll(_ scrollView: UIScrollView) {
+    guard sideFadeScrollView !== scrollView else { return }
+    sideFadeOffsetObservation?.invalidate()
+    sideFadeScrollView = scrollView
+    sideFadeOffsetObservation = scrollView.observe(\.contentOffset) { [weak self] _, _ in
+      // UIKit and WebKit update the offset on the main thread.
+      guard #available(iOS 17.0, *), Thread.isMainThread else { return }
+      MainActor.assumeIsolated {
+        self?.updateSideFadeOpacity()
+      }
+    }
+    updateSideFadeOpacity()
   }
 
-  @objc private func handleContentPan(_ gesture: UIPanGestureRecognizer) {
-    switch gesture.state {
-    case .began:
-      onDragState(["active": true])
-    case .ended, .cancelled, .failed:
-      onDragState(["active": false])
-    default:
-      break
+  /// Distance from the resting page, in points, over which the fade reaches
+  /// full strength. Short enough that the strip is in place before a glyph has
+  /// moved far under the bar, long enough that a resting page that is a
+  /// fraction of a point off does not flicker it.
+  private static let sideFadeRampDistance: CGFloat = 16
+
+  private func updateSideFadeOpacity() {
+    guard
+      sideFadeWidth > 0,
+      let scrollView = sideFadeScrollView,
+      scrollView.isPagingEnabled,
+      scrollView.bounds.width > 0
+    else {
+      sideFadeView.alpha = 0
+      return
     }
+    let pageWidth = scrollView.bounds.width
+    let remainder = abs(scrollView.contentOffset.x.truncatingRemainder(dividingBy: pageWidth))
+    let distance = min(remainder, pageWidth - remainder)
+    let progress = min(1, distance / Self.sideFadeRampDistance)
+    sideFadeView.alpha = progress * progress * (3 - 2 * progress)
   }
 
   private func descendantWebViews(of root: UIView) -> [WKWebView] {
@@ -849,11 +898,10 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     }
     registeredContentScrollView = nil
     registeredContentScrollViewOwner = nil
-    observedPanScrollView?.panGestureRecognizer.removeTarget(
-      self,
-      action: #selector(handleContentPan(_:))
-    )
-    observedPanScrollView = nil
+    sideFadeOffsetObservation?.invalidate()
+    sideFadeOffsetObservation = nil
+    sideFadeScrollView = nil
+    sideFadeView.removeFromSuperview()
     if let controller = navigator, let tapObserver {
       controller.removeObserver(tapObserver)
     }
@@ -876,6 +924,38 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       responder = current.next
     }
     return nil
+  }
+}
+
+/// The edge treatment next to the iPhone Duo vertical bar. The colour stops
+/// mirror `SIDE_FADE_LOCATIONS` in `src/services/reader-side-fade.ts`: a
+/// smoothstep from transparent to the reader background, so the strip has no
+/// visible start line and reaches the background at the bar.
+private final class ReaderSideFadeView: UIView {
+  private static let locations: [CGFloat] = (0...10).map { CGFloat($0) / 10 }
+
+  override class var layerClass: AnyClass { CAGradientLayer.self }
+
+  private var gradientLayer: CAGradientLayer { layer as! CAGradientLayer }
+
+  override init(frame: CGRect) {
+    super.init(frame: frame)
+    isUserInteractionEnabled = false
+    alpha = 0
+    gradientLayer.startPoint = CGPoint(x: 0, y: 0.5)
+    gradientLayer.endPoint = CGPoint(x: 1, y: 0.5)
+    gradientLayer.locations = Self.locations.map { NSNumber(value: Double($0)) }
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
+
+  func setColor(_ color: UIColor) {
+    gradientLayer.colors = Self.locations.map { t in
+      color.withAlphaComponent(t * t * (3 - 2 * t)).cgColor
+    }
   }
 }
 

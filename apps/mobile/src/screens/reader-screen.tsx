@@ -1,14 +1,8 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useNavigation, useRoute } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
 import type {
   NovellaReadiumViewHandle,
   ReadiumLinkEvent,
@@ -34,11 +28,7 @@ import {
   createReaderSideChromeInsets,
 } from '@/services/reader-chrome-layout';
 import { shouldUseReaderDoublePage } from '@/services/reader-display-layout';
-import {
-  SIDE_FADE_LOCATIONS,
-  SIDE_FADE_WIDTH,
-  sideFadeColors,
-} from '@/services/reader-side-fade';
+import { SIDE_FADE_WIDTH } from '@/services/reader-side-fade';
 import { useReaderChapter, type ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
 import { useReaderFont } from '@/hooks/use-reader-font';
@@ -98,7 +88,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const [nativeAttempt, setNativeAttempt] = useState(0);
   const [nativeError, setNativeError] = useState<ReaderUserMessage | null>(null);
   const [nativeReady, setNativeReady] = useState(false);
-  const [textDragging, setTextDragging] = useState(false);
   const [chapterMetrics, setChapterMetrics] = useState<{
     pageCount: number;
     paged: boolean;
@@ -107,18 +96,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const nativeReaderRef = useRef<NovellaReadiumViewHandle | null>(null);
   const lastLocatorRef = useRef<ReadiumLocator | null>(null);
   const activeChapterIdRef = useRef<number | null>(null);
-  // The edge fade only exists to soften text that is moving under the side
-  // bar. When the text is at rest the last column should be fully readable,
-  // especially on the Duo outer display.
-  const textFadeOpacity = useSharedValue(0);
-  const textFadeStyle = useAnimatedStyle(() => ({
-    opacity: textFadeOpacity.value,
-  }));
-  useEffect(() => {
-    textFadeOpacity.value = withTiming(textDragging ? 1 : 0, {
-      duration: textDragging ? 90 : 180,
-    });
-  }, [textDragging, textFadeOpacity]);
   const conversion = settings.convertType === 'none' ? undefined : settings.convertType;
 
   const { content, error, isLoading, reload } = useReaderChapter(
@@ -462,7 +439,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               declaredHrefs={preparedPublication.declaredHrefs}
               initialLocator={initialLocator}
               onBoundary={handleBoundary}
-              onDragState={({ active }) => setTextDragging(active)}
               onError={({ message }) => setNativeError({ kind: 'raw', text: message })}
               onImage={(image) => imagePreviewRef.current?.open({
                 uri: image.uri,
@@ -487,6 +463,11 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               preferences={readerPreferences}
               publicationId={preparedPublication.publicationId}
               publicationUri={preparedPublication.directoryUri}
+              // The web view ends hard against the vertical bar. The native
+              // view fades its last strip into the background only while the
+              // page is between resting positions, so moving text has a soft
+              // edge and the resting last column stays readable.
+              sideFadeWidth={sideChrome ? SIDE_FADE_WIDTH : 0}
               style={styles.reader}
             />
             {!nativeReady ? (
@@ -496,26 +477,6 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
                 phase="publication"
                 textColor={readerTextColor}
               />
-            ) : null}
-            {sideChrome ? (
-              // The web view is inset by the safe area, so the text ends hard
-              // against the vertical bar. While the page is being dragged, fade
-              // the last strip into the reader background so the clipped column
-              // reads as a soft edge; at rest it stays fully readable. The alpha
-              // follows a smoothstep: the page stays readable for most of the
-              // strip and drops to the background at the bar.
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.sideFade, { right: insets.right }, textFadeStyle]}
-              >
-                <LinearGradient
-                  colors={sideFadeColors(readerBackground)}
-                  end={{ x: 1, y: 0.5 }}
-                  locations={SIDE_FADE_LOCATIONS}
-                  start={{ x: 0, y: 0.5 }}
-                  style={StyleSheet.absoluteFill}
-                />
-              </Animated.View>
             ) : null}
           </View>
         ) : null}
@@ -562,10 +523,4 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
 const styles = StyleSheet.create({
   reader: { flex: 1 },
   root: { flex: 1 },
-  sideFade: {
-    bottom: 0,
-    position: 'absolute',
-    top: 0,
-    width: SIDE_FADE_WIDTH,
-  },
 });

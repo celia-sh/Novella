@@ -12,7 +12,6 @@ import type {
   NovellaReadiumViewHandle,
   NovellaReadiumViewProps,
   ReadiumBoundaryEvent,
-  ReadiumDragStateEvent,
   ReadiumImageEvent,
   ReadiumLinkEvent,
   ReadiumLocator,
@@ -33,10 +32,9 @@ type NativeViewHandle = {
 type NativeViewProps = ViewProps &
   Omit<
     NovellaReadiumViewProps,
-    'onBoundary' | 'onDragState' | 'onError' | 'onImage' | 'onLink' | 'onLocatorChange' | 'onProgressMetrics' | 'onReady' | 'onStatus' | 'onTap'
+    'onBoundary' | 'onError' | 'onImage' | 'onLink' | 'onLocatorChange' | 'onProgressMetrics' | 'onReady' | 'onStatus' | 'onTap'
   > & {
     onBoundary?: (event: { nativeEvent: ReadiumBoundaryEvent }) => void;
-    onDragState?: (event: { nativeEvent: ReadiumDragStateEvent }) => void;
     onError?: (event: { nativeEvent: ReadiumReaderError }) => void;
     onImage?: (event: { nativeEvent: ReadiumImageEvent }) => void;
     onLink?: (event: { nativeEvent: ReadiumLinkEvent }) => void;
@@ -56,7 +54,7 @@ export const NovellaReadiumView = forwardRef<
   NovellaReadiumViewHandle,
   NovellaReadiumViewProps
 >(function NovellaReadiumView(
-  { onBoundary, onDragState, onError, onImage, onLink, onLocatorChange, onProgressMetrics, onReady, onStatus, onTap, ...props },
+  { onBoundary, onError, onImage, onLink, onLocatorChange, onProgressMetrics, onReady, onStatus, onTap, ...props },
   ref,
 ) {
   const nativeRef = useRef<NativeViewHandle | null>(null);
@@ -74,7 +72,6 @@ export const NovellaReadiumView = forwardRef<
       {...props}
       ref={nativeRef}
       {...(onBoundary ? { onBoundary: ({ nativeEvent }) => onBoundary(nativeEvent) } : {})}
-      {...(onDragState ? { onDragState: ({ nativeEvent }) => onDragState(nativeEvent) } : {})}
       {...(onError ? { onError: ({ nativeEvent }) => onError(nativeEvent) } : {})}
       {...(onImage ? { onImage: ({ nativeEvent }) => onImage(nativeEvent) } : {})}
       {...(onLink ? { onLink: ({ nativeEvent }) => onLink(nativeEvent) } : {})}
