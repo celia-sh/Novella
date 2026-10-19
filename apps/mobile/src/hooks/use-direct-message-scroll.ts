@@ -26,6 +26,11 @@ import {
 } from '@/services/direct-message-utils';
 
 const USE_NATIVE_KEYBOARD_TARGET = Platform.OS === 'ios';
+/** A drag that comes to rest this close to the end resumes following. Any
+ * looser and resuming would jump the transcript the remaining distance. */
+const RESUME_FOLLOWING_DISTANCE = 2;
+/** Close enough to the end to count as reading the newest messages. */
+const AT_END_DISTANCE = 20;
 
 interface DirectMessageScrollOptions {
   loaded: boolean;
@@ -120,8 +125,12 @@ export function useDirectMessageScroll({
     },
     onEndDrag: (event) => {
       offsetY.value = event.contentOffset.y;
-      if (Math.abs(event.velocity?.y ?? 0) < 0.1) {
-        following.value = endOffset.value - event.contentOffset.y <= 20;
+      // Released past the end, the transcript still has to bounce back;
+      // deciding now would cut the bounce short with a jump. Momentum end
+      // decides once it has settled.
+      const distance = endOffset.value - event.contentOffset.y;
+      if (Math.abs(event.velocity?.y ?? 0) < 0.1 && distance >= 0) {
+        following.value = distance <= RESUME_FOLLOWING_DISTANCE;
       }
     },
     onMomentumBegin: () => {
@@ -129,7 +138,7 @@ export function useDirectMessageScroll({
     },
     onMomentumEnd: (event) => {
       offsetY.value = event.contentOffset.y;
-      following.value = endOffset.value - event.contentOffset.y <= 20;
+      following.value = Math.abs(endOffset.value - event.contentOffset.y) <= RESUME_FOLLOWING_DISTANCE;
     },
   });
 
@@ -143,13 +152,11 @@ export function useDirectMessageScroll({
     }),
     (current, previous) => {
       if (!current.ready) return;
-      if (
-        current.following && previous &&
-        (!previous.following || current.request !== previous.request)
-      ) {
-        // Fabric only applies contentOffset when the prop changes. Returning
-        // from a manual drag can reuse the last target, so issue a command once
-        // to resume following; resize frames still update inset/offset together.
+      if (current.following && previous && current.request !== previous.request) {
+        // Fabric only applies contentOffset when the prop changes, and the
+        // last target may be reused, so an explicit request to go to the end
+        // issues a command. A drag that settles at the end resumes following
+        // where it already is: commanding it there cut the bounce short.
         scrollTo(scrollRef, 0, current.target, false);
       }
       if (!initialPositioned.value) {
@@ -159,7 +166,7 @@ export function useDirectMessageScroll({
       }
       // Programmatic layout changes do not cancel following or flash the
       // jump button. Only native drag/momentum handlers change that intent.
-      const visible = current.following || current.target - current.offset <= 20;
+      const visible = current.following || current.target - current.offset <= AT_END_DISTANCE;
       if (visible !== publishedAtEnd.value) {
         publishedAtEnd.value = visible;
         runOnJS(setAtEnd)(visible);

@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import { useSettledLayout } from '@/hooks/use-settled-layout';
 
 /** Minimum page padding shared by the community and announcement screens. */
@@ -59,5 +61,11 @@ export function readingColumnWidth(paneWidth: number, padding = PAGE_PADDING): n
  */
 export function useRootPageTitle(title: string): { headerLargeTitle: boolean; title: string } {
   const { isWide } = useWideLayout();
-  return isWide ? { headerLargeTitle: false, title: '' } : { headerLargeTitle: true, title };
+  // Memoized: screens pass this to a screen-level `Stack.Screen`, which sets
+  // the header again whenever it gets a new object, and every header change
+  // makes react-native-screens rebuild the bar.
+  return useMemo(
+    () => (isWide ? { headerLargeTitle: false, title: '' } : { headerLargeTitle: true, title }),
+    [isWide, title],
+  );
 }

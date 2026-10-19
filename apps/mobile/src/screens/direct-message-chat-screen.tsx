@@ -212,10 +212,15 @@ function DirectMessageChat({ embedded = false, peerId }: DirectMessageChatScreen
   const peerName = chat.peer
     ? resolveDirectMessagePeerName(chat.peer, t('conversations.deletedUser'))
     : t('navigation.conversation');
+  // react-native-screens rebuilds the whole header (title view and every bar
+  // button) whenever any header prop changes, and the rebuild can briefly
+  // change the header height the transcript is padded by. So the header only
+  // depends on values that really change it, never on the snapshot's object
+  // identity or on the scroll position.
   const peerAvatarUrl = chat.peer && !chat.peer.isDeleted ? chat.peer.avatarUrl : '';
   const peerProfileId = chat.peer && !chat.peer.isDeleted ? chat.peer.id : null;
   const hasPeer = chat.peer !== null;
-  const headerOptions = {
+  const headerOptions = useMemo(() => ({
     headerTitle: () => (
       <ChatTitle
         avatarUrl={hasPeer ? peerAvatarUrl : null}
@@ -224,7 +229,7 @@ function DirectMessageChat({ embedded = false, peerId }: DirectMessageChatScreen
       />
     ),
     title: peerName,
-  };
+  }), [hasPeer, peerAvatarUrl, peerName, peerProfileId]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', setAppState);

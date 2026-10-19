@@ -57,7 +57,12 @@ export function DirectMessageConversationsScreen({
   const { t } = useTranslation('messages');
   const { isWide, usableWidth } = useWideLayout();
   const snapshot = useDirectMessages();
-  const listOptions = { headerTitle: t('navigation.title'), title: t('navigation.title') };
+  // Stable objects: a new one each render (every snapshot) would set the
+  // header again, and react-native-screens rebuilds it on every change.
+  const listOptions = useMemo(
+    () => ({ headerTitle: t('navigation.title'), title: t('navigation.title') }),
+    [t],
+  );
   const [selectedPeerId, setSelectedPeerId] = useState<number | null>(
     requestedPeer?.peerId ?? null,
   );
