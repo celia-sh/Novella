@@ -171,7 +171,6 @@ function DirectMessageChat({ embedded = false, peerId }: DirectMessageChatScreen
   const locale = useAppLocale();
   const chat = snapshot.chats[peerId] ?? EMPTY_CHAT;
   const hasMessages = chat.messages.length > 0 || chat.pending.length > 0;
-  const composerHeightRef = useRef<number | null>(null);
   const composerRef = useRef<NativeDirectMessageComposerHandle>(null);
   const markingReadRef = useRef(false);
   const loadingOlderRef = useRef(false);
@@ -352,19 +351,11 @@ function DirectMessageChat({ embedded = false, peerId }: DirectMessageChatScreen
       });
   }
 
-  // The same animated height drives the inset and its absolute bottom offset.
+  // The native composer already moved the transcript inside its own resize
+  // animation, frame for frame with the pill. This only brings the JS inset
+  // and bottom offset to the same final values, so it must not animate again.
   function handleComposerHeight(height: number) {
-    const firstMeasurement = composerHeightRef.current === null;
-    composerHeightRef.current = height;
-    if (firstMeasurement) {
-      // The first measurement establishes the inset; it is not an input resize.
-      composerHeight.value = height;
-    } else {
-      composerHeight.value = withTiming(height, {
-        duration: 200,
-        easing: Easing.bezier(0.42, 0, 0.58, 1),
-      });
-    }
+    composerHeight.value = height;
   }
 
   const composerEnabled = chat.loaded && chat.canSend && !chat.peer?.isDeleted;
