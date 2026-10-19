@@ -61,8 +61,8 @@ export function readiumPublicationCacheKey(
   conversion: string | null | undefined,
 ): string {
   // Bump when the injected chapter document changes so cached chapters do
-  // not keep an older interaction script.
-  return `${bookId}-${conversion ?? 'none'}-v2`;
+  // not keep an older interaction script or stylesheet.
+  return `${bookId}-${conversion ?? 'none'}-v3`;
 }
 
 /**
@@ -219,6 +219,12 @@ function buildReadiumPublicationStylesheet(fontRequired: boolean): string {
     '.nv-inline-footnote-label{flex:none;font-weight:600;}',
     '.nv-inline-footnote-marker{font-size:.75em;font-weight:600;line-height:0;vertical-align:super;}',
     'img{max-width:100%;height:auto;border-radius:4px;}',
+    '.nv-illustration{text-align:center;}',
+    // Body paragraphs get the user's first-line indent, which would push a
+    // centered image off center; this selector outranks that rule.
+    'html[style] body>.nv-illustration,.nv-illustration{text-indent:0!important;}',
+    '.nv-illustration img,img.nv-illustration{margin-left:auto;margin-right:auto;}',
+    'img.nv-illustration{display:block;}',
     'ruby{white-space:normal;word-break:break-all;overflow-wrap:anywhere;}',
     'ruby rt{font-size:.5em;white-space:normal;word-break:break-all;overflow-wrap:anywhere;}',
   ].join('');
@@ -304,6 +310,7 @@ function buildImagePreviewScript(): string {
 function normalizeHtmlFragmentForXhtml(html: string): string {
   const nodes = parseDOM(html, { decodeEntities: true });
   hideEmptySvgImagePlaceholders(nodes);
+  markStandaloneIllustrations(nodes);
   addPuaLineBreakOpportunities(nodes);
   const serialized = DomUtils.getOuterHTML(nodes, {
     decodeEntities: true,
@@ -328,6 +335,52 @@ function hideEmptySvgImagePlaceholders(nodes: ReadiumHtmlNode[]): void {
     const style = svg.attribs.style?.trim() ?? '';
     svg.attribs.style = `${style}${style && !style.endsWith(';') ? ';' : ''}display:none!important`;
   }
+}
+
+const ILLUSTRATION_CLASS = 'nv-illustration';
+/** Elements that only wrap an illustration; anything else is a layout of its own. */
+const ILLUSTRATION_WRAPPERS = new Set(['a', 'br', 'center', 'div', 'figure', 'p', 'picture', 'source', 'span']);
+/** A book that places the image itself keeps its placement. */
+const EXPLICIT_PLACEMENT = /(?:^|;)\s*(?:text-align|float|position|margin(?:-left|-right|-inline(?:-start|-end)?)?)\s*:/iu;
+
+/**
+ * Centers a block that is nothing but an illustration: one or more images, no
+ * text, no table, and no alignment of its own. Images inside a paragraph,
+ * footnote markers, avatars next to a book's introduction, and anything the
+ * book aligns or floats are left as they are; the reader otherwise starts
+ * every image at the column's leading edge.
+ */
+function markStandaloneIllustrations(nodes: readonly ReadiumHtmlNode[]): void {
+  for (const node of nodes) {
+    if (!DomUtils.isTag(node) || !isStandaloneIllustration(node)) continue;
+    const classes = node.attribs.class?.trim();
+    node.attribs.class = classes ? `${classes} ${ILLUSTRATION_CLASS}` : ILLUSTRATION_CLASS;
+  }
+}
+
+function isStandaloneIllustration(root: ReadiumHtmlNode): boolean {
+  let images = 0;
+  const pending: ReadiumHtmlNode[] = [root];
+  for (let node = pending.pop(); node; node = pending.pop()) {
+    if (DomUtils.isText(node)) {
+      if (node.data.trim()) return false;
+      continue;
+    }
+    if (!DomUtils.isTag(node)) continue;
+    const style = node.attribs.style ?? '';
+    if (node.attribs.align || EXPLICIT_PLACEMENT.test(style)) return false;
+    if (node.name === 'img') {
+      if (/(?:^|\s)(?:footnote|no-preview)(?:\s|$)/u.test(node.attribs.class ?? '')) return false;
+      images += 1;
+      continue;
+    }
+    // The empty wrapper SVG hidden by hideEmptySvgImagePlaceholders.
+    if (node.name === 'svg' && /display\s*:\s*none/iu.test(style)) continue;
+    if (!ILLUSTRATION_WRAPPERS.has(node.name)) return false;
+    if (/(?:^|\s)noteref(?:\s|$)/u.test(node.attribs['epub:type'] ?? '')) return false;
+    pending.push(...node.children);
+  }
+  return images > 0;
 }
 
 function addPuaLineBreakOpportunities(nodes: readonly ReadiumHtmlNode[]): void {

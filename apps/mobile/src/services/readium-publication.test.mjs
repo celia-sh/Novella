@@ -209,6 +209,23 @@ for (const [name, source] of [
   });
 }
 
+test('only blocks that are nothing but an unplaced illustration are centered', () => {
+  const html = buildReadiumChapterDocument({
+    blocks: [
+      { id: 'plate', locator: '//div[1]', html: '<div class="plate"><p><img src="a.jpg"></p></div>', textLength: 0, imageCount: 1 },
+      { id: 'inline', locator: '//p[1]', html: '<p><img src="avatar.jpg">作者简介</p>', textLength: 4, imageCount: 1 },
+      { id: 'aligned', locator: '//div[2]', html: '<div style="text-align:right"><img src="b.jpg"></div>', textLength: 0, imageCount: 1 },
+      { id: 'table', locator: '//table[1]', html: '<table><tr><td><img src="c.jpg"></td></tr></table>', textLength: 0, imageCount: 1 },
+    ],
+    chapterId: 101,
+    title: 'First',
+    useBookFont: false,
+  });
+
+  assert.match(html, /<div class="plate nv-illustration" id="nv-block-0">/);
+  assert.equal((html.match(/nv-illustration"/gu) ?? []).length, 1);
+});
+
 test('chapter HTML is normalized with inline footnotes', () => {
   const html = buildReadiumChapterDocument({
     blocks: [
@@ -344,6 +361,6 @@ test('reader preferences map first-line indentation to Readium rem units', () =>
 });
 
 test('publication cache identity includes the conversion mode', () => {
-  assert.equal(readiumPublicationCacheKey(9, undefined), '9-none-v2');
-  assert.equal(readiumPublicationCacheKey(9, 't2s'), '9-t2s-v2');
+  assert.equal(readiumPublicationCacheKey(9, undefined), '9-none-v3');
+  assert.equal(readiumPublicationCacheKey(9, 't2s'), '9-t2s-v3');
 });

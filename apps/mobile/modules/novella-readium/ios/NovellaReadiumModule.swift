@@ -29,7 +29,7 @@ public final class NovellaReadiumModule: Module {
         view.setSideFadeWidth(value)
       }
 
-      Events("onReady", "onLocatorChange", "onLink", "onImage", "onError", "onStatus", "onTap", "onBoundary", "onProgressMetrics")
+      Events("onReady", "onLocatorChange", "onLink", "onImage", "onError", "onStatus", "onTap", "onBoundary", "onProgressMetrics", "onLoadingChange")
 
       AsyncFunction("getCurrentLocator") { (view: NovellaReadiumView) async -> [String: Any]? in
         await view.getCurrentLocator()

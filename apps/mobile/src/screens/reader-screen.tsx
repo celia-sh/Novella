@@ -97,6 +97,9 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const [nativeAttempt, setNativeAttempt] = useState(0);
   const [nativeError, setNativeError] = useState<ReaderUserMessage | null>(null);
   const [nativeReady, setNativeReady] = useState(false);
+  // Readium keeps loading after its first location and reloads the page for
+  // rebuilds, pagination settings, and resizes; the slider waits for it.
+  const [nativeLoading, setNativeLoading] = useState(true);
   const [chapterMetrics, setChapterMetrics] = useState<ReadiumProgressMetricsEvent>(
     UNMEASURED_CHAPTER,
   );
@@ -243,6 +246,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   useEffect(() => {
     setNativeError(null);
     setNativeReady(false);
+    setNativeLoading(true);
     setPreviewProgression(initialLocator?.locations.progression ?? 0);
     lastLocatorRef.current = initialLocator ?? null;
   }, [initialLocator, nativeAttempt, publicationId, requestedChapterId]);
@@ -423,6 +427,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const translateMessage = (message: ReaderUserMessage) =>
     message.kind === 'raw' ? message.text : t(message.key);
 
+  const progressDisabled = !nativeReady || nativeLoading;
   // A paged screen index is exact; scroll mode has none and the slider
   // follows the progression.
   const pageCurrent = chapterMetrics.paged && screenIndex !== null ? screenIndex + 1 : 0;
@@ -473,6 +478,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
                   : {}),
               })}
               onLink={openReadiumLink}
+              onLoadingChange={({ loading }) => setNativeLoading(loading)}
               onLocatorChange={saveLocator}
               onProgressMetrics={setChapterMetrics}
               onReady={() => setNativeReady(true)}
@@ -526,6 +532,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
           pageProgress: previewProgression,
           pageStepped: chapterMetrics.paged,
           pageTotal: chapterMetrics.pageCount,
+          progressDisabled,
           progressMode: 'percentage',
         }}
         statusBarStyle={readerStatusBarStyle}
@@ -542,6 +549,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         pageProgress={previewProgression}
         pageStepped={chapterMetrics.paged}
         pageTotal={chapterMetrics.pageCount}
+        progressDisabled={progressDisabled}
         progressMode="percentage"
       />
     </>

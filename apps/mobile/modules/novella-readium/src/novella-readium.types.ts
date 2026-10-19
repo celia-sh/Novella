@@ -89,6 +89,14 @@ export interface ReadiumProgressMetricsEvent {
   paged: boolean;
 }
 
+/**
+ * Whether Readium is still loading or reloading the page. A view starts
+ * loading; `onReady` (the first location) can arrive before the page shows.
+ */
+export interface ReadiumLoadingChangeEvent {
+  loading: boolean;
+}
+
 /** A locator change, with the screen it rests on when that is exact. */
 export interface ReadiumLocatorChangeEvent extends ReadiumLocator {
   /** Zero-based paged screen index. Absent in scroll mode. */
@@ -111,6 +119,7 @@ export interface NovellaReadiumViewProps {
   onError?: (error: ReadiumReaderError) => void;
   onImage?: (image: ReadiumImageEvent) => void;
   onLink?: (link: ReadiumLinkEvent) => void;
+  onLoadingChange?: (event: ReadiumLoadingChangeEvent) => void;
   onLocatorChange?: (locator: ReadiumLocatorChangeEvent) => void;
   onProgressMetrics?: (metrics: ReadiumProgressMetricsEvent) => void;
   onReady?: () => void;

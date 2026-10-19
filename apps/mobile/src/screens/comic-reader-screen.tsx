@@ -933,6 +933,10 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
     });
   }, [bookId, route.key, sortNum]);
 
+  // Pages are not on screen while the chapter loads or failed, so a jump has
+  // nothing to land on.
+  const comicProgressDisabled = Boolean(error) || loading || !activeChapter;
+
   return (
     <>
       <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -1078,6 +1082,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
           pageCurrent: pageProgress.current,
           pageProgress: pageProgress.progress,
           pageTotal: pageProgress.total,
+          progressDisabled: comicProgressDisabled,
         }}
         statusBarStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
         title={activeChapter?.chapter.title ?? t('titles.comicReader')}
@@ -1090,6 +1095,7 @@ function ComicReaderScreenContent({ bookId, sortNum, openPosition = 'saved' }: C
         pageTotal={pageProgress.total}
         onPageProgressChange={jumpToProgress}
         pageProgress={pageProgress.progress}
+        progressDisabled={comicProgressDisabled}
       />
     </>
   );

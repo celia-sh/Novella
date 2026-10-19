@@ -6,6 +6,7 @@ export type {
   ReadiumContentInsets,
   ReadiumImageEvent,
   ReadiumLinkEvent,
+  ReadiumLoadingChangeEvent,
   ReadiumLocator,
   ReadiumLocatorChangeEvent,
   ReadiumProgressMetricsEvent,

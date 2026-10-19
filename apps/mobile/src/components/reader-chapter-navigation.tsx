@@ -20,6 +20,7 @@ export function ReaderChapterNavigation({
   pageProgress,
   pageStepped,
   pageTotal,
+  progressDisabled = false,
   progressMode = 'pages',
   sideChrome = false,
 }: ReaderChapterNavigationProps) {
@@ -66,6 +67,7 @@ export function ReaderChapterNavigation({
             {...(columnCount === undefined ? {} : { columnCount })}
             {...(columnTotal === undefined ? {} : { columnTotal })}
             direction={direction}
+            disabled={progressDisabled}
             displayMode={progressMode}
             layoutWidth={layoutWidth}
             onValueChange={onPageProgressChange}

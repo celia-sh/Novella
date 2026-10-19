@@ -19,6 +19,8 @@ export interface ReaderSideProgressProps {
   pageProgress: number;
   pageStepped?: boolean;
   pageTotal: number;
+  /** The reader is loading or failed; the slider cannot be dragged. */
+  progressDisabled?: boolean;
   progressMode?: 'pages' | 'percentage';
 }
 
@@ -44,6 +46,7 @@ export function ReaderSideProgress({
   pageProgress,
   pageStepped = false,
   pageTotal,
+  progressDisabled = false,
   progressMode = 'pages',
 }: ReaderSideProgressProps) {
   const { width: windowWidth } = useWindowDimensions();
@@ -88,6 +91,7 @@ export function ReaderSideProgress({
             {...(columnCount === undefined ? {} : { columnCount })}
             {...(columnTotal === undefined ? {} : { columnTotal })}
             direction={direction}
+            disabled={progressDisabled}
             displayMode={progressMode}
             layoutWidth={sliderWidth}
             onValueChange={onPageProgressChange}

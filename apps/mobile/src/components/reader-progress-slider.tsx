@@ -34,6 +34,11 @@ export interface ReaderProgressSliderProps {
   /** Pages with content in a paged novel chapter. */
   columnTotal?: number;
   direction?: 'ltr' | 'rtl';
+  /**
+   * Blocks dragging while the reader is loading or failed. The thumb keeps its
+   * position; unlike a single-page chapter it is not pinned at 100%.
+   */
+  disabled?: boolean;
   displayMode?: 'pages' | 'percentage';
   hidden?: boolean;
   /** Overrides the window-based width when the slider sits in a panel. */
@@ -83,6 +88,7 @@ export function ReaderProgressSlider({
   columnCount,
   columnTotal,
   direction = 'ltr',
+  disabled: loadingDisabled = false,
   displayMode = 'pages',
   hidden = false,
   layoutWidth,
@@ -106,7 +112,7 @@ export function ReaderProgressSlider({
    * than pages, so it only uses the count to lock a one-screen chapter.
    */
   const {
-    disabled,
+    disabled: pinned,
     progress: displayedProgress,
     step,
   } = resolveReaderProgressSliderState({
@@ -116,6 +122,7 @@ export function ReaderProgressSlider({
     pageTotal,
     progress,
   });
+  const disabled = pinned || loadingDisabled;
   // Comics and paged novels show pages; scroll mode and an unmeasured
   // chapter have no page count and show the percentage.
   const pagePosition = resolveReaderPagePosition({

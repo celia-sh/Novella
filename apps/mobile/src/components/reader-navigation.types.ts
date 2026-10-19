@@ -24,6 +24,8 @@ export interface ReaderChapterNavigationProps {
   /** Pages with content in a paged novel chapter. */
   columnTotal?: number;
   direction?: 'ltr' | 'rtl';
+  /** The reader is loading or failed; the slider cannot be dragged. */
+  progressDisabled?: boolean;
   onPageProgressChange: (progress: number) => void;
   pageCurrent: number;
   pageProgress: number;

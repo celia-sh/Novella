@@ -15,6 +15,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   let onTap = EventDispatcher()
   let onBoundary = EventDispatcher()
   let onProgressMetrics = EventDispatcher()
+  let onLoadingChange = EventDispatcher()
 
   private var publicationUri: String?
   private var publicationId: String?
@@ -50,6 +51,12 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   private var emittedProgressMetrics: String?
   private var metricsContentSizeObservation: NSKeyValueObservation?
   private weak var metricsScrollView: UIScrollView?
+  /// The last value sent through `onLoadingChange`; a new view starts loading.
+  private var isContentLoading = true
+  private var loadingCheckScheduled = false
+  private var loadingWatchDeadline = Date.distantPast
+  private var paginationInteractionObservation: NSKeyValueObservation?
+  private weak var observedPaginationView: UIView?
   private var lastLayoutSize: CGSize = .zero
 
   required init(appContext: AppContext? = nil) {
@@ -143,6 +150,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     if bounds.size != lastLayoutSize {
       lastLayoutSize = bounds.size
       scheduleProgressMetricsUpdate()
+      watchContentLoading()
     }
   }
 
@@ -206,6 +214,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       let url = URL(string: uri)
     else { return }
     isReady = false
+    watchContentLoading()
     var openingStatus: [String: Any] = ["stage": "opening"]
     if let href = initialLocator?["href"] as? String { openingStatus["href"] = href }
     onStatus(openingStatus)
@@ -356,6 +365,8 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     appliedLayoutKey = layoutKey
     navigator.submitPreferences(makePreferences())
     enforceScrollModeLayout(navigator.presentation)
+    // Settings that change pagination make Readium reload the spread.
+    watchContentLoading()
   }
 
   /**
@@ -383,6 +394,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
         readingOrder: readingOrder
       )
       isReady = false
+      watchContentLoading()
       try attachNavigator(controller)
       applyPreferences()
       scheduleProgressMetricsUpdate()
@@ -545,6 +557,66 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       pending.append(contentsOf: view.subviews)
     }
     return result
+  }
+
+  /// Reports whether Readium is still loading the page, so React can lock the
+  /// progress slider. `onReady` is only the first location: Readium keeps
+  /// loading after it, and reloads the spread for a navigator rebuild (fold,
+  /// column or mode change), a pagination setting such as the font size, or a
+  /// resize. A loading spread is hidden (`alpha = 0`) behind Readium's own
+  /// spinner until it is shown, which is the signal used here.
+  ///
+  /// Readium's pagination view also turns user interaction off whenever its
+  /// navigator is not idle. That flag is a trigger, not the state: it is also
+  /// off while a page turns or a seek jumps, and locking the slider on it would
+  /// cancel the drag that is seeking.
+  private func watchContentLoading() {
+    loadingWatchDeadline = Date().addingTimeInterval(0.6)
+    guard !loadingCheckScheduled else { return }
+    loadingCheckScheduled = true
+    runLoadingCheck()
+  }
+
+  /// Polls while loading, and for a short window after a trigger because a
+  /// reload can start a turn after the call that causes it.
+  private func runLoadingCheck() {
+    observePaginationInteraction()
+    let loading = computeContentLoading()
+    if loading != isContentLoading {
+      isContentLoading = loading
+      onLoadingChange(["loading": loading])
+    }
+    guard loading || Date() < loadingWatchDeadline else {
+      loadingCheckScheduled = false
+      return
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+      self?.runLoadingCheck()
+    }
+  }
+
+  private func computeContentLoading() -> Bool {
+    guard isReady, let navigator else { return true }
+    let webViews = descendantWebViews(of: navigator.view)
+    guard !webViews.isEmpty else { return true }
+    return webViews.contains { $0.scrollView.alpha < 0.99 }
+  }
+
+  /// Readium's `PaginationView` is internal and created after the navigator
+  /// initializes, so it is found by name once it exists.
+  private func observePaginationInteraction() {
+    guard
+      let navigator,
+      let paginationView = navigator.view.subviews.first(where: {
+        String(describing: type(of: $0)) == "PaginationView"
+      }),
+      paginationView !== observedPaginationView
+    else { return }
+    observedPaginationView = paginationView
+    paginationInteractionObservation = paginationView.observe(\.isUserInteractionEnabled) {
+      [weak self] _, _ in
+      DispatchQueue.main.async { self?.watchContentLoading() }
+    }
   }
 
   /// Reports how many rendered pages the current chapter has.
@@ -886,6 +958,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       onReady([:])
       applyDoublePageColumnsIfNeeded()
     }
+    watchContentLoading()
     var event = bridgeLocator(locator)
     if let screenIndex = currentScreenIndex(for: locator) {
       event["screenIndex"] = screenIndex
@@ -1045,6 +1118,9 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     metricsContentSizeObservation?.invalidate()
     metricsContentSizeObservation = nil
     metricsScrollView = nil
+    paginationInteractionObservation?.invalidate()
+    paginationInteractionObservation = nil
+    observedPaginationView = nil
     if let owner = registeredContentScrollViewOwner {
       owner.setContentScrollView(nil, for: .top)
     }
