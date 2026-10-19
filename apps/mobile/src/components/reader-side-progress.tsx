@@ -7,6 +7,10 @@ import { ReaderProgressSlider } from '@/components/reader-progress-slider';
 import { resolveReaderSideProgressInfo } from '@/services/reader-page-progress';
 
 export interface ReaderSideProgressProps {
+  /** Pages per paged screen (two for a spread), for the page label. */
+  columnCount?: number;
+  /** Pages with content, for the page label. */
+  columnTotal?: number;
   /** Matches the reader's page direction, so the popover slider follows it. */
   direction?: 'ltr' | 'rtl';
   foregroundColor: string;
@@ -31,6 +35,8 @@ const MAX_POPOVER_WIDTH = 360;
  * free for text on devices with a vertical navigation bar.
  */
 export function ReaderSideProgress({
+  columnCount,
+  columnTotal,
   direction = 'ltr',
   foregroundColor,
   onPageProgressChange,
@@ -42,6 +48,8 @@ export function ReaderSideProgress({
 }: ReaderSideProgressProps) {
   const { width: windowWidth } = useWindowDimensions();
   const { pageLabel, percent } = resolveReaderSideProgressInfo({
+    ...(columnCount === undefined ? {} : { columnCount }),
+    ...(columnTotal === undefined ? {} : { columnTotal }),
     displayMode: progressMode,
     pageCurrent,
     pageStepped,
@@ -77,6 +85,8 @@ export function ReaderSideProgress({
       >
         <View style={styles.slider}>
           <ReaderProgressSlider
+            {...(columnCount === undefined ? {} : { columnCount })}
+            {...(columnTotal === undefined ? {} : { columnTotal })}
             direction={direction}
             displayMode={progressMode}
             layoutWidth={sliderWidth}

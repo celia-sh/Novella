@@ -33,14 +33,21 @@ export interface ReaderProgressSliderState {
  * step by its measured pages. Scroll mode also reports a measured count (of
  * screenfuls), but it stays continuous: only a chapter that fits on one screen
  * is locked at 100%.
+ *
+ * A known `pageCurrent` places a stepped thumb exactly. The novel reader's
+ * progression is the trailing edge of the visible area, `(index + 1) / total`
+ * on a paged screen, and snapping that to `index / (total - 1)` lands one step
+ * ahead for most of the chapter.
  */
 export function resolveReaderProgressSliderState({
   displayMode,
+  pageCurrent = 0,
   pageStepped,
   pageTotal,
   progress,
 }: {
   displayMode: 'pages' | 'percentage';
+  pageCurrent?: number;
   pageStepped: boolean;
   pageTotal: number;
   progress: number;
@@ -49,16 +56,85 @@ export function resolveReaderProgressSliderState({
   const total = Math.max(0, Math.trunc(pageTotal));
   const stepped = total > 1 && (!isPercentage || pageStepped);
   const disabled = isPercentage ? total === 1 : total <= 1;
+  const current = Math.trunc(pageCurrent);
   return {
     disabled,
     progress: disabled
       ? 1
       : stepped
-        ? snapReaderProgress(progress, total)
+        ? current >= 1
+          ? (Math.min(current, total) - 1) / (total - 1)
+          : snapReaderProgress(progress, total)
         : clampProgress(progress),
     step: stepped ? readerProgressStep(total) : isPercentage ? 0.01 : 1,
     stepped,
   };
+}
+
+/**
+ * Where a novel slider value sends the reader. A paged chapter goes to the
+ * middle of the chosen screen, so Readium's snap to a page boundary lands on
+ * that screen whether it rounds or truncates; the screen is also returned so
+ * the thumb can hold it until the reader reports the new position.
+ */
+export function resolveNovelProgressTarget({
+  paged,
+  screenTotal,
+  value,
+}: {
+  paged: boolean;
+  screenTotal: number;
+  value: number;
+}): { progression: number; screenIndex: number | null } {
+  const progress = clampProgress(value);
+  const total = Math.max(0, Math.trunc(screenTotal));
+  if (!paged || total <= 1) return { progression: progress, screenIndex: null };
+  const screenIndex = Math.round(progress * (total - 1));
+  return { progression: (screenIndex + 0.5) / total, screenIndex };
+}
+
+export interface ReaderPagePosition {
+  current: number;
+  total: number;
+}
+
+/**
+ * The page a paged reader shows, for both the comic and the novel reader.
+ * `pageTotal` counts screens; a novel spread shows two pages per screen and
+ * is named by its last page, as two-page readers do: the second screen of a
+ * 27-page spread is page 4 of 27. `null` when there is no page count: scroll
+ * mode measures screenfuls, and an unmeasured chapter has none yet.
+ *
+ * Until the reader reports its screen, the screen is derived from the snapped
+ * progression.
+ */
+export function resolveReaderPagePosition({
+  columnCount = 1,
+  columnTotal = 0,
+  displayMode,
+  pageCurrent,
+  pageStepped = false,
+  pageTotal,
+  progress,
+}: {
+  columnCount?: number;
+  columnTotal?: number;
+  displayMode: 'pages' | 'percentage';
+  pageCurrent: number;
+  pageStepped?: boolean;
+  pageTotal: number;
+  progress: number;
+}): ReaderPagePosition | null {
+  const total = Math.max(0, Math.trunc(pageTotal));
+  if (total === 0) return null;
+  if (displayMode === 'percentage' && !pageStepped) return null;
+  const screen = pageCurrent >= 1
+    ? Math.min(Math.max(Math.trunc(pageCurrent), 1), total)
+    : Math.min(total, Math.max(1, Math.round(snapReaderProgress(progress, total) * (total - 1)) + 1));
+  if (displayMode === 'pages') return { current: screen, total };
+  const perScreen = columnCount >= 2 ? 2 : 1;
+  const pages = columnTotal >= 1 ? Math.trunc(columnTotal) : total * perScreen;
+  return { current: Math.min(pages, screen * perScreen), total: pages };
 }
 
 export interface ReaderSideProgressInfo {
@@ -69,17 +145,20 @@ export interface ReaderSideProgressInfo {
 }
 
 /**
- * Text for the compact side-bar progress capsule. The novel reader reports
- * chapter progression rather than a page index, so when `pageCurrent` is not
- * available the page number is derived from the snapped progression.
+ * Text for the compact side-bar progress capsule. The page label follows
+ * `resolveReaderPagePosition`, so scroll mode shows none.
  */
 export function resolveReaderSideProgressInfo({
+  columnCount,
+  columnTotal,
   displayMode,
   pageCurrent,
   pageStepped = false,
   pageTotal,
   progress,
 }: {
+  columnCount?: number;
+  columnTotal?: number;
   displayMode: 'pages' | 'percentage';
   pageCurrent: number;
   pageStepped?: boolean;
@@ -89,6 +168,7 @@ export function resolveReaderSideProgressInfo({
   const total = Math.max(0, Math.trunc(pageTotal));
   const state = resolveReaderProgressSliderState({
     displayMode,
+    pageCurrent,
     pageStepped,
     pageTotal,
     progress,
@@ -96,11 +176,19 @@ export function resolveReaderSideProgressInfo({
   const percent = Math.round(
     (total > 0 ? state.progress : clampProgress(progress)) * 100,
   );
-  if (total === 0) return { pageLabel: '', percent };
-  const current = pageCurrent >= 1
-    ? Math.min(Math.max(Math.trunc(pageCurrent), 1), total)
-    : Math.min(total, Math.max(1, Math.round(state.progress * (total - 1)) + 1));
-  return { pageLabel: `${current}/${total}`, percent };
+  const position = resolveReaderPagePosition({
+    ...(columnCount === undefined ? {} : { columnCount }),
+    ...(columnTotal === undefined ? {} : { columnTotal }),
+    displayMode,
+    pageCurrent,
+    pageStepped,
+    pageTotal,
+    progress,
+  });
+  return {
+    pageLabel: position ? `${position.current}/${position.total}` : '',
+    percent,
+  };
 }
 
 export function resolveComicPageProgress(index: number, total: number): ReaderPageProgress {

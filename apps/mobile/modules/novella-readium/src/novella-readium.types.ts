@@ -77,9 +77,22 @@ export interface ReadiumBoundaryEvent {
 
 /** Rendered geometry of the current chapter, measured after layout. */
 export interface ReadiumProgressMetricsEvent {
+  /** Pages shown per screen in paged mode: two for a spread. `1` in scroll mode. */
+  columnCount: number;
+  /**
+   * Pages with content in paged mode, without the empty page Readium adds to
+   * fill an odd spread. Equals `pageCount` for a single column.
+   */
+  columnTotal: number;
   pageCount: number;
-  /** `true` when `pageCount` counts page turns; `false` for screenfuls. */
+  /** `true` when `pageCount` counts page turns (screens); `false` for screenfuls. */
   paged: boolean;
+}
+
+/** A locator change, with the screen it rests on when that is exact. */
+export interface ReadiumLocatorChangeEvent extends ReadiumLocator {
+  /** Zero-based paged screen index. Absent in scroll mode. */
+  screenIndex?: number;
 }
 
 export interface NovellaReadiumViewHandle {
@@ -98,7 +111,7 @@ export interface NovellaReadiumViewProps {
   onError?: (error: ReadiumReaderError) => void;
   onImage?: (image: ReadiumImageEvent) => void;
   onLink?: (link: ReadiumLinkEvent) => void;
-  onLocatorChange?: (locator: ReadiumLocator) => void;
+  onLocatorChange?: (locator: ReadiumLocatorChangeEvent) => void;
   onProgressMetrics?: (metrics: ReadiumProgressMetricsEvent) => void;
   onReady?: () => void;
   onStatus?: (status: ReadiumStatusEvent) => void;

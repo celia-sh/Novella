@@ -15,6 +15,7 @@ import type {
   ReadiumImageEvent,
   ReadiumLinkEvent,
   ReadiumLocator,
+  ReadiumLocatorChangeEvent,
   ReadiumProgressMetricsEvent,
   ReadiumReaderError,
   ReadiumStatusEvent,
@@ -38,7 +39,7 @@ type NativeViewProps = ViewProps &
     onError?: (event: { nativeEvent: ReadiumReaderError }) => void;
     onImage?: (event: { nativeEvent: ReadiumImageEvent }) => void;
     onLink?: (event: { nativeEvent: ReadiumLinkEvent }) => void;
-    onLocatorChange?: (event: { nativeEvent: ReadiumLocator }) => void;
+    onLocatorChange?: (event: { nativeEvent: ReadiumLocatorChangeEvent }) => void;
     onProgressMetrics?: (event: { nativeEvent: ReadiumProgressMetricsEvent }) => void;
     onReady?: (event: { nativeEvent: Record<string, never> }) => void;
     onStatus?: (event: { nativeEvent: ReadiumStatusEvent }) => void;

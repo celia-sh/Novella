@@ -7,6 +7,8 @@ import type {
   NovellaReadiumViewHandle,
   ReadiumLinkEvent,
   ReadiumLocator,
+  ReadiumLocatorChangeEvent,
+  ReadiumProgressMetricsEvent,
 } from '../../modules/novella-readium';
 import { NovellaReadiumView } from '../../modules/novella-readium';
 import {
@@ -28,6 +30,7 @@ import {
   createReaderSideChromeInsets,
 } from '@/services/reader-chrome-layout';
 import { shouldUseReaderDoublePage } from '@/services/reader-display-layout';
+import { resolveNovelProgressTarget } from '@/services/reader-page-progress';
 import { SIDE_FADE_WIDTH } from '@/services/reader-side-fade';
 import { useReaderChapter, type ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
@@ -70,6 +73,12 @@ export interface ReaderScreenProps {
 }
 
 const NATIVE_READER_LOAD_TIMEOUT_MS = 15_000;
+const UNMEASURED_CHAPTER: ReadiumProgressMetricsEvent = {
+  columnCount: 1,
+  columnTotal: 0,
+  pageCount: 0,
+  paged: true,
+};
 
 export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: ReaderScreenProps) {
   const { t } = useTranslation('reader');
@@ -88,10 +97,11 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const [nativeAttempt, setNativeAttempt] = useState(0);
   const [nativeError, setNativeError] = useState<ReaderUserMessage | null>(null);
   const [nativeReady, setNativeReady] = useState(false);
-  const [chapterMetrics, setChapterMetrics] = useState<{
-    pageCount: number;
-    paged: boolean;
-  }>({ pageCount: 0, paged: true });
+  const [chapterMetrics, setChapterMetrics] = useState<ReadiumProgressMetricsEvent>(
+    UNMEASURED_CHAPTER,
+  );
+  // The paged screen the reader rests on, as reported with each position.
+  const [screenIndex, setScreenIndex] = useState<number | null>(null);
   const imagePreviewRef = useRef<ReaderImagePreviewHostHandle>(null);
   const nativeReaderRef = useRef<NovellaReadiumViewHandle | null>(null);
   const lastLocatorRef = useRef<ReadiumLocator | null>(null);
@@ -108,7 +118,8 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   // would let the slider step against the wrong page total until the native
   // layout reports the new one.
   useEffect(() => {
-    setChapterMetrics({ pageCount: 0, paged: true });
+    setChapterMetrics(UNMEASURED_CHAPTER);
+    setScreenIndex(null);
   }, [content?.chapter.id, nativeAttempt, sortNum]);
   const readerFont = useReaderFont(content?.chapter.fontUrl);
   const requiresReaderFont = Boolean(content?.chapter.fontUrl?.trim());
@@ -246,8 +257,11 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     return () => clearTimeout(timeout);
   }, [content, nativeError, nativeReady, preparedPublication]);
 
-  const saveLocator = useCallback((locator: ReadiumLocator) => {
+  const saveLocator = useCallback((
+    { screenIndex: nextScreenIndex, ...locator }: ReadiumLocatorChangeEvent,
+  ) => {
     if (!content || activeChapterIdRef.current !== content.chapter.id) return;
+    setScreenIndex(typeof nextScreenIndex === 'number' ? nextScreenIndex : null);
     lastLocatorRef.current = locator;
     const progression = locator.locations.progression;
     if (typeof progression === 'number' && Number.isFinite(progression)) {
@@ -357,9 +371,15 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
 
   const handleProgressChange = useCallback((progress: number) => {
     const safeProgress = Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 0;
+    const target = resolveNovelProgressTarget({
+      paged: chapterMetrics.paged,
+      screenTotal: chapterMetrics.pageCount,
+      value: safeProgress,
+    });
     setPreviewProgression(safeProgress);
-    void nativeReaderRef.current?.goToProgression(safeProgress);
-  }, []);
+    if (target.screenIndex !== null) setScreenIndex(target.screenIndex);
+    void nativeReaderRef.current?.goToProgression(target.progression);
+  }, [chapterMetrics.pageCount, chapterMetrics.paged]);
 
   const readerPreferences = useMemo(() => createReadiumReaderPreferences({
     backgroundColor: readerBackground,
@@ -402,6 +422,10 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const chapterError = error ?? publication.error;
   const translateMessage = (message: ReaderUserMessage) =>
     message.kind === 'raw' ? message.text : t(message.key);
+
+  // A paged screen index is exact; scroll mode has none and the slider
+  // follows the progression.
+  const pageCurrent = chapterMetrics.paged && screenIndex !== null ? screenIndex + 1 : 0;
 
   const handleReaderLayout = useCallback((event: LayoutChangeEvent) => {
     const { height, width } = event.nativeEvent.layout;
@@ -450,7 +474,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
               })}
               onLink={openReadiumLink}
               onLocatorChange={saveLocator}
-              onProgressMetrics={({ pageCount, paged }) => setChapterMetrics({ pageCount, paged })}
+              onProgressMetrics={setChapterMetrics}
               onReady={() => setNativeReady(true)}
               onStatus={() => undefined}
               onTap={() => {
@@ -495,8 +519,10 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
         })}
         sideChrome={sideChrome}
         sideProgress={{
+          columnCount: chapterMetrics.columnCount,
+          columnTotal: chapterMetrics.columnTotal,
           onPageProgressChange: handleProgressChange,
-          pageCurrent: 0,
+          pageCurrent: pageCurrent,
           pageProgress: previewProgression,
           pageStepped: chapterMetrics.paged,
           pageTotal: chapterMetrics.pageCount,
@@ -507,10 +533,12 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
       />
       <ReaderChapterNavigation
         chromeHidden={chromeHidden || imagePreviewOpen || !nativeReady}
+        columnCount={chapterMetrics.columnCount}
+        columnTotal={chapterMetrics.columnTotal}
         direction="ltr"
         sideChrome={sideChrome}
         onPageProgressChange={handleProgressChange}
-        pageCurrent={0}
+        pageCurrent={pageCurrent}
         pageProgress={previewProgression}
         pageStepped={chapterMetrics.paged}
         pageTotal={chapterMetrics.pageCount}

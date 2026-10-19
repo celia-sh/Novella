@@ -257,6 +257,12 @@ public final class NovellaUiModule: Module {
       }
     }
 
+    View(NovellaBoundsReporterView.self) {
+      ViewName("BoundsReporter")
+
+      Events("onBoundsChange")
+    }
+
     View(NovellaSegmentedControlView.self) {
       ViewName("SegmentedControl")
 

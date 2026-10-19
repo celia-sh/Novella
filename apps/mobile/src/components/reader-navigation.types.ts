@@ -19,6 +19,10 @@ export interface ReaderNavigationProps {
 }
 
 export interface ReaderChapterNavigationProps {
+  /** Pages per paged novel screen: two for a spread. */
+  columnCount?: number;
+  /** Pages with content in a paged novel chapter. */
+  columnTotal?: number;
   direction?: 'ltr' | 'rtl';
   onPageProgressChange: (progress: number) => void;
   pageCurrent: number;

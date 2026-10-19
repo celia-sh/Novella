@@ -48,6 +48,8 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   private var lastBoundaryEventTime: TimeInterval = 0
   private var progressMetricsWorkItem: DispatchWorkItem?
   private var emittedProgressMetrics: String?
+  private var metricsContentSizeObservation: NSKeyValueObservation?
+  private weak var metricsScrollView: UIScrollView?
   private var lastLayoutSize: CGSize = .zero
 
   required init(appContext: AppContext? = nil) {
@@ -333,25 +335,23 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     guard let navigator else { return }
     let layoutKey = makeLayoutKey()
     if let appliedLayoutKey, appliedLayoutKey != layoutKey {
-      let needsColumnRebuild = appliedLayoutKey.isPaged
-        && layoutKey.isPaged
-        && appliedLayoutKey.doublePage != layoutKey.doublePage
       self.appliedLayoutKey = layoutKey
-      if needsColumnRebuild {
-        // Preference setters run inside a React prop update. Rebuilding a child
-        // view controller there would mutate the view hierarchy mid-update, so
-        // defer it by one main-queue turn and read the position then.
-        DispatchQueue.main.async { [weak self] in
-          guard let self, let navigator = self.navigator else { return }
-          self.reinstallNavigator(at: navigator.currentLocation)
-        }
-        return
+      // A paged/scroll switch also rebuilds. Readium repaginates it on its
+      // own, but the reader then has to wait for a location change to apply
+      // the column script and measure the new layout, and a chapter that fits
+      // on one screen keeps the same locator, which Readium does not notify
+      // twice: it kept the previous mode's page count. A new navigator
+      // notifies its first location and installs the column script for the
+      // new mode at creation.
+      //
+      // Preference setters run inside a React prop update. Rebuilding a child
+      // view controller there would mutate the view hierarchy mid-update, so
+      // defer it by one main-queue turn and read the position then.
+      DispatchQueue.main.async { [weak self] in
+        guard let self, let navigator = self.navigator else { return }
+        self.reinstallNavigator(at: navigator.currentLocation)
       }
-      // A paged/scroll switch is already part of Readium's pagination
-      // invalidation, so submitPreferences repaginates with the new column
-      // count on its own. Reset readiness so the reload applies the column
-      // script and reports the new page layout once.
-      isReady = false
+      return
     }
     appliedLayoutKey = layoutKey
     navigator.submitPreferences(makePreferences())
@@ -445,6 +445,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     guard let webView = descendantWebViews(of: navigator.view).first else { return }
     let scrollView = webView.scrollView
     observeSideFadeScroll(scrollView)
+    observeMetricsContentSize(scrollView)
     let owner = parentViewController ?? navigator
     guard registeredContentScrollView !== scrollView || registeredContentScrollViewOwner !== owner else {
       return
@@ -477,6 +478,26 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       }
     }
     updateSideFadeOpacity()
+  }
+
+  /// The fixed delayed reads can land before the page has its final layout
+  /// (a mode switch, a late font or image). Re-measure whenever the web view's
+  /// content size settles on a new value.
+  private func observeMetricsContentSize(_ scrollView: UIScrollView) {
+    guard metricsScrollView !== scrollView else { return }
+    metricsContentSizeObservation?.invalidate()
+    metricsScrollView = scrollView
+    metricsContentSizeObservation = scrollView.observe(\.contentSize, options: [.old, .new]) {
+      [weak self] _, change in
+      guard
+        #available(iOS 17.0, *),
+        change.oldValue != change.newValue,
+        Thread.isMainThread
+      else { return }
+      MainActor.assumeIsolated {
+        self?.scheduleProgressMetricsRefresh()
+      }
+    }
   }
 
   /// Distance from the resting page, in points, over which the fade reaches
@@ -530,11 +551,22 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   ///
   /// Readium has no page-count API for a reflowable resource, but its WKWebView
   /// has already paginated one: in paged mode the content width is a whole
-  /// number of viewport widths, and in scroll mode the content height is a
-  /// whole number of screenfuls. This is a measurement of the actual layout,
-  /// not an estimate of how the text would fit. The value is emitted only when
-  /// it changes, so page turns do not wake React.
+  /// number of viewport widths. Scroll mode measures the text instead (see
+  /// `emitProgressMetrics`). This is a measurement of the actual layout, not an
+  /// estimate of how the text would fit. The value is emitted only when it
+  /// changes, so page turns do not wake React.
   private func scheduleProgressMetricsUpdate() {
+    scheduleProgressMetricsRefresh()
+    // A spread's content size can still be settling when the first locator
+    // arrives; re-read it once the layout has had time to finish.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+      self?.emitProgressMetrics()
+    }
+  }
+
+  /// Coalesces bursts (content size changes while the page loads, a font
+  /// arriving late) into one read once the layout is quiet.
+  private func scheduleProgressMetricsRefresh() {
     progressMetricsWorkItem?.cancel()
     let item = DispatchWorkItem { [weak self] in
       self?.progressMetricsWorkItem = nil
@@ -542,12 +574,21 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     }
     progressMetricsWorkItem = item
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: item)
-    // A spread's content size can still be settling when the first locator
-    // arrives; re-read it once the layout has had time to finish.
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-      self?.emitProgressMetrics()
-    }
   }
+
+  /// The bottom of the rendered content in CSS pixels, from the document top.
+  /// A range over the body measures the boxes the text and images occupy, not
+  /// the body or root box, which WebKit stretches to the viewport.
+  private static let contentExtentScript = """
+  (function () {
+    var body = document.body;
+    if (!body) return 0;
+    var range = document.createRange();
+    range.selectNodeContents(body);
+    var rect = range.getBoundingClientRect();
+    return rect.height > 0 ? rect.bottom + (window.scrollY || 0) : 0;
+  })()
+  """
 
   private func emitProgressMetrics() {
     guard
@@ -556,28 +597,128 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       let scrollView = progressContentScrollView(for: navigator)
     else { return }
 
-    let pageCount: Int
-    let isPaged = !navigator.presentation.scroll
-    if isPaged {
+    if !navigator.presentation.scroll {
       let pageWidth = scrollView.bounds.width
       let contentWidth = scrollView.contentSize.width
       guard pageWidth > 1, contentWidth > 1 else { return }
-      pageCount = max(1, Int((contentWidth / pageWidth).rounded()))
-    } else {
-      let visibleHeight = scrollView.bounds.height
-        - scrollView.adjustedContentInset.top
-        - scrollView.adjustedContentInset.bottom
-      let contentHeight = scrollView.contentSize.height
-      guard visibleHeight > 1, contentHeight > 1 else { return }
-      pageCount = max(1, Int(ceil((contentHeight - 0.5) / visibleHeight)))
+      let screenCount = max(1, Int((contentWidth / pageWidth).rounded()))
+      let preferredColumns = (preferences["doublePage"] as? Bool) == true ? 2 : 1
+      Task { @MainActor [weak self, weak navigator] in
+        guard let navigator else { return }
+        let layout: [String: Any]? = switch await navigator.evaluateJavaScript(Self.columnLayoutScript) {
+        case .success(let value): value as? [String: Any]
+        case .failure: nil
+        }
+        guard
+          let self,
+          self.isReady,
+          self.navigator === navigator,
+          !navigator.presentation.scroll
+        else { return }
+        let columnCount = min(2, max(1, (layout?["columns"] as? NSNumber)?.intValue ?? preferredColumns))
+        // A screen is one turn, but a two-column spread shows two pages, and
+        // Readium pads an odd column count with an empty virtual page so the
+        // last spread still fills the screen. Count columns rather than
+        // screens, and leave the padding out. While the padding is still being
+        // added the content is half a screen short, which rounds to the same
+        // column count.
+        let columnWidth = pageWidth / CGFloat(columnCount)
+        let paddedColumns = Int((contentWidth / columnWidth).rounded())
+        let virtualPage = (layout?["virtualPage"] as? Bool) == true ? 1 : 0
+        self.reportProgressMetrics(
+          pageCount: screenCount,
+          isPaged: true,
+          columnCount: columnCount,
+          columnTotal: min(screenCount * columnCount, max(1, paddedColumns - virtualPage))
+        )
+      }
+      return
     }
 
+    // The scroll view's content height cannot tell a short chapter from a
+    // screenful: WebKit lays the document out at least as tall as the viewport
+    // inside the system safe area, while Readium's chrome insets are content
+    // insets that come out of the visible height. A chapter that fits counted
+    // as two screenfuls, so the slider stayed draggable. Compare the extent of
+    // the text itself with the visible height instead.
+    let visibleHeight = scrollView.bounds.height
+      - scrollView.adjustedContentInset.top
+      - scrollView.adjustedContentInset.bottom
+    guard visibleHeight > 1 else { return }
+    let zoomScale = scrollView.zoomScale > 0 ? scrollView.zoomScale : 1
+    Task { @MainActor [weak self, weak navigator] in
+      guard
+        let navigator,
+        case .success(let value) = await navigator.evaluateJavaScript(Self.contentExtentScript),
+        let extent = (value as? NSNumber).map({ CGFloat($0.doubleValue) }),
+        extent > 0,
+        let self,
+        self.isReady,
+        self.navigator === navigator,
+        navigator.presentation.scroll
+      else { return }
+      let screenCount = max(1, Int(ceil((extent * zoomScale - 0.5) / visibleHeight)))
+      self.reportProgressMetrics(
+        pageCount: screenCount,
+        isPaged: false,
+        columnCount: 1,
+        columnTotal: screenCount
+      )
+    }
+  }
+
+  /// The column count the page actually renders with, and whether Readium
+  /// has padded the last spread with its virtual page.
+  private static let columnLayoutScript = """
+  (function () {
+    var root = document.documentElement;
+    if (!root) return null;
+    var columns = parseInt(getComputedStyle(root).columnCount, 10);
+    return {
+      columns: columns > 0 ? columns : 1,
+      virtualPage: !!document.getElementById('readium-virtual-page')
+    };
+  })()
+  """
+
+  private func reportProgressMetrics(
+    pageCount: Int,
+    isPaged: Bool,
+    columnCount: Int,
+    columnTotal: Int
+  ) {
     // Page count is a paged-mode concept; scroll mode reports screenfuls and
     // consumers only use them to detect a chapter that fits on one screen.
-    let signature = "\(pageCount):\(isPaged)"
+    let signature = "\(pageCount):\(isPaged):\(columnCount):\(columnTotal)"
     guard signature != emittedProgressMetrics else { return }
     emittedProgressMetrics = signature
-    onProgressMetrics(["pageCount": pageCount, "paged": isPaged])
+    onProgressMetrics([
+      "columnCount": columnCount,
+      "columnTotal": columnTotal,
+      "pageCount": pageCount,
+      "paged": isPaged
+    ])
+  }
+
+  /// The screen the paged reader rests on, from the same viewport Readium
+  /// computed the locator from. Readium's leading progression is the scroll
+  /// offset over the content width, so scaling it by the content width in
+  /// screens gives the index exactly, in either reading direction. Rounding
+  /// the trailing progression the slider shows instead lands one screen
+  /// ahead for most of the chapter.
+  private func currentScreenIndex(for locator: Locator) -> Int? {
+    guard
+      let navigator,
+      !navigator.presentation.scroll,
+      let scrollView = progressContentScrollView(for: navigator),
+      let resource = viewportResource(for: locator)
+    else { return nil }
+    let pageWidth = scrollView.bounds.width
+    let contentWidth = scrollView.contentSize.width
+    guard pageWidth > 1, contentWidth > 1 else { return nil }
+    let screenCount = max(1, Int((contentWidth / pageWidth).rounded()))
+    let index = Int((resource.progression.lowerBound * Double(contentWidth / pageWidth)).rounded())
+    return min(screenCount - 1, max(0, index))
   }
 
   private func progressContentScrollView(
@@ -745,7 +886,11 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
       onReady([:])
       applyDoublePageColumnsIfNeeded()
     }
-    onLocatorChange(bridgeLocator(locator))
+    var event = bridgeLocator(locator)
+    if let screenIndex = currentScreenIndex(for: locator) {
+      event["screenIndex"] = screenIndex
+    }
+    onLocatorChange(event)
   }
 
   func navigator(_ navigator: Navigator, didJumpTo locator: Locator) {}
@@ -868,9 +1013,7 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
   private func bridgeLocator(_ locator: Locator) -> [String: Any] {
     var object = locator.jsonObject.mapValues(\.any)
     guard
-      let resource = navigator?.viewport?.resources.first(where: {
-        $0.href.description == locator.href.description
-      }) ?? navigator?.viewport?.resources.first,
+      let resource = viewportResource(for: locator),
       var locations = object["locations"] as? [String: Any]
     else {
       return object
@@ -889,10 +1032,19 @@ final class NovellaReadiumView: ExpoView, EPUBNavigatorDelegate, WKScriptMessage
     return object
   }
 
+  private func viewportResource(for locator: Locator) -> NavigatorViewport.Resource? {
+    navigator?.viewport?.resources.first(where: {
+      $0.href.description == locator.href.description
+    }) ?? navigator?.viewport?.resources.first
+  }
+
   private func detachNavigator() {
     progressMetricsWorkItem?.cancel()
     progressMetricsWorkItem = nil
     emittedProgressMetrics = nil
+    metricsContentSizeObservation?.invalidate()
+    metricsContentSizeObservation = nil
+    metricsScrollView = nil
     if let owner = registeredContentScrollViewOwner {
       owner.setContentScrollView(nil, for: .top)
     }

@@ -22,10 +22,17 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { resolveReaderProgressSliderState } from '@/services/reader-page-progress';
+import {
+  resolveReaderPagePosition,
+  resolveReaderProgressSliderState,
+} from '@/services/reader-page-progress';
 import { useAppTheme } from '@/theme/app-theme';
 
 export interface ReaderProgressSliderProps {
+  /** Pages per paged novel screen: two for a spread. */
+  columnCount?: number;
+  /** Pages with content in a paged novel chapter. */
+  columnTotal?: number;
   direction?: 'ltr' | 'rtl';
   displayMode?: 'pages' | 'percentage';
   hidden?: boolean;
@@ -73,6 +80,8 @@ function snapProgress(value: number, step: number): number {
 }
 
 export function ReaderProgressSlider({
+  columnCount,
+  columnTotal,
   direction = 'ltr',
   displayMode = 'pages',
   hidden = false,
@@ -86,17 +95,10 @@ export function ReaderProgressSlider({
 }: ReaderProgressSliderProps) {
   const { t } = useTranslation('reader');
   const { colors } = useAppTheme();
-  const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const toolbarWidth = useReaderToolbarSliderWidth();
   const rtl = direction === 'rtl';
 
   const isPercentage = displayMode === 'percentage';
-  const pagesRemaining = Math.max(0, pageTotal - pageCurrent);
-  const remainingText = isPercentage
-    ? ''
-    : pagesRemaining > 0
-      ? t('progress.remainingPages', { count: pagesRemaining })
-      : '';
   /*
    * Page mode always knows its total. Percentage mode knows the chapter's
    * rendered page count once the reader measures the native layout (`0` until
@@ -109,15 +111,31 @@ export function ReaderProgressSlider({
     step,
   } = resolveReaderProgressSliderState({
     displayMode,
+    pageCurrent,
     pageStepped,
     pageTotal,
     progress,
   });
-  const pageLabel = isPercentage
-    ? `${Math.round(displayedProgress * 100)}%`
-    : pageTotal > 0
-      ? `${Math.min(Math.max(pageCurrent, 1), pageTotal)} / ${pageTotal}`
+  // Comics and paged novels show pages; scroll mode and an unmeasured
+  // chapter have no page count and show the percentage.
+  const pagePosition = resolveReaderPagePosition({
+    ...(columnCount === undefined ? {} : { columnCount }),
+    ...(columnTotal === undefined ? {} : { columnTotal }),
+    displayMode,
+    pageCurrent,
+    pageStepped,
+    pageTotal,
+    progress,
+  });
+  const pageLabel = pagePosition
+    ? `${pagePosition.current} / ${pagePosition.total}`
+    : isPercentage
+      ? `${Math.round(displayedProgress * 100)}%`
       : '';
+  const pagesRemaining = pagePosition ? pagePosition.total - pagePosition.current : 0;
+  const remainingText = pagesRemaining > 0
+    ? t('progress.remainingPages', { count: pagesRemaining })
+    : '';
 
   const trackWidth = useSharedValue(0);
   const position = useSharedValue(displayedProgress);
@@ -225,12 +243,8 @@ export function ReaderProgressSlider({
 
   if (hidden || !visible) return null;
 
-  // UIToolbar lays its items out inside the horizontal safe area (a notched
-  // iPhone in landscape), so the window width alone overflows the capsule.
-  const toolbarWidth = width - insets.left - insets.right - TOOLBAR_HORIZONTAL_MARGIN;
-
   return (
-    <View style={[styles.root, { width: layoutWidth ?? Math.max(1, toolbarWidth) }]}>
+    <View style={[styles.root, { width: layoutWidth ?? toolbarWidth }]}>
       <GestureDetector gesture={gesture}>
         <View
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
@@ -260,6 +274,18 @@ export function ReaderProgressSlider({
       </Text>
     </View>
   );
+}
+
+/**
+ * The width to request for a slider in the bottom toolbar. UIToolbar lays its
+ * items out inside the horizontal safe area (a notched iPhone in landscape),
+ * so the window width alone overflows the capsule. The platter margins still
+ * vary with the layout, so this is an estimate that UIKit may shrink.
+ */
+export function useReaderToolbarSliderWidth(): number {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  return Math.max(1, width - insets.left - insets.right - TOOLBAR_HORIZONTAL_MARGIN);
 }
 
 function clampProgress(value: number): number {

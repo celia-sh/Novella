@@ -7,6 +7,8 @@ export type {
   ReadiumImageEvent,
   ReadiumLinkEvent,
   ReadiumLocator,
+  ReadiumLocatorChangeEvent,
+  ReadiumProgressMetricsEvent,
   ReadiumReaderError,
   ReadiumReaderPreferences,
   ReadiumStatusEvent,
