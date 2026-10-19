@@ -12,8 +12,17 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Skeleton } from 'panelui-native/components/skeleton';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+  useReducedMotion,
+} from 'react-native-reanimated';
 
-import type { DirectConversationItem } from '@novella/api-client';
+import type {
+  DirectMessageItem,
+  DirectMessagePeer,
+} from '@novella/api-client';
 
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { ProfileAvatar } from '@/components/profile-avatar';
@@ -38,6 +47,17 @@ const ROW_INSET = 10;
 const ROW_RADIUS = 20;
 const SKELETON_ROWS = [0, 1, 2, 3, 4, 5, 6, 7];
 const SPLIT_OPTIONS = { headerTitle: '', title: '' };
+const ROW_ENTER = FadeIn.duration(180);
+const ROW_EXIT = FadeOut.duration(160);
+const ROW_REFLOW = LinearTransition.duration(220);
+
+interface ConversationListItem {
+  peerId: number;
+  peer: DirectMessagePeer | null;
+  lastMessage: DirectMessageItem | null;
+  unreadCount: number;
+  temporary: boolean;
+}
 
 /**
  * The conversation list. On a wide layout it becomes a split view, Messages
@@ -115,7 +135,11 @@ export function DirectMessageConversationsScreen({
     <HorizontalSafeArea style={[styles.root, styles.splitRow]}>
       <Stack.Screen options={SPLIT_OPTIONS} />
       <View style={{ width: listWidth }}>
-        <ConversationList onSelect={selectConversation} selectedPeerId={selected} />
+        <ConversationList
+          onSelect={selectConversation}
+          selectedPeerId={selected}
+          selectionRequest={request ?? ''}
+        />
       </View>
       <View style={styles.splitDivider} />
       <View style={styles.detailPane}>
@@ -130,10 +154,12 @@ export function DirectMessageConversationsScreen({
 function ConversationList({
   onSelect,
   selectedPeerId = null,
+  selectionRequest,
 }: {
   /** Present in the split view: rows select a conversation instead of pushing it. */
   onSelect?: (peerId: number) => void;
   selectedPeerId?: number | null;
+  selectionRequest?: string;
 }) {
   const styles = useConversationListStyles();
   const { colors } = useAppTheme();
@@ -145,26 +171,58 @@ function ConversationList({
   const [loadingMore, setLoadingMore] = useState(false);
   const [pageError, setPageError] = useState(false);
   const loadingMoreRef = useRef(false);
+  const listRef = useRef<FlatList<ConversationListItem>>(null);
+  const reduceMotion = useReducedMotion();
   const conversations = snapshot.conversations;
+  const temporaryPeerId = onSelect && selectedPeerId !== null
+    && !conversations.some((item) => item.peer.id === selectedPeerId)
+    ? selectedPeerId
+    : null;
+  const temporaryChat = temporaryPeerId === null ? undefined : snapshot.chats[temporaryPeerId];
+  // This row belongs to the split's presentation, not the server projection.
+  // The peer key survives the first confirmed message becoming a conversation.
+  const rows = useMemo<ConversationListItem[]>(() => {
+    const items = conversations.map((conversation) => ({
+      peerId: conversation.peer.id,
+      peer: conversation.peer,
+      lastMessage: conversation.lastMessage,
+      unreadCount: conversation.unreadCount,
+      temporary: false,
+    }));
+    if (temporaryPeerId === null) return items;
+    return [{
+      peerId: temporaryPeerId,
+      peer: temporaryChat?.peer ?? null,
+      lastMessage: temporaryChat?.messages.at(-1) ?? null,
+      unreadCount: temporaryChat?.unreadCount ?? 0,
+      temporary: true,
+    }, ...items];
+  }, [conversations, temporaryChat, temporaryPeerId]);
+
+  useEffect(() => {
+    if (temporaryPeerId === null) return;
+    listRef.current?.scrollToOffset({ offset: 0, animated: !reduceMotion });
+  }, [reduceMotion, selectionRequest, temporaryPeerId]);
+
   // A separator next to a highlighted or selected row disappears, so the
   // rounded highlight never has a hairline running into it.
   const nextById = useMemo(() => {
     const map = new Map<number, number>();
-    conversations.forEach((item, index) => {
-      const next = conversations[index + 1];
-      if (next) map.set(item.peer.id, next.peer.id);
+    rows.forEach((item, index) => {
+      const next = rows[index + 1];
+      if (next) map.set(item.peerId, next.peerId);
     });
     return map;
-  }, [conversations]);
+  }, [rows]);
 
   // A stable component: an inline one would be a new type on every snapshot,
   // remounting every separator in the list.
   const Separator = useCallback(({ highlighted, leadingItem }: {
     highlighted: boolean;
-    leadingItem: DirectConversationItem;
+    leadingItem: ConversationListItem;
   }) => {
     const touchesSelection = selectedPeerId !== null && (
-      leadingItem.peer.id === selectedPeerId || nextById.get(leadingItem.peer.id) === selectedPeerId
+      leadingItem.peerId === selectedPeerId || nextById.get(leadingItem.peerId) === selectedPeerId
     );
     return (
       <View
@@ -220,17 +278,19 @@ function ConversationList({
     }
   }
 
-  const empty = conversations.length === 0;
+  const empty = rows.length === 0;
 
   return (
-    <FlatList
+    <Animated.FlatList
+      ref={listRef}
+      {...(onSelect && !reduceMotion ? { itemLayoutAnimation: ROW_REFLOW } : {})}
       // Skeleton rows sit where the real rows will, at the top, so loading
       // never swaps a centered spinner for a list that starts elsewhere.
       contentContainerStyle={empty && status !== 'loading' ? styles.emptyContent : styles.content}
       contentInsetAdjustmentBehavior="automatic"
-      data={conversations}
+      data={rows}
       extraData={selectedPeerId}
-      keyExtractor={(item) => String(item.peer.id)}
+      keyExtractor={(item) => String(item.peerId)}
       ItemSeparatorComponent={Separator}
       onEndReached={() => {
         if (!pageError) void loadMore();
@@ -249,17 +309,17 @@ function ConversationList({
           onHighlight={separators.highlight}
           onPress={() => {
             if (onSelect) {
-              onSelect(item.peer.id);
+              onSelect(item.peerId);
               return;
             }
             router.push({
               pathname: '/messages/[peerId]',
-              params: { peerId: String(item.peer.id) },
+              params: { peerId: String(item.peerId) },
             });
           }}
           onUnhighlight={separators.unhighlight}
           selectable={onSelect !== undefined}
-          selected={item.peer.id === selectedPeerId}
+          selected={item.peerId === selectedPeerId}
         />
       )}
       ListEmptyComponent={
@@ -287,11 +347,15 @@ function ConversationList({
         )
       }
       ListFooterComponent={
-        loadingMore ? (
+        conversations.length === 0 && temporaryPeerId !== null && status === 'loading' ? (
+          <View accessibilityLabel={t('conversations.loading')} accessibilityState={{ busy: true }} accessible>
+            {SKELETON_ROWS.map((row) => <ConversationRowSkeleton key={row} />)}
+          </View>
+        ) : loadingMore ? (
           <View style={styles.footerState}>
             <ActivityIndicator color={colors.accent} />
           </View>
-        ) : pageError || (status === 'error' && conversations.length > 0) ? (
+        ) : pageError || (status === 'error' && !empty) ? (
           <View style={styles.footerState}>
             <Text style={styles.stateText}>{t('conversations.loadFailed')}</Text>
             <RetryButton
@@ -314,7 +378,7 @@ function ConversationList({
 /**
  * One conversation, laid out like Messages: name and time on the first line,
  * two lines of the latest message below. The whole row, avatar included, opens
- * the chat; the peer's profile is one tap away from the chat's title.
+ * the chat; the peer's profile is one tap away in the chat's toolbar.
  */
 function ConversationRow({
   conversation,
@@ -324,7 +388,7 @@ function ConversationRow({
   selectable,
   selected,
 }: {
-  conversation: DirectConversationItem;
+  conversation: ConversationListItem;
   onHighlight(): void;
   onPress(): void;
   onUnhighlight(): void;
@@ -337,60 +401,82 @@ function ConversationRow({
   const { t } = useTranslation('messages');
   const locale = useAppLocale();
   const pageMargin = usePageMargin();
-  const name = resolveDirectMessagePeerName(conversation.peer, t('conversations.deletedUser'));
+  const reduceMotion = useReducedMotion();
+  const { peer, lastMessage, temporary } = conversation;
+  const name = peer
+    ? resolveDirectMessagePeerName(peer, t('conversations.deletedUser'))
+    : t('navigation.conversation');
   const unread = conversation.unreadCount;
 
   return (
-    <Pressable
-      accessibilityLabel={t('conversations.open', { name })}
-      accessibilityRole="button"
-      accessibilityState={selectable ? { selected } : {}}
-      onPress={onPress}
-      onPressIn={onHighlight}
-      onPressOut={onUnhighlight}
-      style={({ pressed }) => [
-        styles.row,
-        { marginHorizontal: pageMargin - ROW_INSET },
-        (pressed || selected) && styles.rowHighlighted,
-      ]}
+    <Animated.View
+      {...(temporary && !reduceMotion ? { entering: ROW_ENTER, exiting: ROW_EXIT } : {})}
     >
-      <ProfileAvatar
-        avatarUrl={conversation.peer.isDeleted ? '' : conversation.peer.avatarUrl}
-        size={AVATAR_SIZE}
-        userName={name}
-      />
-      <View style={styles.copy}>
-        <View style={styles.titleRow}>
-          <Text numberOfLines={1} style={[styles.name, unread > 0 && styles.nameUnread]}>
-            {name}
-          </Text>
-          <Text style={styles.time}>
-            {formatRelativeTime(conversation.lastMessage.createdAt, locale)}
-          </Text>
-          {selectable ? null : (
-            <IconChevronRight
-              color={colors.secondaryLabel as string}
-              opacity={0.55}
-              size={15}
-              strokeWidth={2.4}
-            />
-          )}
+      <Pressable
+        accessibilityLabel={t('conversations.open', { name })}
+        accessibilityHint={temporary ? t('conversations.temporary') : undefined}
+        accessibilityRole="button"
+        accessibilityState={selectable ? { selected, busy: peer === null } : {}}
+        onPress={onPress}
+        onPressIn={onHighlight}
+        onPressOut={onUnhighlight}
+        style={({ pressed }) => [
+          styles.row,
+          { marginHorizontal: pageMargin - ROW_INSET },
+          (pressed || selected) && styles.rowHighlighted,
+        ]}
+      >
+        {temporary ? <View pointerEvents="none" style={styles.temporaryOverlay} /> : null}
+        {peer ? (
+          <ProfileAvatar
+            avatarUrl={peer.isDeleted ? '' : peer.avatarUrl}
+            size={AVATAR_SIZE}
+            userName={name}
+          />
+        ) : <Skeleton style={[styles.bone, styles.skeletonAvatar]} />}
+        <View style={styles.copy}>
+          <View style={styles.titleRow}>
+            {peer ? (
+              <Text numberOfLines={1} style={[styles.name, unread > 0 && styles.nameUnread]}>
+                {name}
+              </Text>
+            ) : (
+              <View style={styles.skeletonLineSlot}>
+                <Skeleton style={[styles.bone, styles.skeletonName]} />
+              </View>
+            )}
+            {lastMessage ? (
+              <Text style={styles.time}>{formatRelativeTime(lastMessage.createdAt, locale)}</Text>
+            ) : (
+              <Text style={styles.time}>{t('conversations.temporary')}</Text>
+            )}
+            {selectable ? null : (
+              <IconChevronRight
+                color={colors.secondaryLabel as string}
+                opacity={0.55}
+                size={15}
+                strokeWidth={2.4}
+              />
+            )}
+          </View>
+          <View style={styles.previewRow}>
+            <Text numberOfLines={2} style={[styles.preview, unread > 0 && styles.previewUnread]}>
+              {lastMessage
+                ? createDirectMessagePreview(lastMessage.content)
+                : peer ? t('conversations.noMessages') : t('chat.loading')}
+            </Text>
+            {unread > 0 ? (
+              <View
+                accessibilityLabel={t('conversations.unread', { count: unread })}
+                style={styles.unreadBadge}
+              >
+                <Text style={styles.unreadText}>{unread > 99 ? '99+' : String(unread)}</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
-        <View style={styles.previewRow}>
-          <Text numberOfLines={2} style={[styles.preview, unread > 0 && styles.previewUnread]}>
-            {createDirectMessagePreview(conversation.lastMessage.content)}
-          </Text>
-          {unread > 0 ? (
-            <View
-              accessibilityLabel={t('conversations.unread', { count: unread })}
-              style={styles.unreadBadge}
-            >
-              <Text style={styles.unreadText}>{unread > 99 ? '99+' : String(unread)}</Text>
-            </View>
-          ) : null}
-        </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -477,6 +563,12 @@ const useConversationListStyles = createThemedStyles((colors) =>
       paddingVertical: 10,
     },
     rowHighlighted: { backgroundColor: colors.surfaceContainerHighest },
+    temporaryOverlay: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: '#FACC1526',
+      borderCurve: 'continuous',
+      borderRadius: ROW_RADIUS,
+    },
     separator: {
       backgroundColor: colors.separator,
       height: StyleSheet.hairlineWidth,
