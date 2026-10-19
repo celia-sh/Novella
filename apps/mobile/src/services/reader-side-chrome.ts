@@ -15,6 +15,7 @@ interface NovellaUiModule {
   hideReaderLayoutTransition?(): Promise<void>;
   refreshReaderSideBar?(): Promise<void>;
   setReaderBottomToolbarHidden?(hidden: boolean): Promise<void>;
+  setReaderBarInterfaceStyle?(style: 'dark' | 'light' | 'unspecified'): Promise<void>;
   setReaderLayoutTransitionAppearance?(dark: boolean): Promise<void>;
   showReaderLayoutTransition?(dark: boolean): Promise<void>;
   addListener?(
@@ -41,6 +42,17 @@ export function getReaderVerticalBarEdge(): Promise<ReaderVerticalBarEdge | null
  */
 export function setReaderBottomToolbarHidden(hidden: boolean): Promise<void> {
   return NativeNovellaUi.setReaderBottomToolbarHidden?.(hidden) ?? Promise.resolve();
+}
+
+/**
+ * Liquid glass follows the trait collection, not the reader background. The
+ * header config covers the navigation bar; this overrides the floating bar
+ * container that hosts the bottom toolbar and the vertical bar column.
+ */
+export function setReaderBarInterfaceStyle(
+  style: 'dark' | 'light' | 'unspecified',
+): Promise<void> {
+  return NativeNovellaUi.setReaderBarInterfaceStyle?.(style) ?? Promise.resolve();
 }
 
 /**

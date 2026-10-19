@@ -164,6 +164,39 @@ public final class NovellaUiModule: Module {
       }
     }
 
+    /// The reader's background can be the opposite brightness of the app
+    /// scheme, and liquid glass only follows the trait collection. The header
+    /// config overrides the navigation bar, but iOS 26+ hosts the bottom
+    /// toolbar (and, on a vertical-bar layout, the side column) in a floating
+    /// bar container that is a sibling of the navigation bar. Override that
+    /// container so the reader's bars share one scheme. `unspecified` resets it
+    /// for the screens below the reader.
+    AsyncFunction("setReaderBarInterfaceStyle") { (style: String) async in
+      await MainActor.run {
+        let interfaceStyle: UIUserInterfaceStyle
+        switch style {
+        case "dark": interfaceStyle = .dark
+        case "light": interfaceStyle = .light
+        default: interfaceStyle = .unspecified
+        }
+        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
+          for window in scene.windows {
+            for navigationController in NovellaUiModule.navigationControllers(
+              in: window.rootViewController
+            ) where navigationController.viewIfLoaded?.window != nil {
+              // Only the stack showing the reader gets an explicit style; the
+              // others are reset so a stale override cannot linger.
+              let isReaderStack = navigationController.topViewController?.viewIfLoaded?.window != nil
+              let applied: UIUserInterfaceStyle = isReaderStack ? interfaceStyle : .unspecified
+              for container in NovellaUiModule.floatingBarContainers(in: navigationController.view) {
+                container.overrideUserInterfaceStyle = applied
+              }
+            }
+          }
+        }
+      }
+    }
+
     View(NovellaSearchBarView.self) {
       ViewName("SearchBar")
 
@@ -256,6 +289,22 @@ public final class NovellaUiModule: Module {
       controllers.append(contentsOf: navigationControllers(in: presented))
     }
     return controllers
+  }
+
+  /// UIKit's private host for floating bars. It sits a few levels below the
+  /// navigation controller's view, beside the navigation bar; screens nested
+  /// in it are not searched, since their own stacks are visited separately.
+  private static func floatingBarContainers(in root: UIView?, depth: Int = 0) -> [UIView] {
+    guard let root, depth < 4 else { return [] }
+    var containers: [UIView] = []
+    for subview in root.subviews {
+      if NSStringFromClass(type(of: subview)) == "_UIFloatingBarContainerView" {
+        containers.append(subview)
+      } else {
+        containers.append(contentsOf: floatingBarContainers(in: subview, depth: depth + 1))
+      }
+    }
+    return containers
   }
 
 }

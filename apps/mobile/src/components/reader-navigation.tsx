@@ -1,6 +1,6 @@
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Stack, router } from 'expo-router';
-import { useEffect } from 'react';
+import { Stack, router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
@@ -10,8 +10,8 @@ import { ReaderSideTitle } from '@/components/reader-side-title';
 import {
   addReaderLayoutDidChangeListener,
   refreshReaderSideBar,
+  setReaderBarInterfaceStyle,
 } from '@/services/reader-side-chrome';
-import { useAppColorScheme } from '@/theme/app-theme';
 
 const hasLiquidGlass = isLiquidGlassAvailable();
 const READER_NAVIGATION_ITEM_HEIGHT = 44;
@@ -36,6 +36,28 @@ export function ReaderNavigation({
   const { t } = useTranslation('reader');
   const { t: tCommon } = useTranslation('common');
   const { height, width } = useWindowDimensions();
+  const barScheme = readerBarColorScheme(forceLightAppearance, statusBarStyle);
+
+  // Give the reader's glass the scheme of its background, not the app's: a
+  // light page in dark mode (or the reverse) otherwise gets glass of the wrong
+  // brightness. The floating bar container is rebuilt by folds and chrome
+  // toggles, so re-apply after those too. It is shared with the screens below,
+  // so leaving the reader resets it.
+  useFocusEffect(useCallback(() => {
+    const apply = () => {
+      void setReaderBarInterfaceStyle(barScheme).catch(() => undefined);
+    };
+    apply();
+    const frame = requestAnimationFrame(apply);
+    const subscription = addReaderLayoutDidChangeListener(apply);
+    return () => {
+      cancelAnimationFrame(frame);
+      subscription?.remove();
+    };
+  }, [barScheme, chromeHidden, height, width]));
+  useEffect(() => () => {
+    void setReaderBarInterfaceStyle('unspecified').catch(() => undefined);
+  }, []);
 
   // A fold between displays keeps the same native bar button items but rebuilds
   // the vertical column around them. Re-apply the item list once the new layout
@@ -95,13 +117,9 @@ export function ReaderNavigation({
           headerTitleStyle: { color: foregroundColor },
           headerShown: !chromeHidden,
           gestureEnabled: false,
-          ...(forceLightAppearance
-            ? {
-                unstable_nativeProps: {
-                  headerConfig: { experimental_userInterfaceStyle: 'light' },
-                },
-              }
-            : {}),
+          unstable_nativeProps: {
+            headerConfig: { experimental_userInterfaceStyle: barScheme },
+          },
           statusBarHidden: chromeHidden,
           statusBarStyle: nativeStatusBarStyle(statusBarStyle),
           title,
@@ -161,6 +179,15 @@ export function ReaderNavigation({
 
 type NativeStatusBarStyle = 'auto' | 'light' | 'dark';
 
+/** Light text means a dark reader background, so the bars use dark glass. */
+function readerBarColorScheme(
+  forceLightAppearance: boolean | undefined,
+  statusBarStyle: ReaderNavigationProps['statusBarStyle'],
+): 'dark' | 'light' {
+  if (forceLightAppearance) return 'light';
+  return statusBarStyle === 'light-content' ? 'dark' : 'light';
+}
+
 /**
  * iOS 27 ignores `UIApplication`'s app-wide status bar style; the appearance
  * comes from the screen's view controller instead, and react-native-screens
@@ -193,12 +220,9 @@ function ReaderHeaderTitle({
       windowWidth - READER_NAVIGATION_TITLE_SIDE_RESERVATION,
     ),
   );
-  const appColorScheme = useAppColorScheme();
-  // Match the native glass of the back button and the toolbar group, which
-  // follow the app scheme rather than the reader background. Deriving the
-  // scheme from the status bar style gave the title a light pill next to dark
-  // buttons when a light reader background was used in dark mode.
-  const colorScheme = forceLightAppearance ? 'light' : appColorScheme;
+  // The native bars take the same scheme through the header config and the
+  // floating bar override, so the pill matches the buttons beside it.
+  const colorScheme = readerBarColorScheme(forceLightAppearance, statusBarStyle);
   const fallbackBackgroundColor = statusBarStyle === 'light-content'
     ? 'rgba(255,255,255,0.16)'
     : 'rgba(0,0,0,0.08)';
