@@ -76,4 +76,5 @@ export type NativeIconName =
   | 'userGroup'
   | 'userName'
   | 'version'
-  | 'website';
+  | 'website'
+  | 'whatsNew';

@@ -1,3 +1,4 @@
+import CoreFoundation
 import ExpoModulesCore
 import QuartzCore
 import UIKit
@@ -48,6 +49,14 @@ public final class NovellaUiModule: Module {
       await MainActor.run {
         NovellaLayoutTransitionOverlay.shared.hide()
       }
+    }
+
+    /// Insert U+2060 WORD JOINER between the Han characters of every word
+    /// token, so CoreText's line-breaker treats each word as one unit instead
+    /// of breaking Chinese text between any two characters. See
+    /// `NovellaWordJoiner` below for how the word boundaries are found.
+    AsyncFunction("applyWordJoiners") { (text: String, locale: String) -> String in
+      NovellaWordJoiner.apply(to: text, locale: locale)
     }
 
     AsyncFunction("rasterizeReaderImage") { (uri: String, maxPixelSize: Int) async throws -> String in
@@ -313,6 +322,82 @@ public final class NovellaUiModule: Module {
     return containers
   }
 
+}
+
+/// Inserts U+2060 WORD JOINER inside CJK words.
+///
+/// iOS breaks Chinese text between any two characters; `lineBreakStrategyIOS`
+/// only moves an orphaned word off the last line and cannot keep words intact
+/// mid-paragraph. CoreText does honour U+2060, so joining a word's characters
+/// pushes the break to the next word boundary.
+///
+/// The boundaries come from `CFStringTokenizer` with the word-boundary unit,
+/// which uses the on-device linguistic model for the locale (BCP 47 tag such
+/// as "zh-CN") and handles scripts without spaces. Only adjacent Han
+/// characters are joined: a token like "iPhone" keeps its normal breaking
+/// rules, and whitespace and punctuation between tokens are copied verbatim.
+private enum NovellaWordJoiner {
+  private static let wordJoiner: Unicode.Scalar = "\u{2060}"
+
+  static func apply(to text: String, locale: String) -> String {
+    let nsText = text as NSString
+    guard nsText.length > 1 else { return text }
+    guard let tokenizer = CFStringTokenizerCreate(
+      kCFAllocatorDefault,
+      text as CFString,
+      CFRangeMake(0, nsText.length),
+      kCFStringTokenizerUnitWordBoundary,
+      Locale(identifier: locale) as CFLocale
+    ) else { return text }
+
+    var result = ""
+    var cursor = 0
+    while CFStringTokenizerAdvanceToNextToken(tokenizer) != [] {
+      let range = CFStringTokenizerGetCurrentTokenRange(tokenizer)
+      // Tokens are ordered but may be separated by punctuation or whitespace,
+      // which is copied as-is.
+      guard range.location >= cursor else { continue }
+      if range.location > cursor {
+        result += nsText.substring(
+          with: NSRange(location: cursor, length: range.location - cursor)
+        )
+      }
+      let token = nsText.substring(
+        with: NSRange(location: range.location, length: range.length)
+      )
+      result += joiningHanCharacters(in: token)
+      cursor = range.location + range.length
+    }
+    if cursor < nsText.length {
+      result += nsText.substring(from: cursor)
+    }
+    return result
+  }
+
+  private static func joiningHanCharacters(in token: String) -> String {
+    let scalars = Array(token.unicodeScalars)
+    guard scalars.count > 1 else { return token }
+    var result = ""
+    for (index, scalar) in scalars.enumerated() {
+      if index > 0, isHan(scalars[index - 1]), isHan(scalar) {
+        result.unicodeScalars.append(wordJoiner)
+      }
+      result.unicodeScalars.append(scalar)
+    }
+    return result
+  }
+
+  private static func isHan(_ scalar: Unicode.Scalar) -> Bool {
+    switch scalar.value {
+    case 0x3400...0x4DBF,   // CJK Unified Ideographs Extension A
+         0x4E00...0x9FFF,   // CJK Unified Ideographs
+         0xF900...0xFAFF,   // CJK Compatibility Ideographs
+         0x20000...0x2FA1F: // Extensions B–F and compatibility supplement
+      return true
+    default:
+      return false
+    }
+  }
 }
 
 /// Reports the start and end of any window size transition.

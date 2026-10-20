@@ -52,6 +52,7 @@ import {
   IconSearch,
   IconSettings,
   IconShoppingBag,
+  IconSparkles,
   IconSpeakerphone,
   IconTag,
   IconTextSize,
@@ -148,4 +149,5 @@ export const tablerNativeIcons: Record<NativeIconName, TablerNativeIcon> = {
   userName: IconAt,
   version: IconTag,
   website: IconWorld,
+  whatsNew: IconSparkles,
 };

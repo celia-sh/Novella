@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -50,6 +51,12 @@ export function AboutSettingsScreen() {
           onPress={() => void handleCheckUpdate()}
           title={t('about.versionTitle')}
           value={version}
+        />
+        <NativeGroupedListRow
+          description={t('about.whatsNewDescription')}
+          icon="whatsNew"
+          onPress={() => router.push({ pathname: '/whats-new', params: { source: 'about' } })}
+          title={t('about.whatsNewTitle')}
         />
         <NativeToggleRow
           description={t('about.update.checkDescription')}

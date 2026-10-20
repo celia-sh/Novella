@@ -217,6 +217,8 @@ export const zhCNSettings = {
     sourceDescription: '打开源代码仓库',
     changelogsTitle: '更新日志',
     changelogsDescription: '在 GitHub 查看版本说明',
+    whatsNewTitle: '新功能',
+    whatsNewDescription: '了解本版本的亮点',
     externalLinks: {
       sideloadTitle: '侧载',
       sideloadDescription: 'sideload.celia.sh',
@@ -657,6 +659,8 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
     sourceDescription: '開啟原始碼儲存庫',
     changelogsTitle: '版本資訊',
     changelogsDescription: '在 GitHub 查看版本說明',
+    whatsNewTitle: '新功能',
+    whatsNewDescription: '瞭解本版本的亮點',
     externalLinks: {
       sideloadTitle: '側載',
       sideloadDescription: 'sideload.celia.sh',
