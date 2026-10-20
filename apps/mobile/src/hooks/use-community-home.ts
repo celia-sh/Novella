@@ -12,6 +12,7 @@ import type {
 import { community } from '@/services/client';
 import { mergeCommunityItems } from '@/services/community-utils';
 import { setCachedCommunityHome } from '@/hooks/community-home-cache';
+import { getSnapshot as getAppSettings, updateAppSettings } from '@/services/settings';
 
 export interface CommunityHomeQuery {
   boardKey: string;
@@ -33,16 +34,23 @@ export interface CommunityHomeState {
   refreshing: boolean;
 }
 
-const INITIAL_QUERY: CommunityHomeQuery = {
-  boardKey: 'all',
-  order: 'reply',
-  scope: 'all',
-  subCategoryKey: '',
-};
+/**
+ * Sort order is remembered across launches; board, category and time range
+ * start fresh. Settings finish loading before the first route renders, so
+ * the snapshot is already the stored value here.
+ */
+function initialQuery(): CommunityHomeQuery {
+  return {
+    boardKey: 'all',
+    order: getAppSettings().communityFeedOrder,
+    scope: 'all',
+    subCategoryKey: '',
+  };
+}
 
 export function useCommunityHome() {
   const { t } = useTranslation('community');
-  const [state, setState] = useState<CommunityHomeState>({
+  const [state, setState] = useState<CommunityHomeState>(() => ({
     categoriesLoading: false,
     error: null,
     feed: [],
@@ -50,13 +58,13 @@ export function useCommunityHome() {
     loadMoreError: null,
     loading: true,
     loadingMore: false,
-    query: INITIAL_QUERY,
+    query: initialQuery(),
     refreshing: false,
-  });
+  }));
   const controllerRef = useRef<AbortController | null>(null);
   const generationRef = useRef(0);
   const loadingMoreRef = useRef(false);
-  const queryRef = useRef(INITIAL_QUERY);
+  const queryRef = useRef(state.query);
   queryRef.current = state.query;
 
   const loadHome = useCallback(async (refreshing = false) => {
@@ -163,6 +171,9 @@ export function useCommunityHome() {
   }, [queryKey, state.home, state.query, t]);
 
   const updateQuery = useCallback((patch: Partial<CommunityHomeQuery>) => {
+    if (patch.order !== undefined) {
+      void updateAppSettings({ communityFeedOrder: patch.order }).catch(() => undefined);
+    }
     setState((current) => {
       // Tapping the board that is already selected is not a switch. Treating
       // it as one cleared the categories without a refetch (the query key is
