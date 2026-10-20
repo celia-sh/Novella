@@ -123,6 +123,13 @@ export function ReaderSettingsContent() {
           title={t('reader.chapterTitles.readerTitle')}
           value={settings.cleanChapterTitleScopes.includes('readerTitle')}
         />
+        <NativeToggleRow
+          description={t('reader.chapterTitles.collapsedDescription')}
+          icon="readerCollapsedInfo"
+          onValueChange={(value) => void updateAppSettings({ readerCollapsedInfo: value })}
+          title={t('reader.chapterTitles.collapsedTitle')}
+          value={settings.readerCollapsedInfo}
+        />
       </NativeGroupedListSection>
 
       <NativeGroupedListSection title={t('reader.behavior.section')}>

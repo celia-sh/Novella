@@ -137,7 +137,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       // (react-native-screens forwards the native-stack options to it).
       // In Debug builds the Expo dev-menu's floating Tools window sits above the
       // app window and owns the status bar configuration; disable that button
-      // (`__expo_disable_fab=1`) or test a Release build.
+      // (`__expo_disable_fab=1`) or test a Release build. Any visible full-screen
+      // window above the app does the same, which is why pretty-toast 1.1.0+
+      // hides its overlay window between toasts.
       UIViewControllerBasedStatusBarAppearance: true,
       NSPhotoLibraryAddUsageDescription: '允许 Novella 将图片保存到你的照片图库。',
       NSPhotoLibraryUsageDescription: '允许 Novella 从你的照片图库选择图片插入社区帖子。',

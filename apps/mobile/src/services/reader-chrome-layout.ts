@@ -12,7 +12,8 @@ export interface ReaderChapterBarOrder {
 }
 
 const CHROME_CONTENT_GAP = 16;
-const TOOLBAR_HEIGHT = 44;
+/** Height of the reader title bar and bottom toolbar. */
+export const READER_TOOLBAR_HEIGHT = 44;
 /**
  * The side bar replaces the horizontal title and bottom slider, so only the
  * status bar/home indicator plus a small breathing gap remain.
@@ -32,8 +33,8 @@ export function createReaderChromeInsets(
   safeAreaBottom: number,
 ): ReaderChromeInsets {
   return {
-    bottom: Math.max(0, safeAreaBottom) + TOOLBAR_HEIGHT + CHROME_CONTENT_GAP,
-    top: Math.max(0, safeAreaTop) + TOOLBAR_HEIGHT + CHROME_CONTENT_GAP,
+    bottom: Math.max(0, safeAreaBottom) + READER_TOOLBAR_HEIGHT + CHROME_CONTENT_GAP,
+    top: Math.max(0, safeAreaTop) + READER_TOOLBAR_HEIGHT + CHROME_CONTENT_GAP,
   };
 }
 

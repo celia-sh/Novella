@@ -1,6 +1,6 @@
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Stack, router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
@@ -21,6 +21,8 @@ const READER_NAVIGATION_MAX_TITLE_WIDTH = 180;
 // maxWidth on a child GlassView does not constrain UINavigationItem.titleView's
 // intrinsic measurement on iOS 26.
 const READER_NAVIGATION_TITLE_SIDE_RESERVATION = 242;
+// Long enough for UIKit's navigation bar hide animation to finish.
+const STATUS_BAR_HIDE_DELAY_MS = 250;
 
 export function ReaderNavigation({
   forceLightAppearance,
@@ -37,6 +39,21 @@ export function ReaderNavigation({
   const { t: tCommon } = useTranslation('common');
   const { height, width } = useWindowDimensions();
   const barScheme = readerBarColorScheme(forceLightAppearance, statusBarStyle);
+
+  // On the Duo's inner display the status bar shares the navigation bar's
+  // row, and the bar keeps its items clear of it. Hiding both together moved
+  // the right buttons and the title sideways while the bar slid up, so the bar
+  // left diagonally. Hide the status bar once the bar is gone; show it with the
+  // bar, so the bar comes back at its final width.
+  const [statusBarHideSettled, setStatusBarHideSettled] = useState(chromeHidden);
+  useEffect(() => {
+    if (!chromeHidden) {
+      setStatusBarHideSettled(false);
+      return;
+    }
+    const timer = setTimeout(() => setStatusBarHideSettled(true), STATUS_BAR_HIDE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [chromeHidden]);
 
   // Give the reader's glass the scheme of its background, not the app's: a
   // light page in dark mode (or the reverse) otherwise gets glass of the wrong
@@ -120,59 +137,99 @@ export function ReaderNavigation({
           unstable_nativeProps: {
             headerConfig: { experimental_userInterfaceStyle: barScheme },
           },
-          statusBarHidden: chromeHidden,
+          statusBarHidden: chromeHidden && statusBarHideSettled,
           statusBarStyle: nativeStatusBarStyle(statusBarStyle),
           title,
+          // Outside the Duo the buttons are header items rather than a
+          // `Stack.Toolbar`, so they stay on the bar while it slides out. See
+          // the toolbar below for why it cannot hide with the chrome.
+          ...(sideChrome
+            ? {}
+            : {
+                unstable_headerLeftItems: () => [{
+                  accessibilityLabel: tCommon('accessibility.back'),
+                  icon: { name: 'chevron.left', type: 'sfSymbol' },
+                  label: '',
+                  onPress: () => router.back(),
+                  tintColor: foregroundColor,
+                  type: 'button',
+                }],
+                unstable_headerRightItems: () => [
+                  {
+                    accessibilityLabel: t('accessibility.chapterList'),
+                    icon: { name: 'list.bullet', type: 'sfSymbol' },
+                    label: '',
+                    onPress: onOpenChapters,
+                    tintColor: foregroundColor,
+                    type: 'button',
+                  },
+                  {
+                    accessibilityLabel: t('accessibility.readerSettings'),
+                    icon: { name: 'gearshape', type: 'sfSymbol' },
+                    label: '',
+                    onPress: onOpenSettings,
+                    tintColor: foregroundColor,
+                    type: 'button',
+                  },
+                ],
+              }),
         }}
       />
       {/*
-        The toolbar stays mounted while the chrome is hidden. The custom title
-        and progress views are inserted into the glass column when they mount,
-        and iOS 26 animates that insertion; mounting the toolbar with the
-        chrome made the text pop every time the bar appeared. `headerShown`
-        still owns visibility, and the native buttons keep their own `hidden`.
+        Only the Duo's vertical bar uses the toolbar: its custom title and
+        progress views need `Stack.Toolbar.View`, and they are inserted into the
+        glass column when they mount, which iOS 26 animates, so the toolbar
+        stays mounted there. A left or right `Stack.Toolbar` sets
+        `headerShown: true` on the screen and overrides `headerShown:
+        !chromeHidden` above, so it cannot be used where the bar hides.
+        Unmounting it with the chrome instead removed the buttons while the bar
+        was still sliding out.
       */}
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button
-          accessibilityLabel={tCommon('accessibility.back')}
-          hidden={chromeHidden}
-          icon="chevron.left"
-          onPress={() => router.back()}
-          tintColor={foregroundColor}
-        />
-      </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
-        {sideChrome && title ? (
-          <Stack.Toolbar.View hidden={chromeHidden}>
-            <ReaderSideTitle
-              foregroundColor={foregroundColor}
-              title={title}
+      {sideChrome ? (
+        <>
+          <Stack.Toolbar placement="left">
+            <Stack.Toolbar.Button
+              accessibilityLabel={tCommon('accessibility.back')}
+              hidden={chromeHidden}
+              icon="chevron.left"
+              onPress={() => router.back()}
+              tintColor={foregroundColor}
             />
-          </Stack.Toolbar.View>
-        ) : null}
-        {sideChrome && sideProgress ? (
-          <Stack.Toolbar.View hidden={chromeHidden}>
-            <ReaderSideProgress
-              foregroundColor={foregroundColor}
-              {...sideProgress}
+          </Stack.Toolbar>
+          <Stack.Toolbar placement="right">
+            {title ? (
+              <Stack.Toolbar.View hidden={chromeHidden}>
+                <ReaderSideTitle
+                  foregroundColor={foregroundColor}
+                  title={title}
+                />
+              </Stack.Toolbar.View>
+            ) : null}
+            {sideProgress ? (
+              <Stack.Toolbar.View hidden={chromeHidden}>
+                <ReaderSideProgress
+                  foregroundColor={foregroundColor}
+                  {...sideProgress}
+                />
+              </Stack.Toolbar.View>
+            ) : null}
+            <Stack.Toolbar.Button
+              accessibilityLabel={t('accessibility.chapterList')}
+              hidden={chromeHidden}
+              icon="list.bullet"
+              onPress={onOpenChapters}
+              tintColor={foregroundColor}
             />
-          </Stack.Toolbar.View>
-        ) : null}
-        <Stack.Toolbar.Button
-          accessibilityLabel={t('accessibility.chapterList')}
-          hidden={chromeHidden}
-          icon="list.bullet"
-          onPress={onOpenChapters}
-          tintColor={foregroundColor}
-        />
-        <Stack.Toolbar.Button
-          accessibilityLabel={t('accessibility.readerSettings')}
-          hidden={chromeHidden}
-          icon="gearshape"
-          onPress={onOpenSettings}
-          tintColor={foregroundColor}
-        />
-      </Stack.Toolbar>
+            <Stack.Toolbar.Button
+              accessibilityLabel={t('accessibility.readerSettings')}
+              hidden={chromeHidden}
+              icon="gearshape"
+              onPress={onOpenSettings}
+              tintColor={foregroundColor}
+            />
+          </Stack.Toolbar>
+        </>
+      ) : null}
     </>
   );
 }
