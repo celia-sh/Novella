@@ -1,3 +1,4 @@
+import type { CommunityFeedOrder } from '@novella/api-client';
 import type { RankPeriod } from '@novella/client-core';
 
 import type { ComicPageFitMode } from './reader-display-layout.ts';
@@ -68,11 +69,16 @@ export function isRankPeriod(value: unknown): value is RankPeriod {
   return value === 'daily' || value === 'weekly' || value === 'monthly';
 }
 
+export function isCommunityFeedOrder(value: unknown): value is CommunityFeedOrder {
+  return value === 'reply' || value === 'latest' || value === 'hot' || value === 'featured';
+}
+
 export const READER_PRELOAD_WINDOW = Object.freeze({ min: 0, max: 3 });
 
 export interface AppSettings {
   bookDetailCacheEnabled: boolean;
   cleanChapterTitleScopes: readonly CleanChapterTitleScope[];
+  communityFeedOrder: CommunityFeedOrder;
   coverColorExtraction: boolean;
   dynamicSchemeVariant: MaterialSchemeVariant;
   fontCacheEnabled: boolean;
@@ -107,6 +113,7 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   bookDetailCacheEnabled: true,
   cleanChapterTitleScopes: CLEAN_CHAPTER_TITLE_SCOPES,
+  communityFeedOrder: 'reply',
   coverColorExtraction: true,
   dynamicSchemeVariant: 'tonalSpot',
   fontCacheEnabled: true,
@@ -180,6 +187,9 @@ export function decodeAppSettings(value: unknown): AppSettings {
             .filter(isCleanChapterTitleScope)
             .filter((scope, index, all) => all.indexOf(scope) === index),
         }
+      : {}),
+    ...(isCommunityFeedOrder(candidate.communityFeedOrder)
+      ? { communityFeedOrder: candidate.communityFeedOrder }
       : {}),
     ...(typeof candidate.coverColorExtraction === 'boolean'
       ? { coverColorExtraction: candidate.coverColorExtraction }
