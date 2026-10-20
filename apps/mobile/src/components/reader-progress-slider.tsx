@@ -1,4 +1,8 @@
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import {
+  GestureDetector,
+  usePanGesture,
+  type PanGestureConfig,
+} from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -16,14 +20,29 @@ import {
   type AccessibilityActionEvent,
   type LayoutChangeEvent,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { resolveReaderProgressSliderState } from '@/services/reader-page-progress';
+import {
+  resolveReaderPagePosition,
+  resolveReaderProgressSliderState,
+} from '@/services/reader-page-progress';
 import { useAppTheme } from '@/theme/app-theme';
 
 export interface ReaderProgressSliderProps {
+  /** Pages per paged novel screen: two for a spread. */
+  columnCount?: number;
+  /** Pages with content in a paged novel chapter. */
+  columnTotal?: number;
   direction?: 'ltr' | 'rtl';
+  /**
+   * Blocks dragging while the reader is loading or failed. The thumb keeps its
+   * position; unlike a single-page chapter it is not pinned at 100%.
+   */
+  disabled?: boolean;
   displayMode?: 'pages' | 'percentage';
   hidden?: boolean;
+  /** Overrides the window-based width when the slider sits in a panel. */
+  layoutWidth?: number;
   onValueChange: (value: number) => void;
   pageCurrent: number;
   /**
@@ -45,6 +64,8 @@ const THUMB_WIDTH = 18;
 const TOUCH_AREA_HEIGHT = 24;
 /** Space between the draggable track and the toolbar's content edges. */
 const HORIZONTAL_INSET = 10;
+/** The bottom toolbar's own content margins around a full-width item. */
+const TOOLBAR_HORIZONTAL_MARGIN = 42;
 /** Settles the thumb onto a step after a tap, a nudge, or a reader update. */
 const SNAP_SPRING = { damping: 34, mass: 1, stiffness: 320 } as const;
 
@@ -64,9 +85,13 @@ function snapProgress(value: number, step: number): number {
 }
 
 export function ReaderProgressSlider({
+  columnCount,
+  columnTotal,
   direction = 'ltr',
+  disabled: loadingDisabled = false,
   displayMode = 'pages',
   hidden = false,
+  layoutWidth,
   onValueChange,
   pageCurrent,
   pageStepped = true,
@@ -76,16 +101,10 @@ export function ReaderProgressSlider({
 }: ReaderProgressSliderProps) {
   const { t } = useTranslation('reader');
   const { colors } = useAppTheme();
-  const { width } = useWindowDimensions();
+  const toolbarWidth = useReaderToolbarSliderWidth();
   const rtl = direction === 'rtl';
 
   const isPercentage = displayMode === 'percentage';
-  const pagesRemaining = Math.max(0, pageTotal - pageCurrent);
-  const remainingText = isPercentage
-    ? ''
-    : pagesRemaining > 0
-      ? t('progress.remainingPages', { count: pagesRemaining })
-      : '';
   /*
    * Page mode always knows its total. Percentage mode knows the chapter's
    * rendered page count once the reader measures the native layout (`0` until
@@ -93,20 +112,37 @@ export function ReaderProgressSlider({
    * than pages, so it only uses the count to lock a one-screen chapter.
    */
   const {
-    disabled,
+    disabled: pinned,
     progress: displayedProgress,
     step,
   } = resolveReaderProgressSliderState({
     displayMode,
+    pageCurrent,
     pageStepped,
     pageTotal,
     progress,
   });
-  const pageLabel = isPercentage
-    ? `${Math.round(displayedProgress * 100)}%`
-    : pageTotal > 0
-      ? `${Math.min(Math.max(pageCurrent, 1), pageTotal)} / ${pageTotal}`
+  const disabled = pinned || loadingDisabled;
+  // Comics and paged novels show pages; scroll mode and an unmeasured
+  // chapter have no page count and show the percentage.
+  const pagePosition = resolveReaderPagePosition({
+    ...(columnCount === undefined ? {} : { columnCount }),
+    ...(columnTotal === undefined ? {} : { columnTotal }),
+    displayMode,
+    pageCurrent,
+    pageStepped,
+    pageTotal,
+    progress,
+  });
+  const pageLabel = pagePosition
+    ? `${pagePosition.current} / ${pagePosition.total}`
+    : isPercentage
+      ? `${Math.round(displayedProgress * 100)}%`
       : '';
+  const pagesRemaining = pagePosition ? pagePosition.total - pagePosition.current : 0;
+  const remainingText = pagesRemaining > 0
+    ? t('progress.remainingPages', { count: pagesRemaining })
+    : '';
 
   const trackWidth = useSharedValue(0);
   const position = useSharedValue(displayedProgress);
@@ -135,12 +171,12 @@ export function ReaderProgressSlider({
     trackWidth.value = event.nativeEvent.layout.width;
   };
 
-  const gesture = useMemo(() => Gesture.Pan()
-    .enabled(!disabled)
-    .minDistance(0)
-    .maxPointers(1)
-    .hitSlop({ bottom: 14, left: 8, right: 8, top: 14 })
-    .onBegin((event) => {
+  const gestureConfig = useMemo<PanGestureConfig>(() => ({
+    enabled: !disabled,
+    minDistance: 0,
+    maxPointers: 1,
+    hitSlop: { bottom: 14, left: 8, right: 8, top: 14 },
+    onBegin: (event) => {
       'worklet';
       runOnJS(setDragging)(true);
       if (trackWidth.value <= 1) return;
@@ -154,8 +190,8 @@ export function ReaderProgressSlider({
       position.value = next;
       lastEmitted.value = next;
       runOnJS(emitChange)(next);
-    })
-    .onUpdate((event) => {
+    },
+    onUpdate: (event) => {
       'worklet';
       if (trackWidth.value <= 1) return;
       const next = snapProgress(
@@ -166,11 +202,12 @@ export function ReaderProgressSlider({
       position.value = next;
       lastEmitted.value = next;
       runOnJS(emitChange)(next);
-    })
-    .onFinalize(() => {
+    },
+    onFinalize: () => {
       'worklet';
       runOnJS(setDragging)(false);
-    }), [
+    },
+  }), [
     disabled,
     emitChange,
     lastEmitted,
@@ -180,6 +217,8 @@ export function ReaderProgressSlider({
     step,
     trackWidth,
   ]);
+
+  const gesture = usePanGesture(gestureConfig);
 
   const nudge = useCallback((delta: 1 | -1) => {
     if (disabled) return;
@@ -212,7 +251,7 @@ export function ReaderProgressSlider({
   if (hidden || !visible) return null;
 
   return (
-    <View style={[styles.root, { width: Math.max(1, width - 42) }]}>
+    <View style={[styles.root, { width: layoutWidth ?? toolbarWidth }]}>
       <GestureDetector gesture={gesture}>
         <View
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
@@ -242,6 +281,18 @@ export function ReaderProgressSlider({
       </Text>
     </View>
   );
+}
+
+/**
+ * The width to request for a slider in the bottom toolbar. UIToolbar lays its
+ * items out inside the horizontal safe area (a notched iPhone in landscape),
+ * so the window width alone overflows the capsule. The platter margins still
+ * vary with the layout, so this is an estimate that UIKit may shrink.
+ */
+export function useReaderToolbarSliderWidth(): number {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  return Math.max(1, width - insets.left - insets.right - TOOLBAR_HORIZONTAL_MARGIN);
 }
 
 function clampProgress(value: number): number {

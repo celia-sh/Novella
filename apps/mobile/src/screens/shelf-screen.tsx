@@ -1,4 +1,3 @@
-import { usePreventRemove } from 'expo-router/react-navigation';
 import {
   IconAlertTriangle,
   IconBook2,
@@ -6,7 +5,7 @@ import {
   IconFolderOpen,
   IconX,
 } from '@tabler/icons-react-native';
-import { router } from 'expo-router';
+import { router, usePreventRemove } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -38,12 +37,20 @@ import {
   bookGridSkeletonCount,
   skeletonKeys,
 } from '@/components/book-grid-skeleton';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { ShelfNavigation } from '@/components/shelf-navigation';
 import { NativeSegmentedControl } from '@/components/native-segmented-control';
 import type { ShelfEditInteraction } from '@/components/shelf-navigation.types';
 import { ReorderableShelfGrid } from '@/components/reorderable-shelf-grid';
+import { ReflowFade } from '@/components/reflow-fade';
 import { SectionCard } from '@/components/section-card';
-import { useBookGridLayout, BOOK_GRID_COLUMN_GAP } from '@/hooks/use-book-grid-layout';
+import {
+  useBookGridLayout,
+  BOOK_GRID_COLUMN_GAP,
+  BOOK_GRID_ROW_GAP,
+  BOOK_GRID_TITLE_HEIGHT,
+} from '@/hooks/use-book-grid-layout';
+import { PAGE_TOP_SPACING } from '@/hooks/use-wide-layout';
 import {
   useCoverScrollViewport,
   useScrollGridCoverActivation,
@@ -97,11 +104,11 @@ export function ShelfScreen({ media: initialMedia = 'All', parents = [] }: Shelf
   const [media, setMedia] = useState<ShelfMediaType>(initialMedia);
   const [selectedKeys, setSelectedKeys] = useState<Set<ShelfItemKey>>(new Set());
   const [editInteraction, setEditInteraction] = useState<ShelfEditInteraction>('select');
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const scrollOffsetRef = useRef(0);
   const viewportHeightRef = useRef(0);
   const coverViewport = useCoverScrollViewport();
-  const { columns, contentWidth, listKey, tileWidth } = useBookGridLayout(20);
+  const { pageMargin, columns, contentWidth, listKey, tileWidth } = useBookGridLayout();
   const isFolder = parents.length > 0;
 
   const projection = useMemo(
@@ -276,9 +283,10 @@ export function ShelfScreen({ media: initialMedia = 'All', parents = [] }: Shelf
     <>
 
         <ShelfScrollRoot nested={parents.length > 0}>
+          <HorizontalSafeArea style={styles.scrollView}>
           <ScrollView
             contentInsetAdjustmentBehavior="automatic"
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[styles.content, { paddingHorizontal: pageMargin }]}
             onLayout={(event) => {
               viewportHeightRef.current = event.nativeEvent.layout.height;
               coverViewport.onLayout(event);
@@ -298,7 +306,7 @@ export function ShelfScreen({ media: initialMedia = 'All', parents = [] }: Shelf
             )}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
-            style={styles.scrollView}
+            style={styles.scrollBody}
           >
             {mode === 'browse' ? (
               <View style={styles.tabs}>
@@ -362,6 +370,7 @@ export function ShelfScreen({ media: initialMedia = 'All', parents = [] }: Shelf
               />
             ) : null}
           </ScrollView>
+          </HorizontalSafeArea>
         </ShelfScrollRoot>
 
       <ShelfNavigation
@@ -430,7 +439,7 @@ function ShelfContent({
   onReorder: (parents: readonly string[], keys: readonly ShelfItemKey[]) => void;
   parents: string[];
   scrollOffsetRef: React.MutableRefObject<number>;
-  scrollViewRef: React.RefObject<ScrollView | null>;
+  scrollViewRef: React.RefObject<React.ComponentRef<typeof ScrollView> | null>;
   selectedKeys: Set<ShelfItemKey>;
   setSelectedKeys: React.Dispatch<React.SetStateAction<Set<ShelfItemKey>>>;
   snapshot: ShelfSnapshot;
@@ -567,27 +576,29 @@ function ShelfContent({
   }
 
   return (
-    <View
-      onLayout={coverActivation.onGridLayout}
-      style={[styles.grid, { width: contentWidth }]}
-    >
-      {rows.map((row, rowIndex) => (
-        <View key={`shelf-row-${rowIndex}`} style={styles.gridRow}>
-          {row.map((item) => renderShelfItem(item))}
-          {row.length < columns ? (
-            <View
-              style={{ width: (columns - row.length) * (tileWidth + BOOK_GRID_COLUMN_GAP) }}
-            />
-          ) : null}
-        </View>
-      ))}
-    </View>
+    <ReflowFade layoutKey={`shelf-grid-${columns}`} style={{ width: contentWidth }}>
+      <View
+        onLayout={coverActivation.onGridLayout}
+        style={[styles.grid, { width: contentWidth }]}
+      >
+        {rows.map((row, rowIndex) => (
+          <View key={`shelf-row-${rowIndex}`} style={styles.gridRow}>
+            {row.map((item) => renderShelfItem(item))}
+            {row.length < columns ? (
+              <View
+                style={{ width: (columns - row.length) * (tileWidth + BOOK_GRID_COLUMN_GAP) }}
+              />
+            ) : null}
+          </View>
+        ))}
+      </View>
+    </ReflowFade>
   );
 }
 
 function LoadingState() {
   const styles = useShelfScreenStyles();
-  const { columns, contentWidth, height, tileWidth } = useBookGridLayout(20);
+  const { columns, contentWidth, height, tileWidth } = useBookGridLayout();
   const count = bookGridSkeletonCount({
     columns,
     headerOffset: 120,
@@ -753,9 +764,11 @@ function UnavailableBookGridItem({
           </View>
         ) : null}
       </View>
-      <Text numberOfLines={2} style={styles.unavailableTitle}>
-        {t('shelf.unavailableBook')}
-      </Text>
+      <View style={styles.unavailableTitleContainer}>
+        <Text numberOfLines={2} style={styles.unavailableTitle}>
+          {t('shelf.unavailableBook')}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -799,13 +812,13 @@ const useShelfScreenStyles = createThemedStyles((colors) => ({
   breadcrumb: { color: colors.secondaryLabel, fontSize: 14, lineHeight: 19 },
   cardDescription: { color: colors.secondaryLabel, fontSize: 15, lineHeight: 21 },
   cardTitle: { color: colors.label, flex: 1, fontSize: 17, fontWeight: '700', lineHeight: 22 },
-  content: { gap: 16, paddingBottom: 120, paddingHorizontal: 20, paddingTop: 20 },
+  content: { gap: 16, paddingBottom: 120, paddingTop: PAGE_TOP_SPACING },
   emptyState: { alignItems: 'center', gap: 10, paddingVertical: 18 },
   errorBlock: { alignItems: 'center', gap: 12, paddingHorizontal: 28, paddingVertical: 56 },
   errorText: { color: colors.secondaryLabel, fontSize: 14, lineHeight: 20, textAlign: 'center' },
   errorTitle: { color: colors.label, fontSize: 17, fontWeight: '700' },
-  grid: { gap: 12 },
-  gridRow: { alignItems: 'flex-start', flexDirection: 'row', gap: 10, justifyContent: 'space-between' },
+  grid: { gap: BOOK_GRID_ROW_GAP },
+  gridRow: { alignItems: 'flex-start', flexDirection: 'row', gap: BOOK_GRID_COLUMN_GAP },
   inlineError: { alignItems: 'center', backgroundColor: colors.card, borderColor: colors.error, borderCurve: 'continuous', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 10, padding: 12 },
   inlineErrorLabel: { color: colors.label, flex: 1, fontSize: 14, lineHeight: 19 },
   inlineRetryLabel: { color: colors.accent, fontSize: 14, fontWeight: '700' },
@@ -821,11 +834,13 @@ const useShelfScreenStyles = createThemedStyles((colors) => ({
   },
   retryLabel: { color: colors.accent, fontSize: 15, fontWeight: '600' },
   root: { backgroundColor: colors.background, flex: 1 },
+  scrollBody: { flex: 1 },
   scrollView: { backgroundColor: colors.background, flex: 1 },
   selectedOverlay: { backgroundColor: 'rgba(217, 71, 93, 0.72)' },
   tabs: { width: '100%' },
   unavailableCover: { alignItems: 'center', backgroundColor: colors.card, borderColor: colors.separator, borderCurve: 'continuous', borderRadius: 12, borderWidth: 0.5, justifyContent: 'center', overflow: 'hidden' },
   unavailableItem: { alignItems: 'center' },
   unavailableOverlay: { alignItems: 'center', bottom: 0, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 },
-  unavailableTitle: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 16, paddingHorizontal: 2, paddingTop: 8, textAlign: 'center' },
+  unavailableTitle: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 16, textAlign: 'center' },
+  unavailableTitleContainer: { height: BOOK_GRID_TITLE_HEIGHT, justifyContent: 'center', paddingHorizontal: 2, width: '100%' },
 }));

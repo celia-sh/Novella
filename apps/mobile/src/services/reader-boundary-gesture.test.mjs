@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  resolveReaderBoundaryAxis,
   resolveReaderBoundaryChapterAction,
   resolveReaderPagedBoundaryChapterAction,
 } from './reader-boundary-gesture.ts';
@@ -77,9 +76,4 @@ test('paged boundary gestures ignore swipes away from the matching edge', () => 
     displayCount: 5,
     displayIndex: 4,
   }), null);
-});
-
-test('reader mode selects the matching native scroll axis', () => {
-  assert.equal(resolveReaderBoundaryAxis('paged'), 'horizontal');
-  assert.equal(resolveReaderBoundaryAxis('scroll'), 'vertical');
 });

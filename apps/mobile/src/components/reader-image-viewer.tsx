@@ -1,4 +1,5 @@
 import { IconDownload, IconShare, IconX } from '@tabler/icons-react-native';
+import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image as ExpoImage } from 'expo-image';
 import { AnimatedPressable, Glass, Portal } from 'panelui-native';
 import { ImageViewer } from 'panelui-native/components/image-viewer';
@@ -9,7 +10,16 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -24,18 +34,32 @@ import {
   shareReaderImage,
   type ReaderImageActionErrorCode,
 } from '@/services/reader-image-actions';
+import { useAppColorScheme } from '@/theme/app-theme';
+
+const hasLiquidGlass = isLiquidGlassAvailable();
 
 interface ReaderImageSize {
   height: number;
   width: number;
 }
 
-function useCachedReaderImageSource(source: string): string {
+/**
+ * The viewer draws with React Native's `Image`, which does not share
+ * expo-image's cache: given the remote URL it downloads the picture again and
+ * the open flight shows an empty frame until it arrives. So the viewer reads
+ * expo-image's file for the URL instead. That file only exists once the page
+ * image has loaded, so the lookup runs again when `loaded` turns true.
+ */
+function useCachedReaderImageSource(source: string, loaded: boolean): string {
   const [cachedSource, setCachedSource] = useState(source);
+  const [previousSource, setPreviousSource] = useState(source);
+  if (previousSource !== source) {
+    setPreviousSource(source);
+    setCachedSource(source);
+  }
 
   useEffect(() => {
     let active = true;
-    setCachedSource(source);
     if (!/^https?:\/\//iu.test(source)) return () => {
       active = false;
     };
@@ -48,14 +72,81 @@ function useCachedReaderImageSource(source: string): string {
     return () => {
       active = false;
     };
-  }, [source]);
+  }, [loaded, source]);
 
   return cachedSource;
 }
 
+export interface ReaderImageGalleryItem {
+  height?: number;
+  source: string;
+  width?: number;
+}
+
+/** Set inside a `ReaderImageGallery`: viewers become pages of its one viewer. */
+const ReaderImageGalleryContext = createContext(false);
+
+/**
+ * One viewer for several images, such as every picture in a post: opening any
+ * of them opens the gallery at that picture, and a sideways swipe turns to the
+ * next. `items` lists the images in page order; each `ReaderImageViewer`
+ * inside passes its position as `galleryIndex`. Save and share act on the page
+ * on screen.
+ */
+export function ReaderImageGallery({
+  children,
+  items,
+}: {
+  children: ReactNode;
+  items: readonly ReaderImageGalleryItem[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [index, setIndex] = useState(0);
+  const item = items[Math.min(index, Math.max(0, items.length - 1))];
+  const actions = useReaderImageActions(item?.source ?? '');
+  const imageSize = item?.width !== undefined && item.height !== undefined
+    ? { height: item.height, width: item.width }
+    : null;
+
+  return (
+    <>
+      <ImageViewer
+        blur
+        cornerRadius={READER_IMAGE_VIEWER_CORNER_RADIUS}
+        doubleTapScale={2.5}
+        haptics
+        index={index}
+        inset={READER_IMAGE_VIEWER_INSET}
+        maxScale={6}
+        onIndexChange={setIndex}
+        onOpenChange={setOpen}
+        open={open}
+        showClose={false}
+      >
+        <ReaderImageGalleryContext.Provider value>{children}</ReaderImageGalleryContext.Provider>
+      </ImageViewer>
+      {open && item ? (
+        <ReaderImageViewerActionPortal
+          {...actions}
+          imageSize={imageSize}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
+    </>
+  );
+}
+
 export interface ReaderImageViewerProps {
+  /** Gesture that opens the viewer. `longPress` leaves taps to the page. */
+  activation?: 'tap' | 'longPress';
   alt: string;
   children: ReactNode;
+  /** Render the image without a viewer. */
+  disabled?: boolean;
+  /** Page of the enclosing `ReaderImageGallery` this image opens. */
+  galleryIndex?: number;
+  /** The page's own image has loaded, so expo-image now holds its file. */
+  loaded?: boolean;
   height?: number;
   onOpenChange?: (open: boolean) => void;
   open?: boolean;
@@ -65,9 +156,13 @@ export interface ReaderImageViewerProps {
 }
 
 export function ReaderImageViewer({
+  activation = 'tap',
   alt,
   children,
+  disabled = false,
+  galleryIndex,
   height,
+  loaded = false,
   onOpenChange,
   open,
   radius = 4,
@@ -75,7 +170,8 @@ export function ReaderImageViewer({
   width,
 }: ReaderImageViewerProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
-  const cachedSource = useCachedReaderImageSource(source);
+  const { t } = useTranslation('reader');
+  const cachedSource = useCachedReaderImageSource(source, loaded);
   const imageSource = useMemo(() => ({ uri: cachedSource }), [cachedSource]);
   const imageSize = width !== undefined && height !== undefined
     ? { height, width }
@@ -86,6 +182,25 @@ export function ReaderImageViewer({
     if (open === undefined) setUncontrolledOpen(nextOpen);
     onOpenChange?.(nextOpen);
   }, [onOpenChange, open]);
+  const longPressActivation = activation === 'longPress';
+  const longPressHandledRef = useRef(false);
+
+  const inGallery = useContext(ReaderImageGalleryContext);
+
+  if (disabled) return <>{children}</>;
+  if (inGallery && galleryIndex !== undefined) {
+    return (
+      <ImageViewer.Trigger
+        alt={alt}
+        {...(imageSize ? { height: imageSize.height, width: imageSize.width } : {})}
+        index={galleryIndex}
+        radius={radius}
+        source={imageSource}
+      >
+        {children}
+      </ImageViewer.Trigger>
+    );
+  }
 
   return (
     <>
@@ -101,12 +216,38 @@ export function ReaderImageViewer({
         showClose={false}
       >
         <ImageViewer.Trigger
+          accessible={!longPressActivation}
           alt={alt}
+          disabled={longPressActivation}
           {...(imageSize ? { height: imageSize.height, width: imageSize.width } : {})}
           radius={radius}
           source={imageSource}
         >
-          {children}
+          {longPressActivation ? (
+            <Pressable
+              accessibilityHint={t('accessibility.longPressPreview')}
+              accessibilityLabel={alt}
+              accessibilityRole="imagebutton"
+              delayLongPress={500}
+              onAccessibilityTap={() => handleOpenChange(true)}
+              onLongPress={() => {
+                longPressHandledRef.current = true;
+                handleOpenChange(true);
+              }}
+              onTouchCancel={() => {
+                longPressHandledRef.current = false;
+              }}
+              onTouchEnd={(event) => {
+                if (!longPressHandledRef.current) return;
+                longPressHandledRef.current = false;
+                // Keep the reader's page-turn tap handlers from also firing
+                // after a long press opened the preview.
+                event.stopPropagation();
+              }}
+            >
+              {children}
+            </Pressable>
+          ) : children}
         </ImageViewer.Trigger>
       </ImageViewer>
       {isOpen ? (
@@ -207,6 +348,11 @@ export function ReaderImageViewerActionBar({
 }: ReaderImageViewerActionsProps) {
   const { bottom } = useSafeAreaInsets();
   const { t } = useTranslation('reader');
+  const colorScheme = useAppColorScheme();
+  // Liquid glass takes the app scheme, so in light mode the buttons are light
+  // over the light backdrop and white glyphs wash out. The non-glass fallback
+  // stays a dark disc with white glyphs.
+  const iconColor = hasLiquidGlass && colorScheme === 'light' ? '#1C1C1E' : '#FFFFFF';
 
   return (
     <View
@@ -218,20 +364,20 @@ export function ReaderImageViewerActionBar({
         disabled={isSaving || isSharing}
         onPress={() => void onShare()}
       >
-        {isSharing ? <ActivityIndicator color="#FFFFFF" size="small" /> : <IconShare color="#FFFFFF" size={20} />}
+        {isSharing ? <ActivityIndicator color={iconColor} size="small" /> : <IconShare color={iconColor} size={20} />}
       </LiquidGlassActionButton>
       <LiquidGlassActionButton
         accessibilityLabel={t('accessibility.saveImage')}
         disabled={isSaving || isSharing}
         onPress={() => void onSave()}
       >
-        {isSaving ? <ActivityIndicator color="#FFFFFF" size="small" /> : <IconDownload color="#FFFFFF" size={20} />}
+        {isSaving ? <ActivityIndicator color={iconColor} size="small" /> : <IconDownload color={iconColor} size={20} />}
       </LiquidGlassActionButton>
       <LiquidGlassActionButton
         accessibilityLabel={t('accessibility.closeImagePreview')}
         onPress={onClose}
       >
-        <IconX color="#FFFFFF" size={20} />
+        <IconX color={iconColor} size={20} />
       </LiquidGlassActionButton>
     </View>
   );

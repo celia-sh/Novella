@@ -8,7 +8,7 @@ import {
 } from '@tabler/icons-react-native';
 import { router, Stack } from 'expo-router';
 import { Button } from 'panelui-native/components/button';
-import { Skeleton } from 'panelui-native/components/skeleton';
+import { Skeleton } from '@/components/skeleton';
 import { Spinner } from 'panelui-native/components/spinner';
 import { memo, useCallback } from 'react';
 import {
@@ -27,10 +27,11 @@ import type {
 } from '@novella/api-client';
 
 import { CommunityNotificationsNavigation } from '@/components/community/community-navigation';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import {
+  COMMUNITY_CARD_RADIUS,
   CommunityEmptyState,
   CommunityErrorState,
-  CommunityPaperProvider,
 } from '@/components/community/community-ui';
 import { showAlert } from '@/components/native-alert-dialog';
 import { PublicUserAvatar } from '@/components/public-user-avatar';
@@ -118,11 +119,11 @@ export function CommunityNotificationsScreen() {
   );
 
   return (
-    <CommunityPaperProvider>
       <>
         <Stack.Screen options={{ title: t('notifications.title') }} />
 
         <View style={styles.root}>
+        <HorizontalSafeArea style={styles.list}>
         <FlatList
           ListEmptyComponent={
             state.loading ? (
@@ -149,7 +150,7 @@ export function CommunityNotificationsScreen() {
               <Button onPress={() => void loadMore()} variant="secondary">
                 {t('actions.loadMore')}
               </Button>
-            ) : null
+            ) : undefined
           }
           contentContainerStyle={styles.content}
           contentInsetAdjustmentBehavior="automatic"
@@ -169,6 +170,7 @@ export function CommunityNotificationsScreen() {
           renderItem={renderNotification}
           showsVerticalScrollIndicator={false}
         />
+        </HorizontalSafeArea>
         </View>
 
         <CommunityNotificationsNavigation
@@ -177,7 +179,6 @@ export function CommunityNotificationsScreen() {
           onMarkAll={() => void markAll()}
         />
       </>
-    </CommunityPaperProvider>
   );
 }
 
@@ -317,7 +318,7 @@ const useCommunityNotificationsStyles = createThemedStyles((colors) => ({
   actor: { color: colors.label, flexShrink: 1, fontSize: 14, fontWeight: '700' },
   actorRow: { alignItems: 'center', flexDirection: 'row', gap: 7 },
   body: { color: colors.secondaryLabel, fontSize: 14, lineHeight: 20 },
-  card: { borderCurve: 'continuous', borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  card: { borderCurve: 'continuous', borderRadius: COMMUNITY_CARD_RADIUS, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   cardBody: { gap: 10, padding: 15 },
   readCard: { backgroundColor: colors.card },
   content: { padding: 16, paddingBottom: 40 },
@@ -325,6 +326,7 @@ const useCommunityNotificationsStyles = createThemedStyles((colors) => ({
   loadingMore: { alignItems: 'center', padding: 16 },
   metaRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   pressed: { opacity: 0.68 },
+  list: { flex: 1 },
   root: { backgroundColor: colors.background, flex: 1 },
   separator: { height: 11 },
   skeletonAction: { borderRadius: 5, height: 11, width: '58%' },

@@ -12,7 +12,7 @@ export function createReadiumReaderPreferences({
   doublePage = false,
   firstLineIndent,
   fontSize,
-  imagePreviewOpenOnLongPress,
+  imagePreviewEnabled,
   lineHeight,
   mode,
   pagedTapNavigation = true,
@@ -24,7 +24,7 @@ export function createReadiumReaderPreferences({
   doublePage?: boolean;
   firstLineIndent: boolean;
   fontSize: number;
-  imagePreviewOpenOnLongPress: boolean;
+  imagePreviewEnabled: boolean;
   lineHeight: number;
   mode: ReaderMode;
   pagedTapNavigation?: boolean;
@@ -36,7 +36,7 @@ export function createReadiumReaderPreferences({
     backgroundColor: opaqueCssColor(backgroundColor),
     doublePage,
     fontSize: Math.max(0.5, fontSize / BASE_FONT_SIZE),
-    imagePreviewOpenOnLongPress,
+    imagePreviewEnabled,
     lineHeight,
     mode,
     pageAnimation: false,
@@ -65,11 +65,13 @@ export function opaqueCssColor(value: string): string {
 export function createReadiumContentInsets(
   top: number,
   bottom: number,
+  left = 0,
+  right = 0,
 ): ReadiumContentInsets {
   return {
     bottom: Math.max(0, bottom),
-    left: 0,
-    right: 0,
+    left: Math.max(0, left),
+    right: Math.max(0, right),
     top: Math.max(0, top),
   };
 }

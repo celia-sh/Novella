@@ -1,5 +1,7 @@
 import type { RankPeriod } from '@novella/client-core';
 
+import type { ComicPageFitMode } from './reader-display-layout.ts';
+
 import {
   isAppUpdateDestination,
   type AppUpdateDestination,
@@ -22,12 +24,30 @@ import { normalizeReaderBackgroundColor } from '../theme/reader-theme.ts';
 export type ReaderViewMode = 'paged' | 'scroll';
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type TranslationMode = 'none' | 't2s' | 's2t';
+export type { ComicPageFitMode } from './reader-display-layout.ts';
+
 export type CleanChapterTitleScope = 'continueReading' | 'readerTitle';
+export type ReaderImagePreviewScope = 'off' | 'novel' | 'comic' | 'both';
 
 export const CLEAN_CHAPTER_TITLE_SCOPES: readonly CleanChapterTitleScope[] = [
   'continueReading',
   'readerTitle',
 ];
+
+export function isComicPageFitMode(value: unknown): value is ComicPageFitMode {
+  return value === 'screen' || value === 'width' || value === 'height';
+}
+
+export function isReaderImagePreviewScope(value: unknown): value is ReaderImagePreviewScope {
+  return value === 'off' || value === 'novel' || value === 'comic' || value === 'both';
+}
+
+export function readerImagePreviewIncludes(
+  scope: ReaderImagePreviewScope,
+  target: 'novel' | 'comic',
+): boolean {
+  return scope === 'both' || scope === target;
+}
 
 export function isCleanChapterTitleScope(value: unknown): value is CleanChapterTitleScope {
   return value === 'continueReading' || value === 'readerTitle';
@@ -68,11 +88,12 @@ export interface AppSettings {
   comicReaderViewMode: ReaderViewMode;
   readerPagedTapNavigation: boolean;
   readerFirstLineIndent: boolean;
-  readerImagePreviewOpenOnLongPress: boolean;
+  readerImagePreviewScope: ReaderImagePreviewScope;
   readerLineHeight: number;
   readerParagraphSpacing: number;
   comicPagedDirection: 'ltr' | 'rtl';
   comicDoublePageOffset: boolean;
+  comicPageFitMode: ComicPageFitMode;
   readerPreloadWindow: number;
   readerSidePadding: number;
   seedColorValue: string;
@@ -97,11 +118,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   language: 'system',
   ignoreLevel6: true,
   readerFirstLineIndent: false,
-  readerImagePreviewOpenOnLongPress: false,
+  readerImagePreviewScope: 'both',
   readerLineHeight: 1.6,
   readerParagraphSpacing: 0,
   comicPagedDirection: 'ltr',
   comicDoublePageOffset: false,
+  comicPageFitMode: 'screen',
   readerPreloadWindow: 3,
   novelReaderBackgroundColor: null,
   novelReaderViewMode: 'paged',
@@ -140,6 +162,13 @@ export function decodeAppSettings(value: unknown): AppSettings {
       ? candidate.novelReaderPagedTapNavigation === true
         || candidate.comicReaderPagedTapNavigation === true
       : DEFAULT_SETTINGS.readerPagedTapNavigation;
+  // The old toggle only chose tap versus long-press; it never turned the
+  // preview off. Keep existing users on the novel-only long-press behavior.
+  const readerImagePreviewScope = isReaderImagePreviewScope(candidate.readerImagePreviewScope)
+    ? candidate.readerImagePreviewScope
+    : typeof candidate.readerImagePreviewOpenOnLongPress === 'boolean'
+      ? 'novel'
+      : DEFAULT_SETTINGS.readerImagePreviewScope;
   return {
     ...DEFAULT_SETTINGS,
     ...(typeof candidate.bookDetailCacheEnabled === 'boolean'
@@ -187,9 +216,7 @@ export function decodeAppSettings(value: unknown): AppSettings {
     novelReaderViewMode,
     comicReaderViewMode,
     readerPagedTapNavigation,
-    ...(typeof candidate.readerImagePreviewOpenOnLongPress === 'boolean'
-      ? { readerImagePreviewOpenOnLongPress: candidate.readerImagePreviewOpenOnLongPress }
-      : {}),
+    readerImagePreviewScope,
     ...(typeof candidate.readerLineHeight === 'number'
       ? { readerLineHeight: clamp(candidate.readerLineHeight, 1, 2.5) }
       : {}),
@@ -202,6 +229,9 @@ export function decodeAppSettings(value: unknown): AppSettings {
       : {}),
     ...(typeof candidate.comicDoublePageOffset === 'boolean'
       ? { comicDoublePageOffset: candidate.comicDoublePageOffset }
+      : {}),
+    ...(isComicPageFitMode(candidate.comicPageFitMode)
+      ? { comicPageFitMode: candidate.comicPageFitMode }
       : {}),
     ...(typeof candidate.readerPreloadWindow === 'number' &&
       Number.isFinite(candidate.readerPreloadWindow)

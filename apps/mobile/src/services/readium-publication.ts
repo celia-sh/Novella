@@ -60,7 +60,9 @@ export function readiumPublicationCacheKey(
   bookId: number,
   conversion: string | null | undefined,
 ): string {
-  return `${bookId}-${conversion ?? 'none'}`;
+  // Bump when the injected chapter document changes so cached chapters do
+  // not keep an older interaction script or stylesheet.
+  return `${bookId}-${conversion ?? 'none'}-v3`;
 }
 
 /**
@@ -217,6 +219,12 @@ function buildReadiumPublicationStylesheet(fontRequired: boolean): string {
     '.nv-inline-footnote-label{flex:none;font-weight:600;}',
     '.nv-inline-footnote-marker{font-size:.75em;font-weight:600;line-height:0;vertical-align:super;}',
     'img{max-width:100%;height:auto;border-radius:4px;}',
+    '.nv-illustration{text-align:center;}',
+    // Body paragraphs get the user's first-line indent, which would push a
+    // centered image off center; this selector outranks that rule.
+    'html[style] body>.nv-illustration,.nv-illustration{text-indent:0!important;}',
+    '.nv-illustration img,img.nv-illustration{margin-left:auto;margin-right:auto;}',
+    'img.nv-illustration{display:block;}',
     'ruby{white-space:normal;word-break:break-all;overflow-wrap:anywhere;}',
     'ruby rt{font-size:.5em;white-space:normal;word-break:break-all;overflow-wrap:anywhere;}',
   ].join('');
@@ -296,12 +304,13 @@ function inlineFootnotesAfterBlock(
 }
 
 function buildImagePreviewScript(): string {
-  return `<script type="text/javascript"><![CDATA[(function(){if(window.__novellaImagePreviewInstalled)return;window.__novellaImagePreviewInstalled=true;var timer=null,sx=0,sy=0;function img(t){var i=t&&t.closest?t.closest('img'):null;if(!i||i.classList&&(i.classList.contains('no-preview')||i.classList.contains('footnote')))return null;var a=i.closest('a');return a&&/(^|\\s)noteref(\\s|$)/.test(a.getAttribute('epub:type')||'')?null:i}function send(i,g){if(!i)return;var dataUri='';try{if(i.complete&&i.naturalWidth&&i.naturalHeight&&i.naturalWidth*i.naturalHeight<=8000000){var c=document.createElement('canvas');var max=4096;var scale=Math.min(1,max/Math.max(i.naturalWidth,i.naturalHeight));c.width=Math.max(1,Math.round(i.naturalWidth*scale));c.height=Math.max(1,Math.round(i.naturalHeight*scale));var x=c.getContext('2d');if(x){x.drawImage(i,0,0,c.width,c.height);dataUri=c.toDataURL('image/jpeg',0.92)}}}catch(_e){}var p={type:'image',uri:i.currentSrc||i.src,alt:i.alt||'',width:i.naturalWidth||0,height:i.naturalHeight||0,gesture:g};if(dataUri)p.dataUri=dataUri;if(window.novellaReader&&window.novellaReader.open){window.novellaReader.open(p.uri,p.alt,p.gesture)}else if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.novellaReader){window.webkit.messageHandlers.novellaReader.postMessage(p)}}document.addEventListener('click',function(e){var i=img(e.target);if(!i)return;e.stopImmediatePropagation();send(i,'tap')},true);document.addEventListener('touchstart',function(e){var i=img(e.target);if(!i)return;var t=e.touches[0];sx=t.clientX;sy=t.clientY;timer=setTimeout(function(){timer=null;send(i,'longPress')},520)},true);document.addEventListener('touchmove',function(e){if(!timer)return;var t=e.touches[0];if(Math.abs(t.clientX-sx)>10||Math.abs(t.clientY-sy)>10){clearTimeout(timer);timer=null}},true);document.addEventListener('touchend',function(){if(timer){clearTimeout(timer);timer=null}},true)})()]]></script>`;
+  return `<script type="text/javascript"><![CDATA[(function(){if(window.__novellaImagePreviewInstalled)return;window.__novellaImagePreviewInstalled=true;var timer=null,sx=0,sy=0;function img(t){var i=t&&t.closest?t.closest('img'):null;if(!i||i.classList&&(i.classList.contains('no-preview')||i.classList.contains('footnote')))return null;var a=i.closest('a');return a&&/(^|\\s)noteref(\\s|$)/.test(a.getAttribute('epub:type')||'')?null:i}function send(i,g){if(!i)return;var dataUri='';try{if(i.complete&&i.naturalWidth&&i.naturalHeight&&i.naturalWidth*i.naturalHeight<=8000000){var c=document.createElement('canvas');var max=4096;var scale=Math.min(1,max/Math.max(i.naturalWidth,i.naturalHeight));c.width=Math.max(1,Math.round(i.naturalWidth*scale));c.height=Math.max(1,Math.round(i.naturalHeight*scale));var x=c.getContext('2d');if(x){x.drawImage(i,0,0,c.width,c.height);dataUri=c.toDataURL('image/jpeg',0.92)}}}catch(_e){}var p={type:'image',uri:i.currentSrc||i.src,alt:i.alt||'',width:i.naturalWidth||0,height:i.naturalHeight||0,gesture:g};if(dataUri)p.dataUri=dataUri;if(window.novellaReader&&window.novellaReader.open){window.novellaReader.open(p.uri,p.alt,p.gesture)}else if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.novellaReader){window.webkit.messageHandlers.novellaReader.postMessage(p)}}document.addEventListener('touchstart',function(e){var i=img(e.target);if(!i)return;var t=e.touches[0];sx=t.clientX;sy=t.clientY;timer=setTimeout(function(){timer=null;send(i,'longPress')},520)},true);document.addEventListener('touchmove',function(e){if(!timer)return;var t=e.touches[0];if(Math.abs(t.clientX-sx)>10||Math.abs(t.clientY-sy)>10){clearTimeout(timer);timer=null}},true);document.addEventListener('touchend',function(){if(timer){clearTimeout(timer);timer=null}},true)})()]]></script>`;
 }
 
 function normalizeHtmlFragmentForXhtml(html: string): string {
   const nodes = parseDOM(html, { decodeEntities: true });
   hideEmptySvgImagePlaceholders(nodes);
+  markStandaloneIllustrations(nodes);
   addPuaLineBreakOpportunities(nodes);
   const serialized = DomUtils.getOuterHTML(nodes, {
     decodeEntities: true,
@@ -326,6 +335,52 @@ function hideEmptySvgImagePlaceholders(nodes: ReadiumHtmlNode[]): void {
     const style = svg.attribs.style?.trim() ?? '';
     svg.attribs.style = `${style}${style && !style.endsWith(';') ? ';' : ''}display:none!important`;
   }
+}
+
+const ILLUSTRATION_CLASS = 'nv-illustration';
+/** Elements that only wrap an illustration; anything else is a layout of its own. */
+const ILLUSTRATION_WRAPPERS = new Set(['a', 'br', 'center', 'div', 'figure', 'p', 'picture', 'source', 'span']);
+/** A book that places the image itself keeps its placement. */
+const EXPLICIT_PLACEMENT = /(?:^|;)\s*(?:text-align|float|position|margin(?:-left|-right|-inline(?:-start|-end)?)?)\s*:/iu;
+
+/**
+ * Centers a block that is nothing but an illustration: one or more images, no
+ * text, no table, and no alignment of its own. Images inside a paragraph,
+ * footnote markers, avatars next to a book's introduction, and anything the
+ * book aligns or floats are left as they are; the reader otherwise starts
+ * every image at the column's leading edge.
+ */
+function markStandaloneIllustrations(nodes: readonly ReadiumHtmlNode[]): void {
+  for (const node of nodes) {
+    if (!DomUtils.isTag(node) || !isStandaloneIllustration(node)) continue;
+    const classes = node.attribs.class?.trim();
+    node.attribs.class = classes ? `${classes} ${ILLUSTRATION_CLASS}` : ILLUSTRATION_CLASS;
+  }
+}
+
+function isStandaloneIllustration(root: ReadiumHtmlNode): boolean {
+  let images = 0;
+  const pending: ReadiumHtmlNode[] = [root];
+  for (let node = pending.pop(); node; node = pending.pop()) {
+    if (DomUtils.isText(node)) {
+      if (node.data.trim()) return false;
+      continue;
+    }
+    if (!DomUtils.isTag(node)) continue;
+    const style = node.attribs.style ?? '';
+    if (node.attribs.align || EXPLICIT_PLACEMENT.test(style)) return false;
+    if (node.name === 'img') {
+      if (/(?:^|\s)(?:footnote|no-preview)(?:\s|$)/u.test(node.attribs.class ?? '')) return false;
+      images += 1;
+      continue;
+    }
+    // The empty wrapper SVG hidden by hideEmptySvgImagePlaceholders.
+    if (node.name === 'svg' && /display\s*:\s*none/iu.test(style)) continue;
+    if (!ILLUSTRATION_WRAPPERS.has(node.name)) return false;
+    if (/(?:^|\s)noteref(?:\s|$)/u.test(node.attribs['epub:type'] ?? '')) return false;
+    pending.push(...node.children);
+  }
+  return images > 0;
 }
 
 function addPuaLineBreakOpportunities(nodes: readonly ReadiumHtmlNode[]): void {

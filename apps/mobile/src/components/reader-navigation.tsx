@@ -1,9 +1,17 @@
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Stack } from 'expo-router';
+import { Stack, router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import type { ReaderNavigationProps } from '@/components/reader-navigation.types';
+import { ReaderSideProgress } from '@/components/reader-side-progress';
+import { ReaderSideTitle } from '@/components/reader-side-title';
+import {
+  addReaderLayoutDidChangeListener,
+  refreshReaderSideBar,
+  setReaderBarInterfaceStyle,
+} from '@/services/reader-side-chrome';
 
 const hasLiquidGlass = isLiquidGlassAvailable();
 const READER_NAVIGATION_ITEM_HEIGHT = 44;
@@ -22,13 +30,74 @@ export function ReaderNavigation({
   statusBarStyle,
   title,
   chromeHidden,
+  sideChrome = false,
+  sideProgress,
 }: ReaderNavigationProps) {
   const { t } = useTranslation('reader');
+  const { t: tCommon } = useTranslation('common');
+  const { height, width } = useWindowDimensions();
+  const barScheme = readerBarColorScheme(forceLightAppearance, statusBarStyle);
+
+  // Give the reader's glass the scheme of its background, not the app's: a
+  // light page in dark mode (or the reverse) otherwise gets glass of the wrong
+  // brightness. The floating bar container is rebuilt by folds and chrome
+  // toggles, so re-apply after those too. It is shared with the screens below,
+  // so leaving the reader resets it.
+  useFocusEffect(useCallback(() => {
+    const apply = () => {
+      void setReaderBarInterfaceStyle(barScheme).catch(() => undefined);
+    };
+    apply();
+    const frame = requestAnimationFrame(apply);
+    const subscription = addReaderLayoutDidChangeListener(apply);
+    return () => {
+      cancelAnimationFrame(frame);
+      subscription?.remove();
+    };
+  }, [barScheme, chromeHidden, height, width]));
+  useEffect(() => () => {
+    void setReaderBarInterfaceStyle('unspecified').catch(() => undefined);
+  }, []);
+
+  // A fold between displays keeps the same native bar button items but rebuilds
+  // the vertical column around them. Re-apply the item list once the new layout
+  // has settled so the title and progress are measured against the new column.
+  //
+  // Only real window-size changes are a fold. Safe-area insets also change when
+  // the status bar hides with the reader chrome, and re-assigning the item list
+  // at that moment re-inserts the custom title/progress views into the glass
+  // column, which plays iOS 26's item transition (the text visibly pops).
+  //
+  // The dimension commit can land before UIKit has finished rebuilding the
+  // column, which intermittently left the title and progress off the bar. Ask
+  // again when the native transition reports its end, and once more shortly
+  // after; `refreshReaderSideBar` applies the items without animation, and the
+  // transition cover is still up for the first retry.
+  useEffect(() => {
+    if (!sideChrome) return;
+    const refresh = () => {
+      void refreshReaderSideBar().catch(() => undefined);
+    };
+    const frame = requestAnimationFrame(refresh);
+    const subscription = addReaderLayoutDidChangeListener(refresh);
+    const retry = setTimeout(refresh, 380);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(retry);
+      subscription?.remove();
+    };
+  }, [height, sideChrome, width]);
+
   return (
     <>
       <Stack.Screen
         options={{
           headerLargeTitle: false,
+          // The system back item ignores `headerTintColor` in the vertical
+          // bar, so it stayed in the app scheme's label color over a reader
+          // background of the opposite brightness. The toolbar chevron below
+          // carries the reader color everywhere.
+          headerBackVisible: false,
           headerShadowVisible: false,
           scrollEdgeEffects: {
             bottom: 'hidden',
@@ -37,7 +106,7 @@ export function ReaderNavigation({
             top: 'soft',
           },
           headerTintColor: foregroundColor,
-          headerTitle: () => (
+          headerTitle: sideChrome ? '' : () => (
             <ReaderHeaderTitle
               forceLightAppearance={forceLightAppearance ?? false}
               foregroundColor={foregroundColor}
@@ -48,42 +117,88 @@ export function ReaderNavigation({
           headerTitleStyle: { color: foregroundColor },
           headerShown: !chromeHidden,
           gestureEnabled: false,
-          ...(forceLightAppearance
-            ? {
-                unstable_nativeProps: {
-                  headerConfig: { experimental_userInterfaceStyle: 'light' },
-                },
-              }
-            : {}),
+          unstable_nativeProps: {
+            headerConfig: { experimental_userInterfaceStyle: barScheme },
+          },
+          statusBarHidden: chromeHidden,
+          statusBarStyle: nativeStatusBarStyle(statusBarStyle),
           title,
         }}
       />
-      <StatusBar
-        animated
-        barStyle={statusBarStyle}
-        hidden={chromeHidden}
-        showHideTransition="fade"
-      />
-      {!chromeHidden ? (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Button
-            accessibilityLabel={t('accessibility.chapterList')}
-            hidden={chromeHidden}
-            icon="list.bullet"
-            onPress={onOpenChapters}
-            tintColor={foregroundColor}
-          />
-          <Stack.Toolbar.Button
-            accessibilityLabel={t('accessibility.readerSettings')}
-            hidden={chromeHidden}
-            icon="gearshape"
-            onPress={onOpenSettings}
-            tintColor={foregroundColor}
-          />
-        </Stack.Toolbar>
-      ) : null}
+      {/*
+        The toolbar stays mounted while the chrome is hidden. The custom title
+        and progress views are inserted into the glass column when they mount,
+        and iOS 26 animates that insertion; mounting the toolbar with the
+        chrome made the text pop every time the bar appeared. `headerShown`
+        still owns visibility, and the native buttons keep their own `hidden`.
+      */}
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button
+          accessibilityLabel={tCommon('accessibility.back')}
+          hidden={chromeHidden}
+          icon="chevron.left"
+          onPress={() => router.back()}
+          tintColor={foregroundColor}
+        />
+      </Stack.Toolbar>
+      <Stack.Toolbar placement="right">
+        {sideChrome && title ? (
+          <Stack.Toolbar.View hidden={chromeHidden}>
+            <ReaderSideTitle
+              foregroundColor={foregroundColor}
+              title={title}
+            />
+          </Stack.Toolbar.View>
+        ) : null}
+        {sideChrome && sideProgress ? (
+          <Stack.Toolbar.View hidden={chromeHidden}>
+            <ReaderSideProgress
+              foregroundColor={foregroundColor}
+              {...sideProgress}
+            />
+          </Stack.Toolbar.View>
+        ) : null}
+        <Stack.Toolbar.Button
+          accessibilityLabel={t('accessibility.chapterList')}
+          hidden={chromeHidden}
+          icon="list.bullet"
+          onPress={onOpenChapters}
+          tintColor={foregroundColor}
+        />
+        <Stack.Toolbar.Button
+          accessibilityLabel={t('accessibility.readerSettings')}
+          hidden={chromeHidden}
+          icon="gearshape"
+          onPress={onOpenSettings}
+          tintColor={foregroundColor}
+        />
+      </Stack.Toolbar>
     </>
   );
+}
+
+type NativeStatusBarStyle = 'auto' | 'light' | 'dark';
+
+/** Light text means a dark reader background, so the bars use dark glass. */
+function readerBarColorScheme(
+  forceLightAppearance: boolean | undefined,
+  statusBarStyle: ReaderNavigationProps['statusBarStyle'],
+): 'dark' | 'light' {
+  if (forceLightAppearance) return 'light';
+  return statusBarStyle === 'light-content' ? 'dark' : 'light';
+}
+
+/**
+ * iOS 27 ignores `UIApplication`'s app-wide status bar style; the appearance
+ * comes from the screen's view controller instead, and react-native-screens
+ * forwards the native-stack `statusBarStyle` option to it.
+ */
+function nativeStatusBarStyle(
+  style: ReaderNavigationProps['statusBarStyle'],
+): NativeStatusBarStyle {
+  if (style === 'light-content') return 'light';
+  if (style === 'dark-content') return 'dark';
+  return 'auto';
 }
 
 type ReaderHeaderTitleProps = Pick<
@@ -105,9 +220,9 @@ function ReaderHeaderTitle({
       windowWidth - READER_NAVIGATION_TITLE_SIDE_RESERVATION,
     ),
   );
-  const colorScheme = forceLightAppearance || statusBarStyle === 'dark-content'
-    ? 'light'
-    : 'dark';
+  // The native bars take the same scheme through the header config and the
+  // floating bar override, so the pill matches the buttons beside it.
+  const colorScheme = readerBarColorScheme(forceLightAppearance, statusBarStyle);
   const fallbackBackgroundColor = statusBarStyle === 'light-content'
     ? 'rgba(255,255,255,0.16)'
     : 'rgba(0,0,0,0.08)';

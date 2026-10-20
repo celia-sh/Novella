@@ -25,8 +25,11 @@ public final class NovellaReadiumModule: Module {
       Prop("contentInsets") { (view: NovellaReadiumView, value: [String: Double]) in
         view.setContentInsets(value)
       }
+      Prop("sideFadeWidth") { (view: NovellaReadiumView, value: Double) in
+        view.setSideFadeWidth(value)
+      }
 
-      Events("onReady", "onLocatorChange", "onLink", "onImage", "onError", "onStatus", "onTap", "onBoundary", "onProgressMetrics")
+      Events("onReady", "onLocatorChange", "onLink", "onImage", "onError", "onStatus", "onTap", "onBoundary", "onProgressMetrics", "onLoadingChange")
 
       AsyncFunction("getCurrentLocator") { (view: NovellaReadiumView) async -> [String: Any]? in
         await view.getCurrentLocator()

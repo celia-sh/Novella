@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Dimensions } from 'react-native';
+import { Dimensions, type ScaledSize } from 'react-native';
 
 interface ReaderWindowDimensions {
   height: number;
@@ -34,7 +34,7 @@ export function useReaderWindowDimensions(): ReaderWindowDimensions {
       });
     };
 
-    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+    const subscription = Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
       applyWindow(window);
     });
     applyWindow(Dimensions.get('window'));

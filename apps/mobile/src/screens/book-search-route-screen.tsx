@@ -15,7 +15,7 @@ const SEARCH_MODES = new Set<BookSearchMode>([
 ]);
 
 /** Shared route adapter for the Search tab and root quick-search route. */
-export function BookSearchRouteScreen() {
+export function BookSearchRouteScreen({ pushed = false }: { pushed?: boolean }) {
   const params = useLocalSearchParams<{ format?: string; mode?: string; query?: string }>();
   const initialFormat: BookSearchFormat = params.format === 'Comic' ? 'Comic' : 'Novel';
   const initialMode: BookSearchMode = SEARCH_MODES.has(params.mode as BookSearchMode)
@@ -27,6 +27,7 @@ export function BookSearchRouteScreen() {
       initialFormat={initialFormat}
       initialMode={initialMode}
       initialQuery={params.query ?? ''}
+      pushed={pushed}
     />
   );
 }

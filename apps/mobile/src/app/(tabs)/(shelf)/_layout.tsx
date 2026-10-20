@@ -1,21 +1,19 @@
 import Stack from 'expo-router/stack';
 import { useTranslation } from 'react-i18next';
 
+import { useRootPageTitle } from '@/hooks/use-wide-layout';
 import { useSystemScreenStackPreset } from '@/theme/stack-preset';
 
 export default function ShelfStackLayout() {
   const { t } = useTranslation('navigation');
   const systemScreenStackPreset = useSystemScreenStackPreset();
+  const rootTitle = useRootPageTitle(t('tabs.shelf'));
 
   return (
     <Stack screenOptions={systemScreenStackPreset}>
       <Stack.Screen
         name="shelf"
-        options={{
-          headerLargeTitle: true,
-          headerShown: true,
-          title: t('tabs.shelf'),
-        }}
+        options={{ ...rootTitle, headerShown: true }}
       />
     </Stack>
   );

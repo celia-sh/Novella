@@ -163,25 +163,31 @@ export function useCommunityHome() {
   }, [queryKey, state.home, state.query, t]);
 
   const updateQuery = useCallback((patch: Partial<CommunityHomeQuery>) => {
-    const boardChanged = patch.boardKey !== undefined;
-    setState((current) => ({
-      ...current,
-      query: {
-        ...current.query,
-        ...patch,
-        ...(boardChanged ? { subCategoryKey: '' } : {}),
-      },
-      // A board switch refetches its sub-categories: drop the old ones so
-      // the Category row shows a placeholder instead of stale pills, then
-      // let the fetch fill them back in. "All boards" has no categories, so
-      // it collapses immediately (placeholder off, pills cleared).
-      ...(boardChanged && current.home
-        ? {
-            categoriesLoading: patch.boardKey !== 'all',
-            home: { ...current.home, subCategories: [] },
-          }
-        : {}),
-    }));
+    setState((current) => {
+      // Tapping the board that is already selected is not a switch. Treating
+      // it as one cleared the categories without a refetch (the query key is
+      // unchanged), leaving an empty placeholder row behind.
+      const boardChanged = patch.boardKey !== undefined
+        && patch.boardKey !== current.query.boardKey;
+      return {
+        ...current,
+        query: {
+          ...current.query,
+          ...patch,
+          ...(boardChanged ? { subCategoryKey: '' } : {}),
+        },
+        // A board switch refetches its sub-categories: drop the old ones so
+        // the Category row shows a placeholder instead of stale pills, then
+        // let the fetch fill them back in. "All boards" has no categories, so
+        // it collapses immediately (placeholder off, pills cleared).
+        ...(boardChanged && current.home
+          ? {
+              categoriesLoading: patch.boardKey !== 'all',
+              home: { ...current.home, subCategories: [] },
+            }
+          : {}),
+      };
+    });
   }, []);
 
   const loadMore = useCallback(async () => {

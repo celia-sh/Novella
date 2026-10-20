@@ -134,7 +134,7 @@ export function PointLogsSheetScreen({ kind }: PointLogsSheetScreenProps) {
             </Pressable>
           ) : null}
         </View>
-      ) : null}
+      ) : undefined}
       ListHeaderComponent={(
         <View style={styles.header}>
           <Icon color={resolveAccentHex(colors.accent)} size={22} strokeWidth={2} />

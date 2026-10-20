@@ -1,16 +1,16 @@
 import { StyleSheet, View } from 'react-native';
-import { Skeleton } from 'panelui-native/components/skeleton';
+import { Skeleton } from '@/components/skeleton';
 
 import {
   BOOK_COVER_ASPECT_RATIO,
   BOOK_COVER_CORNER_RADIUS,
 } from '@/components/book-cover-grid-item';
-import { BOOK_GRID_ROW_GAP } from '@/services/book-grid-layout';
+import { BOOK_GRID_ROW_GAP, BOOK_GRID_TITLE_HEIGHT } from '@/services/book-grid-layout';
 import { createThemedStyles } from '@/theme/app-theme';
 
 /** Height of one skeleton tile column (cover 2:3 + gap + two title lines). */
 export function bookGridTileHeight(tileWidth: number): number {
-  return tileWidth * (3 / 2) + 7 + 13 + 13 + 2;
+  return tileWidth * (3 / 2) + BOOK_GRID_TITLE_HEIGHT;
 }
 
 /** Number of skeleton tiles that fill the first screen's visible area.

@@ -4,7 +4,10 @@ import test from 'node:test';
 import {
   readerProgressStep,
   resolveComicPageProgress,
+  resolveNovelProgressTarget,
+  resolveReaderPagePosition,
   resolveReaderProgressSliderState,
+  resolveReaderSideProgressInfo,
   snapReaderProgress,
 } from './reader-page-progress.ts';
 
@@ -21,11 +24,6 @@ test('two-page chapters only have their two endpoints', () => {
   assert.equal(snapReaderProgress(0.49, 2), 0);
   assert.equal(snapReaderProgress(0.5, 2), 1);
   assert.equal(snapReaderProgress(0.99, 2), 1);
-});
-
-test('a single-page chapter is complete and cannot be stepped', () => {
-  assert.equal(readerProgressStep(1), 1);
-  assert.equal(snapReaderProgress(0, 1), 1);
 });
 
 test('paged novel chapters step by their measured pages', () => {
@@ -100,6 +98,78 @@ test('comic pages always step by page and lock a single page', () => {
       progress: 0,
     }),
     { disabled: true, progress: 1, step: 1, stepped: false },
+  );
+});
+
+test('side-bar progress combines percentage and page count', () => {
+  assert.deepEqual(
+    resolveReaderSideProgressInfo({
+      displayMode: 'percentage',
+      pageCurrent: 0,
+      pageStepped: true,
+      pageTotal: 5,
+      progress: 0.5,
+    }),
+    { pageLabel: '3/5', percent: 50 },
+  );
+  assert.deepEqual(
+    resolveReaderSideProgressInfo({
+      displayMode: 'pages',
+      pageCurrent: 4,
+      pageTotal: 10,
+      progress: 0.3,
+    }),
+    { pageLabel: '4/10', percent: 33 },
+  );
+  assert.deepEqual(
+    resolveReaderSideProgressInfo({
+      displayMode: 'percentage',
+      pageCurrent: 0,
+      pageTotal: 0,
+      progress: 0.42,
+    }),
+    { pageLabel: '', percent: 42 },
+  );
+});
+
+test('a known paged screen places the thumb instead of the trailing progression', () => {
+  // The third of 14 screens reports progression 3/14, which snaps a step ahead.
+  assert.equal(
+    resolveReaderProgressSliderState({
+      displayMode: 'percentage',
+      pageCurrent: 3,
+      pageStepped: true,
+      pageTotal: 14,
+      progress: 3 / 14,
+    }).progress,
+    2 / 13,
+  );
+  assert.deepEqual(
+    resolveNovelProgressTarget({ paged: true, screenTotal: 14, value: 2 / 13 }),
+    { progression: 2.5 / 14, screenIndex: 2 },
+  );
+});
+
+test('a spread is named by its last page and scroll mode has no page', () => {
+  const novel = { displayMode: 'percentage', pageStepped: true, pageTotal: 14, progress: 0 };
+  assert.deepEqual(resolveReaderPagePosition({ ...novel, pageCurrent: 3 }), { current: 3, total: 14 });
+  assert.deepEqual(
+    resolveReaderPagePosition({ ...novel, columnCount: 2, columnTotal: 27, pageCurrent: 3 }),
+    { current: 6, total: 27 },
+  );
+  assert.deepEqual(
+    resolveReaderPagePosition({ ...novel, columnCount: 2, columnTotal: 27, pageCurrent: 14 }),
+    { current: 27, total: 27 },
+  );
+  assert.equal(
+    resolveReaderSideProgressInfo({
+      displayMode: 'percentage',
+      pageCurrent: 0,
+      pageStepped: false,
+      pageTotal: 3,
+      progress: 0.4,
+    }).pageLabel,
+    '',
   );
 });
 

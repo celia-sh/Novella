@@ -22,7 +22,7 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
   private var lastMeasuredWidth: CGFloat = 0
   private var lastReportedHeight: CGFloat = 0
   private var isEnabled = true
-  private var isKeyboardVisible = false
+  private weak var transcriptScrollView: UIScrollView?
   private var placeholder = ""
   private var maxLength = 2_000
   private var accentColor: UIColor = .systemBlue
@@ -34,8 +34,9 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
   // The pill sits above the keyboard and reports its occupied height so the
   // transcript can reserve exactly that much scroll padding.
   private let minimumSurfaceHeight: CGFloat = 44
-  private let minimumHorizontalInset: CGFloat = 12
-  private let restingHorizontalInset: CGFloat = 16
+  /// Lines the pill up with the transcript's bubbles, which are inset 16 pt
+  /// from the same safe area.
+  private let horizontalInset: CGFloat = 16
   private let keyboardBottomSpacing: CGFloat = 10
   private let sendButtonDiameter: CGFloat = 32
   private let textRightInset: CGFloat = 44
@@ -115,20 +116,27 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
     glassView.contentView.addSubview(placeholderLabel)
     glassView.contentView.addSubview(sendButton)
 
+    // The view fills the chat, so its safe area is the screen's own: it covers
+    // the window edges and the vertical navigation bar on iPhone Duo.
     surfaceLeadingConstraint = glassView.leadingAnchor.constraint(
-      equalTo: leadingAnchor,
-      constant: restingHorizontalInset
+      equalTo: safeAreaLayoutGuide.leadingAnchor,
+      constant: horizontalInset
     )
     surfaceTrailingConstraint = glassView.trailingAnchor.constraint(
-      equalTo: trailingAnchor,
-      constant: -restingHorizontalInset
+      equalTo: safeAreaLayoutGuide.trailingAnchor,
+      constant: -horizontalInset
     )
     surfaceBottomConstraint = glassView.bottomAnchor.constraint(
       equalTo: keyboardLayoutGuide.topAnchor,
       constant: -keyboardBottomSpacing
     )
     surfaceHeightConstraint = glassView.heightAnchor.constraint(equalToConstant: minimumSurfaceHeight)
-    textHeightConstraint = textView.heightAnchor.constraint(equalToConstant: 30)
+    // Start at the one-line height the first measurement will settle on, so
+    // the send button (centered on the text view) is in place before then.
+    let initialLineHeight = textView.font?.lineHeight ?? 22
+    textHeightConstraint = textView.heightAnchor.constraint(
+      equalToConstant: ceil(initialLineHeight + textVerticalInset * 2)
+    )
 
     NSLayoutConstraint.activate([
       surfaceLeadingConstraint,
@@ -213,12 +221,16 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
   override func layoutSubviews() {
     super.layoutSubviews()
 
-    updateKeyboardGeometry()
+    // Lay the pill out first: the text view only gets its width there, and
+    // measuring before that skipped the first pass entirely, leaving the
+    // placeholder height (and a send button sitting too high) until a later
+    // layout such as focusing happened to measure again.
+    glassView.layoutIfNeeded()
     if abs(lastMeasuredWidth - textView.bounds.width) > 0.5 {
       lastMeasuredWidth = textView.bounds.width
       updateHeight(animated: false)
+      glassView.layoutIfNeeded()
     }
-    glassView.layoutIfNeeded()
     updateCorners()
     reportOccupiedHeightIfNeeded()
   }
@@ -291,6 +303,7 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
   private func updateHeight(animated: Bool) {
     guard textView.bounds.width > 0 else { return }
 
+    let previousOccupiedHeight = occupiedHeight
     let wasScrollEnabled = textView.isScrollEnabled
     let previousOffset = textView.contentOffset
     textView.isScrollEnabled = false
@@ -315,7 +328,13 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
       textView.setContentOffset(previousOffset, animated: false)
     }
 
+    let delta = occupiedHeight - previousOccupiedHeight
     let animations = {
+      // Only typing animates. The first measurement and drafts set from JS
+      // establish the inset there; nothing on screen is following yet.
+      if animated && self.lastReportedHeight > 0 && abs(delta) > 0.5 {
+        self.shiftTranscript(by: delta)
+      }
       self.superview?.layoutIfNeeded()
       self.layoutIfNeeded()
       self.updateCorners()
@@ -333,27 +352,50 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
     }
   }
 
-  private func updateKeyboardGeometry() {
-    let guideFrame = keyboardLayoutGuide.layoutFrame
-    let visible = guideFrame.minY < bounds.maxY - 1
-    let bottomSpacing = visible
-      ? keyboardBottomSpacing
-      : max(keyboardBottomSpacing, safeAreaInsets.bottom)
-    // The pill tightens toward the screen edges once the keyboard is up, the way
-    // the system input accessory does.
-    let horizontalInset = visible ? minimumHorizontalInset : restingHorizontalInset
+  /// Moves the transcript with the pill, inside the pill's own animation, so
+  /// the newest message rises and falls in the same frames as the pill edge.
+  /// Its bottom inset grows by the same amount, and a transcript resting at its
+  /// end stays there. JS mirrors the final inset and offset when the height
+  /// event arrives; those equal what is already set, so nothing moves twice.
+  private func shiftTranscript(by delta: CGFloat) {
+    guard let scrollView = findTranscriptScrollView() else { return }
+    let endOffset = { (bottomInset: CGFloat) in
+      max(0, scrollView.contentSize.height - scrollView.bounds.height + bottomInset)
+    }
+    var inset = scrollView.contentInset
+    let following = !scrollView.isDragging && !scrollView.isDecelerating
+      && scrollView.contentOffset.y >= endOffset(inset.bottom) - 20
+    inset.bottom = max(0, inset.bottom + delta)
+    let offset = CGPoint(x: scrollView.contentOffset.x, y: endOffset(inset.bottom))
+    // Keep the offset inside the range at every step: grow the range before
+    // moving down into it, move up before shrinking it.
+    if delta > 0 {
+      scrollView.contentInset = inset
+      if following { scrollView.contentOffset = offset }
+    } else {
+      if following { scrollView.contentOffset = offset }
+      scrollView.contentInset = inset
+    }
+  }
 
-    isKeyboardVisible = visible
-
-    if abs(surfaceLeadingConstraint.constant - horizontalInset) > 0.5 {
-      surfaceLeadingConstraint.constant = horizontalInset
+  /// The transcript is the scroll view among this view's siblings. Searching
+  /// each sibling from the outside in finds it before any scrolling text inside.
+  private func findTranscriptScrollView() -> UIScrollView? {
+    if let cached = transcriptScrollView, cached.window != nil { return cached }
+    func search(_ view: UIView) -> UIScrollView? {
+      if let scrollView = view as? UIScrollView { return scrollView }
+      for subview in view.subviews {
+        if let found = search(subview) { return found }
+      }
+      return nil
     }
-    if abs(surfaceTrailingConstraint.constant + horizontalInset) > 0.5 {
-      surfaceTrailingConstraint.constant = -horizontalInset
+    for sibling in superview?.subviews ?? [] where sibling !== self {
+      if let found = search(sibling) {
+        transcriptScrollView = found
+        return found
+      }
     }
-    if abs(surfaceBottomConstraint.constant + bottomSpacing) > 0.5 {
-      surfaceBottomConstraint.constant = -bottomSpacing
-    }
+    return nil
   }
 
   /// A single line reads as a capsule; once the text wraps the pill keeps a
@@ -365,11 +407,15 @@ final class NovellaDirectMessageComposerView: ExpoView, UITextViewDelegate {
     glassView.layer.cornerRadius = radius
   }
 
+  /// Report one number regardless of keyboard state: the scroll view already
+  /// accounts for the safe area on its own, so folding it in here double-counts
+  /// and pushes the transcript further than the pill actually covers.
+  private var occupiedHeight: CGFloat {
+    surfaceHeightConstraint.constant + keyboardBottomSpacing
+  }
+
   private func reportOccupiedHeightIfNeeded() {
-    // Report one number regardless of keyboard state: the scroll view already
-    // accounts for the safe area on its own, so folding it in here double-counts
-    // and pushes the transcript further than the pill actually covers.
-    let height = surfaceHeightConstraint.constant + keyboardBottomSpacing
+    let height = occupiedHeight
     guard abs(height - lastReportedHeight) > 0.5 else { return }
     lastReportedHeight = height
     onHeightChange(["height": Double(height)])

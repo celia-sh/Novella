@@ -35,15 +35,6 @@ test('comment refresh signals are scoped by book id', () => {
   assert.equal(consumeCommentsChanged(firstBook), false);
 });
 
-test('novel and comic comments retain their positive book target', () => {
-  const routeParams = toBookCommentRouteParams({ bookId: 17 });
-  assert.deepEqual(routeParams, { commentType: 'Book', id: '17' });
-  assert.deepEqual(resolveBookCommentTarget({
-    bookId: Number(routeParams.id),
-    commentType: routeParams.commentType,
-  }), { type: 'Book', id: 17 });
-});
-
 test('removed series comment route params are rejected', () => {
   assert.throws(
     () => resolveBookCommentTarget({ bookId: 9, commentType: 'Series' }),

@@ -20,7 +20,7 @@ export interface ReadiumReaderPreferences {
   backgroundColor: string;
   doublePage: boolean;
   fontSize: number;
-  imagePreviewOpenOnLongPress: boolean;
+  imagePreviewEnabled: boolean;
   lineHeight: number;
   mode: 'paged' | 'scroll';
   pageAnimation: boolean;
@@ -77,9 +77,30 @@ export interface ReadiumBoundaryEvent {
 
 /** Rendered geometry of the current chapter, measured after layout. */
 export interface ReadiumProgressMetricsEvent {
+  /** Pages shown per screen in paged mode: two for a spread. `1` in scroll mode. */
+  columnCount: number;
+  /**
+   * Pages with content in paged mode, without the empty page Readium adds to
+   * fill an odd spread. Equals `pageCount` for a single column.
+   */
+  columnTotal: number;
   pageCount: number;
-  /** `true` when `pageCount` counts page turns; `false` for screenfuls. */
+  /** `true` when `pageCount` counts page turns (screens); `false` for screenfuls. */
   paged: boolean;
+}
+
+/**
+ * Whether Readium is still loading or reloading the page. A view starts
+ * loading; `onReady` (the first location) can arrive before the page shows.
+ */
+export interface ReadiumLoadingChangeEvent {
+  loading: boolean;
+}
+
+/** A locator change, with the screen it rests on when that is exact. */
+export interface ReadiumLocatorChangeEvent extends ReadiumLocator {
+  /** Zero-based paged screen index. Absent in scroll mode. */
+  screenIndex?: number;
 }
 
 export interface NovellaReadiumViewHandle {
@@ -98,7 +119,8 @@ export interface NovellaReadiumViewProps {
   onError?: (error: ReadiumReaderError) => void;
   onImage?: (image: ReadiumImageEvent) => void;
   onLink?: (link: ReadiumLinkEvent) => void;
-  onLocatorChange?: (locator: ReadiumLocator) => void;
+  onLoadingChange?: (event: ReadiumLoadingChangeEvent) => void;
+  onLocatorChange?: (locator: ReadiumLocatorChangeEvent) => void;
   onProgressMetrics?: (metrics: ReadiumProgressMetricsEvent) => void;
   onReady?: () => void;
   onStatus?: (status: ReadiumStatusEvent) => void;
@@ -106,5 +128,12 @@ export interface NovellaReadiumViewProps {
   preferences: ReadiumReaderPreferences;
   publicationId: string;
   publicationUri: string;
+  /**
+   * Width of the fade drawn on the web view's trailing edge, against the
+   * vertical bar in side-chrome mode; `0` or omitted draws none. The native
+   * view shows it only while a paged page is off its resting position, so the
+   * last column is fully readable at rest.
+   */
+  sideFadeWidth?: number;
   style?: StyleProp<ViewStyle>;
 }

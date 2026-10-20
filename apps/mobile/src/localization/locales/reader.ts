@@ -4,6 +4,7 @@ export const zhCNReader = {
   accessibility: {
     chapterList: '章节列表',
     closeImagePreview: '关闭图片预览',
+    longPressPreview: '长按预览图片',
     comicPage: '漫画第 {{number}} 页',
     nextChapter: '下一章',
     nextPage: '下一页',
@@ -11,6 +12,7 @@ export const zhCNReader = {
     previousChapter: '上一章',
     previousPage: '上一页',
     readingMode: '阅读模式',
+    readingProgress: '阅读进度',
     readerSettings: '阅读设置',
     retryComicPage: '重试加载漫画第 {{number}} 页',
     retryReader: '重试加载阅读器',
@@ -21,10 +23,9 @@ export const zhCNReader = {
     pageCount: '{{count}} 页',
   },
   loading: {
-    content: '正在加载内容',
     font: '正在加载字体',
     layout: '正在排版',
-    publication: '正在准备章节',
+    novel: '正在加载小说',
     reflow: '正在应用设置',
   },
   errors: {
@@ -77,6 +78,7 @@ export const zhTWReader: TranslationShape<typeof zhCNReader> = {
   accessibility: {
     chapterList: '章節列表',
     closeImagePreview: '關閉圖片預覽',
+    longPressPreview: '長按預覽圖片',
     comicPage: '漫畫第 {{number}} 頁',
     nextChapter: '下一章',
     nextPage: '下一頁',
@@ -84,6 +86,7 @@ export const zhTWReader: TranslationShape<typeof zhCNReader> = {
     previousChapter: '上一章',
     previousPage: '上一頁',
     readingMode: '閱讀模式',
+    readingProgress: '閱讀進度',
     readerSettings: '閱讀設定',
     retryComicPage: '重新載入漫畫第 {{number}} 頁',
     retryReader: '重新載入閱讀器',
@@ -94,10 +97,9 @@ export const zhTWReader: TranslationShape<typeof zhCNReader> = {
     pageCount: '{{count}} 頁',
   },
   loading: {
-    content: '正在載入內容',
     font: '正在載入字型',
     layout: '正在排版',
-    publication: '正在準備章節',
+    novel: '正在載入小說',
     reflow: '正在套用設定',
   },
   errors: {

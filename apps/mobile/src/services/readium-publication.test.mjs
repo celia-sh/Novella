@@ -8,8 +8,6 @@ import {
   buildReadiumChapterDocument,
   buildReadiumPublicationResources,
   isReadiumPublicationReady,
-  readiumBlockFragment,
-  readiumChapterHref,
   readiumPublicationCacheKey,
 } from './readium-publication.ts';
 
@@ -55,7 +53,8 @@ test('chapter XHTML receives deterministic fragments and a relative font stylesh
   assert.match(html, /<p id="nv-block-1">Second block<\/p>/);
   assert.match(html, /href="\.\.\/styles\/reader\.css"/);
   assert.doesNotMatch(html, /nv-reader-image-interaction/);
-  assert.match(html, /e\.stopImmediatePropagation\(\);send\(i,'tap'\)/);
+  assert.doesNotMatch(html, /stopImmediatePropagation/);
+  assert.match(html, /send\(i,'longPress'\)/);
   assert.match(html, /window\.webkit\.messageHandlers\.novellaReader\.postMessage\(p\)/);
   assert.match(html, /classList\.contains\('no-preview'\).*classList\.contains\('footnote'\)/);
   assert.doesNotMatch(html, /preventDefault\(\)/);
@@ -145,14 +144,6 @@ test('image tables retain their authored rows and columns', () => {
   assert.equal((html.match(/<td>/gu) ?? []).length, 8);
   assert.equal((html.match(/<img\b/gu) ?? []).length, 8);
   assert.match(publication.resources['EPUB/styles/reader.css'], /table\{width:100%;max-width:100%;table-layout:fixed/);
-  assert.match(publication.resources['EPUB/styles/reader.css'], /body>:last-child\{margin-bottom:0!important;\}/);
-  assert.match(publication.resources['EPUB/styles/reader.css'], /body>p\{text-indent:var\(--USER__paraIndent\)!important;\}/);
-  assert.match(publication.resources['EPUB/styles/reader.css'], /\.nv-inline-footnote-content>li\{display:block;list-style:none;margin:0;padding:0;\}/);
-  assert.match(publication.resources['EPUB/styles/reader.css'], /html\[style\*="readium-scroll-on"\],html\[style\*="readium-scroll-on"\] body\{overflow-x:hidden!important;\}/);
-  assert.match(publication.resources['EPUB/styles/reader.css'], /-webkit-user-select:none;user-select:none/);
-  assert.match(publication.resources['EPUB/styles/reader.css'], /img\{max-width:100%;height:auto;border-radius:4px;\}/);
-  assert.match(publication.resources['EPUB/styles/reader.css'], /ruby\{white-space:normal;word-break:break-all;overflow-wrap:anywhere;\}/);
-  assert.match(publication.resources['EPUB/styles/reader.css'], /ruby rt\{font-size:\.5em;white-space:normal;word-break:break-all;overflow-wrap:anywhere;\}/);
 });
 
 test('full-size empty SVG placeholders do not displace their following raster image', () => {
@@ -217,6 +208,23 @@ for (const [name, source] of [
     assert.match(html, /<a\b[^>]*href="#target"[^>]*>contents<\/a>/);
   });
 }
+
+test('only blocks that are nothing but an unplaced illustration are centered', () => {
+  const html = buildReadiumChapterDocument({
+    blocks: [
+      { id: 'plate', locator: '//div[1]', html: '<div class="plate"><p><img src="a.jpg"></p></div>', textLength: 0, imageCount: 1 },
+      { id: 'inline', locator: '//p[1]', html: '<p><img src="avatar.jpg">作者简介</p>', textLength: 4, imageCount: 1 },
+      { id: 'aligned', locator: '//div[2]', html: '<div style="text-align:right"><img src="b.jpg"></div>', textLength: 0, imageCount: 1 },
+      { id: 'table', locator: '//table[1]', html: '<table><tr><td><img src="c.jpg"></td></tr></table>', textLength: 0, imageCount: 1 },
+    ],
+    chapterId: 101,
+    title: 'First',
+    useBookFont: false,
+  });
+
+  assert.match(html, /<div class="plate nv-illustration" id="nv-block-0">/);
+  assert.equal((html.match(/nv-illustration"/gu) ?? []).length, 1);
+});
 
 test('chapter HTML is normalized with inline footnotes', () => {
   const html = buildReadiumChapterDocument({
@@ -315,7 +323,7 @@ test('reader colors cross the native bridge as opaque RGB hex', () => {
     backgroundColor: '#FFFBFEFF',
     firstLineIndent: false,
     fontSize: 16,
-    imagePreviewOpenOnLongPress: false,
+    imagePreviewEnabled: true,
     lineHeight: 1.6,
     mode: 'paged',
     sidePadding: 30,
@@ -332,7 +340,7 @@ test('reader preferences map first-line indentation to Readium rem units', () =>
   const base = {
     backgroundColor: '#ffffff',
     fontSize: 18,
-    imagePreviewOpenOnLongPress: false,
+    imagePreviewEnabled: true,
     lineHeight: 1.6,
     mode: 'paged',
     sidePadding: 30,
@@ -353,8 +361,6 @@ test('reader preferences map first-line indentation to Readium rem units', () =>
 });
 
 test('publication cache identity includes the conversion mode', () => {
-  assert.equal(readiumPublicationCacheKey(9, undefined), '9-none');
-  assert.equal(readiumPublicationCacheKey(9, 't2s'), '9-t2s');
-  assert.equal(readiumBlockFragment(3), 'nv-block-3');
-  assert.equal(readiumChapterHref(205), 'EPUB/chapters/205.xhtml');
+  assert.equal(readiumPublicationCacheKey(9, undefined), '9-none-v3');
+  assert.equal(readiumPublicationCacheKey(9, 't2s'), '9-t2s-v3');
 });

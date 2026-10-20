@@ -2,6 +2,7 @@ import type {
   HttpRequest,
   HttpResponse,
   HttpTransport,
+  JsonPrimitive,
   JsonValue,
   SignalRTransport,
 } from '@novella/platform-contracts';
@@ -1105,6 +1106,20 @@ export interface AnnouncementListRequest {
   size: number;
 }
 
+/** A Hub argument. The Hub speaks MessagePack, so besides JSON values it can
+ * carry raw bytes, which arrive on the server as a `byte[]`. */
+export type HubValue =
+  | JsonPrimitive
+  | Uint8Array
+  | HubValue[]
+  | { [key: string]: HubValue };
+
+export interface UploadImageRequest {
+  /** Original file name; the server keeps its extension. */
+  fileName: string;
+  data: Uint8Array;
+}
+
 export class ApiClient {
   readonly #transport: HttpTransport;
   readonly #signalR: SignalRTransport;
@@ -1150,7 +1165,7 @@ export class ApiClient {
 
   invoke<T>(
     methodName: string,
-    params: JsonValue | undefined,
+    params: HubValue | undefined,
     decode: (value: unknown) => T,
     options: RequestScheduleOptions = {},
   ): Promise<T> {
@@ -1159,7 +1174,7 @@ export class ApiClient {
 
   async #invokeWithAuthRetry<T>(
     methodName: string,
-    params: JsonValue | undefined,
+    params: HubValue | undefined,
     decode: (value: unknown) => T,
     options: RequestScheduleOptions,
   ): Promise<T> {
@@ -1775,6 +1790,15 @@ export class ApiClient {
       'GetSignInCalendar',
       { Year: year, Month: month },
       decodeSignInCalendar,
+    );
+  }
+
+  /** Uploads an image for use in community posts and returns its URL. */
+  uploadImage(request: UploadImageRequest): Promise<string> {
+    return this.invoke(
+      'UploadImage',
+      { FileName: request.fileName, ImageData: request.data },
+      decodeUploadedImageUrl,
     );
   }
 
@@ -3198,7 +3222,7 @@ const COMIC_IMAGE_FALLBACK_DIMENSIONS = Object.freeze({ width: 2, height: 3 });
 function decodeComicImage(value: unknown): ComicImage {
   if (typeof value === 'string') {
     const url = asString(value);
-    const dimensions = parseComicImageDimensions(url) ?? COMIC_IMAGE_FALLBACK_DIMENSIONS;
+    const dimensions = parseImageUrlDimensions(url) ?? COMIC_IMAGE_FALLBACK_DIMENSIONS;
     return {
       url,
       placeholder: extractBlurHashPlaceholder(url) ?? '',
@@ -3219,7 +3243,9 @@ function decodeComicImage(value: unknown): ComicImage {
   };
 }
 
-function parseComicImageDimensions(
+/** Natural size Web-Master encodes in an image URL's `size=WxH` query, next
+ * to its `placeholder` BlurHash. Null when the URL carries neither. */
+export function parseImageUrlDimensions(
   source: string,
 ): { width: number; height: number } | null {
   if (!extractRawQueryValue(source, 'placeholder')?.value) return null;
@@ -3259,6 +3285,14 @@ function decodeStringArray(value: unknown): string[] {
 
 function decodeNumberArray(value: unknown, name: string): number[] {
   return asArray(value, name).map((item) => asNumber(item));
+}
+
+function decodeUploadedImageUrl(value: unknown): string {
+  const url = asRecord(value, 'uploaded image').Url;
+  if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) {
+    throw new ApiError('Invalid uploaded image URL.', 'server');
+  }
+  return url;
 }
 
 function asRecord(value: unknown, name: string): Record<string, unknown> {

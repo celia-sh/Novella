@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { Skeleton } from 'panelui-native/components/skeleton';
+import { Skeleton } from '@/components/skeleton';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, StyleSheet, View, type AppStateStatus } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -46,7 +46,9 @@ export function AuthCoverTracks({
 }) {
   const reduceMotion = useReducedMotion();
   const [isFocused, setIsFocused] = useState(false);
-  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+  const [appState, setAppState] = useState<AppStateStatus>(
+    AppState.currentState as AppStateStatus,
+  );
 
   useFocusEffect(useCallback(() => {
     setIsFocused(true);

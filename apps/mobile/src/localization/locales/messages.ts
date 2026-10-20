@@ -12,6 +12,8 @@ export const zhCNMessages = {
     emptyTitle: '还没有私信',
     emptyDescription: '打开用户资料即可发起私信。',
     deletedUser: '已注销用户',
+    temporary: '临时会话',
+    noMessages: '暂无消息',
     unread: '{{count}} 条未读消息',
     open: '打开与 {{name}} 的私信',
   },
@@ -24,7 +26,7 @@ export const zhCNMessages = {
     loadingOlder: '正在加载…',
     cannotSend: '暂时无法发送私信',
     deletedUser: '该用户已注销，无法继续发送。',
-    newMessages: '有新消息',
+    scrollToLatest: '回到最新消息',
   },
   composer: {
     placeholder: '输入私信',
@@ -40,7 +42,6 @@ export const zhCNMessages = {
   },
   actions: {
     message: '私信',
-    more: '更多操作',
     block: '拉黑',
     unblock: '取消拉黑',
   },
@@ -72,6 +73,8 @@ export const zhTWMessages: TranslationShape<typeof zhCNMessages> = {
     emptyTitle: '還沒有私訊',
     emptyDescription: '開啟使用者資料即可發起私訊。',
     deletedUser: '已註銷使用者',
+    temporary: '暫時對話',
+    noMessages: '暫無訊息',
     unread: '{{count}} 則未讀訊息',
     open: '開啟與 {{name}} 的私訊',
   },
@@ -84,7 +87,7 @@ export const zhTWMessages: TranslationShape<typeof zhCNMessages> = {
     loadingOlder: '正在載入…',
     cannotSend: '暫時無法傳送私訊',
     deletedUser: '此使用者已註銷，無法繼續傳送。',
-    newMessages: '有新訊息',
+    scrollToLatest: '回到最新訊息',
   },
   composer: {
     placeholder: '輸入私訊',
@@ -100,7 +103,6 @@ export const zhTWMessages: TranslationShape<typeof zhCNMessages> = {
   },
   actions: {
     message: '私訊',
-    more: '更多操作',
     block: '封鎖',
     unblock: '取消封鎖',
   },

@@ -1,7 +1,9 @@
 import { Stack } from 'expo-router';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ShelfNavigationProps } from '@/components/shelf-navigation.types';
+import { useRootPageTitle } from '@/hooks/use-wide-layout';
 
 export function ShelfNavigation({
   canDelete,
@@ -21,10 +23,14 @@ export function ShelfNavigation({
 }: ShelfNavigationProps) {
   const { t } = useTranslation('library');
   const isBrowsing = mode === 'browse';
+  const rootTitle = useRootPageTitle(title);
+  const pushedTitle = useMemo(() => ({ headerLargeTitle: false, title }), [title]);
 
   return (
     <>
-      <Stack.Screen options={{ headerLargeTitle: largeTitle, title }} />
+      {/* The shelf root follows the other root pages; folders and edit mode
+          keep their small title, which names what is on screen. */}
+      <Stack.Screen options={largeTitle ? rootTitle : pushedTitle} />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel={t('shelf.newFolder')}

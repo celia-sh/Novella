@@ -1,4 +1,4 @@
-import { Skeleton } from 'panelui-native/components/skeleton';
+import { Skeleton } from '@/components/skeleton';
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -63,9 +63,12 @@ export const CommentThreadItem = memo(function CommentThreadItem({
 });
 
 export function CommentThreadSkeleton({
+  horizontalInset = 16,
   palette,
   rows = 8,
 }: {
+  /** Side padding; 0 when the list content is already padded. */
+  horizontalInset?: number;
   palette: CommentThreadPalette;
   rows?: number;
 }) {
@@ -73,7 +76,7 @@ export function CommentThreadSkeleton({
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={styles.skeletonList}
+      style={[styles.skeletonList, { paddingHorizontal: horizontalInset }]}
     >
       {Array.from({ length: rows }, (_, index) => (
         <View key={`comment-skeleton-${index}`} style={styles.skeletonRow}>
@@ -175,7 +178,7 @@ const styles = StyleSheet.create({
   skeletonAvatar: { borderRadius: 20, height: 40, overflow: 'hidden', width: 40 },
   skeletonBody: { flex: 1, gap: 7, paddingTop: 3 },
   skeletonLine: { borderRadius: 6, height: 13, overflow: 'hidden', width: '100%' },
-  skeletonList: { gap: 22, paddingHorizontal: 16, paddingTop: 8 },
+  skeletonList: { gap: 22, paddingTop: 8 },
   skeletonName: { height: 12, width: '42%' },
   skeletonRow: { flexDirection: 'row', gap: 16 },
   skeletonTextShort: { width: '72%' },

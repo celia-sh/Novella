@@ -68,10 +68,15 @@ apps/desktop/release/
 docs/
 /references/
 
-# Private Trellis workspace and local task/session state
-.trellis/workspace/
+# Local AI tooling: the Trellis workflow and agent instructions are not published
+/.trellis/
+/AGENTS.md
+/CLAUDE.md
+/.agents/
+/.claude/
+/.codex/
+/.pi/
 
-# Shared Trellis configuration, tasks, specs, scripts, and platform hooks are tracked.
 /.dart_tool/
 /.fvm/
 /.flutter-plugins-dependencies

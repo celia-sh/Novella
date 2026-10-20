@@ -79,7 +79,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         ios: {
           // ccache 加速 iOS 原生 C++ 编译（CI 缓存 ~/Library/Caches/ccache）。
           ccacheEnabled: true,
-          // SDK 57 默认值，显式固定防止漂移。
+          // SDK 58 默认值，显式固定防止漂移。
           usePrecompiledModules: true,
           buildReactNativeFromSource: false,
           extraPods: [
@@ -103,7 +103,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         },
       },
     ],
+    // react-native-enriched-html 1.1.1 needs the prebuilt React framework's
+    // headers on its search path under RN 0.88. Remove with the 1.2.0 upgrade.
+    './plugins/with-enriched-html-react-headers',
     'expo-sharing',
+    // Community posts pick photos through PHPicker, which needs no library
+    // access; the plugin still writes a usage string, and no camera is used.
+    [
+      'expo-image-picker',
+      {
+        cameraPermission: false,
+        microphonePermission: false,
+        photosPermission: '允许 Novella 从你的照片图库选择图片插入社区帖子。',
+      },
+    ],
   ],
   extra: {
     // 运行时经 Constants.expoConfig.extra 读取，设置页展示构建渠道与标签。
@@ -119,11 +132,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     icon: './assets/Novella.icon',
     infoPlist: {
       CFBundleAllowMixedLocalizations: true,
-      // Expo StatusBar / RCTStatusBarManager owns app-wide and route-local
-      // status-bar appearance. react-native-pretty-toast cannot toggle the
-      // bar through its overlay controller in this configuration.
-      UIViewControllerBasedStatusBarAppearance: false,
+      // iOS 27 no longer applies `UIApplication`'s app-wide status bar style or
+      // visibility, so the appearance comes from each screen's view controller
+      // (react-native-screens forwards the native-stack options to it).
+      // In Debug builds the Expo dev-menu's floating Tools window sits above the
+      // app window and owns the status bar configuration; disable that button
+      // (`__expo_disable_fab=1`) or test a Release build.
+      UIViewControllerBasedStatusBarAppearance: true,
       NSPhotoLibraryAddUsageDescription: '允许 Novella 将图片保存到你的照片图库。',
+      NSPhotoLibraryUsageDescription: '允许 Novella 从你的照片图库选择图片插入社区帖子。',
     },
   },
 });

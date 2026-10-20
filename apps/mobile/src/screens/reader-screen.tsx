@@ -1,13 +1,14 @@
-import { router, useNavigation } from 'expo-router';
-import { useRoute } from 'expo-router/react-navigation';
+import { router, useNavigation, useRoute } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-context';
 import type {
   NovellaReadiumViewHandle,
   ReadiumLinkEvent,
   ReadiumLocator,
+  ReadiumLocatorChangeEvent,
+  ReadiumProgressMetricsEvent,
 } from '../../modules/novella-readium';
 import { NovellaReadiumView } from '../../modules/novella-readium';
 import {
@@ -24,14 +25,20 @@ import { ReaderImagePreviewHost, type ReaderImagePreviewHostHandle } from '@/com
 import { ReaderLoadingOverlay, ReaderLoadingState } from '@/components/reader-loading-state';
 import { ReaderNavigation } from '@/components/reader-navigation';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
-import { createReaderChromeInsets } from '@/services/reader-chrome-layout';
+import {
+  createReaderChromeInsets,
+  createReaderSideChromeInsets,
+} from '@/services/reader-chrome-layout';
 import { shouldUseReaderDoublePage } from '@/services/reader-display-layout';
+import { resolveNovelProgressTarget } from '@/services/reader-page-progress';
+import { SIDE_FADE_WIDTH } from '@/services/reader-side-fade';
 import { useReaderChapter, type ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
 import { useReaderFont } from '@/hooks/use-reader-font';
 import { useReaderPositionSaver } from '@/hooks/use-reader-position-saver';
 import { useReaderWindowDimensions } from '@/hooks/use-reader-window-dimensions';
 import { useReadiumPublication } from '@/hooks/use-readium-publication';
+import { useReaderSideChrome } from '@/hooks/use-reader-side-chrome';
 import { subscribeReaderChapterSelection } from '@/services/reader-chapter-selection';
 import {
   type ReaderProgressCheckpoint,
@@ -46,7 +53,7 @@ import {
   readiumLocatorToReaderPosition,
   readerPositionToReadiumLocator,
 } from '@/services/reader-locator-mapping';
-import { updateAppSettings, useAppSettings } from '@/services/settings';
+import { readerImagePreviewIncludes, updateAppSettings, useAppSettings } from '@/services/settings';
 import { useReaderLifecycleSave } from '@/hooks/use-reader-lifecycle-save';
 import { useAppColorScheme, useAppTheme } from '@/theme/app-theme';
 import {
@@ -66,6 +73,12 @@ export interface ReaderScreenProps {
 }
 
 const NATIVE_READER_LOAD_TIMEOUT_MS = 15_000;
+const UNMEASURED_CHAPTER: ReadiumProgressMetricsEvent = {
+  columnCount: 1,
+  columnTotal: 0,
+  pageCount: 0,
+  paged: true,
+};
 
 export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: ReaderScreenProps) {
   const { t } = useTranslation('reader');
@@ -84,10 +97,14 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const [nativeAttempt, setNativeAttempt] = useState(0);
   const [nativeError, setNativeError] = useState<ReaderUserMessage | null>(null);
   const [nativeReady, setNativeReady] = useState(false);
-  const [chapterMetrics, setChapterMetrics] = useState<{
-    pageCount: number;
-    paged: boolean;
-  }>({ pageCount: 0, paged: true });
+  // Readium keeps loading after its first location and reloads the page for
+  // rebuilds, pagination settings, and resizes; the slider waits for it.
+  const [nativeLoading, setNativeLoading] = useState(true);
+  const [chapterMetrics, setChapterMetrics] = useState<ReadiumProgressMetricsEvent>(
+    UNMEASURED_CHAPTER,
+  );
+  // The paged screen the reader rests on, as reported with each position.
+  const [screenIndex, setScreenIndex] = useState<number | null>(null);
   const imagePreviewRef = useRef<ReaderImagePreviewHostHandle>(null);
   const nativeReaderRef = useRef<NovellaReadiumViewHandle | null>(null);
   const lastLocatorRef = useRef<ReadiumLocator | null>(null);
@@ -104,7 +121,8 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   // would let the slider step against the wrong page total until the native
   // layout reports the new one.
   useEffect(() => {
-    setChapterMetrics({ pageCount: 0, paged: true });
+    setChapterMetrics(UNMEASURED_CHAPTER);
+    setScreenIndex(null);
   }, [content?.chapter.id, nativeAttempt, sortNum]);
   const readerFont = useReaderFont(content?.chapter.fontUrl);
   const requiresReaderFont = Boolean(content?.chapter.fontUrl?.trim());
@@ -143,18 +161,43 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     height: screenHeight,
     width: screenWidth,
   } = useReaderWindowDimensions();
+  // Foldables and Stage Manager can report a window that is not the reader's
+  // actual layout size. Measure the reader surface so a two-page spread follows
+  // the viewport the text is really drawn into.
+  const [readerViewport, setReaderViewport] = useState<{
+    height: number;
+    width: number;
+  } | null>(null);
+  const viewportWidth = readerViewport?.width ?? screenWidth;
+  const viewportHeight = readerViewport?.height ?? screenHeight;
   const stableSafeArea = useMemo(
     () => ({ bottom: insets.bottom, top: insets.top }),
     [safeAreaFrame.height, safeAreaFrame.width, safeAreaFrame.x, safeAreaFrame.y],
   );
-  const useDoublePage = mode === 'paged' && shouldUseReaderDoublePage(screenWidth, screenHeight);
-  const readerChromeInsets = createReaderChromeInsets(
-    stableSafeArea.top,
-    stableSafeArea.bottom,
-  );
+  const useDoublePage = mode === 'paged'
+    && shouldUseReaderDoublePage(viewportWidth, viewportHeight);
+  const sideChrome = useReaderSideChrome();
+
+  // The Duo's vertical bar is part of the text gutter: hiding it leaves the
+  // clipped column behind, so the novel keeps its chrome. Comics keep the
+  // tap toggle.
+  useEffect(() => {
+    if (sideChrome) setChromeHidden(false);
+  }, [sideChrome]);
+  const readerChromeInsets = sideChrome
+    // Side chrome hides the native bottom toolbar and samples the live safe
+    // area: the toolbar's height disappears from `insets.bottom` without a
+    // frame change, which the stable pair below intentionally ignores.
+    ? createReaderSideChromeInsets(insets.top, insets.bottom)
+    : createReaderChromeInsets(stableSafeArea.top, stableSafeArea.bottom);
   const readerInsets = useMemo(
-    () => createReadiumContentInsets(readerChromeInsets.top, readerChromeInsets.bottom),
-    [readerChromeInsets.bottom, readerChromeInsets.top],
+    () => createReadiumContentInsets(
+      readerChromeInsets.top,
+      readerChromeInsets.bottom,
+      insets.left,
+      insets.right,
+    ),
+    [insets.left, insets.right, readerChromeInsets.bottom, readerChromeInsets.top],
   );
 
   const colorScheme = useAppColorScheme();
@@ -203,6 +246,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   useEffect(() => {
     setNativeError(null);
     setNativeReady(false);
+    setNativeLoading(true);
     setPreviewProgression(initialLocator?.locations.progression ?? 0);
     lastLocatorRef.current = initialLocator ?? null;
   }, [initialLocator, nativeAttempt, publicationId, requestedChapterId]);
@@ -217,8 +261,11 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     return () => clearTimeout(timeout);
   }, [content, nativeError, nativeReady, preparedPublication]);
 
-  const saveLocator = useCallback((locator: ReadiumLocator) => {
+  const saveLocator = useCallback((
+    { screenIndex: nextScreenIndex, ...locator }: ReadiumLocatorChangeEvent,
+  ) => {
     if (!content || activeChapterIdRef.current !== content.chapter.id) return;
+    setScreenIndex(typeof nextScreenIndex === 'number' ? nextScreenIndex : null);
     lastLocatorRef.current = locator;
     const progression = locator.locations.progression;
     if (typeof progression === 'number' && Number.isFinite(progression)) {
@@ -328,16 +375,22 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
 
   const handleProgressChange = useCallback((progress: number) => {
     const safeProgress = Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 0;
+    const target = resolveNovelProgressTarget({
+      paged: chapterMetrics.paged,
+      screenTotal: chapterMetrics.pageCount,
+      value: safeProgress,
+    });
     setPreviewProgression(safeProgress);
-    void nativeReaderRef.current?.goToProgression(safeProgress);
-  }, []);
+    if (target.screenIndex !== null) setScreenIndex(target.screenIndex);
+    void nativeReaderRef.current?.goToProgression(target.progression);
+  }, [chapterMetrics.pageCount, chapterMetrics.paged]);
 
   const readerPreferences = useMemo(() => createReadiumReaderPreferences({
     backgroundColor: readerBackground,
     doublePage: useDoublePage,
     firstLineIndent: settings.readerFirstLineIndent,
     fontSize: settings.fontSize,
-    imagePreviewOpenOnLongPress: settings.readerImagePreviewOpenOnLongPress,
+    imagePreviewEnabled: readerImagePreviewIncludes(settings.readerImagePreviewScope, 'novel'),
     lineHeight: settings.readerLineHeight,
     mode,
     pagedTapNavigation: settings.readerPagedTapNavigation,
@@ -350,7 +403,7 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
     readerTextColor,
     settings.fontSize,
     settings.readerFirstLineIndent,
-    settings.readerImagePreviewOpenOnLongPress,
+    settings.readerImagePreviewScope,
     settings.readerLineHeight,
     settings.readerPagedTapNavigation,
     settings.readerParagraphSpacing,
@@ -374,9 +427,26 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   const translateMessage = (message: ReaderUserMessage) =>
     message.kind === 'raw' ? message.text : t(message.key);
 
+  const progressDisabled = !nativeReady || nativeLoading;
+  // A paged screen index is exact; scroll mode has none and the slider
+  // follows the progression.
+  const pageCurrent = chapterMetrics.paged && screenIndex !== null ? screenIndex + 1 : 0;
+
+  const handleReaderLayout = useCallback((event: LayoutChangeEvent) => {
+    const { height, width } = event.nativeEvent.layout;
+    if (width <= 0 || height <= 0) return;
+    setReaderViewport((current) => (
+      current
+      && Math.abs(current.width - width) < 0.5
+      && Math.abs(current.height - height) < 0.5
+        ? current
+        : { height, width }
+    ));
+  }, []);
+
   return (
     <>
-      <View style={[styles.root, { backgroundColor: readerBackground }]}>
+      <View onLayout={handleReaderLayout} style={[styles.root, { backgroundColor: readerBackground }]}>
         {requiresReaderFont && readerFont.status === 'error' ? (
           <ReaderErrorState message={t('errors.fontLoad')} onRetry={readerFont.retry} />
         ) : chapterError ? (
@@ -408,14 +478,26 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
                   : {}),
               })}
               onLink={openReadiumLink}
+              onLoadingChange={({ loading }) => setNativeLoading(loading)}
               onLocatorChange={saveLocator}
-              onProgressMetrics={({ pageCount, paged }) => setChapterMetrics({ pageCount, paged })}
+              onProgressMetrics={setChapterMetrics}
               onReady={() => setNativeReady(true)}
               onStatus={() => undefined}
-              onTap={() => setChromeHidden((current) => !current)}
+              onTap={() => {
+                // The Duo's vertical bar is part of the page gutter: the text
+                // is clipped at its edge, so hiding the bar would only leave
+                // the clipped column behind. Comics keep the tap toggle.
+                if (sideChrome) return;
+                setChromeHidden((current) => !current);
+              }}
               preferences={readerPreferences}
               publicationId={preparedPublication.publicationId}
               publicationUri={preparedPublication.directoryUri}
+              // The web view ends hard against the vertical bar. The native
+              // view fades its last strip into the background only while the
+              // page is between resting positions, so moving text has a soft
+              // edge and the resting last column stays readable.
+              sideFadeWidth={sideChrome ? SIDE_FADE_WIDTH : 0}
               style={styles.reader}
             />
             {!nativeReady ? (
@@ -441,17 +523,33 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
           pathname: '/reader/[bookId]/settings',
           params: { bookId: String(bookId), readerKey: route.key, sortNum: String(sortNum), type: 'Novel' },
         })}
+        sideChrome={sideChrome}
+        sideProgress={{
+          columnCount: chapterMetrics.columnCount,
+          columnTotal: chapterMetrics.columnTotal,
+          onPageProgressChange: handleProgressChange,
+          pageCurrent: pageCurrent,
+          pageProgress: previewProgression,
+          pageStepped: chapterMetrics.paged,
+          pageTotal: chapterMetrics.pageCount,
+          progressDisabled,
+          progressMode: 'percentage',
+        }}
         statusBarStyle={readerStatusBarStyle}
         title={readerTitle || t('titles.reader')}
       />
       <ReaderChapterNavigation
         chromeHidden={chromeHidden || imagePreviewOpen || !nativeReady}
+        columnCount={chapterMetrics.columnCount}
+        columnTotal={chapterMetrics.columnTotal}
         direction="ltr"
+        sideChrome={sideChrome}
         onPageProgressChange={handleProgressChange}
-        pageCurrent={0}
+        pageCurrent={pageCurrent}
         pageProgress={previewProgression}
         pageStepped={chapterMetrics.paged}
         pageTotal={chapterMetrics.pageCount}
+        progressDisabled={progressDisabled}
         progressMode="percentage"
       />
     </>

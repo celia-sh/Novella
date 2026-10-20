@@ -6,7 +6,9 @@ import {
   CommunityActiveMembers,
   CommunityHotDiscussions,
 } from '@/components/community/community-insights';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { useCachedCommunityHome } from '@/hooks/community-home-cache';
+import { usePageMargin } from '@/hooks/use-wide-layout';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 export function CommunityRankingsScreen() {
@@ -14,6 +16,7 @@ export function CommunityRankingsScreen() {
   const { colors } = useAppTheme();
   const { t } = useTranslation('community');
   const home = useCachedCommunityHome();
+  const pageMargin = usePageMargin();
 
   const openThread = (item: { id: number }) => {
     router.push({
@@ -23,13 +26,13 @@ export function CommunityRankingsScreen() {
   };
 
   return (
-
+    <HorizontalSafeArea style={styles.root}>
       <ScrollView
         alwaysBounceVertical
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingHorizontal: pageMargin }]}
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
-        style={styles.root}
+        style={styles.scroll}
       >
         {home ? (
           <View style={styles.body}>
@@ -48,13 +51,13 @@ export function CommunityRankingsScreen() {
           </View>
         )}
       </ScrollView>
-
+    </HorizontalSafeArea>
   );
 }
 
 const useCommunityRankingsStyles = createThemedStyles((colors) => ({
-  body: { gap: 16 },
-  content: { paddingBottom: 44, paddingHorizontal: 12, paddingTop: 8 },
+  body: { gap: 24 },
+  content: { paddingBottom: 44, paddingTop: 8 },
   empty: { alignItems: 'center', gap: 8, paddingTop: 96 },
   emptyDescription: {
     color: colors.secondaryLabel,
@@ -65,4 +68,5 @@ const useCommunityRankingsStyles = createThemedStyles((colors) => ({
   },
   emptyTitle: { color: colors.label, fontSize: 16, fontWeight: '700' },
   root: { backgroundColor: colors.background, flex: 1 },
+  scroll: { flex: 1 },
 }));

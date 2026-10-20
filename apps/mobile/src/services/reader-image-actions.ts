@@ -142,7 +142,7 @@ async function downloadReaderImage(imageUrl: string): Promise<DownloadedReaderIm
   const file = new File(Paths.cache, fileName);
   try {
     file.create({ intermediates: true, overwrite: true });
-    file.write(bytes);
+    file.writeSync(bytes);
   } catch (error) {
     deleteFile(file);
     throw new ReaderImageActionError('download-failed', getErrorMessage(error));

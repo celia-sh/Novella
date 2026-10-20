@@ -14,10 +14,7 @@ export default function SettingsStackLayout() {
 
   return (
     <Stack screenOptions={systemScreenStackPreset}>
-      <Stack.Screen
-        name="index"
-        options={{ headerLargeTitle: true, title: t('panel.title') }}
-      />
+      <Stack.Screen name="index" options={{ title: t('panel.title') }} />
       <Stack.Screen name="profile" options={{ title: t('profile.title') }} />
       <Stack.Screen name="avatar" options={{ title: t('avatar.title') }} />
       <Stack.Screen name="shop" options={{ title: t('shop.title') }} />

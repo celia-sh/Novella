@@ -159,9 +159,21 @@ export function ReaderSettingsContent() {
           selectedValue={settings.comicReaderViewMode}
           title={t('reader.behavior.comicModeTitle')}
         />
+        <NativePickerRow
+          description={t('reader.behavior.comicFitDescription')}
+          icon="comicPageLayout"
+          onValueChange={(value) => void updateAppSettings({ comicPageFitMode: value })}
+          options={[
+            { label: t('reader.behavior.comicFitOptions.screen'), value: 'screen' },
+            { label: t('reader.behavior.comicFitOptions.width'), value: 'width' },
+            { label: t('reader.behavior.comicFitOptions.height'), value: 'height' },
+          ] as const}
+          selectedValue={settings.comicPageFitMode}
+          title={t('reader.behavior.comicFitTitle')}
+        />
         <NativeToggleRow
           description={t('reader.behavior.comicDoublePageOffsetDescription')}
-          icon="comicPageLayout"
+          icon="comicCoverOffset"
           onValueChange={(value) => void updateAppSettings({ comicDoublePageOffset: value })}
           title={t('reader.behavior.comicDoublePageOffsetTitle')}
           value={settings.comicDoublePageOffset}
@@ -196,12 +208,18 @@ export function ReaderSettingsContent() {
           title={t('reader.behavior.indentTitle')}
           value={settings.readerFirstLineIndent}
         />
-        <NativeToggleRow
+        <NativePickerRow
           description={t('reader.behavior.imagePreviewDescription')}
           icon="imagePreview"
-          onValueChange={(value) => void updateAppSettings({ readerImagePreviewOpenOnLongPress: value })}
+          onValueChange={(value) => void updateAppSettings({ readerImagePreviewScope: value })}
+          options={[
+            { label: t('reader.behavior.imagePreviewOptions.off'), value: 'off' },
+            { label: t('reader.behavior.imagePreviewOptions.novel'), value: 'novel' },
+            { label: t('reader.behavior.imagePreviewOptions.comic'), value: 'comic' },
+            { label: t('reader.behavior.imagePreviewOptions.both'), value: 'both' },
+          ] as const}
+          selectedValue={settings.readerImagePreviewScope}
           title={t('reader.behavior.imagePreviewTitle')}
-          value={settings.readerImagePreviewOpenOnLongPress}
         />
       </NativeGroupedListSection>
     </>

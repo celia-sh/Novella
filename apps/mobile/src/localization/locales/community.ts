@@ -31,6 +31,7 @@ export const zhCNCommunity = {
     understand: '我已了解',
   },
   accessibility: {
+    sortAndFilter: '排序与筛选：{{order}}，{{scope}}',
     newPost: '发布社区帖子',
     notifications: '社区通知',
     menu: '社区菜单',
@@ -133,6 +134,7 @@ export const zhCNCommunity = {
     beforePostMessage: '社区用于友好交流，请在发布前确认：\n\n• 尊重他人，避免攻击、嘲讽或引战。\n• 请勿求书，也不要请求他人上传或发送书籍。\n• 不要在站点社区反馈软件问题。',
     board: '版面',
     category: '分类',
+    choose: '请选择',
     selectCategory: '请选择分类。',
     title: '标题',
     titlePlaceholder: '清楚描述讨论主题',
@@ -153,6 +155,11 @@ export const zhCNCommunity = {
       updateDiscussion: '无法保存帖子修改。',
     },
   },
+  images: {
+    postImage: '帖子图片',
+    unavailableRetry: '图片加载失败，轻点重试',
+    reload: '重新加载 {{label}}',
+  },
   editor: {
     placeholder: '写下帖子内容……',
     bold: '粗体',
@@ -162,6 +169,11 @@ export const zhCNCommunity = {
     blockquote: '引用',
     bulletedList: '项目符号列表',
     numberedList: '编号列表',
+    image: '插入图片',
+    uploadingImages: '正在上传 {{done}}/{{total}} 张图片',
+    imageUploadFailed: '图片上传失败',
+    imageTooLarge: '图片太大，压缩后仍超过 {{limit}} MB。',
+    imageUploadFailedMessage: '{{count}} 张图片没有上传成功，请稍后重试。',
   },
   comments: {
     title: '评论',
@@ -294,6 +306,7 @@ export const zhTWCommunity: TranslationShape<typeof zhCNCommunity> = {
     understand: '我瞭解了',
   },
   accessibility: {
+    sortAndFilter: '排序與篩選：{{order}}，{{scope}}',
     newPost: '發表社群文章',
     notifications: '社群通知',
     menu: '社群選單',
@@ -395,6 +408,7 @@ export const zhTWCommunity: TranslationShape<typeof zhCNCommunity> = {
     beforePostTitle: '發表前請留意',
     beforePostMessage: '社群用於友善交流，請在發表前確認：\n\n• 尊重他人，避免攻擊、嘲諷或引戰。\n• 請勿求書，也不要要求他人上傳或傳送書籍。\n• 不要在站點社群回報軟體問題。',
     board: '看板',
+    choose: '請選擇',
     category: '分類',
     selectCategory: '請選擇分類。',
     title: '標題',
@@ -416,6 +430,11 @@ export const zhTWCommunity: TranslationShape<typeof zhCNCommunity> = {
       updateDiscussion: '無法儲存文章修改。',
     },
   },
+  images: {
+    postImage: '文章圖片',
+    unavailableRetry: '圖片載入失敗，輕點重試',
+    reload: '重新載入 {{label}}',
+  },
   editor: {
     placeholder: '寫下文章內容……',
     bold: '粗體',
@@ -425,6 +444,11 @@ export const zhTWCommunity: TranslationShape<typeof zhCNCommunity> = {
     blockquote: '引用',
     bulletedList: '項目符號清單',
     numberedList: '編號清單',
+    image: '插入圖片',
+    uploadingImages: '正在上傳 {{done}}/{{total}} 張圖片',
+    imageUploadFailed: '圖片上傳失敗',
+    imageTooLarge: '圖片太大，壓縮後仍超過 {{limit}} MB。',
+    imageUploadFailedMessage: '{{count}} 張圖片沒有上傳成功，請稍後重試。',
   },
   comments: {
     title: '留言',

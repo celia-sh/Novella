@@ -1,13 +1,14 @@
 import { router, Stack } from 'expo-router';
-import { Chip } from 'panelui-native/components/chip';
-import { Input } from 'panelui-native/components/input';
-import { Spinner } from 'panelui-native/components/spinner';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Host } from '@expo/ui';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { KeyboardAwareScrollView, KeyboardController } from 'react-native-keyboard-controller';
 import { useTranslation } from 'react-i18next';
 import {
+  ActivityIndicator,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -19,14 +20,14 @@ import {
   CommunityRichEditor,
   type CommunityRichEditorHandle,
 } from '@/components/community/community-rich-editor';
-import {
-  CommunityErrorState,
-  CommunityPaperProvider,
-} from '@/components/community/community-ui';
+import { COMMUNITY_CARD_RADIUS, CommunityErrorState } from '@/components/community/community-ui';
+import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { showAlert } from '@/components/native-alert-dialog';
+import { NativePickerControl } from '@/components/native-picker-control';
+import { readingColumnWidth, useWideLayout } from '@/hooks/use-wide-layout';
 import { community, storage } from '@/services/client';
 import { markCommunityThreadChanged } from '@/services/community-reply-events';
-import { createThemedStyles } from '@/theme/app-theme';
+import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
 export function CommunityComposeScreen({
   initialBoardKey = '',
@@ -39,6 +40,8 @@ export function CommunityComposeScreen({
 }) {
   const isEditing = threadId !== undefined && threadId > 0;
   const styles = useCommunityComposeStyles();
+  const { colors } = useAppTheme();
+  const { isWide, pageMargin, usableWidth } = useWideLayout();
   const { t } = useTranslation('community');
   const { t: tCommon } = useTranslation('common');
   const editorRef = useRef<CommunityRichEditorHandle>(null);
@@ -94,6 +97,7 @@ export function CommunityComposeScreen({
     };
   }, [initialBoardKey, initialSubCategoryKey, isEditing, loadToken, t, threadId]);
 
+  const [uploadingImages, setUploadingImages] = useState(false);
   const selectedBoard = useMemo(
     () => boards.find((board) => board.key === boardKey) ?? null,
     [boardKey, boards],
@@ -101,6 +105,7 @@ export function CommunityComposeScreen({
   const canPublish = Boolean(
     noticeAccepted &&
     !publishing &&
+    !uploadingImages &&
     boardKey &&
     title.trim().length >= 6 &&
     title.trim().length <= 60 &&
@@ -213,134 +218,248 @@ export function CommunityComposeScreen({
     }
   }
 
-  return (
-    <CommunityPaperProvider>
-      <>
-        <Stack.Screen options={{ title: isEditing ? t('navigation.editPost') : t('navigation.newPost') }} />
+  const retryPrepare = () => {
+    setError(null);
+    setLoading(true);
+    setLoadToken((current) => current + 1);
+  };
+  const errorState = error ? (
+    <CommunityErrorState
+      description={error}
+      onRetry={retryPrepare}
+      title={isEditing
+        ? t('compose.errors.prepareEditTitle')
+        : boards.length === 0
+          ? t('compose.errors.prepareTitle')
+          : t('compose.errors.publishTitle')}
+    />
+  ) : null;
+  const showForm = !error || boards.length > 0;
+  const titleTooShort = title.length > 0 && title.trim().length < 6;
+  const contentTooShort = contentText.length > 0 && contentText.trim().length < 20;
 
-        <View style={styles.root}>
-          {loading ? (
-            <View style={styles.center}><Spinner /></View>
-          ) : (
-          <KeyboardAwareScrollView
-            bottomOffset={16}
-            contentInsetAdjustmentBehavior="automatic"
-            disableScrollOnKeyboardHide
-            keyboardDismissMode="interactive"
-            keyboardShouldPersistTaps="handled"
-            mode="layout"
-            onTouchEnd={handleScrollTouchEnd}
-            style={styles.root}
-          >
-            <View style={styles.content}>
-            {error ? (
-              <CommunityErrorState
-                description={error}
-                onRetry={() => {
-                  setError(null);
-                  setLoading(true);
-                  setLoadToken((current) => current + 1);
-                }}
-                title={isEditing
-                  ? t('compose.errors.prepareEditTitle')
-                  : boards.length === 0
-                    ? t('compose.errors.prepareTitle')
-                    : t('compose.errors.publishTitle')}
-              />
-            ) : null}
-
-            {!error || boards.length > 0 ? (
-              <>
-                <View style={styles.fieldGroup}>
-              <Text style={styles.fieldHeading}>{t('compose.board')}</Text>
-              <View style={styles.chips}>
-                {boards.map((board) => (
-                  <Chip
-                    accessibilityState={{ selected: board.key === boardKey }}
-                    key={board.key}
-                    onPress={() => {
-                      setBoardKey(board.key);
-                      setSubCategoryKey('');
-                    }}
-                    selected={board.key === boardKey}
-                    variant={board.key === boardKey ? 'primary' : 'default'}
-                  >
-                    {board.title}
-                  </Chip>
-                ))}
-              </View>
-              {selectedBoard?.description ? <Text style={styles.helper}>{selectedBoard.description}</Text> : null}
-            </View>
-
-            {selectedBoard?.subCategories.length ? (
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldHeading}>{t('compose.category')}</Text>
-                <View style={styles.chips}>
-                  {selectedBoard.subCategories.map((category) => (
-                    <Chip
-                      accessibilityState={{ selected: category.key === subCategoryKey }}
-                      key={category.key}
-                      onPress={() => setSubCategoryKey(category.key)}
-                      selected={category.key === subCategoryKey}
-                      variant={category.key === subCategoryKey ? 'primary' : 'default'}
-                    >
-                      {category.label}
-                    </Chip>
-                  ))}
-                </View>
-                {!subCategoryKey ? <Text style={styles.validation}>{t('compose.selectCategory')}</Text> : null}
-              </View>
-            ) : null}
-
-            <Input
-              editable={!publishing}
-              {...(title.length > 0 && title.trim().length < 6
-                ? { errorMessage: t('compose.titleMinimum') }
-                : {})}
-              label={t('compose.title')}
-              maxLength={60}
-              onChangeText={setTitle}
-              onTouchEnd={clearInteractiveTouch}
-              onTouchStart={markInteractiveTouch}
-              placeholder={t('compose.titlePlaceholder')}
-              value={title}
+  const settings = (
+    <View style={styles.settingsBlock}>
+      <View style={styles.group}>
+        <ComposeSettingRow
+          label={t('compose.board')}
+          last={!selectedBoard?.subCategories.length}
+        >
+          <NativeMenuPicker
+            enabled={!publishing}
+            onValueChange={(value) => {
+              setBoardKey(value);
+              setSubCategoryKey('');
+            }}
+            options={[
+              ...(boardKey ? [] : [{ label: t('compose.choose'), value: '' }]),
+              ...boards.map((board) => ({ label: board.title, value: board.key })),
+            ]}
+            selectedValue={boardKey}
+          />
+        </ComposeSettingRow>
+        {selectedBoard?.subCategories.length ? (
+          <ComposeSettingRow label={t('compose.category')} last>
+            <NativeMenuPicker
+              enabled={!publishing}
+              onValueChange={setSubCategoryKey}
+              options={[
+                ...(subCategoryKey ? [] : [{ label: t('compose.choose'), value: '' }]),
+                ...selectedBoard.subCategories.map((category) => ({
+                  label: category.label,
+                  value: category.key,
+                })),
+              ]}
+              selectedValue={subCategoryKey}
             />
-            <View style={styles.counterRow}>
-              <Text style={styles.counter}>{title.length}/60</Text>
-            </View>
+          </ComposeSettingRow>
+        ) : null}
+      </View>
+      {selectedBoard?.description ? (
+        <Text style={styles.groupFooter}>{selectedBoard.description}</Text>
+      ) : null}
+      {selectedBoard?.subCategories.length && !subCategoryKey ? (
+        <Text style={[styles.groupFooter, styles.validation]}>{t('compose.selectCategory')}</Text>
+      ) : null}
+    </View>
+  );
 
-            <View style={styles.fieldGroup}>
-              <View style={styles.counterRow}>
-                <Text style={styles.fieldHeading}>{t('compose.post')}</Text>
-                <Text style={styles.counter}>{t('compose.characterCount', { count: contentText.trim().length })}</Text>
-              </View>
-              <CommunityRichEditor
-                editable={!publishing}
-                initialHtml={initialHtml}
-                onTextChange={setContentText}
-                onTouchEnd={clearInteractiveTouch}
-                onTouchStart={markInteractiveTouch}
-                placeholder={t('compose.postPlaceholder')}
-                ref={editorRef}
-              />
-              {contentText.length > 0 && contentText.trim().length < 20 ? (
-                <Text style={styles.validation}>{t('compose.contentMinimum')}</Text>
-              ) : null}
-                </View>
-              </>
-            ) : null}
-            </View>
-          </KeyboardAwareScrollView>
-        )}
-        </View>
-
-        <CommunityPublishNavigation
-          accessibilityLabel={isEditing ? t('accessibility.saveThread') : t('accessibility.publishDiscussion')}
-          disabled={!canPublish}
-          onPublish={() => void publish()}
+  const writing = (
+    <View style={styles.writing}>
+      <View>
+        <TextInput
+          editable={!publishing}
+          maxLength={60}
+          multiline
+          onChangeText={(value) => setTitle(value.replace(/\n/g, ''))}
+          onTouchEnd={clearInteractiveTouch}
+          onTouchStart={markInteractiveTouch}
+          placeholder={t('compose.titlePlaceholder')}
+          placeholderTextColor={colors.secondaryLabel}
+          accessibilityLabel={t('compose.title')}
+          scrollEnabled={false}
+          selectionColor={colors.accent}
+          style={styles.titleInput}
+          submitBehavior="blurAndSubmit"
+          value={title}
         />
-      </>
-    </CommunityPaperProvider>
+        <View style={styles.metaRow}>
+          <Text style={[styles.counter, titleTooShort && styles.validation]}>
+            {titleTooShort ? t('compose.titleMinimum') : ''}
+          </Text>
+          <Text style={styles.counter}>{title.length}/60</Text>
+        </View>
+      </View>
+      <View style={styles.divider} />
+      <CommunityRichEditor
+        editable={!publishing}
+        initialHtml={initialHtml}
+        minHeight={isWide ? 360 : 280}
+        onTextChange={setContentText}
+        onTouchEnd={clearInteractiveTouch}
+        onTouchStart={markInteractiveTouch}
+        onUploadingChange={setUploadingImages}
+        placeholder={t('compose.postPlaceholder')}
+        ref={editorRef}
+      />
+      <View style={styles.metaRow}>
+        <Text style={[styles.counter, contentTooShort && styles.validation]}>
+          {contentTooShort ? t('compose.contentMinimum') : ''}
+        </Text>
+        <Text style={styles.counter}>
+          {t('compose.characterCount', { count: contentText.trim().length })}
+        </Text>
+      </View>
+    </View>
+  );
+
+  let body: ReactNode;
+  if (loading) {
+    body = <View style={styles.center}><ActivityIndicator /></View>;
+  } else if (isWide) {
+    // Landscape: the writing column takes the room, and the board, category,
+    // and posting rules sit in a side panel instead of above the title.
+    const panelWidth = Math.round(Math.min(320, Math.max(260, usableWidth * 0.3)));
+    const writingPaneWidth = usableWidth - panelWidth - StyleSheet.hairlineWidth;
+    const writingWidth = readingColumnWidth(writingPaneWidth, 24);
+    body = (
+      <HorizontalSafeArea style={[styles.root, styles.splitRow]}>
+        <KeyboardAwareScrollView
+          bottomOffset={16}
+          contentContainerStyle={[
+            styles.content,
+            { paddingHorizontal: Math.max(24, (writingPaneWidth - writingWidth) / 2) },
+          ]}
+          contentInsetAdjustmentBehavior="automatic"
+          disableScrollOnKeyboardHide
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          mode="layout"
+          onTouchEnd={handleScrollTouchEnd}
+          style={styles.scroll}
+        >
+          {errorState}
+          {showForm ? writing : null}
+        </KeyboardAwareScrollView>
+        <View style={styles.splitDivider} />
+        <ScrollView
+          contentContainerStyle={[styles.panelContent, { paddingHorizontal: pageMargin }]}
+          contentInsetAdjustmentBehavior="automatic"
+          keyboardShouldPersistTaps="handled"
+          style={[styles.fixedPane, { width: panelWidth }]}
+        >
+          {showForm ? settings : null}
+          {!isEditing ? (
+            <View style={styles.rules}>
+              <Text style={styles.rulesTitle}>{t('compose.beforePostTitle')}</Text>
+              <Text style={styles.rulesText}>{t('compose.beforePostMessage')}</Text>
+            </View>
+          ) : null}
+        </ScrollView>
+      </HorizontalSafeArea>
+    );
+  } else {
+    body = (
+      <HorizontalSafeArea style={styles.root}>
+        <KeyboardAwareScrollView
+          bottomOffset={16}
+          contentContainerStyle={[styles.content, { paddingHorizontal: pageMargin }]}
+          contentInsetAdjustmentBehavior="automatic"
+          disableScrollOnKeyboardHide
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          mode="layout"
+          onTouchEnd={handleScrollTouchEnd}
+          style={styles.scroll}
+        >
+          {errorState}
+          {showForm ? (
+            <>
+              {settings}
+              {writing}
+            </>
+          ) : null}
+        </KeyboardAwareScrollView>
+      </HorizontalSafeArea>
+    );
+  }
+
+  return (
+    <>
+      <Stack.Screen options={{ title: isEditing ? t('navigation.editPost') : t('navigation.newPost') }} />
+      <View style={styles.root}>{body}</View>
+      <CommunityPublishNavigation
+        accessibilityLabel={isEditing ? t('accessibility.saveThread') : t('accessibility.publishDiscussion')}
+        disabled={!canPublish}
+        onPublish={() => void publish()}
+      />
+    </>
+  );
+}
+
+/** A row of the inset settings group: label on the left, control on the right. */
+function ComposeSettingRow({
+  children,
+  label,
+  last,
+}: {
+  children: ReactNode;
+  label: string;
+  last: boolean;
+}) {
+  const styles = useCommunityComposeStyles();
+  return (
+    <View style={styles.settingRow}>
+      <View style={[styles.settingRowBody, !last && styles.settingSeparator]}>
+        <Text style={styles.settingLabel}>{label}</Text>
+        {children}
+      </View>
+    </View>
+  );
+}
+
+/** SwiftUI menu picker hosted inside an RN row. */
+function NativeMenuPicker({
+  enabled,
+  onValueChange,
+  options,
+  selectedValue,
+}: {
+  enabled: boolean;
+  onValueChange(value: string): void;
+  options: { label: string; value: string }[];
+  selectedValue: string;
+}) {
+  const { colors } = useAppTheme();
+  return (
+    <Host matchContents seedColor={colors.accent}>
+      <NativePickerControl
+        enabled={enabled}
+        onValueChange={onValueChange}
+        options={options}
+        selectedValue={selectedValue}
+      />
+    </Host>
   );
 }
 
@@ -356,13 +475,40 @@ function extractCommunityPlainText(html: string): string {
 
 const useCommunityComposeStyles = createThemedStyles((colors) => ({
   center: { alignItems: 'center', flex: 1, justifyContent: 'center' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  content: { gap: 20, padding: 16, paddingBottom: 48 },
-  counter: { color: colors.secondaryLabel, fontSize: 12 },
-  counterRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  fieldGroup: { gap: 9 },
-  fieldHeading: { color: colors.label, fontSize: 15, fontWeight: '700' },
-  helper: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 19 },
+  content: { gap: 20, paddingBottom: 48, paddingTop: 8 },
+  counter: { color: colors.secondaryLabel, fontSize: 13 },
+  // ScrollView defaults to flexGrow/flexShrink 1; pin the side panel to its width.
+  fixedPane: { flexGrow: 0, flexShrink: 0 },
+  divider: { backgroundColor: colors.separator, height: StyleSheet.hairlineWidth },
+  group: { backgroundColor: colors.card, borderCurve: 'continuous', borderRadius: COMMUNITY_CARD_RADIUS, overflow: 'hidden' },
+  groupFooter: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 18, paddingHorizontal: 16 },
+  metaRow: { flexDirection: 'row', gap: 12, justifyContent: 'space-between', marginTop: 4 },
+  panelContent: { gap: 24, paddingBottom: 32, paddingTop: 8 },
   root: { backgroundColor: colors.background, flex: 1 },
-  validation: { color: colors.error, fontSize: 12 },
+  rules: { gap: 6, paddingHorizontal: 16 },
+  rulesText: { color: colors.secondaryLabel, fontSize: 13, lineHeight: 19 },
+  rulesTitle: { color: colors.label, fontSize: 15, fontWeight: '600' },
+  scroll: { flex: 1 },
+  settingLabel: { color: colors.label, flex: 1, fontSize: 17 },
+  settingRow: { paddingLeft: 16 },
+  settingRowBody: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 48,
+    paddingRight: 8,
+  },
+  settingSeparator: { borderBottomColor: colors.separator, borderBottomWidth: StyleSheet.hairlineWidth },
+  settingsBlock: { gap: 8 },
+  splitDivider: { backgroundColor: colors.separator, width: StyleSheet.hairlineWidth },
+  splitRow: { flexDirection: 'row' },
+  titleInput: {
+    color: colors.label,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 31,
+    padding: 0,
+  },
+  validation: { color: colors.error },
+  writing: { gap: 12 },
 }));

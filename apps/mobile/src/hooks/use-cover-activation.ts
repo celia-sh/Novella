@@ -9,11 +9,11 @@ import {
 } from 'react';
 import type {
   LayoutChangeEvent,
+  ListViewToken,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  ViewabilityConfig,
-  ViewToken,
 } from 'react-native';
+import type { ViewabilityConfig } from '@react-native/virtualized-lists';
 
 import {
   nearbyGridItemIndices,
@@ -79,11 +79,11 @@ export function useFlatListCoverActivation<T>({
   const onViewableItemsChanged = useCallback(({
     viewableItems,
   }: {
-    changed: ViewToken<T>[];
-    viewableItems: ViewToken<T>[];
+    changed: ListViewToken[];
+    viewableItems: ListViewToken[];
   }) => {
     visibleIndicesRef.current = viewableItems.flatMap((token) =>
-      token.index === null ? [] : [token.index]
+      token.index === undefined ? [] : [token.index]
     );
     activateCurrentWindow();
   }, [activateCurrentWindow]);
