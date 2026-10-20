@@ -102,7 +102,7 @@ npm run test:client  # 客户端核心测试
 npm run test:reader  # 阅读器相关测试
 ```
 
-提交 PR 前，请完成 iOS simulator/device 的功能回归；视觉和交互验收范围见任务文档。
+提交 PR 前，请完成 iOS simulator/device 的功能回归。
 
 ## 授权
 

@@ -7,8 +7,7 @@ import type { WhatsNewRelease } from '@/services/whats-new';
  *
  * `id` selects `highlights.<id>.title` and `.body` in the `whatsNew` locale
  * namespace, and the literal ids let the typed translations catch a missing
- * copy. See `.trellis/spec/frontend/whats-new-release.md` for the release
- * checklist.
+ * copy.
  */
 export const WHATS_NEW_RELEASE = {
   version: '2.6.0',
