@@ -34,4 +34,4 @@ React Native 重写正在积极开发中，欢迎向本仓库提交代码。功�
 
 ## 许可证
 
-AGPL-3.0。参见 [LICENSE](LICENSE)。
+源代码以 AGPL-3.0 授权，具体见 [LICENSE](LICENSE)、[ADDITIONAL-TERMS.md](ADDITIONAL-TERMS.md) 和 [BRAND-ASSETS.md](BRAND-ASSETS.md)。

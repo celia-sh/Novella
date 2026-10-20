@@ -103,3 +103,7 @@ npm run test:reader  # 阅读器相关测试
 ```
 
 提交 PR 前，请完成 iOS simulator/device 的功能回归；视觉和交互验收范围见任务文档。
+
+## 授权
+
+提交贡献即表示你同意以 AGPL-3.0 及 [附加条款](ADDITIONAL-TERMS.md) 授权你的贡献，并确认你有权这样授权。贡献的版权仍归你所有。
