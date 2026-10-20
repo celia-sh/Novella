@@ -93,6 +93,8 @@ export interface AppSettings {
   novelReaderViewMode: ReaderViewMode;
   comicReaderViewMode: ReaderViewMode;
   readerPagedTapNavigation: boolean;
+  /** Paged novels show a faint chapter title where the hidden title bar was. */
+  readerCollapsedTitle: boolean;
   readerFirstLineIndent: boolean;
   readerImagePreviewScope: ReaderImagePreviewScope;
   readerLineHeight: number;
@@ -136,6 +138,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   novelReaderViewMode: 'paged',
   comicReaderViewMode: 'paged',
   readerPagedTapNavigation: true,
+  readerCollapsedTitle: true,
   readerSidePadding: 30,
   seedColorValue: DEFAULT_THEME_SEED,
   seriesSearchMode: 'system',
@@ -217,6 +220,9 @@ export function decodeAppSettings(value: unknown): AppSettings {
       ? { ignoreLevel6: candidate.ignoreLevel6 }
       : {}),
     language: decodeAppLanguage(candidate.language),
+    ...(typeof candidate.readerCollapsedTitle === 'boolean'
+      ? { readerCollapsedTitle: candidate.readerCollapsedTitle }
+      : {}),
     ...(typeof candidate.readerFirstLineIndent === 'boolean'
       ? { readerFirstLineIndent: candidate.readerFirstLineIndent }
       : {}),

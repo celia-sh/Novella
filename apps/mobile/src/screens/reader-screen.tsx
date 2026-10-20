@@ -23,6 +23,7 @@ import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation'
 import { ReaderErrorState } from '@/components/reader-chrome';
 import { ReaderImagePreviewHost, type ReaderImagePreviewHostHandle } from '@/components/reader-image-preview';
 import { ReaderLoadingOverlay, ReaderLoadingState } from '@/components/reader-loading-state';
+import { ReaderCollapsedTitle } from '@/components/reader-collapsed-title';
 import { ReaderNavigation } from '@/components/reader-navigation';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
 import {
@@ -510,6 +511,21 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
             ) : null}
           </View>
         ) : null}
+        {/*
+          Scroll mode moves the text through this band, so only a paged page
+          keeps it clear. The Duo's side bar keeps the chrome up.
+        */}
+        <ReaderCollapsedTitle
+          color={readerTextColor}
+          title={readerTitle}
+          top={stableSafeArea.top}
+          visible={settings.readerCollapsedTitle
+            && mode === 'paged'
+            && chromeHidden
+            && !imagePreviewOpen
+            && !sideChrome
+            && nativeReady}
+        />
       </View>
       <ReaderImagePreviewHost
         onVisibilityChange={setImagePreviewOpen}

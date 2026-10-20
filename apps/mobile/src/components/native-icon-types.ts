@@ -55,6 +55,7 @@ export type NativeIconName =
   | 'profileStatus'
   | 'progress'
   | 'reader'
+  | 'readerCollapsedTitle'
   | 'readerTitle'
   | 'readingDirection'
   | 'readingMode'
