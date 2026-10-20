@@ -97,8 +97,10 @@ function CommunityHtmlImage({
     }
   };
 
+  // The backdrop only stands in for missing pixels; a loaded image with an
+  // alpha channel stays transparent over the page.
   const image = (
-    <View style={[styles.clip, size]}>
+    <View style={[styles.clip, (!displayed || failed) && styles.backdrop, size]}>
       <Image
         accessibilityLabel={label}
         cachePolicy="memory-disk"
@@ -162,8 +164,8 @@ function displaySize(natural: ImageSize | null, contentWidth: number): ImageSize
 }
 
 const useCommunityHtmlImageStyles = createThemedStyles((colors) => ({
+  backdrop: { backgroundColor: colors.surfaceContainerHighest },
   clip: {
-    backgroundColor: colors.surfaceContainerHighest,
     borderCurve: 'continuous',
     borderRadius: IMAGE_RADIUS,
     overflow: 'hidden',
