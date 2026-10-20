@@ -23,7 +23,7 @@ import { ReaderChapterNavigation } from '@/components/reader-chapter-navigation'
 import { ReaderErrorState } from '@/components/reader-chrome';
 import { ReaderImagePreviewHost, type ReaderImagePreviewHostHandle } from '@/components/reader-image-preview';
 import { ReaderLoadingOverlay, ReaderLoadingState } from '@/components/reader-loading-state';
-import { ReaderCollapsedTitle } from '@/components/reader-collapsed-title';
+import { ReaderCollapsedInfo } from '@/components/reader-collapsed-info';
 import { ReaderNavigation } from '@/components/reader-navigation';
 import { simplifyReaderChapterTitle } from '@/services/chapter-title';
 import {
@@ -31,7 +31,10 @@ import {
   createReaderSideChromeInsets,
 } from '@/services/reader-chrome-layout';
 import { shouldUseReaderDoublePage } from '@/services/reader-display-layout';
-import { resolveNovelProgressTarget } from '@/services/reader-page-progress';
+import {
+  resolveNovelProgressTarget,
+  resolveReaderPagePosition,
+} from '@/services/reader-page-progress';
 import { SIDE_FADE_WIDTH } from '@/services/reader-side-fade';
 import { useReaderChapter, type ReaderUserMessage } from '@/hooks/use-reader-chapter';
 import { useReaderChapterPreload } from '@/hooks/use-reader-chapter-preload';
@@ -432,6 +435,17 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
   // A paged screen index is exact; scroll mode has none and the slider
   // follows the progression.
   const pageCurrent = chapterMetrics.paged && screenIndex !== null ? screenIndex + 1 : 0;
+  // The same numbers the bottom slider shows.
+  const pagePosition = resolveReaderPagePosition({
+    columnCount: chapterMetrics.columnCount,
+    columnTotal: chapterMetrics.columnTotal,
+    displayMode: 'percentage',
+    pageCurrent,
+    pageStepped: chapterMetrics.paged,
+    pageTotal: chapterMetrics.pageCount,
+    progress: previewProgression,
+  });
+  const pageLabel = pagePosition ? `${pagePosition.current} / ${pagePosition.total}` : '';
 
   const handleReaderLayout = useCallback((event: LayoutChangeEvent) => {
     const { height, width } = event.nativeEvent.layout;
@@ -512,14 +526,16 @@ export function ReaderScreen({ bookId, sortNum, openPosition = 'saved' }: Reader
           </View>
         ) : null}
         {/*
-          Scroll mode moves the text through this band, so only a paged page
-          keeps it clear. The Duo's side bar keeps the chrome up.
+          Scroll mode moves the text through these bands, so only a paged page
+          keeps them clear. The Duo's side bar keeps the chrome up.
         */}
-        <ReaderCollapsedTitle
+        <ReaderCollapsedInfo
+          bottom={stableSafeArea.bottom}
           color={readerTextColor}
+          pageLabel={pageLabel}
           title={readerTitle}
           top={stableSafeArea.top}
-          visible={settings.readerCollapsedTitle
+          visible={settings.readerCollapsedInfo
             && mode === 'paged'
             && chromeHidden
             && !imagePreviewOpen

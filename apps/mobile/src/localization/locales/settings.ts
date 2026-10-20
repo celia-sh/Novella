@@ -132,8 +132,8 @@ export const zhCNSettings = {
       continueDescription: '继续阅读按钮仅显示章节编号或名称',
       readerTitle: '阅读器标题',
       readerDescription: '阅读器标题栏仅显示章节编号或名称',
-      collapsedTitle: '收起时显示标题',
-      collapsedDescription: '分页阅读收起工具栏后，在顶部以淡色文字显示章节标题',
+      collapsedTitle: '收起时显示标题和页码',
+      collapsedDescription: '分页阅读收起工具栏后，以淡色文字在顶部显示章节标题、底部显示页码',
     },
     behavior: {
       section: '阅读行为',
@@ -576,8 +576,8 @@ export const zhTWSettings: TranslationShape<typeof zhCNSettings> = {
       continueDescription: '繼續閱讀按鈕只顯示章節編號或名稱',
       readerTitle: '閱讀器標題',
       readerDescription: '閱讀器標題列只顯示章節編號或名稱',
-      collapsedTitle: '收起時顯示標題',
-      collapsedDescription: '分頁閱讀收起工具列後，在頂部以淡色文字顯示章節標題',
+      collapsedTitle: '收起時顯示標題和頁碼',
+      collapsedDescription: '分頁閱讀收起工具列後，以淡色文字在頂部顯示章節標題、底部顯示頁碼',
     },
     behavior: {
       section: '閱讀方式',

@@ -125,10 +125,10 @@ export function ReaderSettingsContent() {
         />
         <NativeToggleRow
           description={t('reader.chapterTitles.collapsedDescription')}
-          icon="readerCollapsedTitle"
-          onValueChange={(value) => void updateAppSettings({ readerCollapsedTitle: value })}
+          icon="readerCollapsedInfo"
+          onValueChange={(value) => void updateAppSettings({ readerCollapsedInfo: value })}
           title={t('reader.chapterTitles.collapsedTitle')}
-          value={settings.readerCollapsedTitle}
+          value={settings.readerCollapsedInfo}
         />
       </NativeGroupedListSection>
 
