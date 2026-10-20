@@ -3,7 +3,7 @@
   "version": "2.2.0",
   "main": "expo-router/entry",
   "dependencies": {
-    "@celia-sh/react-native-pretty-toast": "1.0.2",
+    "@celia-sh/react-native-pretty-toast": "1.1.0",
     "@expo/metro-runtime": "~58.0.14",
     "@expo/ui": "~58.0.18",
     "@material/material-color-utilities": "^0.4.0",
