@@ -30,15 +30,19 @@ const MaskedView = RNMaskedView as unknown as ComponentType<MaskedViewProps>;
 export function FadingScrollRow({
   children,
   contentContainerStyle,
+  scrollEnabled = true,
   style,
 }: {
   children: ReactNode;
   contentContainerStyle?: StyleProp<ViewStyle>;
+  /** Off for placeholder rows, which keep the fade but should not scroll. */
+  scrollEnabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const [contentWidth, setContentWidth] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [offset, setOffset] = useState(0);
+  const measured = viewportWidth > 0 && contentWidth > 0;
   const fadeStart = offset > 1;
   const fadeEnd = offset + viewportWidth < contentWidth - 1;
 
@@ -46,9 +50,9 @@ export function FadingScrollRow({
     <MaskedView
       maskElement={(
         <View style={styles.mask}>
-          <EdgeMask faded={fadeStart} side="start" />
+          <EdgeMask faded={fadeStart} measured={measured} side="start" />
           <View style={styles.opaque} />
-          <EdgeMask faded={fadeEnd} side="end" />
+          <EdgeMask faded={fadeEnd} measured={measured} side="end" />
         </View>
       )}
       style={style}
@@ -61,6 +65,7 @@ export function FadingScrollRow({
         onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
           setOffset(event.nativeEvent.contentOffset.x);
         }}
+        scrollEnabled={scrollEnabled}
         scrollEventThrottle={32}
         showsHorizontalScrollIndicator={false}
         style={styles.scroll}
@@ -72,17 +77,36 @@ export function FadingScrollRow({
 }
 
 /** One edge of the mask: a gradient to transparent, covered by an opaque
- * layer that fades away when the edge should fade. */
-function EdgeMask({ faded, side }: { faded: boolean; side: 'end' | 'start' }) {
+ * layer that fades away when the edge should fade.
+ *
+ * The first state after the row is measured is applied at once. Animating it
+ * would leave the edge hard-clipped for the first 160 ms, which is most of the
+ * time a short-lived row (a skeleton) is on screen; only scrolling animates. */
+function EdgeMask({
+  faded,
+  measured,
+  side,
+}: {
+  faded: boolean;
+  measured: boolean;
+  side: 'end' | 'start';
+}) {
   const cover = useRef(new Animated.Value(faded ? 0 : 1)).current;
+  const settled = useRef(false);
 
   useEffect(() => {
+    if (!measured) return;
+    if (!settled.current) {
+      settled.current = true;
+      cover.setValue(faded ? 0 : 1);
+      return;
+    }
     Animated.timing(cover, {
       duration: FADE_DURATION,
       toValue: faded ? 0 : 1,
       useNativeDriver: true,
     }).start();
-  }, [cover, faded]);
+  }, [cover, faded, measured]);
 
   return (
     <View style={styles.edge}>

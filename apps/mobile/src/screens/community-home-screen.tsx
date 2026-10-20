@@ -336,12 +336,21 @@ function AnnouncementRow({
   );
 }
 
-function ChipRow({ children, inset = true }: { children: ReactNode; inset?: boolean }) {
+function ChipRow({
+  children,
+  inset = true,
+  scrollEnabled = true,
+}: {
+  children: ReactNode;
+  inset?: boolean;
+  scrollEnabled?: boolean;
+}) {
   const styles = useCommunityHomeStyles();
   const pageMargin = usePageMargin();
   return (
     <FadingScrollRow
       contentContainerStyle={[styles.chipRow, inset && { paddingHorizontal: pageMargin }]}
+      scrollEnabled={scrollEnabled}
       style={styles.chipScroll}
     >
       {children}
@@ -409,17 +418,15 @@ function SubCategoryChips({
   const styles = useCommunityHomeStyles();
   const { t } = useTranslation('community');
   const locale = useAppLocale();
-  const pageMargin = usePageMargin();
 
   if (loading) {
     return (
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={[styles.chipRow, inset && { paddingHorizontal: pageMargin }, styles.chipScroll]}
-      >
-        <Skeleton style={styles.subChipSkeleton} />
-        <Skeleton style={styles.subChipSkeleton} />
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <ChipRow inset={inset} scrollEnabled={false}>
+          {SKELETON_CHIPS.map((index) => (
+            <Skeleton key={index} style={[styles.pageBone, styles.skeletonSubChip]} />
+          ))}
+        </ChipRow>
       </View>
     );
   }
@@ -650,7 +657,8 @@ function CommunityHomeFooter({
   );
 }
 
-const SKELETON_CHIP_WIDTHS = [104, 76, 76, 76, 76] as const;
+// Enough equal chips to run past the edge, so the row fades like the real one.
+const SKELETON_CHIPS = [0, 1, 2, 3, 4, 5] as const;
 const SKELETON_BOARD_WIDTHS = ['52%', '30%', '30%', '30%', '30%', '30%'] as const;
 
 /** Stats line, announcement row, and board chips, at their real sizes. */
@@ -663,11 +671,11 @@ function PhoneHeaderSkeleton() {
         <StatsSkeleton />
         <AnnouncementSkeleton />
       </View>
-      <View style={[styles.chipRow, margin, styles.chipScroll, styles.skeletonChipRow]}>
-        {SKELETON_CHIP_WIDTHS.map((width, index) => (
-          <Skeleton key={index} style={[styles.pageBone, styles.skeletonChip, { width }]} />
+      <ChipRow scrollEnabled={false}>
+        {SKELETON_CHIPS.map((index) => (
+          <Skeleton key={index} style={[styles.pageBone, styles.skeletonChip]} />
         ))}
-      </View>
+      </ChipRow>
     </View>
   );
 }
@@ -801,12 +809,12 @@ const useCommunityHomeStyles = createThemedStyles((colors) => ({
   sidebarSkeleton: { gap: 20 },
   skeletonAnnouncementCopy: { gap: 7 },
   skeletonCaption: { height: 11, marginBottom: 9, width: 36 },
-  skeletonChip: { borderRadius: 17, height: 34 },
-  skeletonChipRow: { flexDirection: 'row', overflow: 'hidden' },
+  skeletonChip: { borderRadius: 17, height: 34, width: 80 },
   skeletonDescription: { width: '62%' },
   skeletonIcon: { borderRadius: 5, height: 18, width: 18 },
   skeletonStats: { gap: 7 },
   skeletonStatsLine: { height: 11, width: '40%' },
+  skeletonSubChip: { borderRadius: 15, height: 30, width: 80 },
   skeletonText: { height: 14 },
   splitDivider: { backgroundColor: colors.separator, width: StyleSheet.hairlineWidth },
   splitRow: { flexDirection: 'row' },
@@ -822,7 +830,6 @@ const useCommunityHomeStyles = createThemedStyles((colors) => ({
     paddingHorizontal: 12,
   },
   subChipSelected: { backgroundColor: colors.primaryContainer },
-  subChipSkeleton: { backgroundColor: colors.card, borderRadius: 15, height: 30, width: 72 },
   subChipText: { color: colors.secondaryLabel, fontSize: 14 },
   subChipTextSelected: { color: colors.onPrimaryContainer, fontWeight: '600' },
   wideFeedContent: { paddingBottom: 40, paddingTop: 8 },

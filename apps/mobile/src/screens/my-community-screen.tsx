@@ -23,6 +23,7 @@ import {
   CommunityThreadSkeleton,
 } from "@/components/community/community-ui";
 import { HorizontalSafeArea } from "@/components/horizontal-safe-area";
+import { Skeleton } from "@/components/skeleton";
 import {
   NativeSegmentedControl,
   type NativeSegmentedControlOption,
@@ -87,6 +88,21 @@ export function MyCommunityScreen() {
                   replies: numberFormatter.format(overview.participatedReplies.length),
                 })}
               </Text>
+            </View>
+          ) : loading ? (
+            // Holds the name and counts lines so the tabs and cards do not
+            // shift down when the overview arrives.
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={styles.profile}
+            >
+              <View style={styles.titleSlot}>
+                <Skeleton style={[styles.pageBone, styles.titleBone]} />
+              </View>
+              <View style={styles.summarySlot}>
+                <Skeleton style={[styles.pageBone, styles.summaryBone]} />
+              </View>
             </View>
           ) : null}
 
@@ -215,6 +231,8 @@ const useMyCommunityStyles = createThemedStyles((colors) => ({
   list: { gap: 12 },
   metricIcon: { color: colors.secondaryLabel },
   metricLabel: { color: colors.secondaryLabel, fontSize: 13, marginRight: 10 },
+  // Bones on the page use the card fill.
+  pageBone: { backgroundColor: colors.card, borderRadius: 6 },
   profile: { gap: 4, paddingHorizontal: 4 },
   replyCard: {
     backgroundColor: colors.card,
@@ -232,7 +250,12 @@ const useMyCommunityStyles = createThemedStyles((colors) => ({
   root: { backgroundColor: colors.background, flex: 1 },
   scroll: { flex: 1 },
   segmented: { minHeight: 48, width: "100%" },
-  summary: { color: colors.secondaryLabel, fontSize: 15 },
+  // Explicit line heights so the skeleton slots match the text exactly.
+  summary: { color: colors.secondaryLabel, fontSize: 15, lineHeight: 20 },
+  summaryBone: { height: 14, width: "64%" },
+  summarySlot: { height: 20, justifyContent: "center" },
   time: { color: colors.secondaryLabel, fontSize: 13 },
-  title: { color: colors.label, fontSize: 26, fontWeight: "700" },
+  title: { color: colors.label, fontSize: 26, fontWeight: "700", lineHeight: 32 },
+  titleBone: { height: 24, width: "38%" },
+  titleSlot: { height: 32, justifyContent: "center" },
 }));
