@@ -126,53 +126,59 @@ export function ReaderNavigation({
         }}
       />
       {/*
-        The toolbar stays mounted while the chrome is hidden. The custom title
-        and progress views are inserted into the glass column when they mount,
-        and iOS 26 animates that insertion; mounting the toolbar with the
-        chrome made the text pop every time the bar appeared. `headerShown`
-        still owns visibility, and the native buttons keep their own `hidden`.
+        In the Duo's vertical bar the toolbar stays mounted while the chrome is
+        hidden: the custom title and progress views are inserted into the glass
+        column when they mount, and iOS 26 animates that insertion, so mounting
+        the toolbar with the chrome made the text pop every time the bar
+        appeared. Everywhere else it unmounts with the chrome, because a left or
+        right `Stack.Toolbar` sets `headerShown: true` on the screen and
+        overrides `headerShown: !chromeHidden` above.
       */}
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button
-          accessibilityLabel={tCommon('accessibility.back')}
-          hidden={chromeHidden}
-          icon="chevron.left"
-          onPress={() => router.back()}
-          tintColor={foregroundColor}
-        />
-      </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
-        {sideChrome && title ? (
-          <Stack.Toolbar.View hidden={chromeHidden}>
-            <ReaderSideTitle
-              foregroundColor={foregroundColor}
-              title={title}
+      {sideChrome || !chromeHidden ? (
+        <>
+          <Stack.Toolbar placement="left">
+            <Stack.Toolbar.Button
+              accessibilityLabel={tCommon('accessibility.back')}
+              hidden={chromeHidden}
+              icon="chevron.left"
+              onPress={() => router.back()}
+              tintColor={foregroundColor}
             />
-          </Stack.Toolbar.View>
-        ) : null}
-        {sideChrome && sideProgress ? (
-          <Stack.Toolbar.View hidden={chromeHidden}>
-            <ReaderSideProgress
-              foregroundColor={foregroundColor}
-              {...sideProgress}
+          </Stack.Toolbar>
+          <Stack.Toolbar placement="right">
+            {sideChrome && title ? (
+              <Stack.Toolbar.View hidden={chromeHidden}>
+                <ReaderSideTitle
+                  foregroundColor={foregroundColor}
+                  title={title}
+                />
+              </Stack.Toolbar.View>
+            ) : null}
+            {sideChrome && sideProgress ? (
+              <Stack.Toolbar.View hidden={chromeHidden}>
+                <ReaderSideProgress
+                  foregroundColor={foregroundColor}
+                  {...sideProgress}
+                />
+              </Stack.Toolbar.View>
+            ) : null}
+            <Stack.Toolbar.Button
+              accessibilityLabel={t('accessibility.chapterList')}
+              hidden={chromeHidden}
+              icon="list.bullet"
+              onPress={onOpenChapters}
+              tintColor={foregroundColor}
             />
-          </Stack.Toolbar.View>
-        ) : null}
-        <Stack.Toolbar.Button
-          accessibilityLabel={t('accessibility.chapterList')}
-          hidden={chromeHidden}
-          icon="list.bullet"
-          onPress={onOpenChapters}
-          tintColor={foregroundColor}
-        />
-        <Stack.Toolbar.Button
-          accessibilityLabel={t('accessibility.readerSettings')}
-          hidden={chromeHidden}
-          icon="gearshape"
-          onPress={onOpenSettings}
-          tintColor={foregroundColor}
-        />
-      </Stack.Toolbar>
+            <Stack.Toolbar.Button
+              accessibilityLabel={t('accessibility.readerSettings')}
+              hidden={chromeHidden}
+              icon="gearshape"
+              onPress={onOpenSettings}
+              tintColor={foregroundColor}
+            />
+          </Stack.Toolbar>
+        </>
+      ) : null}
     </>
   );
 }
