@@ -10,10 +10,14 @@ import {
   listStyle,
   shapes,
 } from '@expo/ui/swift-ui/modifiers';
-import { isValidElement, type PropsWithChildren, type ReactNode } from 'react';
+import { isValidElement, type ReactNode } from 'react';
 
 import { NativeIcon } from '@/components/native-icon';
-import type { NativeGroupedListProps, NativeGroupedListRowProps } from '@/components/native-grouped-list';
+import type {
+  NativeGroupedListProps,
+  NativeGroupedListRowProps,
+  NativeGroupedListSectionProps,
+} from '@/components/native-grouped-list';
 import { useAppTheme } from '@/theme/app-theme';
 
 export function NativeGroupedListPlatform({
@@ -34,8 +38,25 @@ export function NativeGroupedListPlatform({
   );
 }
 
-export function NativeGroupedListSectionPlatform({ children, title }: PropsWithChildren<{ title: string }>) {
-  return <Section title={title}>{children}</Section>;
+export function NativeGroupedListSectionPlatform({
+  children,
+  footer,
+  title,
+}: NativeGroupedListSectionProps) {
+  return (
+    <Section
+      footer={footer ? (
+        <HStack>
+          <Spacer />
+          <RNHostView matchContents>{footer}</RNHostView>
+          <Spacer />
+        </HStack>
+      ) : undefined}
+      title={title}
+    >
+      {children}
+    </Section>
+  );
 }
 
 export function NativeGroupedListRowPlatform({

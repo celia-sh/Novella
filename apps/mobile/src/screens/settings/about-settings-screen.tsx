@@ -3,12 +3,16 @@ import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { View } from 'react-native';
 
 import { NativeGroupedList, NativeGroupedListRow, NativeGroupedListSection } from '@/components/native-grouped-list';
 import { NativePickerRow, NativeToggleRow, NativeValueRow } from '@/components/native-setting-controls';
 import { APP_UPDATE_DESTINATIONS } from '@/services/app-update-destination';
 import { runManualAppUpdateCheck } from '@/services/app-update-alerts';
 import { updateAppSettings, useAppSettings } from '@/services/settings';
+import { useAppTheme } from '@/theme/app-theme';
+
+import CeliaLockup from '../../../assets/brand/celia-lockup.svg';
 
 const repositoryUrl = 'https://github.com/celia-sh/Novella';
 const sideloadUrl = 'https://sideload.celia.sh';
@@ -26,6 +30,7 @@ function displayVersion(unknownVersion: string): string {
 
 export function AboutSettingsScreen() {
   const settings = useAppSettings();
+  const { colors } = useAppTheme();
   const { t } = useTranslation('settings');
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const version = displayVersion(t('about.unknownVersion'));
@@ -89,7 +94,15 @@ export function AboutSettingsScreen() {
           title={t('about.changelogsTitle')}
         />
       </NativeGroupedListSection>
-      <NativeGroupedListSection title={t('about.sections.externalLinks')}>
+      <NativeGroupedListSection
+        footer={(
+          <View accessibilityLabel="CELIA" accessible style={{ paddingBottom: 8, paddingTop: 28 }}>
+            {/* The wordmark follows the label color; the mark keeps its own. */}
+            <CeliaLockup fill={colors.label as string} height={28} width={79} />
+          </View>
+        )}
+        title={t('about.sections.externalLinks')}
+      >
         <NativeGroupedListRow
           description={t('about.externalLinks.sideloadDescription')}
           icon="sideload"
