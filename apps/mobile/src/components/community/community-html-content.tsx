@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import { Linking } from 'react-native';
-import RenderHTML from 'react-native-render-html';
+import RenderHTML from '@native-html/render';
 
 import { createCommunityHtmlImageRenderer } from '@/components/community/community-html-image';
 import { ReaderImageGallery } from '@/components/reader-image-viewer';

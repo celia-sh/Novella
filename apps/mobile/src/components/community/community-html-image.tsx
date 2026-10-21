@@ -3,7 +3,7 @@ import { Image, type ImageLoadEventData } from 'expo-image';
 import { useMemo, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
-import type { CustomBlockRenderer } from 'react-native-render-html';
+import type { CustomBlockRenderer } from '@native-html/render';
 
 import { ReaderImageViewer } from '@/components/reader-image-viewer';
 import { createComicBlurHashPlaceholder } from '@/services/blurhash';

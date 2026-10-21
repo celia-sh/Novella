@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import type { CustomBlockRenderer, TNode } from 'react-native-render-html';
+import type { CustomBlockRenderer, TNode } from '@native-html/render';
 
 import {
   READER_IMAGE_FALLBACK_DIMENSIONS,

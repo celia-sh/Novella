@@ -4,7 +4,7 @@ import RenderHTML, {
   HTMLContentModel,
   HTMLElementModel,
   type MixedStyleDeclaration,
-} from 'react-native-render-html';
+} from '@native-html/render';
 import { SERVICE_ENDPOINTS } from '@novella/api-client';
 
 import { createHtmlPreviewSource } from '@/components/html-preview-source';
@@ -266,7 +266,6 @@ function createReaderHtmlClassStyles(
     alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 2,
     justifyContent: 'center',
     paddingBottom: 2,
     paddingTop: 2,
