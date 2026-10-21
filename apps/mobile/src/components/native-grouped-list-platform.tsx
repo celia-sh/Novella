@@ -45,13 +45,8 @@ export function NativeGroupedListSectionPlatform({
 }: NativeGroupedListSectionProps) {
   return (
     <Section
-      footer={footer ? (
-        <HStack>
-          <Spacer />
-          <RNHostView matchContents>{footer}</RNHostView>
-          <Spacer />
-        </HStack>
-      ) : undefined}
+      // Leading-aligned like the system footer text, on the section title's inset.
+      footer={footer ? <RNHostView matchContents>{footer}</RNHostView> : undefined}
       title={title}
     >
       {children}

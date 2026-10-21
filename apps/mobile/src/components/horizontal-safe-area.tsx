@@ -23,7 +23,13 @@ export function HorizontalSafeArea({
 }) {
   const { left, right } = useSafeAreaInsets();
   return (
-    <View style={[style, { paddingLeft: left, paddingRight: right }]}>
+    // Must stay a stacking context. A plain Fabric View with only a background
+    // forms a view but not a stacking context, so its children mount as its
+    // siblings: the page's ScrollView then sits behind an empty background
+    // view, UIKit's first-subview search for the content scroll view stops at
+    // that empty view, and the large title never collapses. The native
+    // SafeAreaView this replaced always kept its children.
+    <View collapsable={false} style={[style, { paddingLeft: left, paddingRight: right }]}>
       {children}
     </View>
   );
