@@ -9,8 +9,7 @@ overrides:
   react-dom: 19.3.0
 
 packageExtensions:
-  # Only peers on @types/react-native, so its typings would resolve the stale
-  # 0.72 types instead of react-native's own.
+  # Its typings import react-native without declaring it as a peer.
   '@native-html/css-processor':
     peerDependencies:
       react-native: '*'

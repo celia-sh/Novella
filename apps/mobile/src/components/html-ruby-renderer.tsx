@@ -13,7 +13,7 @@ import {
   type CustomTagRendererRecord,
   type TNode,
   type TPhrasing,
-} from 'react-native-render-html';
+} from '@native-html/render';
 
 const DEFAULT_FONT_SIZE = 16;
 const DEFAULT_LINE_HEIGHT_RATIO = 1.8;
