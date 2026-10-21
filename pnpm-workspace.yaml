@@ -14,3 +14,7 @@ packageExtensions:
   '@native-html/css-processor':
     peerDependencies:
       react-native: '*'
+
+permissions:
+  expo-sqlite:
+    skills: false
