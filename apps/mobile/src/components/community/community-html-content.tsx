@@ -4,6 +4,7 @@ import RenderHTML from 'react-native-render-html';
 
 import { createCommunityHtmlImageRenderer } from '@/components/community/community-html-image';
 import { ReaderImageGallery } from '@/components/reader-image-viewer';
+import { RENDER_HTML_DEFAULTS } from '@/components/render-html-defaults';
 import { extractCommunityHtmlImages } from '@/services/community-html-images';
 import { resolveReaderImageUrl } from '@/services/reader-image-dimensions';
 import { useAppTheme } from '@/theme/app-theme';
@@ -73,6 +74,7 @@ export const CommunityHtmlContent = memo(function CommunityHtmlContent({
 
   const content = (
     <RenderHTML
+      {...RENDER_HTML_DEFAULTS}
       baseStyle={baseStyle}
       contentWidth={width}
       defaultTextProps={{ selectable: true }}
