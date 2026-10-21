@@ -3,8 +3,8 @@
 import {
   withDangerousMod,
   withMod,
-} from '@expo/config-plugins';
-import type { ConfigPlugin } from '@expo/config-plugins';
+} from 'expo/config-plugins';
+import type { ConfigPlugin } from 'expo/config-plugins';
 import fs from 'node:fs';
 import path from 'node:path';
 

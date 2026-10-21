@@ -1,5 +1,5 @@
-import { withXcodeProject } from '@expo/config-plugins';
-import type { ConfigPlugin } from '@expo/config-plugins';
+import { withXcodeProject } from 'expo/config-plugins';
+import type { ConfigPlugin } from 'expo/config-plugins';
 
 const buildPhaseName = '[Expo Dev Launcher] Strip Local Network Keys for Release';
 

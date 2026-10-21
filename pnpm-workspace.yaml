@@ -1,0 +1,20 @@
+packages:
+  - apps/*
+  - packages/*
+
+overrides:
+  '@tiptap/extension-bubble-menu': 3.27.1
+  '@tiptap/extension-floating-menu': 3.27.1
+  react: 19.3.0
+  react-dom: 19.3.0
+
+packageExtensions:
+  # Only peers on @types/react-native, so its typings would resolve the stale
+  # 0.72 types instead of react-native's own.
+  '@native-html/css-processor':
+    peerDependencies:
+      react-native: '*'
+
+permissions:
+  expo-sqlite:
+    skills: false

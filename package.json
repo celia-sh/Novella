@@ -2,33 +2,24 @@
   "name": "novella-workspace",
   "version": "0.0.0",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
-    "check": "npm run check:boundaries && npm run typecheck",
+    "build": "pnpm -r --if-present build",
+    "check": "pnpm check:boundaries && pnpm typecheck",
     "check:boundaries": "node scripts/check-boundaries.mjs",
-    "dev:mobile": "npm run dev --workspace @novella/mobile",
-    "start": "npm run dev:mobile",
-    "ios": "npm run ios --workspace @novella/mobile",
-    "test:client": "npm run test --workspace @novella/client-core && npm run test --workspace @novella/api-client && npm run test --workspace @novella/reader-engine && npm run test:image --workspace @novella/mobile && npm run test:navigation --workspace @novella/mobile && npm run test:shelf --workspace @novella/mobile && npm run test:community --workspace @novella/mobile && npm run test:settings --workspace @novella/mobile && npm run test:theme --workspace @novella/mobile && npm run test:localization --workspace @novella/mobile && npm run test:update --workspace @novella/mobile",
-    "test:reader": "npm run test --workspace @novella/reader-engine && npm run test --workspace @novella/api-client && npm run test:reader --workspace @novella/mobile",
-    "typecheck": "npm run typecheck --workspaces --if-present"
-  },
-  "overrides": {
-    "@tiptap/extension-bubble-menu": "3.27.1",
-    "@tiptap/extension-floating-menu": "3.27.1",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "dev:mobile": "pnpm --filter @novella/mobile dev",
+    "start": "pnpm dev:mobile",
+    "ios": "pnpm --filter @novella/mobile ios",
+    "test:client": "pnpm --filter @novella/client-core test && pnpm --filter @novella/api-client test && pnpm --filter @novella/reader-engine test && pnpm --filter @novella/mobile test:image && pnpm --filter @novella/mobile test:navigation && pnpm --filter @novella/mobile test:shelf && pnpm --filter @novella/mobile test:community && pnpm --filter @novella/mobile test:settings && pnpm --filter @novella/mobile test:theme && pnpm --filter @novella/mobile test:localization && pnpm --filter @novella/mobile test:update",
+    "test:reader": "pnpm --filter @novella/reader-engine test && pnpm --filter @novella/api-client test && pnpm --filter @novella/mobile test:reader",
+    "typecheck": "pnpm -r --if-present typecheck"
   },
   "engines": {
-    "node": ">=22.13.0",
-    "npm": ">=10.0.0"
+    "node": ">=26.12.1",
+    "pnpm": ">=12.14.0"
   },
   "devDependencies": {
     "@tiptap/extension-bubble-menu": "3.27.1",
     "@tiptap/extension-floating-menu": "3.27.1"
-  }
+  },
+  "packageManager": "pnpm@12.14.0"
 }

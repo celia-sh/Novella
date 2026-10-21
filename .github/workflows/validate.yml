@@ -27,23 +27,26 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 22
-          cache: npm
+          node-version: 26
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Check shared package boundaries
-        run: npm run check:boundaries
+        run: pnpm check:boundaries
 
       - name: Typecheck
-        run: npm run typecheck
+        run: pnpm typecheck
 
       - name: Run client tests
-        run: npm run test:client
+        run: pnpm test:client
 
       - name: Run mobile reader tests
-        run: npm run test:reader --workspace @novella/mobile
+        run: pnpm --filter @novella/mobile test:reader

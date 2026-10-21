@@ -8,19 +8,21 @@ import {
   type SetStateAction,
 } from 'react';
 import type {
+  FlatListProps,
   LayoutChangeEvent,
   ListViewToken,
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
-import type { ViewabilityConfig } from '@react-native/virtualized-lists';
 
 import {
   nearbyGridItemIndices,
   scrollGridItemIndices,
 } from '@/services/cover-activation';
 
-const COVER_VIEWABILITY_CONFIG: ViewabilityConfig = {
+const COVER_VIEWABILITY_CONFIG: NonNullable<
+  FlatListProps<unknown>['viewabilityConfig']
+> = {
   itemVisiblePercentThreshold: 1,
   waitForInteraction: false,
 };

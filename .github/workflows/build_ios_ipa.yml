@@ -8,7 +8,8 @@ on:
       - "apps/mobile/**"
       - "packages/**"
       - "package.json"
-      - "package-lock.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - "tsconfig.base.json"
       - ".github/workflows/build_ios_ipa.yml"
   push:
@@ -18,7 +19,8 @@ on:
       - "apps/mobile/**"
       - "packages/**"
       - "package.json"
-      - "package-lock.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - "tsconfig.base.json"
       - ".github/workflows/build_ios_ipa.yml"
 
@@ -113,14 +115,17 @@ jobs:
             exit 1
           }
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 22
-          cache: npm
+          node-version: 26
+          cache: pnpm
 
       - name: Install JavaScript dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Select Xcode 27.1
         run: |
@@ -171,9 +176,9 @@ jobs:
         with:
           path: ~/Library/Caches/ccache
           key: >-
-            ios-ccache-${{ runner.os }}-xcode27.1-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+            ios-ccache-${{ runner.os }}-xcode27.1-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
           restore-keys: |
-            ios-ccache-${{ runner.os }}-xcode27.1-${{ hashFiles('package-lock.json') }}-
+            ios-ccache-${{ runner.os }}-xcode27.1-${{ hashFiles('pnpm-lock.yaml') }}-
             ios-ccache-${{ runner.os }}-xcode27.1-
 
       - name: Reset ccache statistics
@@ -193,7 +198,7 @@ jobs:
           APP_BUILD_NUMBER: ${{ env.APP_BUILD_NUMBER }}
           APP_BUILD_CHANNEL: ${{ env.APP_BUILD_CHANNEL }}
           APP_BUILD_LABEL: ${{ env.APP_BUILD_LABEL }}
-        run: npx expo prebuild --non-interactive --no-install --platform ios
+        run: pnpm exec expo prebuild --non-interactive --no-install --platform ios
 
       - name: Restore CocoaPods cache
         id: ios-pods
@@ -206,7 +211,7 @@ jobs:
           key: >-
             ios-pods-${{ runner.os }}-xcode27.1-${{
               hashFiles(
-                'package-lock.json',
+                'pnpm-lock.yaml',
                 'apps/mobile/package.json',
                 'apps/mobile/app.config.ts',
                 'apps/mobile/plugins/**',
@@ -218,7 +223,7 @@ jobs:
 
       - name: Install CocoaPods dependencies
         working-directory: apps/mobile
-        run: npx pod-install ios
+        run: pnpm dlx pod-install ios
 
       - name: Save CocoaPods cache
         # pod install 之后才保存（save 立即执行，放前面会存空目录/旧内容）。
