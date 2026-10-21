@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -9,8 +9,10 @@ import {
   AuthSubmitButton,
 } from '@/components/auth-form-layout';
 import { VerificationCodeField } from '@/components/auth-fields';
+import { TurnstileChallenge, requestTurnstileToken, type TurnstileHandle } from '@/components/turnstile-challenge';
 import { authFlowSession } from '@/services/auth-flow-session';
 import { authentication } from '@/services/client';
+import { TurnstileError } from '@/services/turnstile';
 
 type RegisterVerifyError =
   | { kind: 'key'; key: 'verification.invalidCode' | 'register.errors.sendCodeFailed' | 'register.errors.createAccountFailed' }
@@ -23,6 +25,7 @@ export default function RegisterVerifyRoute() {
   const [isSending, setIsSending] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<RegisterVerifyError | null>(null);
+  const turnstile = useRef<TurnstileHandle>(null);
   const { t } = useTranslation('auth');
 
   useEffect(() => {
@@ -40,7 +43,8 @@ export default function RegisterVerifyRoute() {
     setError(null);
     setIsSending(true);
     try {
-      await authentication.sendRegisterCode(draft.email);
+      const captchaToken = await requestTurnstileToken(turnstile);
+      await authentication.sendRegisterCode(draft.email, captchaToken);
       setCooldown(60);
     } catch (sendError) {
       setError(getRegisterVerifyError(sendError, 'register.errors.sendCodeFailed'));
@@ -82,6 +86,7 @@ export default function RegisterVerifyRoute() {
           onSend={() => void resend()}
           value={code}
         />
+        <TurnstileChallenge action="register" prefetch={false} ref={turnstile} />
         <AuthFormError message={error?.kind === 'raw' ? error.text : error ? t(error.key) : null} />
         <AuthSubmitButton
           idleLabel={t('register.verify.submit')}
@@ -97,7 +102,9 @@ export default function RegisterVerifyRoute() {
 function getRegisterVerifyError(
   error: unknown,
   fallback: Extract<RegisterVerifyError, { kind: 'key' }>['key'],
-): RegisterVerifyError {
+): RegisterVerifyError | null {
+  // The challenge view shows its own failure and retry.
+  if (error instanceof TurnstileError) return null;
   return error instanceof Error
     ? { kind: 'raw', text: error.message }
     : { kind: 'key', key: fallback };

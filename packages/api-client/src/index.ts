@@ -727,6 +727,8 @@ export interface OwnedShopItem {
   description: string;
   image: string;
   quantity: number;
+  /** Whether `UseShopItem` can consume this item without extra input. */
+  usable: boolean;
 }
 
 export interface ShopData {
@@ -763,10 +765,15 @@ export interface UseSignMakeupCardResult {
   owned: number;
 }
 
-export interface UseComicQuotaCardResult {
+export interface UseShopItemResult {
   key: string;
-  granted: number;
-  quota: number;
+  owned: number;
+  /** Backend-composed result text, shown as-is. May be empty. */
+  message: string;
+}
+
+export interface UseRenameCardResult {
+  userName: string;
   owned: number;
 }
 
@@ -1670,12 +1677,14 @@ export class ApiClient {
     return decodeSessionTokens(response.body);
   }
 
-  async sendRegisterEmail(email: string): Promise<void> {
-    await this.#requestEmailCode(SERVICE_ENDPOINTS.sendRegisterEmailPath, email);
+  /** `captchaToken` is a single-use Cloudflare Turnstile response for the `register` action. */
+  async sendRegisterEmail(email: string, captchaToken: string): Promise<void> {
+    await this.#requestEmailCode(SERVICE_ENDPOINTS.sendRegisterEmailPath, email, captchaToken);
   }
 
-  async sendResetEmail(email: string): Promise<void> {
-    await this.#requestEmailCode(SERVICE_ENDPOINTS.sendResetEmailPath, email);
+  /** `captchaToken` is a single-use Cloudflare Turnstile response for the `reset_password` action. */
+  async sendResetEmail(email: string, captchaToken: string): Promise<void> {
+    await this.#requestEmailCode(SERVICE_ENDPOINTS.sendResetEmailPath, email, captchaToken);
   }
 
   getMyProfile(): Promise<UserProfile> {
@@ -1781,8 +1790,12 @@ export class ApiClient {
     );
   }
 
-  useComicQuotaCard(): Promise<UseComicQuotaCardResult> {
-    return this.invoke('UseComicQuotaCard', {}, decodeUseComicQuotaCardResult);
+  useShopItem(key: string): Promise<UseShopItemResult> {
+    return this.invoke('UseShopItem', { Key: key }, decodeUseShopItemResult);
+  }
+
+  useRenameCard(userName: string): Promise<UseRenameCardResult> {
+    return this.invoke('UseRenameCard', { UserName: userName }, decodeUseRenameCardResult);
   }
 
   getSignInCalendar(year: number, month: number): Promise<SignInCalendar> {
@@ -1829,10 +1842,10 @@ export class ApiClient {
     decodeSuccessfulResponse(response.body, 'Unable to reset your password.');
   }
 
-  async #requestEmailCode(path: string, email: string): Promise<void> {
+  async #requestEmailCode(path: string, email: string, token: string): Promise<void> {
     const response = await this.#scheduler.add(() => this.#transport.request<unknown>({
       method: 'GET',
-      url: buildApiUrl(path, { email }),
+      url: buildApiUrl(path, { email, token }),
     }));
     if (response.status < 200 || response.status >= 300) {
       throw new ApiError('Unable to send the verification code.', 'server', {
@@ -2230,12 +2243,19 @@ export function decodeUseSignMakeupCardResult(value: unknown): UseSignMakeupCard
   };
 }
 
-export function decodeUseComicQuotaCardResult(value: unknown): UseComicQuotaCardResult {
-  const record = asRecord(value, 'use comic quota card response');
+export function decodeUseShopItemResult(value: unknown): UseShopItemResult {
+  const record = asRecord(value, 'use shop item response');
   return {
     key: asString(record.Key),
-    granted: asNumber(record.Granted),
-    quota: asNumber(record.Quota),
+    owned: asNumber(record.Owned),
+    message: asStringOrEmpty(record.Message),
+  };
+}
+
+export function decodeUseRenameCardResult(value: unknown): UseRenameCardResult {
+  const record = asRecord(value, 'use rename card response');
+  return {
+    userName: asString(record.UserName),
     owned: asNumber(record.Owned),
   };
 }
@@ -2278,6 +2298,8 @@ function decodeOwnedShopItem(value: unknown): OwnedShopItem {
     description: asPresentString(record.Description),
     image: asPresentString(record.Image),
     quantity: asNumber(record.Quantity),
+    // MessagePack may omit a false flag; absence means not directly usable.
+    usable: asBoolean(record.Usable, false),
   };
 }
 

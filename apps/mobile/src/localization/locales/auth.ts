@@ -70,6 +70,13 @@ export const zhCNAuth = {
     resendIn: '{{seconds}} 秒后重发',
     resend: '重新发送',
   },
+  captcha: {
+    sheetTitle: '人机验证',
+    sheetDescription: '发送验证码前需要确认你不是机器人。',
+    failed: '人机验证未通过（{{code}}）。',
+    loadFailed: '人机验证加载失败，请检查网络。',
+    retry: '重试',
+  },
   resetPassword: {
     title: '重置密码',
     description: '输入账号邮箱，我们会向你发送一个 4 位验证码。',
@@ -167,6 +174,13 @@ export const zhTWAuth: TranslationShape<typeof zhCNAuth> = {
     sending: '正在傳送…',
     resendIn: '{{seconds}} 秒後重寄',
     resend: '重新傳送',
+  },
+  captcha: {
+    sheetTitle: '真人驗證',
+    sheetDescription: '寄送驗證碼前需要確認你不是機器人。',
+    failed: '真人驗證未通過（{{code}}）。',
+    loadFailed: '真人驗證載入失敗，請檢查網路。',
+    retry: '重試',
   },
   resetPassword: {
     title: '重設密碼',

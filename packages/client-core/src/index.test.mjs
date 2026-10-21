@@ -939,11 +939,11 @@ test('shop repository serializes purchases and publishes authoritative snapshots
   assert.equal(published.at(-1), null);
 });
 
-test('shop repository preserves confirmed quota-card state when refresh fails', async () => {
-  let quota = 25;
+test('shop repository preserves confirmed item-use state when refresh fails', async () => {
   let quotaOwned = 2;
   let failNextShopLoad = false;
-  let failQuotaUse = false;
+  let failItemUse = false;
+  const usedKeys = [];
   const api = {
     async getShop() {
       if (failNextShopLoad) {
@@ -972,41 +972,43 @@ test('shop repository preserves confirmed quota-card state when refresh fails', 
           description: '增加漫画额度',
           image: '/images/comic-quota.png',
           quantity: quotaOwned,
+          usable: true,
         }] : [],
       };
     },
-    async useComicQuotaCard() {
-      if (failQuotaUse) throw new Error('quota use failed');
+    async useShopItem(key) {
+      if (failItemUse) throw new Error('item use failed');
+      usedKeys.push(key);
       quotaOwned -= 1;
-      quota += 50;
-      return {
-        key: 'comic_quota_50',
-        granted: 50,
-        quota,
-        owned: quotaOwned,
-      };
+      return { key, owned: quotaOwned, message: '已发放 50 点漫画额度' };
+    },
+    async useRenameCard() {
+      throw new Error('not used');
     },
   };
   const useCase = createShopUseCase(api);
-  await assert.rejects(useCase.useComicQuotaCard(), /shop must be loaded/);
+  await assert.rejects(useCase.useItem('comic_quota_50'), /shop must be loaded/);
   await useCase.load();
 
   failNextShopLoad = true;
-  const fallback = await useCase.useComicQuotaCard();
-  assert.equal(fallback.result.quota, 75);
+  const fallback = await useCase.useItem(' comic_quota_50 ');
+  assert.equal(fallback.result.message, '已发放 50 点漫画额度');
   assert.equal(fallback.snapshot.items[0].owned, 1);
   assert.equal(fallback.snapshot.ownedItems[0].quantity, 1);
   assert.equal(useCase.getSnapshot(), fallback.snapshot);
 
-  const refreshed = await useCase.useComicQuotaCard();
-  assert.equal(refreshed.result.quota, 125);
+  const refreshed = await useCase.useItem('comic_quota_50');
   assert.equal(refreshed.snapshot.items[0].owned, 0);
   assert.deepEqual(refreshed.snapshot.ownedItems, []);
+  assert.deepEqual(usedKeys, ['comic_quota_50', 'comic_quota_50']);
 
-  failQuotaUse = true;
+  failItemUse = true;
   const confirmed = useCase.getSnapshot();
-  await assert.rejects(useCase.useComicQuotaCard(), /quota use failed/);
+  await assert.rejects(useCase.useItem('comic_quota_50'), /item use failed/);
   assert.equal(useCase.getSnapshot(), confirmed);
+  await assert.rejects(useCase.useItem('  '), /item key/);
+  await assert.rejects(useCase.useRenameCard('   '), /user name/);
+  await assert.rejects(useCase.useRenameCard('名'.repeat(51)), /user name/);
 });
 
 test('mixed shelf hydration matches cards by typed identity and keeps unresolved records', async () => {
