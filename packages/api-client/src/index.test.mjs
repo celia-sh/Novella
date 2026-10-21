@@ -24,7 +24,7 @@ import {
   decodeResetInviteCodeResult,
   decodeShopData,
   decodeSignInCalendar,
-  decodeUseComicQuotaCardResult,
+  decodeUseShopItemResult,
   decodeUseSignMakeupCardResult,
   decodeUserGrowth,
   decodeUserProfile,
@@ -315,6 +315,12 @@ test('decodes reset invite code and shop payloads', () => {
     }],
   }).items[0].monthlyLimit, 0);
   assert.deepEqual(decodeOwnedShopItemsData({ Items: [] }), { items: [] });
+  assert.deepEqual(decodeOwnedShopItemsData({
+    Items: [
+      { Key: 'rename_card', Name: '改名卡', Description: '', Image: '', Quantity: 1 },
+      { Key: 'comic_quota_50', Name: '漫画额度卡', Description: '', Image: '', Quantity: 2, Usable: true },
+    ],
+  }).items.map((item) => item.usable), [false, true]);
   assert.deepEqual(decodeBuyShopItemResult({
     Key: 'sign_makeup',
     Owned: 3,
@@ -341,16 +347,10 @@ test('decodes reset invite code and shop payloads', () => {
     coinReward: 3,
     owned: 1,
   });
-  assert.deepEqual(decodeUseComicQuotaCardResult({
-    Key: 'comic_quota_50',
-    Granted: 50,
-    Quota: 125,
-    Owned: 1,
-  }), {
+  assert.deepEqual(decodeUseShopItemResult({ Key: 'comic_quota_50', Owned: 1 }), {
     key: 'comic_quota_50',
-    granted: 50,
-    quota: 125,
     owned: 1,
+    message: '',
   });
   assert.deepEqual(decodeSignInCalendar({
     Year: 2026,
@@ -373,6 +373,28 @@ test('decodes reset invite code and shop payloads', () => {
       Owned: 0, MonthlyLimit: 1, MonthlyPurchased: 0,
     }],
   }), /invalid text field/);
+});
+
+test('sends the Turnstile token with email verification code requests', async () => {
+  const urls = [];
+  const client = new ApiClient(
+    {
+      async request(request) {
+        urls.push(new URL(request.url));
+        return { status: 200, body: { Success: true, Response: null } };
+      },
+    },
+    { async connect() {}, async close() {}, async invoke() { throw new Error('not used'); } },
+    null,
+    new RateLimitRequestScheduler(20, 10),
+  );
+
+  await client.sendRegisterEmail('reader@example.com', 'token-a');
+  await client.sendResetEmail('reader@example.com', 'token-b');
+  assert.deepEqual(urls.map((url) => [url.pathname, url.searchParams.get('email'), url.searchParams.get('token')]), [
+    ['/api/user/send_register_email', 'reader@example.com', 'token-a'],
+    ['/api/user/send_reset_email', 'reader@example.com', 'token-b'],
+  ]);
 });
 
 test('maps invite reset and shop operations to Web-Master Hub contracts', async () => {
@@ -403,10 +425,13 @@ test('maps invite reset and shop operations to Web-Master Hub contracts', async 
             Date: '2026-08-01', Streak: 8, Reward: 12, CoinReward: 3, Owned: 0,
           } };
         }
-        if (method === 'UseComicQuotaCard') {
+        if (method === 'UseShopItem') {
           return { Success: true, Response: {
-            Key: 'comic_quota_50', Granted: 50, Quota: 125, Owned: 1,
+            Key: 'comic_quota_50', Owned: 1, Message: '已发放 50 点漫画额度',
           } };
+        }
+        if (method === 'UseRenameCard') {
+          return { Success: true, Response: { UserName: '新名字', Owned: 0 } };
         }
         if (method === 'GetSignInCalendar') {
           return { Success: true, Response: {
@@ -437,9 +462,10 @@ test('maps invite reset and shop operations to Web-Master Hub contracts', async 
   assert.deepEqual(await client.useSignMakeupCard({ date: '2026-08-01' }), {
     date: '2026-08-01', streak: 8, reward: 12, coinReward: 3, owned: 0,
   });
-  assert.deepEqual(await client.useComicQuotaCard(), {
-    key: 'comic_quota_50', granted: 50, quota: 125, owned: 1,
+  assert.deepEqual(await client.useShopItem('comic_quota_50'), {
+    key: 'comic_quota_50', owned: 1, message: '已发放 50 点漫画额度',
   });
+  assert.deepEqual(await client.useRenameCard('新名字'), { userName: '新名字', owned: 0 });
   assert.deepEqual(await client.getSignInCalendar(2026, 8), {
     year: 2026, month: 8, days: [{ date: '2026-08-01', streak: 7, reward: 5 }],
   });
@@ -465,7 +491,8 @@ test('maps invite reset and shop operations to Web-Master Hub contracts', async 
     { method: 'GetMyItems', args: [{}, { UseGzip: true }] },
     { method: 'BuyShopItem', args: [{ Key: 'sign_makeup', Quantity: 1 }, { UseGzip: true }] },
     { method: 'UseSignMakeupCard', args: [{ Date: '2026-08-01' }, { UseGzip: true }] },
-    { method: 'UseComicQuotaCard', args: [{}, { UseGzip: true }] },
+    { method: 'UseShopItem', args: [{ Key: 'comic_quota_50' }, { UseGzip: true }] },
+    { method: 'UseRenameCard', args: [{ UserName: '新名字' }, { UseGzip: true }] },
     { method: 'GetSignInCalendar', args: [{ Year: 2026, Month: 8 }, { UseGzip: true }] },
     { method: 'GetPointLog', args: [{ Page: 1, Size: 20 }, { UseGzip: true }] },
     { method: 'GetCoinLog', args: [{ Page: 2, Size: 10 }, { UseGzip: true }] },

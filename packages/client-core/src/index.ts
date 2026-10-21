@@ -66,7 +66,8 @@ import {
   type ShopItem,
   type SignInCalendar,
   type UploadImageRequest,
-  type UseComicQuotaCardResult,
+  type UseRenameCardResult,
+  type UseShopItemResult,
   type UseSignMakeupCardResult,
   type SaveReadPositionRequest,
   type ShelfBookItem,
@@ -344,7 +345,8 @@ export interface PublicProfileUseCase {
   load(userId: number): Promise<PublicUserSummary>;
 }
 
-export const COMIC_QUOTA_ITEM_KEY = 'comic_quota_50';
+export const RENAME_CARD_ITEM_KEY = 'rename_card';
+export const RENAME_CARD_USER_NAME_MAX_LENGTH = 50;
 export const SIGN_MAKEUP_ITEM_KEY = 'sign_makeup';
 
 export const DIRECT_CONVERSATION_PAGE_SIZE = 20;
@@ -414,8 +416,13 @@ export interface ShopMakeupOutcome {
   snapshot: ShopSnapshot;
 }
 
-export interface ShopQuotaOutcome {
-  result: UseComicQuotaCardResult;
+export interface ShopItemUseOutcome {
+  result: UseShopItemResult;
+  snapshot: ShopSnapshot;
+}
+
+export interface ShopRenameOutcome {
+  result: UseRenameCardResult;
   snapshot: ShopSnapshot;
 }
 
@@ -432,7 +439,9 @@ export interface ShopUseCase {
   loadSignInCalendar(year: number, month: number): Promise<SignInCalendar>;
   reset(): void;
   subscribe(listener: (snapshot: ShopSnapshot | null) => void): () => void;
-  useComicQuotaCard(): Promise<ShopQuotaOutcome>;
+  /** Consumes one item that `GetMyItems` marked `usable`. */
+  useItem(key: string): Promise<ShopItemUseOutcome>;
+  useRenameCard(userName: string): Promise<ShopRenameOutcome>;
   useSignMakeupCard(date: string): Promise<ShopMakeupOutcome>;
 }
 
@@ -442,8 +451,9 @@ export interface AuthenticationUseCase {
   refresh(): Promise<boolean>;
   register(input: RegistrationInput): Promise<void>;
   resetPassword(input: PasswordResetInput): Promise<void>;
-  sendRegisterCode(email: string): Promise<void>;
-  sendResetCode(email: string): Promise<void>;
+  /** `captchaToken` is a fresh, single-use Turnstile token. */
+  sendRegisterCode(email: string, captchaToken: string): Promise<void>;
+  sendResetCode(email: string, captchaToken: string): Promise<void>;
   signIn(email: string, password: string): Promise<void>;
   signOut(): Promise<void>;
   subscribe(listener: (snapshot: AuthenticationSnapshot) => void): () => void;
@@ -1912,6 +1922,8 @@ export function createShopUseCase(api: ApiClient): ShopUseCase {
             description: purchasedItem.description,
             image: purchasedItem.image,
             quantity: result.owned,
+            // Only GetMyItems knows usability; the follow-up reload fills it in.
+            usable: false,
           }]
         : latest.ownedItems;
     return { coin: result.coin, items, ownedItems };
@@ -1937,17 +1949,43 @@ export function createShopUseCase(api: ApiClient): ShopUseCase {
               description: shopItem.description,
               image: shopItem.image,
               quantity: owned,
+              usable: false,
             }]
           : latest.ownedItems;
     return { ...latest, items, ownedItems };
   }
 
-  function projectMakeupUse(result: UseSignMakeupCardResult): ShopSnapshot | null {
-    return projectOwnedItemUse(SIGN_MAKEUP_ITEM_KEY, result.owned);
-  }
+  /**
+   * Runs an owned-item mutation in the shared queue. The invocation result is a
+   * server confirmation, so a failed follow-up reload still publishes the
+   * projected ownership instead of reporting a false failure.
+   */
+  function mutateOwnedItem<Result>(
+    itemKey: string,
+    invoke: () => Promise<Result & { owned: number }>,
+  ): Promise<{ result: Result; snapshot: ShopSnapshot }> {
+    if (!latest) {
+      return Promise.reject(new Error('The shop must be loaded before using an item.'));
+    }
 
-  function projectQuotaUse(result: UseComicQuotaCardResult): ShopSnapshot | null {
-    return projectOwnedItemUse(result.key, result.owned);
+    const mutationGeneration = ++generation;
+    const operation = mutationQueue.then(async () => {
+      const result = await invoke();
+      const confirmed = projectOwnedItemUse(itemKey, result.owned);
+      let snapshot: ShopSnapshot;
+      try {
+        snapshot = await fetchSnapshot();
+      } catch (error) {
+        if (!confirmed) throw error;
+        snapshot = confirmed;
+      }
+      return {
+        result,
+        snapshot: mutationGeneration === generation ? publish(snapshot) : snapshot,
+      };
+    });
+    mutationQueue = operation.then(() => undefined, () => undefined);
+    return operation;
   }
 
   return Object.freeze({
@@ -2002,57 +2040,26 @@ export function createShopUseCase(api: ApiClient): ShopUseCase {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    useComicQuotaCard() {
-      if (!latest) {
-        return Promise.reject(new Error('The shop must be loaded before using an item.'));
+    useItem(key: string) {
+      const normalizedKey = key.trim();
+      if (!normalizedKey) return Promise.reject(new Error('A shop item key is required.'));
+      return mutateOwnedItem(normalizedKey, () => api.useShopItem(normalizedKey));
+    },
+    useRenameCard(userName: string) {
+      const normalizedName = userName.trim();
+      if (!normalizedName || normalizedName.length > RENAME_CARD_USER_NAME_MAX_LENGTH) {
+        return Promise.reject(new Error(
+          `A user name of 1-${RENAME_CARD_USER_NAME_MAX_LENGTH} characters is required.`,
+        ));
       }
-
-      const mutationGeneration = ++generation;
-      const operation = mutationQueue.then(async () => {
-        const result = await api.useComicQuotaCard();
-        const confirmed = projectQuotaUse(result);
-        let snapshot: ShopSnapshot;
-        try {
-          snapshot = await fetchSnapshot();
-        } catch (error) {
-          if (!confirmed) throw error;
-          snapshot = confirmed;
-        }
-        return {
-          result,
-          snapshot: mutationGeneration === generation ? publish(snapshot) : snapshot,
-        };
-      });
-      mutationQueue = operation.then(() => undefined, () => undefined);
-      return operation;
+      return mutateOwnedItem(RENAME_CARD_ITEM_KEY, () => api.useRenameCard(normalizedName));
     },
     useSignMakeupCard(date: string) {
       const normalizedDate = date.trim();
       if (!isValidUtcDate(normalizedDate)) {
         return Promise.reject(new Error('A UTC date in yyyy-MM-dd format is required.'));
       }
-      if (!latest) {
-        return Promise.reject(new Error('The shop must be loaded before using an item.'));
-      }
-
-      const mutationGeneration = ++generation;
-      const operation = mutationQueue.then(async () => {
-        const result = await api.useSignMakeupCard({ date: normalizedDate });
-        const confirmed = projectMakeupUse(result);
-        let snapshot: ShopSnapshot;
-        try {
-          snapshot = await fetchSnapshot();
-        } catch (error) {
-          if (!confirmed) throw error;
-          snapshot = confirmed;
-        }
-        return {
-          result,
-          snapshot: mutationGeneration === generation ? publish(snapshot) : snapshot,
-        };
-      });
-      mutationQueue = operation.then(() => undefined, () => undefined);
-      return operation;
+      return mutateOwnedItem(SIGN_MAKEUP_ITEM_KEY, () => api.useSignMakeupCard({ date: normalizedDate }));
     },
   });
 }
@@ -2728,12 +2735,14 @@ export function createAuthenticationUseCase(
     }
   }
 
-  async function sendRegisterCode(email: string): Promise<void> {
-    await api.sendRegisterEmail(normalizeAndValidateEmail(email));
+  async function sendRegisterCode(email: string, captchaToken: string): Promise<void> {
+    const normalizedEmail = normalizeAndValidateEmail(email);
+    await api.sendRegisterEmail(normalizedEmail, requireCaptchaToken(captchaToken));
   }
 
-  async function sendResetCode(email: string): Promise<void> {
-    await api.sendResetEmail(normalizeAndValidateEmail(email));
+  async function sendResetCode(email: string, captchaToken: string): Promise<void> {
+    const normalizedEmail = normalizeAndValidateEmail(email);
+    await api.sendResetEmail(normalizedEmail, requireCaptchaToken(captchaToken));
   }
 
   async function resetPassword(input: PasswordResetInput): Promise<void> {
@@ -2786,6 +2795,11 @@ const EMAIL_PATTERN = /^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/i;
 
 function normalizeEmail(email: string): string {
   return email.trim();
+}
+
+function requireCaptchaToken(token: string): string {
+  if (!token) throw new Error('Human verification is required.');
+  return token;
 }
 
 function normalizeAndValidateEmail(email: string): string {

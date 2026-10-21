@@ -404,6 +404,16 @@ function RootLayoutContent() {
                 name="reset-password/new-password"
                 options={{ headerShown: true, title: tAuth('navigation.recover') }}
               />
+              <Stack.Screen
+                name="human-verification"
+                options={{
+                  headerShown: false,
+                  presentation: 'formSheet',
+                  sheetAllowedDetents: 'fitToContents',
+                  sheetGrabberVisible: true,
+                  title: '',
+                }}
+              />
             </Stack.Protected>
           </Stack>
           <ClientSessionFeedback sessionDecided={sessionDecided} />

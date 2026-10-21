@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -10,8 +10,10 @@ import {
   AuthTextField,
 } from '@/components/auth-form-layout';
 import { AuthFooterLink, PasswordField } from '@/components/auth-fields';
+import { TurnstileChallenge, requestTurnstileToken, type TurnstileHandle } from '@/components/turnstile-challenge';
 import { authFlowSession } from '@/services/auth-flow-session';
 import { authentication } from '@/services/client';
+import { TurnstileError } from '@/services/turnstile';
 
 type RegisterError =
   | { kind: 'key'; key: 'register.validation.usernameRequired' | 'register.validation.passwordTooShort' | 'register.validation.passwordsMismatch' | 'register.errors.sendCodeFailed' }
@@ -25,6 +27,7 @@ export default function RegisterRoute() {
   const [inviteCode, setInviteCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<RegisterError | null>(null);
+  const turnstile = useRef<TurnstileHandle>(null);
   const { t } = useTranslation('auth');
 
   async function continueToVerification() {
@@ -44,7 +47,8 @@ export default function RegisterRoute() {
     setError(null);
     setIsSubmitting(true);
     try {
-      await authentication.sendRegisterCode(normalizedEmail);
+      const captchaToken = await requestTurnstileToken(turnstile);
+      await authentication.sendRegisterCode(normalizedEmail, captchaToken);
       authFlowSession.setRegistration({
         email: normalizedEmail,
         inviteCode,
@@ -99,6 +103,7 @@ export default function RegisterRoute() {
           returnKeyType="done"
           value={inviteCode}
         />
+        <TurnstileChallenge action="register" ref={turnstile} />
         <AuthFormError message={error?.kind === 'raw' ? error.text : error ? t(error.key) : null} />
         <AuthSubmitButton
           idleLabel={t('register.continue')}
@@ -115,7 +120,9 @@ export default function RegisterRoute() {
   );
 }
 
-function getRegisterError(error: unknown): RegisterError {
+function getRegisterError(error: unknown): RegisterError | null {
+  // The challenge view shows its own failure and retry.
+  if (error instanceof TurnstileError) return null;
   return error instanceof Error
     ? { kind: 'raw', text: error.message }
     : { kind: 'key', key: 'register.errors.sendCodeFailed' };

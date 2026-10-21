@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -9,8 +9,10 @@ import {
   AuthSubmitButton,
 } from '@/components/auth-form-layout';
 import { VerificationCodeField } from '@/components/auth-fields';
+import { TurnstileChallenge, requestTurnstileToken, type TurnstileHandle } from '@/components/turnstile-challenge';
 import { authFlowSession } from '@/services/auth-flow-session';
 import { authentication } from '@/services/client';
+import { TurnstileError } from '@/services/turnstile';
 
 type ResetVerifyError =
   | { kind: 'key'; key: 'verification.invalidCode' | 'resetPassword.errors.sendCodeFailed' }
@@ -22,6 +24,7 @@ export default function ResetPasswordVerifyRoute() {
   const [cooldown, setCooldown] = useState(60);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<ResetVerifyError | null>(null);
+  const turnstile = useRef<TurnstileHandle>(null);
   const { t } = useTranslation('auth');
 
   useEffect(() => {
@@ -39,7 +42,8 @@ export default function ResetPasswordVerifyRoute() {
     setError(null);
     setIsSending(true);
     try {
-      await authentication.sendResetCode(draft.email);
+      const captchaToken = await requestTurnstileToken(turnstile);
+      await authentication.sendResetCode(draft.email, captchaToken);
       setCooldown(60);
     } catch (sendError) {
       setError(getResetVerifyError(sendError));
@@ -73,6 +77,7 @@ export default function ResetPasswordVerifyRoute() {
           onSend={() => void resend()}
           value={code}
         />
+        <TurnstileChallenge action="reset_password" prefetch={false} ref={turnstile} />
         <AuthFormError message={error?.kind === 'raw' ? error.text : error ? t(error.key) : null} />
         <AuthSubmitButton
           idleLabel={t('resetPassword.verify.continue')}
@@ -85,7 +90,9 @@ export default function ResetPasswordVerifyRoute() {
   );
 }
 
-function getResetVerifyError(error: unknown): ResetVerifyError {
+function getResetVerifyError(error: unknown): ResetVerifyError | null {
+  // The challenge view shows its own failure and retry.
+  if (error instanceof TurnstileError) return null;
   return error instanceof Error
     ? { kind: 'raw', text: error.message }
     : { kind: 'key', key: 'resetPassword.errors.sendCodeFailed' };

@@ -14,9 +14,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { OwnedShopItem, ShopItem, SignInCalendar } from '@novella/api-client';
-import { COMIC_QUOTA_ITEM_KEY, SIGN_MAKEUP_ITEM_KEY } from '@novella/client-core';
+import {
+  RENAME_CARD_ITEM_KEY,
+  RENAME_CARD_USER_NAME_MAX_LENGTH,
+  SIGN_MAKEUP_ITEM_KEY,
+} from '@novella/client-core';
 
-import { showAlert } from '@/components/native-alert-dialog';
+import { showAlert, showPrompt } from '@/components/native-alert-dialog';
 import { useShop } from '@/hooks/use-shop';
 import { useAppLocale } from '@/localization/localization-provider';
 import { shop as shopUseCase, profile as profileUseCase } from '@/services/client';
@@ -43,7 +47,8 @@ export function ShopSettingsScreen() {
   const { t: tCommon } = useTranslation('common');
   const { error, reload, snapshot, status } = useShop();
   const [buyingKeys, setBuyingKeys] = useState<ReadonlySet<string>>(new Set());
-  const [usingQuota, setUsingQuota] = useState(false);
+  // One owned-item action at a time, mirroring the shared mutation queue.
+  const [usingKey, setUsingKey] = useState<string | null>(null);
   const [makeupDate, setMakeupDate] = useState(() => utcDateAtNoon(-1));
   const [usingMakeup, setUsingMakeup] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => utcDateAtNoon(0));
@@ -194,40 +199,78 @@ export function ShopSettingsScreen() {
     );
   }
 
-  function confirmQuotaUse() {
-    if (
-      usingQuota ||
-      !snapshot?.ownedItems.some((item) => item.key === COMIC_QUOTA_ITEM_KEY)
-    ) return;
-    showAlert(t('shop.quotaConfirmTitle'), t('shop.quotaConfirmMessage'), [
-      { style: 'cancel', text: tCommon('actions.cancel') },
+  function confirmItemUse(item: OwnedShopItem) {
+    if (usingKey !== null || !item.usable) return;
+    showAlert(
+      t('shop.useConfirmTitle'),
+      item.description
+        ? t('shop.useConfirmMessageWithDescription', { description: item.description, name: item.name })
+        : t('shop.useConfirmMessage', { name: item.name }),
+      [
+        { style: 'cancel', text: tCommon('actions.cancel') },
+        {
+          text: tCommon('actions.confirm'),
+          onPress: () => {
+            setUsingKey(item.key);
+            void shopUseCase.useItem(item.key)
+              .then(async (outcome) => {
+                // Items can change growth balances such as comic quota.
+                await profileUseCase.load().catch(() => undefined);
+                showAlert(
+                  t('shop.useSuccessTitle'),
+                  outcome.result.message || t('shop.useSuccessFallback', { name: item.name }),
+                );
+              })
+              .catch((useError) => {
+                showAlert(
+                  t('shop.useFailedTitle'),
+                  useError instanceof Error ? useError.message : tCommon('states.unknownError'),
+                );
+              })
+              .finally(() => setUsingKey(null));
+          },
+        },
+      ],
+    );
+  }
+
+  function promptRename(item: OwnedShopItem) {
+    if (usingKey !== null) return;
+    showPrompt(
+      t('shop.renameTitle'),
+      t('shop.renameMessage', { max: RENAME_CARD_USER_NAME_MAX_LENGTH }),
       {
-        text: tCommon('actions.confirm'),
-        onPress: () => {
-          setUsingQuota(true);
-          void shopUseCase.useComicQuotaCard()
+        cancelText: tCommon('actions.cancel'),
+        confirmText: tCommon('actions.confirm'),
+        defaultValue: profileUseCase.getSnapshot()?.userName ?? '',
+        onConfirm: (value) => {
+          const userName = value.trim();
+          if (!userName || userName.length > RENAME_CARD_USER_NAME_MAX_LENGTH) {
+            showAlert(
+              t('shop.renameFailedTitle'),
+              t('shop.renameInvalid', { max: RENAME_CARD_USER_NAME_MAX_LENGTH }),
+            );
+            return;
+          }
+          setUsingKey(item.key);
+          void shopUseCase.useRenameCard(userName)
             .then(async (outcome) => {
               await profileUseCase.load().catch(() => undefined);
               showAlert(
-                t('shop.quotaSuccessTitle'),
-                t('shop.quotaSuccessMessage', {
-                  granted: numberFormatter.format(outcome.result.granted),
-                  quota: numberFormatter.format(outcome.result.quota),
-                }),
+                t('shop.renameSuccessTitle'),
+                t('shop.renameSuccessMessage', { name: outcome.result.userName }),
               );
             })
-            .catch((quotaError) => {
+            .catch((renameError) => {
               showAlert(
-                t('shop.quotaFailedTitle'),
-                quotaError instanceof Error
-                  ? quotaError.message
-                  : tCommon('states.unknownError'),
+                t('shop.renameFailedTitle'),
+                renameError instanceof Error ? renameError.message : tCommon('states.unknownError'),
               );
             })
-            .finally(() => setUsingQuota(false));
+            .finally(() => setUsingKey(null));
         },
       },
-    ]);
+    );
   }
 
   function shiftCalendarMonth(delta: number) {
@@ -340,12 +383,13 @@ export function ShopSettingsScreen() {
                 item={item}
                 key={item.key}
                 numberFormatter={numberFormatter}
-                {...(item.key === COMIC_QUOTA_ITEM_KEY
-                  ? {
-                      onUse: confirmQuotaUse,
-                      using: usingQuota,
-                    }
-                  : {})}
+                {...(item.key === RENAME_CARD_ITEM_KEY
+                  ? { action: { kind: 'rename' as const, onPress: () => promptRename(item) } }
+                  : item.usable
+                    ? { action: { kind: 'use' as const, onPress: () => confirmItemUse(item) } }
+                    : {})}
+                busy={usingKey !== null}
+                using={usingKey === item.key}
               />
             ))}
           </View>
@@ -532,15 +576,18 @@ function ShopItemCard({
 }
 
 function OwnedItemRow({
+  action,
+  busy,
   item,
   numberFormatter,
-  onUse,
-  using = false,
+  using,
 }: {
+  action?: { kind: 'use' | 'rename'; onPress: () => void };
+  /** Another item action is running; only one may run at a time. */
+  busy: boolean;
   item: OwnedShopItem;
   numberFormatter: Intl.NumberFormat;
-  onUse?: () => void;
-  using?: boolean;
+  using: boolean;
 }) {
   const styles = useShopSettingsStyles();
   const { colors } = useAppTheme();
@@ -558,21 +605,23 @@ function OwnedItemRow({
         <Text style={styles.ownedQuantity}>
           {t('shop.owned', { quantity: numberFormatter.format(item.quantity) })}
         </Text>
-        {onUse ? (
+        {action ? (
           <Pressable
-            accessibilityLabel={t('shop.useQuota')}
+            accessibilityLabel={action.kind === 'rename' ? t('shop.rename') : t('shop.useItem')}
             accessibilityRole="button"
-            disabled={using}
-            onPress={onUse}
+            disabled={busy}
+            onPress={action.onPress}
             style={({ pressed }) => [
               styles.useItemButton,
-              using && styles.buyButtonDisabled,
+              busy && styles.buyButtonDisabled,
               pressed && styles.pressed,
             ]}
           >
             {using ? <ActivityIndicator color={resolveAccentHex(colors.accent)} size="small" /> : null}
             <Text style={styles.useItemLabel}>
-              {using ? t('shop.usingQuota') : t('shop.useQuota')}
+              {using
+                ? t('shop.usingItem')
+                : action.kind === 'rename' ? t('shop.rename') : t('shop.useItem')}
             </Text>
           </Pressable>
         ) : null}
