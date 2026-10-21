@@ -2,7 +2,7 @@ import { extractBlurHashPlaceholder, parseImageUrlDimensions } from '@novella/ap
 import { Image, type ImageLoadEventData } from 'expo-image';
 import { useMemo, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
 import type { CustomBlockRenderer } from 'react-native-render-html';
 
 import { ReaderImageViewer } from '@/components/reader-image-viewer';
@@ -76,6 +76,9 @@ function CommunityHtmlImage({
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState<ImageSize | null>(null);
   const [displayed, setDisplayed] = useState(false);
+  // Width of the box the image actually sits in. A table cell is only part of
+  // the column, so sizing to the column alone overflows it into its neighbours.
+  const [frameWidth, setFrameWidth] = useState<number | null>(null);
   const encoded = useMemo(() => parseImageUrlDimensions(uri), [uri]);
   const natural = declared ?? encoded ?? loaded;
   const blurhash = useMemo(() => {
@@ -86,7 +89,7 @@ function CommunityHtmlImage({
       ratioSource.height,
     );
   }, [natural, uri]);
-  const size = displaySize(natural, contentWidth);
+  const size = displaySize(natural, Math.min(contentWidth, frameWidth ?? contentWidth));
   const label = alt || t('images.postImage');
 
   const handleLoad = (event: ImageLoadEventData) => {
@@ -123,9 +126,31 @@ function CommunityHtmlImage({
     </View>
   );
 
+  const handleFrameLayout = (event: LayoutChangeEvent) => {
+    const width = Math.floor(event.nativeEvent.layout.width);
+    if (width > 0 && width !== frameWidth) setFrameWidth(width);
+  };
+
   return (
-    <View style={styles.frame}>
-      {failed ? (
+    <View onLayout={handleFrameLayout} style={styles.frame}>
+      {frameWidth === null ? (
+        // Until the box is measured, a skeleton sized from the box itself
+        // holds the place, so a table cell's image never draws a frame at
+        // column width over its neighbours.
+        <View
+          style={[
+            styles.clip,
+            styles.backdrop,
+            {
+              aspectRatio: natural && natural.width > 0 && natural.height > 0
+                ? natural.width / natural.height
+                : 1 / UNKNOWN_IMAGE_RATIO,
+              maxWidth: Math.min(contentWidth, natural?.width || contentWidth),
+              width: '100%',
+            },
+          ]}
+        />
+      ) : failed ? (
         <Pressable
           accessibilityLabel={t('images.reload', { label })}
           accessibilityRole="button"
@@ -152,8 +177,8 @@ function CommunityHtmlImage({
   );
 }
 
-/** Natural size scaled down to the column; images narrower than the column
- * keep their own width. */
+/** Natural size scaled down to the available width (the column, or a table
+ * cell inside it); narrower images keep their own width. */
 function displaySize(natural: ImageSize | null, contentWidth: number): ImageSize {
   const available = Math.max(1, contentWidth);
   if (!natural || !(natural.width > 0 && natural.height > 0)) {
