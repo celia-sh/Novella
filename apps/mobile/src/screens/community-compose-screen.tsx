@@ -1,6 +1,14 @@
 import { router, Stack } from 'expo-router';
 import { Host } from '@expo/ui';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { KeyboardAwareScrollView, KeyboardController } from 'react-native-keyboard-controller';
 import { useTranslation } from 'react-i18next';
 import {
@@ -17,15 +25,16 @@ import { COMMUNITY_STORAGE_KEYS } from '@novella/client-core';
 
 import { CommunityPublishNavigation } from '@/components/community/community-navigation';
 import {
-  CommunityRichEditor,
-  type CommunityRichEditorHandle,
-} from '@/components/community/community-rich-editor';
+  CommunityMarkdownEditor,
+  type CommunityMarkdownEditorHandle,
+} from '@/components/community/community-markdown-editor';
 import { COMMUNITY_CARD_RADIUS, CommunityErrorState } from '@/components/community/community-ui';
 import { HorizontalSafeArea } from '@/components/horizontal-safe-area';
 import { showAlert } from '@/components/native-alert-dialog';
 import { NativePickerControl } from '@/components/native-picker-control';
 import { readingColumnWidth, useWideLayout } from '@/hooks/use-wide-layout';
 import { community, storage } from '@/services/client';
+import { renderCommunityMarkdown } from '@/services/community-markdown';
 import { markCommunityThreadChanged } from '@/services/community-reply-events';
 import { createThemedStyles, useAppTheme } from '@/theme/app-theme';
 
@@ -44,14 +53,19 @@ export function CommunityComposeScreen({
   const { isWide, pageMargin, usableWidth } = useWideLayout();
   const { t } = useTranslation('community');
   const { t: tCommon } = useTranslation('common');
-  const editorRef = useRef<CommunityRichEditorHandle>(null);
+  const editorRef = useRef<CommunityMarkdownEditorHandle>(null);
   const interactiveTouchRef = useRef(false);
   const [boards, setBoards] = useState<CommunityCatalogBoard[]>([]);
   const [boardKey, setBoardKey] = useState(initialBoardKey);
   const [subCategoryKey, setSubCategoryKey] = useState(initialSubCategoryKey);
   const [title, setTitle] = useState('');
-  const [initialHtml, setInitialHtml] = useState('');
-  const [contentText, setContentText] = useState('');
+  const [markdown, setMarkdown] = useState('');
+  // The length check runs on the rendered text, a beat behind typing.
+  const deferredMarkdown = useDeferredValue(markdown);
+  const contentText = useMemo(
+    () => extractCommunityPlainText(renderCommunityMarkdown(deferredMarkdown)),
+    [deferredMarkdown],
+  );
   const [loading, setLoading] = useState(true);
   const [loadToken, setLoadToken] = useState(0);
   const [publishing, setPublishing] = useState(false);
@@ -67,7 +81,7 @@ export function CommunityComposeScreen({
       try {
         const home = await community.loadHome({ page: 1, size: 1 });
         const editInfo = isEditing && threadId
-          ? await community.loadThreadEditInfo(threadId)
+          ? await community.loadThreadEditInfo(threadId, 'markdown')
           : null;
         const notice = isEditing
           ? 'true'
@@ -78,8 +92,7 @@ export function CommunityComposeScreen({
           setBoardKey(editInfo.boardKey);
           setSubCategoryKey(editInfo.subCategoryKey);
           setTitle(editInfo.title);
-          setInitialHtml(editInfo.content);
-          setContentText(extractCommunityPlainText(editInfo.content));
+          setMarkdown(editInfo.content);
         } else if (initialBoardKey && home.catalogBoards.some((board) => board.key === initialBoardKey)) {
           setBoardKey(initialBoardKey);
         }
@@ -169,7 +182,8 @@ export function CommunityComposeScreen({
     setPublishing(true);
     setError(null);
     try {
-      const contentHtml = await editorRef.current?.getHtml() ?? '';
+      const contentHtml = renderCommunityMarkdown(markdown);
+      const contentText = extractCommunityPlainText(contentHtml);
       if (isEditing && threadId) {
         await community.updateThread({
           threadId,
@@ -311,16 +325,16 @@ export function CommunityComposeScreen({
         </View>
       </View>
       <View style={styles.divider} />
-      <CommunityRichEditor
+      <CommunityMarkdownEditor
         editable={!publishing}
-        initialHtml={initialHtml}
         minHeight={isWide ? 360 : 280}
-        onTextChange={setContentText}
+        onChangeValue={setMarkdown}
         onTouchEnd={clearInteractiveTouch}
         onTouchStart={markInteractiveTouch}
         onUploadingChange={setUploadingImages}
         placeholder={t('compose.postPlaceholder')}
         ref={editorRef}
+        value={markdown}
       />
       <View style={styles.metaRow}>
         <Text style={[styles.counter, contentTooShort && styles.validation]}>

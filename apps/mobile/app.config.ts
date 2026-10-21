@@ -103,9 +103,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         },
       },
     ],
-    // react-native-enriched-html 1.1.1 needs the prebuilt React framework's
-    // headers on its search path under RN 0.88. Remove with the 1.2.0 upgrade.
-    './plugins/with-enriched-html-react-headers',
     'expo-sharing',
     // Community posts pick photos through PHPicker, which needs no library
     // access; the plugin still writes a usage string, and no camera is used.
