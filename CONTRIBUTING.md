@@ -23,13 +23,13 @@ cd apps/mobile
 首次运行前，或安装、修改了包含原生代码的依赖之后，需要重新编译并安装 Development Build：
 
 ```bash
-npx expo run:ios
+pnpm exec expo run:ios
 ```
 
 连接真机时，可指定设备：
 
 ```bash
-npx expo run:ios --device
+pnpm exec expo run:ios --device
 ```
 
 `expo run:ios` 会在需要时生成 iOS 原生工程、编译并安装应用到设备，然后启动 Metro。
@@ -39,13 +39,13 @@ npx expo run:ios --device
 Development Build 安装完成后，若只修改 JavaScript 或 TypeScript 代码，无需重新编译原生应用：
 
 ```bash
-npx expo start
+pnpm exec expo start
 ```
 
 需要清除 Metro 缓存时：
 
 ```bash
-npx expo start --clear
+pnpm exec expo start --clear
 ```
 
 ### 重新生成原生工程
@@ -53,8 +53,8 @@ npx expo start --clear
 修改了 Expo 配置、Config Plugin 或原生依赖后，如需彻底重新生成 iOS 工程：
 
 ```bash
-npx expo prebuild --clean --platform ios
-npx expo run:ios
+pnpm exec expo prebuild --clean --platform ios
+pnpm exec expo run:ios
 ```
 
 注意：`prebuild --clean` 会重建原生工程，尚未迁移到 Expo Module 或 Config Plugin 的手动原生修改会被覆盖，请勿将其保留在生成目录中。
@@ -97,9 +97,9 @@ npx expo run:ios
 提交前请在仓库根目录运行以下检查：
 
 ```bash
-npm run check        # 边界检查 + 类型检查
-npm run test:client  # 客户端核心测试
-npm run test:reader  # 阅读器相关测试
+pnpm check           # 边界检查 + 类型检查
+pnpm test:client     # 客户端核心测试
+pnpm test:reader     # 阅读器相关测试
 ```
 
 提交 PR 前，请完成 iOS simulator/device 的功能回归。

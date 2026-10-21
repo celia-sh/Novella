@@ -12,9 +12,9 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@novella/api-client": "0.0.0",
-    "@novella/platform-contracts": "0.0.0",
-    "@novella/reader-engine": "0.0.0"
+    "@novella/api-client": "workspace:*",
+    "@novella/platform-contracts": "workspace:*",
+    "@novella/reader-engine": "workspace:*"
   },
   "devDependencies": {
     "typescript": "~6.0.3"

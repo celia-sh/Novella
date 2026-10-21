@@ -12,7 +12,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@novella/platform-contracts": "0.0.0",
+    "@novella/platform-contracts": "workspace:*",
     "@types/pako": "^2.0.4",
     "pako": "^2.2.0"
   },

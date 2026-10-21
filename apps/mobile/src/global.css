@@ -2,4 +2,4 @@
 @import 'uniwind';
 @import 'panelui-native/theme.css';
 
-@source '../../../node_modules/panelui-native/src';
+@source '../node_modules/panelui-native/src';
