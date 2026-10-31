@@ -7,7 +7,7 @@ import { compareAppVersions } from './app-update.ts';
  * can unit-test it.
  */
 
-export type WhatsNewIconKey = 'book' | 'device' | 'layout' | 'messages';
+export type WhatsNewIconKey = 'markdown' | 'sort' | 'userEdit';
 
 export interface WhatsNewHighlight {
   /** Selects `highlights.<id>.title` / `.body` in the `whatsNew` namespace. */

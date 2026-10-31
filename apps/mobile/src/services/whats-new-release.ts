@@ -10,11 +10,10 @@ import type { WhatsNewRelease } from '@/services/whats-new';
  * copy.
  */
 export const WHATS_NEW_RELEASE = {
-  version: '2.6.0',
+  version: '2.7.0',
   highlights: [
-    { id: 'foldable', icon: 'device' },
-    { id: 'pages', icon: 'layout' },
-    { id: 'messages', icon: 'messages' },
-    { id: 'reader', icon: 'book' },
+    { id: 'markdown', icon: 'markdown' },
+    { id: 'sorting', icon: 'sort' },
+    { id: 'rename', icon: 'userEdit' },
   ],
 } as const satisfies WhatsNewRelease;

@@ -2,48 +2,40 @@ import type { TranslationShape } from '../resource-shape.ts';
 
 export const zhCNWhatsNew = {
   title: "What's New",
-  subtitle: '为每一块屏幕而设计。',
+  subtitle: '一些修复和新的小功能。',
   continue: '继续',
   highlights: {
-    foldable: {
-      title: '平板与可折叠设备',
-      body: '自动切换为双栏版面，充分利用大屏空间。',
+    markdown: {
+      title: 'Markdown 编辑',
+      body: '支持 Markdown 发帖，可切换预览排版效果。',
     },
-    pages: {
-      title: '全新设计的页面',
-      body: '书籍详情、社区与公告页展示更清晰的信息，帖子图片可全屏浏览。',
+    sorting: {
+      title: '社区排序',
+      body: '记住上次选择的排序方式。',
     },
-    messages: {
-      title: '私信',
-      body: '支持一对一交流。',
-    },
-    reader: {
-      title: '阅读',
-      body: '分页模式显示准确页码，插图自动居中，漫画支持多种适配方式。',
+    rename: {
+      title: '改名卡',
+      body: '支持使用改名卡修改用户名。',
     },
   },
 };
 
 export const zhTWWhatsNew: TranslationShape<typeof zhCNWhatsNew> = {
   title: "What's New",
-  subtitle: '為每一塊螢幕而設計。',
+  subtitle: '一些修正和新的小功能。',
   continue: '繼續',
   highlights: {
-    foldable: {
-      title: '平板與摺疊裝置',
-      body: '自動切換為雙欄版面，充分運用大螢幕空間。',
+    markdown: {
+      title: 'Markdown 編輯',
+      body: '支援 Markdown 發文，可切換預覽排版效果。',
     },
-    pages: {
-      title: '全新設計的頁面',
-      body: '書籍詳情、社群與公告頁呈現更清晰的資訊，貼文圖片可全螢幕瀏覽。',
+    sorting: {
+      title: '社群排序',
+      body: '記住上次選擇的排序方式。',
     },
-    messages: {
-      title: '私訊',
-      body: '支援一對一交流。',
-    },
-    reader: {
-      title: '閱讀',
-      body: '分頁模式顯示準確頁碼，插圖自動置中，漫畫支援多種縮放方式。',
+    rename: {
+      title: '改名卡',
+      body: '支援使用改名卡修改使用者名稱。',
     },
   },
 };
