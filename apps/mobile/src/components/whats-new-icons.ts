@@ -1,8 +1,7 @@
 import {
-  IconBook2,
-  IconDeviceMobileRotated,
-  IconLayoutDashboard,
-  IconMessages,
+  IconMarkdown,
+  IconSortDescending,
+  IconUserEdit,
 } from '@tabler/icons-react-native';
 import type { ComponentType } from 'react';
 
@@ -20,8 +19,7 @@ type WhatsNewIcon = ComponentType<{
  * typecheck error.
  */
 export const WHATS_NEW_ICONS: Readonly<Record<WhatsNewIconKey, WhatsNewIcon>> = {
-  book: IconBook2,
-  device: IconDeviceMobileRotated,
-  layout: IconLayoutDashboard,
-  messages: IconMessages,
+  markdown: IconMarkdown,
+  sort: IconSortDescending,
+  userEdit: IconUserEdit,
 };
